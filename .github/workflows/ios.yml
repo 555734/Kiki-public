@@ -1,0 +1,86 @@
+name: iOS
+
+# Builds an UNSIGNED .ipa on a macOS runner and attaches it to a release.
+#
+# Manual only. Codemagic is the normal path for signed/TestFlight builds; this
+# workflow is kept only as an explicit fallback for an unsigned diagnostic IPA.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot and export templates
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/Library/Application Support/Godot/export_templates
+          key: godot-ios-${{ env.GODOT_VERSION }}-stable
+
+      - name: Download Godot and iOS export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          curl -sSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q -j /tmp/templates.tpz 'templates/ios*' \
+            -d "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          rm -f /tmp/godot.zip /tmp/templates.tpz
+
+      - name: Build the unsigned .ipa
+        run: |
+          export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
+          [ -x "$GODOT" ] || { echo "Godot is not where expected:"; find ~/godot -maxdepth 3; exit 1; }
+          xcodebuild -version
+          tools/build-ios.sh
+
+      - name: Collect build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: |
+            build/ios/xcode/*.log
+          if-no-files-found: warn
+
+      - name: Name this build
+        id: name
+        run: echo "tag=ios-build-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: side-sky-ipa
+          path: build/ios/*.ipa
+          if-no-files-found: error
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.name.outputs.tag }}"
+          NOTES=$(cat <<'EOF'
+          **Unsigned iOS build.** It will not install by tapping it.
+
+          Install it with AltStore or Sideloadly, which re-sign the app with
+          your own Apple ID. TestFlight builds should use Codemagic instead.
+          EOF
+          )
+          gh release create "$TAG" build/ios/*.ipa \
+            --title "SIDE / SKY $TAG (iOS)" --notes "$NOTES" || \
+          gh release upload "$TAG" build/ios/*.ipa --clobber
+          echo "Release: $(gh release view "$TAG" --json url -q .url)"

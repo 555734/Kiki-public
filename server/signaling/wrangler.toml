@@ -1,0 +1,23 @@
+name = "side-sky-signalling"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# The room is a Durable Object so both peers reach the same instance no matter
+# which edge location they hit. WebSocket hibernation keeps an idle room free.
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+# Public clients cannot safely carry a reusable secret, so the endpoint is
+# defended with a per-IP Durable Object rate limiter instead of URL secrecy.
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["RateLimiter"]

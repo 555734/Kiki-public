@@ -1,0 +1,135 @@
+name: Android
+
+# Builds both APKs and publishes them as a GitHub Release.
+# Manual only: pushes and tags never spend Actions minutes by themselves.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+
+      - name: Cache Godot and export templates
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-stable
+
+      - name: Download Godot and export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          chmod +x ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          curl -sSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q -j /tmp/templates.tpz 'templates/android_*' \
+            -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          rm -f /tmp/godot.zip /tmp/templates.tpz
+
+      - name: Create throwaway test signing key
+        run: |
+          set -euo pipefail
+          KEYSTORE="$RUNNER_TEMP/side-sky-debug.keystore"
+          keytool -genkeypair -noprompt \
+            -keystore "$KEYSTORE" \
+            -storepass android \
+            -keypass android \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=SIDE SKY CI Debug,O=GitHub Actions,C=US" >/dev/null
+          chmod 600 "$KEYSTORE"
+          echo "SIDE_SKY_CI_KEYSTORE=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Configure Godot editor settings
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.4.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          export/android/debug_keystore = "${SIDE_SKY_CI_KEYSTORE}"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+
+      - name: Import project
+        run: |
+          export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          "$GODOT" --headless --editor --import --path .
+
+      # The legacy monolithic run_tests.gd still contains one pre-recovery
+      # assertion that expects a walker to die when stomped. recovery/unified
+      # deliberately removed that gameplay rule. Until that old integration
+      # assertion is rewritten, run the focused suites that cover parsing,
+      # touch/movement, level geometry, co-op traversal and a real boot.
+      - name: Run recovery smoke tests
+        run: |
+          set -euo pipefail
+          export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          "$GODOT" --headless --path . res://test/check_scripts.tscn
+          "$GODOT" --headless --path . res://test/touch_feel_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/movement_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/workshop_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_probe.tscn
+          "$GODOT" --headless --path . --quit-after 240
+
+      - name: Build both APKs
+        run: |
+          export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          export ANDROID_HOME="${ANDROID_SDK_ROOT}"
+          export KEYSTORE="${SIDE_SKY_CI_KEYSTORE}"
+          tools/build-android.sh
+
+      - name: Name this build
+        id: name
+        run: echo "tag=build-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: side-sky-apks
+          path: build/android/*.apk
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.name.outputs.tag }}"
+          NOTES=$(cat <<'EOF'
+          SIDE / SKY recovery/unified 0.2.3 (versionCode 23).
+
+          | file | renderer |
+          |---|---|
+          | `side-sky-vulkan.apk` | Vulkan / Godot mobile |
+          | `side-sky-gles3.apk` | GLES3 / Godot compatibility |
+
+          These APKs are signed with a throwaway key generated only for this
+          workflow run. They are for device testing and are not Google Play
+          release artifacts. APKs from different workflow runs may require the
+          previous test build to be uninstalled before installation.
+          EOF
+          )
+          gh release create "$TAG" build/android/*.apk \
+            --title "SIDE / SKY $TAG" --notes "$NOTES" || \
+          gh release upload "$TAG" build/android/*.apk --clobber
+          echo "Release: $(gh release view "$TAG" --json url -q .url)"

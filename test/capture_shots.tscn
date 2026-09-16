@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bsidesky0cap"]
+
+[ext_resource type="Script" path="res://test/capture_shots.gd" id="1"]
+
+[node name="CaptureShots" type="Node"]
+script = ExtResource("1")

@@ -1,0 +1,83 @@
+# Godot 4
+.godot/
+.import/
+export.cfg
+export_presets.cfg.local
+*.translation
+# SVG import metadata has never been tracked here: the art is vector, the
+# settings are the importer's defaults, and every build path (verify.sh,
+# android.yml, codemagic.yaml) runs its own --editor import pass before
+# exporting. The .uid files next to scripts ARE tracked -- those are identities
+# scenes refer to, not derived settings.
+*.svg.import
+
+# Exported builds
+build/
+bin/
+*.apk
+*.aab
+*.ipa
+# ...except the hand-off builds in dist/, which are deliberately tracked while
+# GitHub Actions cannot publish Releases for this repository. See dist/README.md.
+!dist/*.apk
+*.xcodeproj/
+*.xcworkspace/
+
+# Signalling server deps and local state
+server/signaling/node_modules/
+server/signaling/.wrangler/
+server/signaling/package-lock.json
+server/signaling/.dev.vars
+server/signaling/.dev.vars.*
+!server/signaling/.dev.vars.example
+server/signaling/.env
+server/signaling/.env.*
+!server/signaling/.env.example
+
+# Secrets / credentials / signing material. These must never be committed.
+# If one was committed previously, also rotate/revoke it and clean history
+# before changing the repository visibility to public.
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.p8
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+*.csr
+*.der
+*.mobileprovision
+*.provisionprofile
+*.jks
+*.keystore
+secrets/
+credentials/
+service-account*.json
+credentials*.json
+GoogleService-Info.plist
+google-services.json
+.npmrc
+.pypirc
+.netrc
+
+# Local Android test signing keys. Build scripts create a machine-local key
+# when none is supplied explicitly; no reusable private key belongs in Git.
+ci/*.keystore
+ci/*.jks
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Python caches
+__pycache__/
+*.py[cod]

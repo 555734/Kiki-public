@@ -1,0 +1,192 @@
+# SIDE / SKY — Codemagic iOS builds.
+# Source of truth for this recovery build: recovery/unified.
+# There is intentionally no `triggering:` block: every Codemagic build is manual
+# so a push cannot spend macOS minutes or submit anything to Apple unexpectedly.
+
+workflows:
+  ios-unsigned:
+    name: "iOS — 自分の端末用（未署名・TestFlightには使えません）"
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      xcode: latest
+      vars:
+        GODOT_VERSION: "4.4.1"
+
+    cache:
+      cache_paths:
+        - $HOME/godot
+        - $HOME/Library/Application Support/Godot/export_templates
+
+    scripts:
+      - name: Report the toolchain
+        script: |
+          set -euo pipefail
+          sw_vers
+          xcodebuild -version
+          echo "build dir: $CM_BUILD_DIR"
+
+      - name: Install Godot and iOS export templates
+        script: |
+          set -euo pipefail
+          TEMPLATES="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          if [ -x "$HOME/godot/Godot.app/Contents/MacOS/Godot" ] && [ -f "$TEMPLATES/ios.zip" ]; then
+            echo "cache hit"
+            exit 0
+          fi
+          mkdir -p "$HOME/godot" "$TEMPLATES"
+          curl -fsSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q -o /tmp/godot.zip -d "$HOME/godot"
+          curl -fsSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q -o -j /tmp/templates.tpz 'templates/ios*' -d "$TEMPLATES"
+          rm -f /tmp/godot.zip /tmp/templates.tpz
+          [ -f "$TEMPLATES/ios.zip" ] || { echo "iOS export template missing"; exit 1; }
+
+      - name: Build unsigned IPA
+        script: |
+          set -euo pipefail
+          export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
+          xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
+          chmod +x "$GODOT"
+          "$GODOT" --version
+          tools/build-ios.sh
+
+    artifacts:
+      - build/ios/*.ipa
+      - build/ios/xcode/*.log
+
+  ios-testflight:
+    name: "iOS — TestFlight に提出（署名付き）"
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      app_store_connect: SIDE_SKY_ASC
+
+    environment:
+      xcode: latest
+      groups:
+        - signing
+      vars:
+        GODOT_VERSION: "4.4.1"
+        APPLE_TEAM_ID: "6TGM565HX8"
+        BUNDLE_ID: "com.sasakiful.sidesky"
+        APP_VERSION: "0.2.3"
+
+    cache:
+      cache_paths:
+        - $HOME/godot
+        - $HOME/Library/Application Support/Godot/export_templates
+        - $HOME/codemagic-signing-key.pem
+
+    scripts:
+      - name: Check App Store Connect integration
+        script: |
+          set -euo pipefail
+          sw_vers
+          xcodebuild -version
+          echo "team $APPLE_TEAM_ID / bundle $BUNDLE_ID / version $APP_VERSION / build $BUILD_NUMBER"
+          if ! app-store-connect certificates list --type IOS_DISTRIBUTION >/dev/null 2>&1; then
+            echo "App Store Connect にアクセスできません。"
+            echo "Codemagic > Teams > Integrations > Developer Portal に"
+            echo "SIDE_SKY_ASC という名前で API キーを登録してください。"
+            exit 1
+          fi
+
+      - name: Install Godot and iOS export templates
+        script: |
+          set -euo pipefail
+          TEMPLATES="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          if [ -x "$HOME/godot/Godot.app/Contents/MacOS/Godot" ] && [ -f "$TEMPLATES/ios.zip" ]; then
+            echo "cache hit"
+            exit 0
+          fi
+          mkdir -p "$HOME/godot" "$TEMPLATES"
+          curl -fsSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q -o /tmp/godot.zip -d "$HOME/godot"
+          curl -fsSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q -o -j /tmp/templates.tpz 'templates/ios*' -d "$TEMPLATES"
+          rm -f /tmp/godot.zip /tmp/templates.tpz
+          [ -f "$TEMPLATES/ios.zip" ] || { echo "iOS export template missing"; exit 1; }
+
+      - name: Fetch signing certificate and profile
+        script: |
+          set -euo pipefail
+          keychain initialize
+
+          found=$(app-store-connect bundle-ids list \
+            --bundle-id-identifier "$BUNDLE_ID" 2>/dev/null \
+            | grep -c "$BUNDLE_ID" || true)
+          if [ "$found" -eq 0 ]; then
+            echo "App ID がないので登録します: $BUNDLE_ID"
+            app-store-connect bundle-ids create "$BUNDLE_ID" \
+              --name "SIDE SKY" --platform IOS
+          fi
+
+          KEY="$HOME/codemagic-signing-key.pem"
+          if [ ! -f "$KEY" ]; then
+            echo "秘密鍵を新規生成します（初回のみ）"
+            openssl genrsa -out "$KEY" 2048
+          else
+            echo "キャッシュされた秘密鍵を使います"
+          fi
+
+          # Never revoke a certificate by guessing. Only revoke the exact id the
+          # user explicitly put in the optional signing-group variable.
+          if [ -n "${REVOKE_CERT_ID:-}" ]; then
+            echo "証明書 $REVOKE_CERT_ID を取り消します（明示指定）"
+            app-store-connect certificates delete "$REVOKE_CERT_ID" --ignore-not-found \
+              || echo "すでに取り消し済みか存在しません。続行します。"
+          fi
+
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS --type IOS_APP_STORE \
+            --certificate-key "@file:$KEY" --create
+          keychain add-certificates
+
+      - name: Export Xcode project
+        script: |
+          set -euo pipefail
+          export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
+          xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
+          chmod +x "$GODOT"
+          export BUILD_NUMBER="$BUILD_NUMBER"
+          tools/ios-identity.sh
+          rm -rf build/ios/xcode
+          mkdir -p build/ios/xcode
+          "$GODOT" --headless --editor --quit --path . >/dev/null 2>&1 || true
+          "$GODOT" --headless --path . --export-release "iOS" build/ios/xcode/side-sky.ipa 2>&1 \
+            | grep -viE "^Godot Engine|^$" || true
+          [ -d build/ios/xcode/side-sky.xcodeproj ] || {
+            echo "Godot did not write the Xcode project"
+            find build/ios/xcode -maxdepth 2
+            exit 1
+          }
+          python3 tools/ios-plist-clean.py build/ios/xcode/side-sky/side-sky-Info.plist
+
+      - name: Build and sign
+        script: |
+          set -euo pipefail
+          xcode-project use-profiles --project build/ios/xcode/side-sky.xcodeproj
+          xcode-project build-ipa \
+            --project build/ios/xcode/side-sky.xcodeproj \
+            --scheme side-sky \
+            --config Release
+
+      - name: Validate and publish to TestFlight
+        script: |
+          set -euo pipefail
+          IPA="$(find build/ios -name '*.ipa' -print -quit)"
+          [ -n "$IPA" ] || { echo "no .ipa was produced"; find build/ios -maxdepth 3; exit 1; }
+          echo "publishing $IPA"
+          app-store-connect publish \
+            --path "$IPA" \
+            --enable-package-validation
+
+    artifacts:
+      - build/ios/**/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - build/ios/xcode/*.log

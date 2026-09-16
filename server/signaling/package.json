@@ -1,0 +1,14 @@
+{
+  "name": "side-sky-signalling",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787",
+    "dev:fast": "wrangler dev --local --port 8787 --var ROOM_IDLE_MS:2000",
+    "deploy": "wrangler deploy",
+    "test": "node test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
