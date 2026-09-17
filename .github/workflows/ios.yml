@@ -1,8 +1,9 @@
 name: iOS
 
-# Builds an UNSIGNED .ipa on a macOS runner and publishes it as a GitHub Release.
-# The private source branch is recovery/unified; this workflow is intended to
-# run automatically only after that snapshot is synced to Kiki-public/main.
+# Public CI has two modes:
+# - without App Store Connect secrets: build the proven unsigned IPA fallback
+# - with ASC_KEY_ID / ASC_ISSUER_ID / ASC_PRIVATE_KEY: cloud-sign, validate,
+#   and upload a new build to App Store Connect automatically
 on:
   push:
     branches:
@@ -15,6 +16,12 @@ on:
       - "tools/**"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
+    inputs:
+      submit_to_app_store_connect:
+        description: "Cloud-sign and upload to App Store Connect when credentials are available"
+        required: false
+        default: true
+        type: boolean
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -29,6 +36,13 @@ env:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      APPLE_TEAM_ID: "6TGM565HX8"
+      BUNDLE_ID: "com.sasakiful.sidesky"
+      APP_VERSION: "0.2.3"
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,8 +68,42 @@ jobs:
             -d "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           rm -f /tmp/godot.zip /tmp/templates.tpz
 
-      - name: Build the unsigned .ipa
+      - name: Select iOS distribution mode
+        id: asc
+        env:
+          MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect }}
         run: |
+          set -euo pipefail
+          ready=true
+          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_PRIVATE_KEY:-}" ]; then
+            ready=false
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "${MANUAL_SUBMIT:-true}" != "true" ]; then
+            ready=false
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          if [ "$ready" = true ]; then
+            echo "App Store Connect credentials found: this run will cloud-sign and upload."
+          else
+            echo "App Store Connect submission is disabled or credentials are missing."
+            echo "Falling back to the unsigned IPA build."
+          fi
+
+      - name: Build, sign, and upload to App Store Connect
+        if: steps.asc.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
+          [ -x "$GODOT" ] || { echo "Godot is not where expected:"; find ~/godot -maxdepth 3; exit 1; }
+          xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
+          chmod +x "$GODOT"
+          xcodebuild -version
+          bash tools/submit-ios-appstore.sh
+
+      - name: Build the unsigned IPA fallback
+        if: steps.asc.outputs.ready != 'true'
+        run: |
+          set -euo pipefail
           export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
           [ -x "$GODOT" ] || { echo "Godot is not where expected:"; find ~/godot -maxdepth 3; exit 1; }
           xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
@@ -70,19 +118,25 @@ jobs:
           name: ios-build-logs
           path: |
             build/ios/xcode/*.log
+            build/ios/appstore/*.log
+            build/ios/appstore/*.plist
           if-no-files-found: warn
 
-      - name: Name this build
+      - name: Name unsigned fallback build
+        if: steps.asc.outputs.ready != 'true'
         id: name
         run: echo "tag=ios-build-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload unsigned fallback artifact
+        if: steps.asc.outputs.ready != 'true'
+        uses: actions/upload-artifact@v4
         with:
           name: side-sky-ipa
-          path: build/ios/*.ipa
+          path: build/ios/side-sky-unsigned.ipa
           if-no-files-found: error
 
-      - name: Publish release
+      - name: Publish unsigned fallback release
+        if: steps.asc.outputs.ready != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -91,12 +145,21 @@ jobs:
           NOTES=$(cat <<'EOF'
           **Unsigned iOS build.** It will not install by tapping it.
 
-          Install it with AltStore or Sideloadly, which re-sign the app with
-          your own Apple ID. TestFlight builds still require Apple signing
-          credentials and are kept separate from this public CI workflow.
+          App Store Connect credentials were not used for this run, so this is
+          the unsigned fallback artifact rather than a TestFlight submission.
           EOF
           )
-          gh release create "$TAG" build/ios/*.ipa \
+          gh release create "$TAG" build/ios/side-sky-unsigned.ipa \
             --title "SIDE / SKY $TAG (iOS)" --notes "$NOTES" || \
-          gh release upload "$TAG" build/ios/*.ipa --clobber
+          gh release upload "$TAG" build/ios/side-sky-unsigned.ipa --clobber
           echo "Release: $(gh release view "$TAG" --json url -q .url)"
+
+      - name: Summarize App Store Connect submission
+        if: steps.asc.outputs.ready == 'true' && success()
+        run: |
+          {
+            echo "## iOS submission accepted"
+            echo
+            echo "The signed build was uploaded to App Store Connect."
+            echo "Apple still has to process it before it appears under Builds/TestFlight."
+          } >> "$GITHUB_STEP_SUMMARY"
