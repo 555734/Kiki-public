@@ -120,6 +120,15 @@ func _ready() -> void:
 	hud.input_hub = input_hub
 	add_child(hud)
 
+	# One stage's HUD, built only for that stage. A boss bar that existed
+	# everywhere would be an empty rectangle over five stages that do not have
+	# a boss, and the alternative -- a bar that hides itself -- is a thing that
+	# can be wrong rather than a thing that cannot exist.
+	if Stage.is_keeper():
+		var boss_bar := BossBar.new()
+		boss_bar.name = "BossBar"
+		add_child(boss_bar)
+
 	Events.runner_died.connect(_on_runner_died)
 	Events.checkpoint_reached.connect(_on_checkpoint)
 	Events.ability_used.connect(_on_ability_used)

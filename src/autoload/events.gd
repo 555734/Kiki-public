@@ -73,6 +73,16 @@ signal enemy_killed(enemy: Node2D, by: String)
 ## only: whether the runner has done enough to open it is a judgement about the
 ## world, and two devices judging separately is two answers. See Shieldbearer.
 signal weak_point_opened(enemy: Node2D, until_tick: int)
+## The Keeper's state machine moved on: it is winding up, charging, reeling or
+## falling. Raised on BOTH devices -- the host from its own machine, the
+## guardian's from the packet that tells it what the host decided -- because the
+## drawing, the sound and the bar all hang off it. See Keeper.
+signal keeper_state_changed(keeper: Node2D)
+## Two wounds in: the fight has moved into the next act, and the arena loses a
+## pillar. HOST-decided, like every judgement about the world.
+signal keeper_act_changed(act: int)
+## Something very heavy hit something very solid. For the dust and the shake.
+signal keeper_slammed(world_position: Vector2)
 signal switch_activated(switch_id: String)
 signal checkpoint_reached(index: int)
 ## Every enemy, gimmick and pickup in the stage has just been thrown away and

@@ -25,6 +25,11 @@ func _draw() -> void:
 			"grave": _grave(item["pos"], float(item.get("scale", 1.0)))
 			"banner": _banner(item["pos"], bool(item.get("flip", false)))
 			"crow": _crow(item["pos"], bool(item.get("flip", false)))
+			"brazier": _brazier(item["pos"], float(item.get("scale", 1.0)))
+			"rubble": _rubble(item["pos"], float(item.get("scale", 1.0)))
+			"keel": _keel(item["pos"], float(item.get("width", 240.0)))
+			"streamer": _streamer(item["pos"], float(item.get("scale", 1.0)))
+			"arch": _arch(item["pos"], float(item.get("scale", 1.0)))
 
 func _pipe(base: Vector2, size: Vector2) -> void:
 	var rect := Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y)
@@ -268,3 +273,148 @@ func _crow(base: Vector2, flip: bool) -> void:
 		base + Vector2(20*d,-9), base + Vector2(34*d,-3),
 		base + Vector2(7*d,2), base + Vector2(-9*d,0)])
 	draw_colored_polygon(pts, Color("15181b"))
+
+## The Keeper's arena, which is dressed with almost nothing (see
+## level_keeper_data.decor: in a fight whose whole question is "is there
+## something between us", a decorative barrel is a cruel joke). These two are
+## what is left -- a fire, which lights the floor, and rubble, which is flat.
+func _brazier(base: Vector2, scale: float) -> void:
+	if Art.draw_sprite(self, "keeper_brazier", base, 150.0 * scale):
+		return
+	var s := scale
+	# Three legs.
+	for dx in [-20.0, 0.0, 20.0]:
+		draw_line(base + Vector2(dx * s, 0.0), base + Vector2(0.0, -62.0 * s),
+			Color("2b2724"), 6.0 * s)
+	var bowl := Rect2(base.x - 30.0 * s, base.y - 84.0 * s, 60.0 * s, 24.0 * s)
+	DrawUtil.rounded_rect(self, bowl, 6.0 * s, Color("3a332c"))
+	draw_rect(bowl, Color("221e1a"), false, 2.0)
+	# Coals, then a small steady flame. Small on purpose: a bonfire here would
+	# throw more light than the backdrop it is standing against.
+	draw_circle(base + Vector2(0.0, -80.0 * s), 22.0 * s, Color(1.0, 0.45, 0.12, 0.30))
+	for i in range(4):
+		draw_circle(base + Vector2((float(i) - 1.5) * 13.0 * s, -80.0 * s),
+			7.0 * s, Color("e8761f"))
+	draw_circle(base + Vector2(0.0, -96.0 * s), 13.0 * s, Color(1.0, 0.68, 0.22, 0.55))
+	draw_circle(base + Vector2(0.0, -101.0 * s), 7.0 * s, Color(1.0, 0.90, 0.60, 0.70))
+
+func _rubble(base: Vector2, scale: float) -> void:
+	if Art.draw_sprite(self, "keeper_rubble", base, 74.0 * scale):
+		return
+	var s := scale
+	var stone := Color("4b524d")
+	var edge := Color("343a36")
+	for i in range(5):
+		var w := (26.0 + float((i * 7) % 18)) * s
+		var h := (14.0 + float((i * 5) % 12)) * s
+		var r := Rect2(base.x + (float(i) - 2.2) * 24.0 * s, base.y - h, w, h)
+		draw_rect(r, stone)
+		draw_rect(r, edge, false, 2.0)
+	draw_line(base + Vector2(-46.0 * s, -6.0 * s), base + Vector2(30.0 * s, -30.0 * s),
+		Color("5a4a36"), 6.0 * s)
+
+## Stage 1-S. Three pieces, and the first one is not decoration at all.
+##
+## An island in this game is a Rect2 like every other piece of ground, and a
+## Rect2 drawn in a blue room is a platform, not a thing hanging in the sky.
+## The keel is what makes the difference: `pos` is the island's BOTTOM edge and
+## `width` its width, and the taper under it is the whole claim that there is
+## nothing below the runner. Without it the stage reads as 1-1 with the ground
+## deleted.
+func _keel(base: Vector2, width: float) -> void:
+	var depth := clampf(width * 0.62, 90.0, 240.0)
+	if Art.draw_stretched(self, "sky_keel",
+			Rect2(base.x - width * 0.5, base.y, width, depth)):
+		_keel_chains(base, width, depth)
+		return
+	var stone := Color("7b8291")
+	var dark := Color("4e5666")
+	# A wedge: full width at the island, a quarter of it at the point. Drawn as
+	# one polygon so the silhouette stays clean at any width.
+	var half := width * 0.5
+	var point := width * 0.13
+	var wedge := PackedVector2Array([
+		Vector2(base.x - half, base.y),
+		Vector2(base.x + half, base.y),
+		Vector2(base.x + point, base.y + depth * 0.82),
+		Vector2(base.x + point * 0.35, base.y + depth),
+		Vector2(base.x - point * 0.45, base.y + depth * 0.94),
+		Vector2(base.x - point, base.y + depth * 0.7),
+	])
+	draw_colored_polygon(wedge, stone)
+	draw_polyline(wedge, dark, 3.0, true)
+	# Strata, following the taper, so it reads as cut rock rather than a cone.
+	for i in range(4):
+		var t := (float(i) + 1.0) / 5.0
+		var w := lerpf(half, point, t)
+		var y := base.y + depth * t
+		draw_line(Vector2(base.x - w * 0.92, y), Vector2(base.x + w * 0.92, y),
+			Color(dark, 0.45), 2.5)
+	_keel_chains(base, width, depth)
+
+## Broken chains under an island. A landmark AND the one detail that says
+## somebody built this road, rather than it having always been here.
+func _keel_chains(base: Vector2, width: float, depth: float) -> void:
+	for i in range(2):
+		var x := base.x + width * (-0.28 + 0.56 * float(i))
+		var drop := depth * (0.55 + 0.25 * float(i % 2))
+		draw_line(Vector2(x, base.y), Vector2(x + 6.0, base.y + drop),
+			Color("3c3b38"), 4.0)
+		for link in range(3):
+			var t := (float(link) + 1.0) / 4.0
+			draw_circle(Vector2(lerpf(x, x + 6.0, t), base.y + drop * t), 4.0,
+				Color("57544e"))
+
+## A pole with three streamers, blown flat. A landmark the pair can NAME, and
+## the only thing in the stage that shows which way the air is moving.
+func _streamer(base: Vector2, scale: float) -> void:
+	if Art.draw_sprite(self, "sky_streamer", base, 190.0 * scale):
+		return
+	var s := scale
+	var top := base + Vector2(0.0, -150.0 * s)
+	draw_line(base, top, Color("6c6355"), 5.0 * s)
+	# The cairn at the foot, so the pole is planted rather than floating.
+	for i in range(3):
+		draw_circle(base + Vector2((float(i) - 1.0) * 11.0 * s, -5.0 * s),
+			8.0 * s, Color("8a8fa0"))
+	var cloth := [Color("e8c06a"), Color("dfa08c"), Color("cdb89a")]
+	for i in range(3):
+		var y := top.y + 12.0 * s + float(i) * 15.0 * s
+		var length := (74.0 - float(i) * 12.0) * s
+		var tail := PackedVector2Array([
+			Vector2(top.x + 3.0 * s, y),
+			Vector2(top.x + length, y - 5.0 * s),
+			Vector2(top.x + length, y + 8.0 * s),
+			Vector2(top.x + 3.0 * s, y + 10.0 * s),
+		])
+		draw_colored_polygon(tail, cloth[i])
+
+## A half-fallen gate arch. The big landmark: unevenly broken on purpose, so
+## "the second arch" is a thing two people can agree about out loud
+## (implementation-plan.md 6.1).
+func _arch(base: Vector2, scale: float) -> void:
+	var w := 220.0 * scale
+	var h := 260.0 * scale
+	if Art.draw_stretched(self, "sky_arch",
+			Rect2(base.x - w * 0.5, base.y - h, w, h)):
+		return
+	var stone := Color("9aa0ac")
+	var dark := Color("5f6673")
+	var pier := w * 0.22
+	# The tall pier, the short broken one, and the lintel across the top.
+	draw_rect(Rect2(base.x - w * 0.5, base.y - h, pier, h), stone)
+	draw_rect(Rect2(base.x - w * 0.5, base.y - h, pier, h), dark, false, 3.0)
+	draw_rect(Rect2(base.x + w * 0.5 - pier, base.y - h * 0.74, pier, h * 0.74),
+		stone)
+	draw_rect(Rect2(base.x + w * 0.5 - pier, base.y - h * 0.74, pier, h * 0.74),
+		dark, false, 3.0)
+	var lintel := Rect2(base.x - w * 0.5 - 8.0, base.y - h - 22.0, w * 0.86, 24.0)
+	draw_rect(lintel, stone)
+	draw_rect(lintel, dark, false, 3.0)
+	# A carved band, and one crack, so it is a ruin rather than a doorway.
+	draw_line(Vector2(lintel.position.x + 6.0, lintel.position.y + 12.0),
+		Vector2(lintel.position.x + lintel.size.x - 6.0, lintel.position.y + 12.0),
+		Color(dark, 0.7), 2.5)
+	draw_line(Vector2(base.x + w * 0.5 - pier * 0.5, base.y - h * 0.74),
+		Vector2(base.x + w * 0.5 - pier * 0.2, base.y - h * 0.58),
+		Color(dark, 0.8), 2.5)

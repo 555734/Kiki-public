@@ -1,9 +1,24 @@
 name: Android
 
 # Builds both APKs and publishes them as a GitHub Release.
-# Manual only: pushes and tags never spend Actions minutes by themselves.
+# The private source branch is recovery/unified; this workflow is intended to
+# run automatically only after that snapshot is synced to Kiki-public/main.
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "project.godot"
+      - "export_presets.cfg"
+      - "tools/**"
+      - ".github/workflows/android.yml"
   workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -77,11 +92,6 @@ jobs:
           export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
           "$GODOT" --headless --editor --import --path .
 
-      # The legacy monolithic run_tests.gd still contains one pre-recovery
-      # assertion that expects a walker to die when stomped. recovery/unified
-      # deliberately removed that gameplay rule. Until that old integration
-      # assertion is rewritten, run the focused suites that cover parsing,
-      # touch/movement, level geometry, co-op traversal and a real boot.
       - name: Run recovery smoke tests
         run: |
           set -euo pipefail
@@ -116,7 +126,7 @@ jobs:
           set -euo pipefail
           TAG="${{ steps.name.outputs.tag }}"
           NOTES=$(cat <<'EOF'
-          SIDE / SKY recovery/unified 0.2.3 (versionCode 23).
+          SIDE / SKY automated Android test build.
 
           | file | renderer |
           |---|---|

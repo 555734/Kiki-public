@@ -30,9 +30,17 @@ func _ready() -> void:
 	layer = -10
 	_gradient = GradientTexture2D.new()
 	var g := Gradient.new()
-	g.set_color(0, Balance.C_SKY_TOP)
-	g.set_color(1, Balance.C_SKY_BOTTOM)
-	g.add_point(0.55, Balance.C_SKY_TOP.lerp(Balance.C_SKY_BOTTOM, 0.55))
+	# 1-S is above the clouds at dawn: dark blue overhead going to gold at the
+	# cloud line, which is the reverse of every other stage's pale-at-the-bottom
+	# daylight.
+	if Stage.is_sky():
+		g.set_color(0, Balance.C_DAWN_TOP)
+		g.set_color(1, Balance.C_DAWN_LOW)
+		g.add_point(0.62, Balance.C_DAWN_MID)
+	else:
+		g.set_color(0, Balance.C_SKY_TOP)
+		g.set_color(1, Balance.C_SKY_BOTTOM)
+		g.add_point(0.55, Balance.C_SKY_TOP.lerp(Balance.C_SKY_BOTTOM, 0.55))
 	_gradient.gradient = g
 	_gradient.fill_from = Vector2(0, 0)
 	_gradient.fill_to = Vector2(0, 1)

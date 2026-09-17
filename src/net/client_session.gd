@@ -453,6 +453,26 @@ func _handle(packet: Dictionary) -> void:
 				if e.get("net_id") != null and int(e.get("net_id")) == who \
 						and e.has_method("open_until"):
 					e.call("open_until", until_tick)
+		Protocol.Msg.BOSS:
+			var boss_id := b.get_u16()
+			var boss_state := int(b.get_u8())
+			var boss_hp := int(b.get_u8())
+			var boss_timer := float(b.get_u16()) / 1000.0
+			var boss_facing := int(b.get_8())
+			var boss_spent := b.get_u8() == 1
+			var boss: Node2D = _by_net_id.get(boss_id)
+			# Looked up by group as well, because the boss is rebuilt on every
+			# respawn and the id table is only refilled on the next
+			# level_rebuilt -- a packet that lands in between must not be
+			# dropped on the floor of a fight that is still going on.
+			if boss == null or not is_instance_valid(boss):
+				for e in get_tree().get_nodes_in_group("keeper"):
+					if e is Node2D and int(e.get("net_id")) == boss_id:
+						boss = e
+						break
+			if boss != null and is_instance_valid(boss) and boss.has_method("apply_net_state"):
+				boss.call("apply_net_state", boss_state, boss_hp, boss_timer, boss_facing)
+				boss.call("set_spent", boss_spent)
 		Protocol.Msg.HOLO_KILL:
 			_kill_hologram(int(b.get_u32()))
 		Protocol.Msg.REJECT:

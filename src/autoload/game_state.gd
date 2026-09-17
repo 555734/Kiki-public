@@ -15,6 +15,16 @@ var stage_start_position: Vector2 = Vector2.ZERO
 ## them. It is also what a reconnecting guardian is sent so their screen agrees.
 var crystals_taken: Dictionary = {}
 
+## The Keeper's remaining wounds, or -1 before the fight has started.
+##
+## Held here for the same reason crystals_taken is: a respawn frees the whole
+## dynamic layer and builds it again, so a boss that remembered its own damage
+## would come back whole. Written only when an ACT changes, which is what makes
+## a death cost at most the two wounds of the act it happened in -- a boss that
+## fully heals would throw away six cycles for one mistake, and this game
+## returns the runner in 0.45s precisely so that mistakes stay small.
+var boss_hp: int = -1
+
 var deaths: int = 0
 var rescues: int = 0          ## runner landed on a platform placed mid-air
 ## Graded catches, indexed by tier. The clear screen reports the best one,
@@ -73,6 +83,7 @@ func reset_run(start_position: Vector2) -> void:
 	enemies_sniped = 0
 	enemies_stomped = 0
 	shots_blocked = 0
+	boss_hp = -1
 	elapsed = 0.0
 	running = true
 

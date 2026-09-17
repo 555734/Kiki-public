@@ -64,7 +64,10 @@ var visual: Node2D = null
 
 func _ready() -> void:
 	collision_layer = LAYER_RUNNER
-	collision_mask = LAYER_TERRAIN | LAYER_HOLOGRAM
+	# Barricades are terrain as far as the runner is concerned -- they can be
+	# hopped and stood on -- but they are NOT on the terrain layer, because a
+	# walking Keeper has to step over one. See Barricade and Balance.LAYER_BARRICADE.
+	collision_mask = LAYER_TERRAIN | LAYER_HOLOGRAM | Balance.LAYER_BARRICADE
 	floor_snap_length = 8.0
 	floor_max_angle = deg_to_rad(50.0)
 

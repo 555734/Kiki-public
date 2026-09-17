@@ -1696,6 +1696,18 @@ func _test_assets() -> void:
 	var gone: Array = Art.missing()
 	check(gone.is_empty(), "missing art files: %s" % ", ".join(PackedStringArray(gone)))
 
+	# Art that is registered but has not been drawn yet (Art.PENDING) is exempt
+	# from the line above, so the exemption itself is what needs auditing --
+	# otherwise a key stays forgiven forever and the real check is off for it.
+	var typos: Array = Art.pending_unknown()
+	check(typos.is_empty(),
+		"Art.PENDING names keys that are not in the manifest: %s"
+			% ", ".join(PackedStringArray(typos)))
+	var arrived: Array = Art.pending_but_present()
+	check(arrived.is_empty(),
+		"art has arrived for these -- delete them from Art.PENDING: %s"
+			% ", ".join(PackedStringArray(arrived)))
+
 	# The fonts must be real font resources, not the fallback stand-in.
 	var ui_font: Font = Art.font(Art.FONT_UI)
 	check(ui_font != null and ui_font != ThemeDB.fallback_font,

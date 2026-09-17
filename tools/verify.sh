@@ -82,6 +82,23 @@ step "the shapes that are not open ground"
 # ceilings and moving floors that it can.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/workshop_probe.tscn
 
+step "can two people get across the open sky"
+# The flight stage. Its claims are arcs and it has more of them than any other
+# stage: how far a launch carries, how far a BRAKED one carries, how high a
+# column is worth, and where the arc through one actually comes down. Every
+# section is then flown. The first layout of 1-S put section 3's landing 400px
+# from where the runner lands, and this is what said so.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/sky_probe.tscn
+
+step "can two people beat the Keeper"
+# The boss stage. Its claims are arcs too -- how long a jump keeps the runner
+# above the charge, and how long the charge takes to pass under them -- so both
+# halves of the dodge are flown here rather than integrated. The first version
+# of 1-B failed this file on "the runner reaches cover inside the wind-up",
+# having watched the runner sprint into the pillar they were meant to hide
+# behind; the stage was redesigned around what it said.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/keeper_probe.tscn
+
 step "can two people get through 1-C"
 # The stage's design claims are arcs, and arcs are measured here rather than
 # modelled: a closed form that skips air control got the launch wrong by a

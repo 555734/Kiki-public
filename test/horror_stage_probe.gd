@@ -19,24 +19,28 @@ func _ready() -> void:
 		check(String(Stage.enemies()[0].get("type", "")) == "sky_pursuer",
 			"the stage enemy is the horror pursuer")
 
-	# Direct --headless scene runs do not perform an editor import pass for newly
-	# added SVGs. ResourceLoader.exists() therefore reports false until Godot has
-	# imported them even though the source files are present. The Android/iOS
-	# build scripts perform that import step explicitly; this probe verifies the
-	# integrated source assets themselves are actually in the repository.
-	for path in [
-		"res://assets/bg/horror_stage_1_2.svg",
-		"res://assets/horror/pursuer.svg",
-		"res://assets/horror/platform.svg",
-		"res://assets/horror/checkpoint_off.svg",
-		"res://assets/horror/checkpoint_on.svg",
-		"res://assets/horror/gate.svg",
-		"res://assets/horror/fence.svg",
-		"res://assets/horror/thorns.svg",
-		"res://assets/horror/mud_tile.svg",
-		"res://assets/horror/moss_cap.svg",
-	]:
-		check(FileAccess.file_exists(path), "horror asset source exists: %s" % path)
+	# Every horror-skin file the registry names has to be in the repository.
+	#
+	# This used to be a hand-written list of ten paths, and it was WRONG from the
+	# moment the painted set landed: five of the .svg files it named had been
+	# replaced by .png, so this probe failed on five lines that were describing
+	# an older commit rather than anything broken. A hard-coded list of asset
+	# paths goes stale the first time anybody touches the art, which is the one
+	# thing it exists to survive -- so it asks the registry instead.
+	#
+	# Direct --headless scene runs do not run an editor import pass, so
+	# ResourceLoader.exists() can report false for a file that is right there.
+	# FileAccess is the question this probe means to ask: is it in the repo.
+	var horror_keys := 0
+	for key in Art.MANIFEST.keys():
+		if not String(key).begins_with("horror_"):
+			continue
+		horror_keys += 1
+		var path: String = Art.BASE + Art.MANIFEST[key]
+		check(FileAccess.file_exists(path),
+			"horror asset source exists: %s -> %s" % [key, path])
+	check(horror_keys >= 10,
+		"the registry still has the horror skin in it (%d keys)" % horror_keys)
 
 	var main: Node2D = MainScene.instantiate() as Node2D
 	check(main != null, "main scene instantiates")

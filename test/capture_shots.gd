@@ -9,6 +9,11 @@ extends Node
 ##       --rendering-driver opengl3 --resolution 1280x720 res://test/capture_shots.tscn
 
 const OUT_DIR := "user://shots"
+## Preloaded rather than named: the stage data scripts added after 1-1 carry no
+## class_name on purpose, so that a freshly pulled checkout does not need
+## Godot's global class cache to have been regenerated first.
+const LevelKeeperData = preload("res://src/levels/level_keeper_data.gd")
+const LevelSkyData = preload("res://src/levels/level_sky_data.gd")
 
 var main: Node2D = null
 
@@ -238,3 +243,190 @@ func _run() -> void:
 	await _aim(Vector2(760, 200))
 	await _shot("12_guardian_online_layout")
 	main.input_hub.solo_role = ""
+
+	await _the_keeper()
+	await _the_open_sky()
+
+## Stage 1-B, which needs its own world: Stage is read when the level is BUILT,
+## so switching stages means throwing this one away and building another. Four
+## shots, and they are the four states the fight asks the players to tell apart.
+##
+## This is also the only place the boss's drawing runs at all. Everything else in
+## the suite is headless, and headless never calls _draw -- so a boss bar that
+## divides by zero, a barricade whose rubble is drawn off the bottom of the
+## world, or a core drawn behind the body are all invisible to 1,500 passing
+## checks. They are visible here.
+func _the_keeper() -> void:
+	main.queue_free()
+	await _frames(3)
+	Stage.use(Stage.Which.KEEPER)
+	GameState.boss_hp = -1
+	main = load("res://src/main.tscn").instantiate()
+	add_child(main)
+	await _frames(8)
+	var panel := main.get_node_or_null("NetPanel")
+	if panel != null:
+		panel.queue_free()
+		await _frames(2)
+	main.input_hub.scripted = true
+	main._respawn_timer = -1.0
+
+	var boss: Node2D = null
+	for e in get_tree().get_nodes_in_group("keeper"):
+		if e is Node2D:
+			boss = e
+	if boss == null:
+		print("  the Keeper is missing; no boss shots")
+		return
+
+	var floor_y: float = LevelKeeperData.FLOOR
+
+	# Its own state machine, switched off. These are stills of four poses, and a
+	# Keeper that is still running is a Keeper that charges into the nearest
+	# barricade between the pose being set and the shutter opening -- which is
+	# what the first attempt captured: a "mid-charge" shot of something already
+	# reeling, twice.
+	boss.set_physics_process(false)
+
+	# The wind-up, with the charge lane drawn on the floor. The runner has a
+	# barricade behind them, which is the whole skill of the fight.
+	_seat(boss, 480.0, 760.0)
+	boss.set("facing", -1)
+	boss.call("_enter", Keeper.State.BRACE)
+	boss.set("_timer", 0.22)        # nearly out of wind-up, so the lane is lit
+	await _frames(4)
+	await _shot("19_keeper_brace")
+
+	# Mid-charge.
+	_seat(boss, 480.0, 660.0)
+	boss.set("facing", -1)
+	boss.call("_enter", Keeper.State.CHARGE)
+	await _frames(4)
+	await _shot("20_keeper_charge")
+
+	# Reeling, core open, shot clock running: the one second the guardian has.
+	_seat(boss, 520.0, 260.0)
+	boss.set("facing", 1)
+	boss.call("_enter", Keeper.State.STAGGER)
+	boss.set("_timer", 1.5)
+	main.guardian.select_slot(3)
+	await _aim(Vector2(boss.global_position.x + Balance.KEEPER_CORE_OFFSET.x,
+		boss.global_position.y + Balance.KEEPER_CORE_OFFSET.y))
+	await _frames(4)
+	await _shot("21_keeper_core_open")
+
+	# Act three: no barricades, the guardian's wall doing their job, and the
+	# ground wave that a spent charge throws.
+	GameState.boss_hp = 2
+	main.level.rebuild_dynamic()
+	await _frames(4)
+	for e in get_tree().get_nodes_in_group("keeper"):
+		if e is Node2D:
+			boss = e
+	boss.set_physics_process(false)
+	_seat(boss, 420.0, 820.0)
+	boss.set("facing", -1)
+	boss.call("_enter", Keeper.State.SLAM)
+	main.guardian.gauge = Balance.GAUGE_MAX
+	main.guardian.select_slot(2)
+	main.guardian.use_active(Vector2(250.0, floor_y - Balance.WALL_SIZE.y * 0.5))
+	# The runner up on the guardian's slab with the wave going under it: the
+	# whole of act three in one frame, and the platform doing the job this
+	# stage invented for it.
+	#
+	# The first version of this shot simply threw a wave at a runner standing on
+	# the floor, and under llvmpipe a "frame" is ~100ms, so by the time the
+	# shutter opened the wave had hit them twice and the shot was of an empty
+	# arena with a respawn pending. Which was a fair report of what the wave
+	# does, and a useless picture.
+	main.guardian.select_slot(1)
+	var deck := Vector2(420.0, floor_y - 96.0 + Balance.PLATFORM_SIZE.y * 0.5)
+	main.guardian.use_active(deck)
+	await _frames(3)
+	main.runner.global_position = Vector2(deck.x,
+		deck.y - Balance.PLATFORM_SIZE.y * 0.5 - Balance.RUNNER_SIZE.y * 0.5)
+	main.runner.velocity = Vector2.ZERO
+	# Placed by hand rather than thrown by the boss, so the wave is where the
+	# picture needs it however slow the software renderer is being today.
+	var wave := Shockwave.new()
+	wave.direction = -1
+	wave.global_position = Vector2(620.0, floor_y - Balance.SHOCKWAVE_SIZE.y * 0.5)
+	main.level.add_child(wave)
+	await _frames(3)
+	await _aim(Vector2(820.0, floor_y - 120.0))
+	await _shot("22_keeper_act_three")
+
+## Put the two of them where the shot wants them.
+##
+## A plain function rather than the lambda this started as. rebuild_dynamic()
+## frees the Keeper and makes a new one, and a lambda that captured the old one
+## kept a freed reference -- which Godot reports as "Lambda capture at index 1
+## was freed" and then assigns global_position on Nil. Passing the boss in means
+## the caller always hands over the one that exists now.
+func _seat(boss: Node2D, runner_x: float, boss_x: float) -> void:
+	if boss == null or not is_instance_valid(boss):
+		return
+	var floor_y: float = LevelKeeperData.FLOOR
+	main._respawn_timer = -1.0
+	main.runner.global_position = Vector2(runner_x, floor_y - 40.0)
+	main.runner.velocity = Vector2.ZERO
+	boss.global_position = Vector2(boss_x, floor_y - Balance.KEEPER_HITBOX.y * 0.5)
+	boss.set("velocity", Vector2.ZERO)
+	main.camera.global_position = Vector2((runner_x + boss_x) * 0.5, floor_y - 150.0)
+
+## Stage 1-S, which needs its own world for the same reason 1-B does.
+##
+## And it needs these pictures more than any other stage does, because almost
+## everything it added draws and does not otherwise run: a column is an Area-less
+## Node2D whose whole contribution is _draw, the keels under the islands are
+## decor, and headless never calls _draw at all. Sixty checks can pass on a
+## stage that renders as a blue screen.
+func _the_open_sky() -> void:
+	main.queue_free()
+	await _frames(3)
+	Stage.use(Stage.Which.SKY)
+	GameState.crystals_taken.clear()
+	main = load("res://src/main.tscn").instantiate()
+	add_child(main)
+	await _frames(8)
+	var panel := main.get_node_or_null("NetPanel")
+	if panel != null:
+		panel.queue_free()
+		await _frames(2)
+	main.input_hub.scripted = true
+	main._respawn_timer = -1.0
+
+	# The edge, with the first gap in front of it and a slab on the lip: the
+	# picture of what this stage asks for.
+	await _place(Vector2(-460.0, LevelSkyData.EDGE - 60.0))
+	main.guardian.gauge = Balance.GAUGE_MAX
+	main.guardian.select_slot(1)
+	main.guardian.use_active(Vector2(-320.0,
+		LevelSkyData.EDGE + Balance.PLATFORM_SIZE.y * 0.5))
+	await _aim(Vector2(-320.0, LevelSkyData.EDGE - 30.0))
+	await _shot("23_sky_the_edge")
+
+	# Mid-flight, on the line the crystals hang along.
+	await _place(Vector2(10.0, LevelSkyData.A - 308.0),
+		Vector2(760.0, -180.0))
+	await _aim(Vector2(300.0, LevelSkyData.A - 260.0))
+	await _shot("24_sky_in_the_air")
+
+	# The column, with the runner in it. This is the stage's one new thing and
+	# the only frame that shows what it looks like.
+	await _place(Vector2(3500.0, 240.0), Vector2(520.0, -200.0))
+	main.camera.global_position = Vector2(3480.0, 180.0)
+	await _aim(Vector2(3620.0, 120.0))
+	await _shot("25_sky_the_column")
+
+	# The gates, open across the last gap, with nothing underneath.
+	main.guardian.clear_constructs()
+	await _place(Vector2(7080.0, LevelSkyData.E - 60.0))
+	main.guardian.gauge = Balance.GAUGE_MAX
+	main.guardian.select_slot(4)
+	main.guardian.use_active(Vector2(7220.0, LevelSkyData.E - 70.0))
+	main.guardian.use_active(Vector2(8440.0, LevelSkyData.GOAL_TOP - 70.0))
+	await _frames(4)
+	main.camera.global_position = Vector2(7400.0, LevelSkyData.E - 120.0)
+	await _aim(Vector2(7700.0, LevelSkyData.E - 150.0))
+	await _shot("26_sky_the_gates")

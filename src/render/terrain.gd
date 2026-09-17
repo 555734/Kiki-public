@@ -21,12 +21,36 @@ func _draw() -> void:
 	for i in slabs.size():
 		_draw_slab(slabs[i], i)
 
+## The colours a slab is painted in when there is no texture for it.
+##
+## One dictionary rather than four constants because 1-S needs a different set
+## and nothing else does: floating rock above a cloud sea cannot be meadow green
+## over warm dirt. When the painted island tiles arrive this stops being used at
+## all -- _draw_painted_slab returns first.
+func _palette() -> Dictionary:
+	if Stage.is_sky():
+		return {
+			"body": Balance.C_SKY_STONE,
+			"dark": Balance.C_SKY_STONE_DARK,
+			"light": Balance.C_SKY_STONE_LIGHT,
+			"cap": Balance.C_SKY_MOSS,
+			"cap_dark": Balance.C_SKY_MOSS_DARK,
+		}
+	return {
+		"body": Balance.C_DIRT,
+		"dark": Balance.C_DIRT_DARK,
+		"light": Balance.C_DIRT_LIGHT,
+		"cap": Balance.C_GRASS,
+		"cap_dark": Balance.C_GRASS_DARK,
+	}
+
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
 	if Balance.USE_TEXTURES and _draw_painted_slab(rect):
 		return
+	var pal := _palette()
 
 	# Dirt body
-	draw_rect(rect, Balance.C_DIRT)
+	draw_rect(rect, pal["body"])
 
 	# Wavy strata. Amplitude and offset are hashed off the slab index so the
 	# bands differ between slabs but never change between frames or runs.
@@ -38,7 +62,7 @@ func _draw_slab(rect: Rect2, seed_index: int) -> void:
 		var freq := 0.010 + DrawUtil.hash01(seed_index * 17 + b) * 0.006
 		var phase := DrawUtil.hash01(seed_index * 7 + b) * TAU
 		var thickness := 7.0 + DrawUtil.hash01(seed_index + b * 13) * 9.0
-		var col := Balance.C_DIRT_DARK if b % 2 == 0 else Balance.C_DIRT_LIGHT
+		var col: Color = pal["dark"] if b % 2 == 0 else pal["light"]
 		var top := PackedVector2Array()
 		var bottom := PackedVector2Array()
 		var steps := maxi(2, int(rect.size.x / 26.0))
@@ -54,7 +78,7 @@ func _draw_slab(rect: Rect2, seed_index: int) -> void:
 
 	# Darker skirt at the very bottom so tall slabs do not read as flat.
 	draw_rect(Rect2(rect.position.x, rect.position.y + rect.size.y - 26.0, rect.size.x, 26.0),
-		Color(Balance.C_DIRT_DARK.r, Balance.C_DIRT_DARK.g, Balance.C_DIRT_DARK.b, 0.5))
+		Color(pal["dark"], 0.5))
 
 	# Vertical edge shading
 	draw_rect(Rect2(rect.position.x, rect.position.y, 7.0, rect.size.y),
@@ -63,15 +87,15 @@ func _draw_slab(rect: Rect2, seed_index: int) -> void:
 		Color(0, 0, 0, 0.10))
 
 	# Grass: a solid cap plus a scalloped lip that overhangs the dirt.
-	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, GRASS_CAP), Balance.C_GRASS)
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, GRASS_CAP), pal["cap"])
 	draw_rect(Rect2(rect.position.x, rect.position.y + GRASS_CAP - 5.0, rect.size.x, 5.0),
-		Balance.C_GRASS_DARK)
+		pal["cap_dark"])
 
 	var count := maxi(1, int(round(rect.size.x / BUMP)))
 	var step := rect.size.x / float(count)
 	for s in range(count):
 		var cx := rect.position.x + step * (float(s) + 0.5)
-		draw_circle(Vector2(cx, rect.position.y + 2.0), step * 0.56, Balance.C_GRASS)
+		draw_circle(Vector2(cx, rect.position.y + 2.0), step * 0.56, pal["cap"])
 	# Highlight along the top of the lip
 	for s in range(count):
 		var cx := rect.position.x + step * (float(s) + 0.5)

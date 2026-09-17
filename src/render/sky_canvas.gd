@@ -18,6 +18,14 @@ func _draw() -> void:
 		# each, at two different rates, so the whole mid-distance is either
 		# painted or drawn -- never both.
 		return
+	if Stage.is_sky():
+		# No hills, no castle, no bush line -- there is no ground in 1-S and a
+		# skyline would be a promise the stage does not keep. What replaces
+		# them is the thing the stage is standing over.
+		_clouds(view, scroll * 0.05 - t * 5.0, _base(view, 0.05) - view.y * 0.78)
+		_cloud_sea(view, scroll * 0.14 - t * 3.0, _base(view, 0.14), 0.0)
+		_cloud_sea(view, scroll * 0.30 - t * 6.0, _base(view, 0.30), 1.0)
+		return
 	_clouds(view, scroll * 0.06 - t * 6.0, _base(view, 0.06) - view.y * 0.63)
 	_hills(view, scroll * 0.16, _base(view, 0.16), 0.0)
 	_castle(view, scroll * 0.24, _base(view, 0.24))
@@ -201,3 +209,33 @@ func _bushes(view: Vector2, offset: float, base_y: float) -> void:
 		draw_circle(Vector2(x - r * 0.75, base + 42.0), r * 0.72, col)
 		draw_circle(Vector2(x + r * 0.78, base + 40.0), r * 0.68, col)
 	draw_rect(Rect2(0, base + 62.0, view.x, view.y - base), col)
+
+## The sea of cloud 1-S is flying over, in two layers.
+##
+## Deliberately the same shape as _hills -- rounded lobes on a repeating span,
+## emitted only where they are on screen -- because it is doing the same job:
+## it is the thing at the bottom of the view that the middle distance rests on.
+## What makes it read as cloud rather than as land is that the near layer sits
+## BELOW the far one and is paler, so the two overlap the wrong way round for
+## hills, and that neither of them has a flat base.
+func _cloud_sea(view: Vector2, offset: float, base_y: float, near: float) -> void:
+	var span := lerpf(420.0, 300.0, near)
+	var base := base_y + lerpf(140.0, 250.0, near)
+	var col := Balance.C_CLOUD_SEA_DARK.lerp(Balance.C_CLOUD_SEA, near)
+	var range_ := _visible_range(offset, span, view.x)
+	for i in range(range_[0], range_[1] + 1):
+		var x := float(i) * span - offset
+		var h := DrawUtil.hash01(i * 5 + int(near) * 97 + 3)
+		var lift := lerpf(46.0, 86.0, h)
+		var wide := span * lerpf(0.62, 0.95, DrawUtil.hash01(i * 11 + 7))
+		# One big lobe with two smaller ones either side, all sitting on the
+		# same line, so the crest is uneven but the mass is continuous.
+		draw_circle(Vector2(x, base), wide * 0.55, col)
+		draw_circle(Vector2(x - wide * 0.42, base + 16.0), wide * 0.38, col)
+		draw_circle(Vector2(x + wide * 0.44, base + 12.0), wide * 0.34, col)
+		draw_circle(Vector2(x + wide * 0.08, base - lift * 0.5), wide * 0.30,
+			col.lightened(0.10))
+	# Everything below the crest line is cloud, so it is filled rather than
+	# left as gradient -- otherwise the sea reads as a row of blobs floating in
+	# the sky, which is what the first pass looked like.
+	draw_rect(Rect2(0.0, base, view.x, maxf(view.y - base, 0.0) + 40.0), col)

@@ -149,7 +149,40 @@ func rebuild_dynamic() -> void:
 		_dynamic.add_child(pad)
 		_veil(pad, Veil.GIMMICKS)
 
+	# A rebuild happens mid-fight, so the barricades have to be told which act
+	# they have just been built into. Doing it here rather than in
+	# Barricade._ready keeps the boss's state out of their constructor -- and
+	# there is no ordering to get wrong, because the Keeper is already in the
+	# tree by the time this runs.
+	_settle_barricades()
+	_settle_boss()
+
 	Events.level_rebuilt.emit()
+
+## A gate whose keeper is already dead has to be built open.
+##
+## Emitted here rather than where the Keeper was skipped, because enemies are
+## built before gimmicks and the gate that is listening does not exist yet at
+## that point.
+var _reopen_gate: String = ""
+
+func _settle_boss() -> void:
+	if _reopen_gate.is_empty():
+		return
+	var id := _reopen_gate
+	_reopen_gate = ""
+	Events.switch_activated.emit(id)
+
+## Stand down any barricade whose act has already passed.
+func _settle_barricades() -> void:
+	var act := 1
+	for e in _dynamic.get_children():
+		if e is Keeper:
+			act = (e as Keeper).act()
+			break
+	for node in _dynamic.get_children():
+		if node is Barricade:
+			(node as Barricade).settle(act)
 
 func _veil(node: Node2D, layer: String, moving: bool = false) -> void:
 	if _veils != null:
@@ -188,6 +221,24 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			var sb := Shieldbearer.new()
 			sb.runner = runner
 			return sb
+		"keeper":
+			# Already beaten. A respawn rebuilds this whole layer, so without
+			# this a runner who dies AFTER the Keeper falls -- to a shockwave
+			# still travelling, most likely -- comes back to a fresh boss on
+			# full health in front of a gate that has closed again.
+			if GameState.boss_hp == 0:
+				_reopen_gate = String(spec.get("gate", ""))
+				return null
+			var k := Keeper.new()
+			k.runner = runner
+			# The arena's edges and the gate it opens both come from the level
+			# data rather than from constants in the boss, so a second arena
+			# needs a second row here and no second boss.
+			var home: Vector2 = spec.get("home", Vector2(-100000.0, 100000.0))
+			k.home_min = home.x
+			k.home_max = home.y
+			k.opens_gate = String(spec.get("gate", ""))
+			return k
 		"turret":
 			var t := Turret.new()
 			t.aim_direction = spec.get("aim", Vector2.LEFT)
@@ -224,6 +275,15 @@ func _make_gimmick(spec: Dictionary) -> Node2D:
 			gate.switch_id = String(spec.get("id", "gate_a"))
 			gate.wants = int(spec.get("wants", 0))
 			return gate
+		"barricade":
+			var wall := Barricade.new()
+			wall.needed_act = int(spec.get("act", 1))
+			return wall
+		"updraft":
+			var lift := Updraft.new()
+			lift.runner = runner
+			lift.span = spec.get("span", Vector2(150.0, 420.0))
+			return lift
 	return null
 
 func reset_to_checkpoint() -> void:

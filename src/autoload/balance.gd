@@ -294,6 +294,139 @@ const WALL_KICK_LOCK: float = 0.08
 const WALL_SLIDE_SPEED: float = 120.0
 const WALL_COYOTE_TIME: float = 0.12
 
+# ----------------------------------------------------------------- the sky
+#
+# Stage 1-S only. The one new thing that stage adds is a column of rising air,
+# and every number here is written against what a launch already does -- see
+# docs/stage-sky.md.
+
+## Terminal rise speed inside a column, and how hard it pulls towards it.
+##
+## RISE is high, and that is the second thing this stage got wrong and measured.
+## It started at 300px/s, which is a comfortable-looking number and completely
+## useless: a runner crossing a column at 780px/s is inside it for a quarter of
+## a second, and a quarter of a second at 300px/s is 68px of climb. sky_probe
+## printed "straight through a column: 35px over a plain launch" and that was
+## the end of the first design, in which the runner was meant to STOP inside a
+## column and ride it.
+##
+## Stopping does not work either, and the reason is worth writing down: a runner
+## with no horizontal speed who rises to the top of a column can only drift
+## about 0.3px sideways per pixel they then fall, so they cannot get out of the
+## column onto anything. A column has to be something the runner FLIES THROUGH.
+##
+## So: wide columns, and a rise fast enough that half a second in one is worth
+## real height. The lift wins decisively over RUNNER_FALL_GRAVITY (4165), which
+## is what makes a column grab a runner who arrives falling.
+const UPDRAFT_RISE: float = 650.0
+const UPDRAFT_ACCEL: float = 5200.0
+
+## Horizontal drag inside a column.
+##
+## Small on purpose. Zero would be fine -- a column is a fixed thing in the
+## world, so it can only extend a launch that was aimed at it, which is a thing
+## the guardian had to do rather than a thing they got free. This is here to put
+## a thumb on the scale: a runner who rides a long column arrives higher and a
+## little shorter, so "through the draught" and "over the top of it" are two
+## different landings rather than one strictly better one.
+const UPDRAFT_DRAG: float = 120.0
+
+## How far above the column's top edge the lift still reaches, so a runner who
+## tops out is carried clear rather than clipped off at a line.
+const UPDRAFT_SOFT_TOP: float = 40.0
+
+# ------------------------------------------------------------------ the keeper
+#
+# Stage 1-B only. Every number here is written against something the runner can
+# already do, because the whole fight is a footrace between a telegraph and a
+# pair of legs -- see docs/stage-keeper.md.
+
+## Six wounds, two per act. One wound per stagger, so the fight is exactly six
+## openings however much gauge the guardian is sitting on.
+const KEEPER_HP: int = 6
+
+## Two sizes, and the gap between them is deliberate.
+##
+## HITBOX is the physics body: what it collides with, what a charge stops on,
+## and what hurts the runner. SIZE is what is painted, and it overhangs, because
+## the shape that reads as a siege beast is wider than the shape that should
+## take a dodge away from somebody who jumped at the right moment.
+##
+## The height is the number the whole fight hangs on. A standing jump measures
+## 162px, so the runner's feet are above 110 for about 0.30s while the Keeper
+## takes (120+30)/760 = 0.20s to pass through them. That margin -- six frames --
+## is the dodge, and keeper_probe measures both halves of it rather than
+## trusting this paragraph.
+const KEEPER_HITBOX := Vector2(120.0, 110.0)
+const KEEPER_SIZE := Vector2(168.0, 134.0)
+
+## Walking, and charging. The charge is well above sprint speed (410px/s) on
+## purpose: outrunning it must not be an answer, so the answer has to be the
+## one thing the runner has that the Keeper does not, which is air.
+const KEEPER_WALK_SPEED: float = 95.0
+const KEEPER_CHARGE_SPEED: float = 760.0
+## How far one charge carries before it runs out of legs, and how close the
+## runner has to be for it to start. The second number is what keeps the Keeper
+## walking in rather than charging across an empty arena.
+const KEEPER_CHARGE_DISTANCE: float = 820.0
+const KEEPER_CHARGE_RANGE: float = 760.0
+
+## Per act: the telegraph, the stagger, and how long it takes to get up from a
+## charge that hit nothing. Index 0 is act one.
+##
+## The telegraph is the runner's whole budget for getting behind cover, so it is
+## quoted as a distance too: 0.85s of sprint is 349px, 0.70s is 287px, 0.55s is
+## 226px. The acts get harder by taking that distance away, not by adding rules.
+const KEEPER_TELEGRAPH := [0.85, 0.70, 0.55]
+const KEEPER_STAGGER := [2.6, 2.2, 1.8]
+const KEEPER_RECOVER: float = 1.1
+## Between one thing and the next. Without it the Keeper telegraphs again on the
+## frame it stands up, which reads as the game cheating rather than as pressure.
+const KEEPER_BEAT: float = 0.65
+
+## The core on its back: where it sits relative to the body's middle, and how
+## big a target it is. Kept high on the silhouette because a target low on the
+## screen can end up under the ability buttons (docs/status.md 4).
+const KEEPER_CORE_OFFSET := Vector2(48.0, -34.0)
+const KEEPER_CORE_RADIUS: float = 20.0
+
+## Contact. A heart and a shove, the same as any other enemy: the Keeper is
+## enormous but it is not an instant death, because the fight is long and a
+## one-touch boss would be a memory test.
+const KEEPER_CONTACT_KNOCKBACK := Vector2(320.0, -300.0)
+
+## The ground wave a spent charge throws off, from act two. Low enough that a
+## standing jump (162px) clears it with room, so the skill is noticing rather
+## than timing to the frame.
+const SHOCKWAVE_SPEED: float = 420.0
+const SHOCKWAVE_FAST_SPEED: float = 520.0
+const SHOCKWAVE_RANGE: float = 900.0
+## Wider and taller than the first pass (70x34), which measured fine and read as
+## a smudge: in a 1280x720 capture it was a thumbnail-sized wedge that nobody
+## would jump in time. Still comfortably under half a jump, which is the check
+## keeper_probe makes.
+const SHOCKWAVE_SIZE := Vector2(110.0, 48.0)
+
+## The arena's barricades: broken half-walls the Keeper brains itself on.
+##
+## Taller than the Keeper's hitbox, so a charge cannot ride over one, and low
+## enough that the runner hops it without thinking (110 against a 162px jump) --
+## because a barricade the runner cannot cross is not cover, it is a wall that
+## cuts the arena in half. That is not a hypothetical: the first version of this
+## stage used floor-to-sky pillars and keeper_probe failed on the line "the
+## runner reaches cover inside the wind-up", having watched the runner sprint
+## straight into the thing they were supposed to get behind.
+const BARRICADE_SIZE := Vector2(70.0, 128.0)
+
+## The layer barricades live on, and nothing else does.
+##
+## They are NOT terrain. A walking Keeper steps over one -- a four-legged siege
+## engine picking its feet up -- and only a charge, head down at 760px/s, is
+## stopped by it. That is one line (the mask changes when the charge starts) and
+## it is what lets the boss own the whole arena while the barricades still mean
+## something. The runner's mask includes it so they can stand on one.
+const LAYER_BARRICADE: int = 128
+
 # ------------------------------------------------------------ the shield-bearer
 const SHIELDBEARER_HP: int = 3
 const SHIELDBEARER_SIZE := Vector2(34.0, 46.0)
@@ -441,3 +574,21 @@ const C_SKIN := Color("f0c090")
 const C_HEART := Color("e8354f")
 const C_PANEL := Color("0d1b2acc")
 const C_ACCENT := Color("4fd8ff")
+
+# ------------------------------------------------------- the dawn palette
+# Stage 1-S. Its own colours, because the vector fallback for a stage set on
+# floating rock above a cloud sea cannot be the 1-1 set: those are meadow green
+# and warm dirt with a mushroom castle on the skyline, and a sky stage wearing
+# them is not "art pending", it is wrong -- the same argument that gave 1-B the
+# night set to fall back to. 1-S has no other stage to borrow from, so the
+# fallback is these.
+const C_DAWN_TOP := Color("1d3b6b")
+const C_DAWN_MID := Color("5f7fb8")
+const C_DAWN_LOW := Color("f0b489")
+const C_CLOUD_SEA := Color("cfd8ea")
+const C_CLOUD_SEA_DARK := Color("9aa8c4")
+const C_SKY_STONE := Color("8e97a6")
+const C_SKY_STONE_DARK := Color("616b7d")
+const C_SKY_STONE_LIGHT := Color("b3bbc7")
+const C_SKY_MOSS := Color("9fb08a")
+const C_SKY_MOSS_DARK := Color("6f8062")

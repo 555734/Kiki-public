@@ -45,6 +45,11 @@ enum Msg {
 	## piece of enemy state neither device can work out on its own, because
 	## opening it is a judgement the host makes about what the runner did.
 	WEAK_WINDOW = 32,
+	## host -> client: the boss's state machine. The one enemy whose behaviour
+	## the guardian's device cannot derive, because the guardian's enemies are
+	## puppets with their physics switched off and this one's whole contribution
+	## is WHICH STATE IT IS IN. See Keeper, and docs/stage-keeper.md section 8.
+	BOSS = 33,
 }
 
 ## The things the host does that the guardian's device cannot derive for itself.
@@ -79,7 +84,7 @@ enum World {
 ## each other at the handshake, which is what makes changing this safe -- and
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
-const VERSION: int = 10
+const VERSION: int = 11
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -190,6 +195,24 @@ static func weak_window(net_id: int, until_tick: int) -> PackedByteArray:
 	var b := _buf(Msg.WEAK_WINDOW)
 	b.put_u16(net_id)
 	b.put_u32(until_tick)
+	return b.data_array
+
+## What the boss is doing. Ten bytes, sent on a state change and twice a second
+## otherwise, so a dropped packet costs half a second of a stale pose rather
+## than a guardian aiming at a core that shut a second ago.
+##
+## The timer is in here for one reason: the ring that empties around the open
+## core is the guardian's shot clock, and a client counting down its own guess
+## would be showing a different clock from the one the host is enforcing.
+static func boss(net_id: int, state: int, hp: int, timer: float, facing: int,
+		spent: bool) -> PackedByteArray:
+	var b := _buf(Msg.BOSS)
+	b.put_u16(net_id)
+	b.put_u8(state)
+	b.put_u8(clampi(hp, 0, 255))
+	b.put_u16(clampi(int(round(timer * 1000.0)), 0, 65535))
+	b.put_8(signi(facing))
+	b.put_u8(1 if spent else 0)
 	return b.data_array
 
 ## Every crystal already collected, as one bitmask.

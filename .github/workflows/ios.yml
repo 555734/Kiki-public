@@ -1,11 +1,24 @@
 name: iOS
 
-# Builds an UNSIGNED .ipa on a macOS runner and attaches it to a release.
-#
-# Manual only. Codemagic is the normal path for signed/TestFlight builds; this
-# workflow is kept only as an explicit fallback for an unsigned diagnostic IPA.
+# Builds an UNSIGNED .ipa on a macOS runner and publishes it as a GitHub Release.
+# The private source branch is recovery/unified; this workflow is intended to
+# run automatically only after that snapshot is synced to Kiki-public/main.
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "project.godot"
+      - "export_presets.cfg"
+      - "tools/**"
+      - ".github/workflows/ios.yml"
   workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -45,6 +58,8 @@ jobs:
         run: |
           export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
           [ -x "$GODOT" ] || { echo "Godot is not where expected:"; find ~/godot -maxdepth 3; exit 1; }
+          xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
+          chmod +x "$GODOT"
           xcodebuild -version
           tools/build-ios.sh
 
@@ -77,7 +92,8 @@ jobs:
           **Unsigned iOS build.** It will not install by tapping it.
 
           Install it with AltStore or Sideloadly, which re-sign the app with
-          your own Apple ID. TestFlight builds should use Codemagic instead.
+          your own Apple ID. TestFlight builds still require Apple signing
+          credentials and are kept separate from this public CI workflow.
           EOF
           )
           gh release create "$TAG" build/ios/*.ipa \

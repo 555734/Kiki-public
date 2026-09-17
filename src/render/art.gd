@@ -61,6 +61,34 @@ const MANIFEST := {
 	"horror_grave": "horror/grave.png",
 	"horror_lantern": "horror/lantern.png",
 	"horror_puddle": "horror/puddle.png",
+	# stage 1-B, the boss arena. Nothing is painted for these yet; every one of
+	# them falls back to vector drawing until docs/art-prompts-keeper.md comes
+	# back, and the fallbacks are what the stage was designed and measured
+	# against, so the art is a replacement rather than a dependency.
+	"keeper_panorama": "keeper/panorama.jpg",
+	"keeper_stand": "keeper/keeper_stand.png",
+	"keeper_brace": "keeper/keeper_brace.png",
+	"keeper_charge": "keeper/keeper_charge.png",
+	"keeper_reel": "keeper/keeper_reel.png",
+	"keeper_core": "keeper/core.png",
+	"keeper_barricade": "keeper/barricade.png",
+	"keeper_barricade_rubble": "keeper/barricade_rubble.png",
+	"keeper_shockwave": "keeper/shockwave.png",
+	"keeper_portcullis": "keeper/portcullis.png",
+	"keeper_flagstone": "keeper/flagstone.png",
+	"keeper_brazier": "keeper/brazier.png",
+	"keeper_rubble": "keeper/rubble.png",
+	# stage 1-S, the flight stage. Nothing is painted for these yet; every one
+	# falls back to vector drawing until docs/art-prompts-sky.md comes back.
+	"sky_panorama": "sky/panorama.jpg",
+	"sky_island_tile": "sky/island_tile.png",
+	"sky_island_cap": "sky/island_cap.png",
+	"sky_keel": "sky/keel.png",
+	"sky_updraft": "sky/updraft.png",
+	"sky_streamer": "sky/streamer.png",
+	"sky_arch": "sky/arch.png",
+	"sky_beacon": "sky/beacon.png",
+	"sky_flyer": "sky/flyer.png",
 	# synthesised entities
 	"flyer": "entities/flyer.png",
 	"turret": "entities/turret.png",
@@ -92,13 +120,88 @@ const MANIFEST := {
 	"crosshair": "scope/crosshair.png",
 }
 
+## Keys that are registered and deliberately not delivered yet.
+##
+## The asset audit exists because a missing texture is INVISIBLE -- tex() returns
+## null, the renderer drops to its vector path, and nobody finds out until
+## somebody looks at a screenshot. That check has to keep working, so "the 1-B
+## art has not been drawn yet" cannot be expressed by leaving the keys out of
+## the audit, and it cannot be expressed by leaving them out of the MANIFEST
+## either (then the fallbacks would be the design rather than a stand-in).
+##
+## So: registered, listed here, and audited the other way round. missing()
+## forgives these, and pending_but_present() reports any whose file has since
+## arrived -- which is the line to delete from this list. A stale entry here
+## would switch the real audit off for a key that is being shipped.
+const PENDING := [
+	"keeper_panorama", "keeper_stand", "keeper_brace", "keeper_charge",
+	"keeper_reel", "keeper_core", "keeper_barricade", "keeper_barricade_rubble",
+	"keeper_shockwave", "keeper_portcullis", "keeper_flagstone",
+	"keeper_brazier", "keeper_rubble",
+	"sky_panorama", "sky_island_tile", "sky_island_cap", "sky_keel",
+	"sky_updraft", "sky_streamer", "sky_arch", "sky_beacon", "sky_flyer",
+]
+
 const FONT_UI := BASE + "fonts/Nunito-ExtraBold.ttf"
 const FONT_DISPLAY := BASE + "fonts/Baloo2-Bold.ttf"
 
 static var _cache: Dictionary = {}
 static var _fonts: Dictionary = {}
 
+## Cache for _prefer, which asks the filesystem and must not do so per draw call.
+static var _preferred: Dictionary = {}
+
+## The first of these keys whose file actually exists, or the last one.
+##
+## This is what lets 1-B ship before its art does and still look like the place
+## it is set. 1-B is the inside of 1-2's gate, so every surface falls back to
+## that stage's painted night set: the ground, the backdrop and the gate all
+## have a keeper_* key registered for the day the paintings arrive, and until
+## then they resolve to the horror one, which exists.
+##
+## The alternative was to leave the keys unresolved and let tex() return null,
+## and that is worse than it sounds -- null means the VECTOR fallback, and the
+## vector fallback is the bright green 1-1 set. A night boss arena in a sunny
+## field is not "art pending", it is wrong, and it would have been wrong in the
+## screenshots people judge the stage by.
+static func _prefer(keys: Array) -> String:
+	var memo: String = _preferred.get(keys[0], "")
+	if memo != "":
+		return memo
+	var chosen: String = keys[keys.size() - 1]
+	for key in keys:
+		if MANIFEST.has(key) and ResourceLoader.exists(BASE + MANIFEST[key]):
+			chosen = key
+			break
+	_preferred[keys[0]] = chosen
+	return chosen
+
 static func _resolved_key(key: String) -> String:
+	# 1-S has no other stage to borrow from -- it is the first daylight stage
+	# since 1-1 and it is nowhere near the ground -- so unlike 1-B these fall
+	# through to the ORIGINAL keys rather than to another skin. That is the
+	# right answer here: the vector fallback for a sky stage is a sky.
+	if Stage.is_sky():
+		match key:
+			"parallax": return "sky_panorama"
+			"dirt_tile": return "sky_island_tile"
+			"grass_tile": return "sky_island_cap"
+			"goal": return "sky_beacon"
+			"flyer": return "sky_flyer"
+			_: return key
+	if Stage.is_keeper():
+		match key:
+			"parallax": return _prefer(["keeper_panorama", "horror_panorama"])
+			"dirt_tile": return _prefer(["keeper_flagstone", "horror_mud_tile"])
+			"grass_tile": return "horror_moss_cap"
+			"gate": return _prefer(["keeper_portcullis", "horror_goal"])
+			"platform": return "horror_platform"
+			"checkpoint_off": return "horror_checkpoint_off"
+			"checkpoint_on": return "horror_checkpoint_on"
+			"goal": return "horror_goal"
+			"fence": return "horror_fence"
+			"spikes": return "horror_thorns"
+			_: return key
 	if not Stage.is_horror():
 		return key
 	match key:
@@ -172,6 +275,25 @@ static func draw_stretched(ci: CanvasItem, key: String, rect: Rect2,
 	ci.draw_texture_rect(t, rect, false, modulate)
 	return true
 
+## draw_stretched, optionally mirrored about the rect's own centre.
+##
+## Everything in the painted set is drawn facing one way (see
+## docs/art-prompts-keeper.md: "all characters face LEFT"), so anything that
+## exists in both directions needs this rather than a second file -- two files
+## means two light sources, and the second one is always wrong.
+static func draw_stretched_flipped(ci: CanvasItem, key: String, rect: Rect2,
+		flip_h: bool, modulate: Color = Color.WHITE) -> bool:
+	if not flip_h:
+		return draw_stretched(ci, key, rect, modulate)
+	var t := tex(key)
+	if t == null:
+		return false
+	ci.draw_set_transform(Vector2((rect.position.x + rect.size.x * 0.5) * 2.0, 0.0),
+		0.0, Vector2(-1.0, 1.0))
+	ci.draw_texture_rect(t, rect, false, modulate)
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	return true
+
 static func draw_tiled(ci: CanvasItem, key: String, rect: Rect2, tile_height: float,
 		modulate: Color = Color.WHITE) -> bool:
 	var t := tex(key)
@@ -202,9 +324,32 @@ static func draw_sprite_fit(ci: CanvasItem, key: String, centre: Vector2,
 static func missing() -> Array:
 	var gone: Array = []
 	for key in MANIFEST.keys():
+		if key in PENDING:
+			continue
 		if not ResourceLoader.exists(BASE + MANIFEST[key]):
 			gone.append("%s -> %s" % [key, MANIFEST[key]])
 	for path in [FONT_UI, FONT_DISPLAY]:
 		if not ResourceLoader.exists(path):
 			gone.append("font -> " + path)
 	return gone
+
+## Pending keys whose file has actually turned up. Every one of these is a line
+## to delete from PENDING -- until it is, that key is exempt from the audit
+## while being shipped, which is the one failure mode this whole arrangement
+## could have introduced.
+static func pending_but_present() -> Array:
+	var arrived: Array = []
+	for key in PENDING:
+		if MANIFEST.has(key) and ResourceLoader.exists(BASE + MANIFEST[key]):
+			arrived.append(key)
+	return arrived
+
+## Pending keys that are not in the manifest at all -- a typo in PENDING, which
+## would silently exempt nothing and hide a real missing file under a name that
+## does not exist.
+static func pending_unknown() -> Array:
+	var unknown: Array = []
+	for key in PENDING:
+		if not MANIFEST.has(key):
+			unknown.append(key)
+	return unknown

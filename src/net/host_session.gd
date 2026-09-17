@@ -100,6 +100,8 @@ func _stage_label(which: int) -> String:
 		Stage.Which.WORKSHOP: return "1-T"
 		Stage.Which.HORROR: return "1-2"
 		Stage.Which.QUIET: return "1-V"
+		Stage.Which.KEEPER: return "1-B"
+		Stage.Which.SKY: return "1-S"
 	return "?"
 
 func _world(kind: int, a: Vector2, b: Vector2, value: int = 0,
@@ -115,7 +117,40 @@ func _physics_process(_delta: float) -> void:
 	if Clock.tick % SNAPSHOT_EVERY == 0:
 		transport.send(NetTransport.Channel.SNAPSHOT,
 			NetTransport.Reliability.UNRELIABLE, _snapshot().encode())
+	_send_boss()
 	_reap_holograms()
+
+## How often the boss repeats itself when nothing has changed, in ticks.
+##
+## Not because the state drifts -- it does not -- but because the packet also
+## carries the shot clock on an open core, and a guardian whose only update
+## arrived at the top of a 1.8s stagger would be aiming at a ring that had
+## stopped moving. Half a second is well inside the shortest stagger.
+const BOSS_HEARTBEAT: int = 30
+
+var _boss_next: int = 0
+
+## The one enemy whose state has to be told rather than shown.
+##
+## Everything else in the world is either in the snapshot (positions) or a pure
+## function of the tick (platforms, lasers). The Keeper is neither: it decides
+## things about the runner, and on the guardian's device its physics is switched
+## off, so without this the player holding the rifle cannot tell a wind-up from
+## a stagger -- which is the only thing they need to know. It is the same hole
+## the shield-bearer shipped with, closed before it could be found by a player.
+func _send_boss() -> void:
+	for e in get_tree().get_nodes_in_group("keeper"):
+		if not (e is Keeper):
+			continue
+		var boss: Keeper = e
+		var id: int = boss.net_id
+		if id < 0:
+			continue
+		if not boss.net_dirty() and Clock.tick < _boss_next:
+			continue
+		_boss_next = Clock.tick + BOSS_HEARTBEAT
+		_send_event(Protocol.boss(id, boss.state, boss.hp, boss.timer_left(),
+			boss.facing, boss.wounded_this_stagger))
 
 # ------------------------------------------------------------------ outgoing
 

@@ -1,5 +1,10 @@
 extends Node
-## Regression probe: integrating 1-2 must not replace 1-1.
+## Regression probe: adding a stage must never replace the ones already there.
+##
+## Written when 1-2 went in and extended every time since. The failure it exists
+## to catch is not subtle -- it is "the new stage is the only stage" -- but it is
+## invisible from inside the new stage, which is where all the attention is when
+## one is being added.
 
 const MainScene: PackedScene = preload("res://src/main.tscn")
 var failures: Array[String] = []
@@ -13,11 +18,19 @@ func _ready() -> void:
 	check(Stage.current() == Stage.Which.GREENFIELD, "fresh launch defaults to GREENFIELD")
 	check(Stage.stage_number() == "1-1", "default stage is numbered 1-1")
 
-	# Both stages remain addressable through the same Stage facade.
+	# Every stage remains addressable through the same Stage facade.
 	Stage.use(Stage.Which.HORROR)
 	check(Stage.stage_number() == "1-2", "horror stage remains selectable as 1-2")
+	Stage.use(Stage.Which.KEEPER)
+	check(Stage.stage_number() == "1-B", "the boss stage is selectable as 1-B")
+	check(Stage.stage_name() == "THE KEEPER", "and it is the one it says it is")
+	check(not Stage.enemies().is_empty(), "the boss arena has its boss in it")
+	Stage.use(Stage.Which.SKY)
+	check(Stage.stage_number() == "1-S", "the flight stage is selectable as 1-S")
+	check(Stage.stage_name() == "THE OPEN SKY", "and it is the one it says it is")
+	check(Stage.ground().size() > 10, "the open sky has its islands in it")
 	Stage.use(Stage.Which.GREENFIELD)
-	check(Stage.stage_number() == "1-1", "1-1 remains selectable after 1-2")
+	check(Stage.stage_number() == "1-1", "1-1 remains selectable after the others")
 
 	var main: Node2D = MainScene.instantiate() as Node2D
 	check(main != null, "main scene instantiates")
@@ -27,16 +40,14 @@ func _ready() -> void:
 		var panel := main.get_node_or_null("NetPanel")
 		check(panel != null, "start screen exists")
 		if panel != null:
-			var has_1_1 := false
-			var has_1_2 := false
+			var seen := {}
 			for node in panel.find_children("*", "Button", true, false):
 				var text := String((node as Button).text)
-				if text.contains("1-1"):
-					has_1_1 = true
-				if text.contains("1-2"):
-					has_1_2 = true
-			check(has_1_1, "start screen has a 1-1 stage button")
-			check(has_1_2, "start screen has a 1-2 stage button")
+				for label in ["1-1", "1-2", "1-V", "1-B", "1-S"]:
+					if text.contains(label):
+						seen[label] = true
+			for label in ["1-1", "1-2", "1-V", "1-B", "1-S"]:
+				check(seen.has(label), "start screen has a %s stage button" % label)
 		main.queue_free()
 		await get_tree().process_frame
 
