@@ -98,6 +98,11 @@ echo "   bundle:  $BUNDLE_ID"
 echo "   version: $APP_VERSION"
 
 echo "== archive with automatic cloud signing =="
+# Godot's Xcode template carries a legacy explicit `iPhone Distribution`
+# identity. That conflicts with CODE_SIGN_STYLE=Automatic before Xcode can use
+# the API-key-backed cloud signing account. Override only the archive identity
+# to Apple Development; the App Store export step re-signs the archive for
+# distribution automatically.
 if ! xcodebuild \
 	-project "$PROJ" \
 	-scheme "$SCHEME" \
@@ -111,6 +116,7 @@ if ! xcodebuild \
 	-authenticationKeyIssuerID "$ASC_ISSUER_ID" \
 	DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
 	CODE_SIGN_STYLE=Automatic \
+	CODE_SIGN_IDENTITY="Apple Development" \
 	PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
 	MARKETING_VERSION="$APP_VERSION" \
 	archive > "$STAGE/archive.log" 2>&1; then
