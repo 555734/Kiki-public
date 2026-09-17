@@ -54,7 +54,15 @@ else
 	godot_run() { "$GODOT" "$@" 2>&1; }
 fi
 
-restore() { [ -f project.godot.bak ] && mv project.godot.bak project.godot; }
+# Cleanup helpers are used from an EXIT trap. They must always return success;
+# otherwise `set -e` can turn a successful APK build into a failed CI job when
+# a backup has already been restored earlier in the script.
+restore() {
+	if [ -f project.godot.bak ]; then
+		mv project.godot.bak project.godot
+	fi
+	return 0
+}
 trap restore EXIT
 
 # Stamp the build id, and put it back afterwards: a working tree that differs
@@ -62,7 +70,12 @@ trap restore EXIT
 STAMP="${BUILD_STAMP:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)-$(date -u +%Y%m%d)}"
 cp src/autoload/balance.gd /tmp/balance.pre-stamp
 sed -i "s/^const BUILD_ID: String = \"dev\"/const BUILD_ID: String = \"$STAMP\"/" src/autoload/balance.gd
-restore_stamp() { [ -f /tmp/balance.pre-stamp ] && mv /tmp/balance.pre-stamp src/autoload/balance.gd; }
+restore_stamp() {
+	if [ -f /tmp/balance.pre-stamp ]; then
+		mv /tmp/balance.pre-stamp src/autoload/balance.gd
+	fi
+	return 0
+}
 trap 'restore; restore_stamp' EXIT
 echo "== build $STAMP =="
 
@@ -93,3 +106,5 @@ for f in "$OUT"/side-sky-*.apk; do
 	[ "$entries" -gt 0 ] || { echo "NO GAME DATA: $f"; exit 1; }
 	printf '  %-28s %s  signed, %s game files\n' "$(basename "$f")" "$(du -h "$f" | cut -f1)" "$entries"
 done
+
+exit 0
