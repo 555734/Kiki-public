@@ -1,9 +1,10 @@
 name: iOS
 
 # Public CI has two modes:
-# - without App Store Connect secrets: build the proven unsigned IPA fallback
-# - with ASC_KEY_ID / ASC_ISSUER_ID / ASC_PRIVATE_KEY: cloud-sign, validate,
-#   and upload a new build to App Store Connect automatically
+# - without the complete signing credentials: build the proven unsigned IPA fallback
+# - with App Store Connect credentials plus a stable distribution-certificate
+#   private key: fetch/create the signing certificate and App Store provisioning
+#   profile, sign locally, and upload a new build to App Store Connect
 on:
   push:
     branches:
@@ -18,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       submit_to_app_store_connect:
-        description: "Cloud-sign and upload to App Store Connect when credentials are available"
+        description: "Sign and upload to App Store Connect when credentials are available"
         required: false
         default: true
         type: boolean
@@ -32,6 +33,7 @@ permissions:
 
 env:
   GODOT_VERSION: 4.4.1
+  CODEMAGIC_CLI_VERSION: 0.67.0
 
 jobs:
   build:
@@ -43,6 +45,7 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      IOS_CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERTIFICATE_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -75,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           ready=true
-          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_PRIVATE_KEY:-}" ]; then
+          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_PRIVATE_KEY:-}" ] || [ -z "${IOS_CERTIFICATE_PRIVATE_KEY:-}" ]; then
             ready=false
           fi
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "${MANUAL_SUBMIT:-true}" != "true" ]; then
@@ -83,10 +86,22 @@ jobs:
           fi
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           if [ "$ready" = true ]; then
-            echo "App Store Connect credentials found: this run will cloud-sign and upload."
+            echo "Signing credentials found: this run will fetch the App Store profile/certificate, sign locally, and upload."
           else
-            echo "App Store Connect submission is disabled or credentials are missing."
+            echo "App Store submission is disabled or a signing credential is missing."
+            echo "Required secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY, IOS_CERTIFICATE_PRIVATE_KEY."
             echo "Falling back to the unsigned IPA build."
+          fi
+
+      - name: Install Codemagic CLI signing tools
+        if: steps.asc.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/codemagic-cli"
+          "$RUNNER_TEMP/codemagic-cli/bin/pip" install --disable-pip-version-check "codemagic-cli-tools==${CODEMAGIC_CLI_VERSION}"
+          echo "$RUNNER_TEMP/codemagic-cli/bin" >> "$GITHUB_PATH"
+          if ! ruby -e 'require "xcodeproj"' >/dev/null 2>&1; then
+            gem install --user-install xcodeproj --no-document
           fi
 
       - name: Build, sign, and upload to App Store Connect
@@ -117,9 +132,8 @@ jobs:
         with:
           name: ios-build-logs
           path: |
-            build/ios/xcode/*.log
-            build/ios/appstore/*.log
-            build/ios/appstore/*.plist
+            build/ios/**/*.log
+            /tmp/xcodebuild_logs/*.log
           if-no-files-found: warn
 
       - name: Name unsigned fallback build
@@ -145,7 +159,7 @@ jobs:
           NOTES=$(cat <<'EOF'
           **Unsigned iOS build.** It will not install by tapping it.
 
-          App Store Connect credentials were not used for this run, so this is
+          Complete signing credentials were not used for this run, so this is
           the unsigned fallback artifact rather than a TestFlight submission.
           EOF
           )
@@ -160,6 +174,6 @@ jobs:
           {
             echo "## iOS submission accepted"
             echo
-            echo "The signed build was uploaded to App Store Connect."
+            echo "The locally signed build was uploaded to App Store Connect."
             echo "Apple still has to process it before it appears under Builds/TestFlight."
           } >> "$GITHUB_STEP_SUMMARY"
