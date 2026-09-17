@@ -1,10 +1,8 @@
 name: iOS
 
 # Public CI has two modes:
-# - without the complete signing credentials: build the proven unsigned IPA fallback
-# - with App Store Connect credentials plus a stable distribution-certificate
-#   private key: fetch/create the signing certificate and App Store provisioning
-#   profile, sign locally, and upload a new build to App Store Connect
+# - normal push: require complete signing credentials and submit to App Store Connect
+# - manual run with submit_to_app_store_connect=false: build the unsigned IPA fallback
 on:
   push:
     branches:
@@ -19,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       submit_to_app_store_connect:
-        description: "Sign and upload to App Store Connect when credentials are available"
+        description: "Sign and upload to App Store Connect"
         required: false
         default: true
         type: boolean
@@ -77,21 +75,30 @@ jobs:
           MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect }}
         run: |
           set -euo pipefail
-          ready=true
-          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_PRIVATE_KEY:-}" ] || [ -z "${IOS_CERTIFICATE_PRIVATE_KEY:-}" ]; then
-            ready=false
-          fi
+          requested=true
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "${MANUAL_SUBMIT:-true}" != "true" ]; then
-            ready=false
+            requested=false
           fi
-          echo "ready=$ready" >> "$GITHUB_OUTPUT"
-          if [ "$ready" = true ]; then
-            echo "Signing credentials found: this run will fetch the App Store profile/certificate, sign locally, and upload."
-          else
-            echo "App Store submission is disabled or a signing credential is missing."
-            echo "Required secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY, IOS_CERTIFICATE_PRIVATE_KEY."
-            echo "Falling back to the unsigned IPA build."
+
+          if [ "$requested" = false ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Manual unsigned build requested."
+            exit 0
           fi
+
+          missing=()
+          [ -n "${ASC_KEY_ID:-}" ] || missing+=(ASC_KEY_ID)
+          [ -n "${ASC_ISSUER_ID:-}" ] || missing+=(ASC_ISSUER_ID)
+          [ -n "${ASC_PRIVATE_KEY:-}" ] || missing+=(ASC_PRIVATE_KEY)
+          [ -n "${IOS_CERTIFICATE_PRIVATE_KEY:-}" ] || missing+=(IOS_CERTIFICATE_PRIVATE_KEY)
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "App Store submission is required for this run, but signing secrets are missing: ${missing[*]}"
+            echo "Create IOS_CERTIFICATE_PRIVATE_KEY once with an RSA private key and keep it stable across runs."
+            exit 1
+          fi
+
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "Signing credentials found: fetching/creating the App Store certificate and provisioning profile, then signing locally and uploading."
 
       - name: Install Codemagic CLI signing tools
         if: steps.asc.outputs.ready == 'true'
@@ -137,12 +144,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Name unsigned fallback build
-        if: steps.asc.outputs.ready != 'true'
+        if: steps.asc.outputs.ready != 'true' && success()
         id: name
         run: echo "tag=ios-build-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Upload unsigned fallback artifact
-        if: steps.asc.outputs.ready != 'true'
+        if: steps.asc.outputs.ready != 'true' && success()
         uses: actions/upload-artifact@v4
         with:
           name: side-sky-ipa
@@ -150,7 +157,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish unsigned fallback release
-        if: steps.asc.outputs.ready != 'true'
+        if: steps.asc.outputs.ready != 'true' && success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -159,8 +166,7 @@ jobs:
           NOTES=$(cat <<'EOF'
           **Unsigned iOS build.** It will not install by tapping it.
 
-          Complete signing credentials were not used for this run, so this is
-          the unsigned fallback artifact rather than a TestFlight submission.
+          This run explicitly requested the unsigned fallback instead of an App Store Connect submission.
           EOF
           )
           gh release create "$TAG" build/ios/side-sky-unsigned.ipa \
