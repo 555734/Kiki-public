@@ -61,7 +61,7 @@ jobs:
           xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
           chmod +x "$GODOT"
           xcodebuild -version
-          tools/build-ios.sh
+          bash tools/build-ios.sh
 
       - name: Collect build logs on failure
         if: failure()
