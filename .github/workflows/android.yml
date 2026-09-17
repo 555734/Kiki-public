@@ -108,7 +108,7 @@ jobs:
           export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
           export ANDROID_HOME="${ANDROID_SDK_ROOT}"
           export KEYSTORE="${SIDE_SKY_CI_KEYSTORE}"
-          tools/build-android.sh
+          bash tools/build-android.sh
 
       - name: Name this build
         id: name
