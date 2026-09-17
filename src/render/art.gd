@@ -120,27 +120,23 @@ const MANIFEST := {
 	"crosshair": "scope/crosshair.png",
 }
 
-## Keys that are registered and deliberately not delivered yet.
+## Keys that are registered in the MANIFEST but whose painting has not arrived.
 ##
-## The asset audit exists because a missing texture is INVISIBLE -- tex() returns
-## null, the renderer drops to its vector path, and nobody finds out until
-## somebody looks at a screenshot. That check has to keep working, so "the 1-B
-## art has not been drawn yet" cannot be expressed by leaving the keys out of
-## the audit, and it cannot be expressed by leaving them out of the MANIFEST
-## either (then the fallbacks would be the design rather than a stand-in).
+## EMPTY, and that is the point: 1-B and 1-S were built and measured with their
+## twenty-two keys sitting in here, and the paintings have now all landed.
 ##
-## So: registered, listed here, and audited the other way round. missing()
-## forgives these, and pending_but_present() reports any whose file has since
-## arrived -- which is the line to delete from this list. A stale entry here
-## would switch the real audit off for a key that is being shipped.
-const PENDING := [
-	"keeper_panorama", "keeper_stand", "keeper_brace", "keeper_charge",
-	"keeper_reel", "keeper_core", "keeper_barricade", "keeper_barricade_rubble",
-	"keeper_shockwave", "keeper_portcullis", "keeper_flagstone",
-	"keeper_brazier", "keeper_rubble",
-	"sky_panorama", "sky_island_tile", "sky_island_cap", "sky_keel",
-	"sky_updraft", "sky_streamer", "sky_arch", "sky_beacon", "sky_flyer",
-]
+## The list works because a missing texture is INVISIBLE -- tex() returns null,
+## the renderer drops to its vector path, and nobody finds out until somebody
+## looks at a screenshot. So "not painted yet" could not be expressed by leaving
+## the keys out of the audit, and could not be expressed by leaving them out of
+## the MANIFEST either (then the fallbacks would be the design rather than a
+## stand-in). Instead they are registered, listed here, and audited the other
+## way round: missing() forgives whatever is in here, and pending_but_present()
+## fails the moment one of their files turns up -- because a stale entry would
+## switch the real audit off for a key that is being shipped.
+##
+## The next stage that ships ahead of its art puts its keys back in here.
+const PENDING := []
 
 const FONT_UI := BASE + "fonts/Nunito-ExtraBold.ttf"
 const FONT_DISPLAY := BASE + "fonts/Baloo2-Bold.ttf"

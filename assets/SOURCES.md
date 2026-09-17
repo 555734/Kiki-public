@@ -99,3 +99,70 @@ graveyard the old warm sand read as a beach.
 Unlike the first hand-over these are used at their supplied resolution and
 have not been through `tools/import_assets.py`; they arrived already
 cropped to their subjects.
+
+**Supplied painted art, stages 1-B and 1-S.** A third hand-over: thirteen
+paintings for THE KEEPER and nine for THE OPEN SKY, generated from the
+prompts in `docs/art-prompts-keeper.md` and `docs/art-prompts-sky.md`.
+Both stages were designed, measured and shipped with none of them --
+`Art.PENDING` held all twenty-two keys, and every dimension in either stage
+was taken off the vector fallbacks. These are a replacement, not a
+foundation.
+
+Brought in by `tools/import_assets.py --stage-art`, whose `STAGE_PLAN` table
+holds the sizes and the reason for each. Three modes beyond the first
+hand-over's crop-and-shrink:
+
+* **box** -- the sprite is drawn with `Art.draw_stretched` into a rect the
+  physics owns (the barricade's 70x128 collider, the shockwave's 110x48
+  hazard, the gate's 56x420 slot). It is resampled to exactly twice that
+  rect, so the painting fills the box the game actually uses. A picture that
+  stops short of its collider is a lie about where the edge is.
+* **tile** -- seamless, so it is never cropped and is resized as the middle
+  of a 3x3 wrap of itself. Plain LANCZOS at an edge has nothing beyond it to
+  sample, leans inward, and the tile stops meeting itself.
+* **poses** -- the Keeper's four states go on one canvas at one scale,
+  aligned by the feet, exactly like the runner's eight. The four boards put
+  the floor in four different places (45, 96, 149 and 62px up from the
+  bottom edge); left alone, the boss grows and shrinks as it braces.
+
+| file | size | note |
+|---|---|---|
+| `keeper/panorama.jpg` | 1280x720 | the arena backdrop |
+| `keeper/keeper_stand.png` | 336x242 | one canvas, one scale, feet aligned |
+| `keeper/keeper_brace.png` | 336x242 | " |
+| `keeper/keeper_charge.png` | 336x242 | " |
+| `keeper/keeper_reel.png` | 336x242 | " |
+| `keeper/core.png` | 128x128 | the weak point, halo kept |
+| `keeper/barricade.png` | 140x256 | drawn into 70x128 |
+| `keeper/barricade_rubble.png` | 168x77 | the stump after it is broken |
+| `keeper/shockwave.png` | 220x96 | drawn into 110x48, mirrored by direction |
+| `keeper/portcullis.png` | 112x840 | drawn into the gate's 56x420 |
+| `keeper/flagstone.png` | 132x132 | seamless, laid at `DIRT_TILE_H` |
+| `keeper/brazier.png` | 130x303 | decor, drawn 150px tall |
+| `keeper/rubble.png` | 460x149 | decor, drawn 74px tall |
+| `sky/panorama.jpg` | 1280x720 | dawn cloud sea |
+| `sky/island_tile.png` | 132x132 | seamless island cross-section |
+| `sky/island_cap.png` | 1257x92 | the moss band along an island's top |
+| `sky/keel.png` | 480x298 | the taper under an island, chains included |
+| `sky/updraft.png` | 240x720 | the column; 1:1, the only one not at 2x |
+| `sky/streamer.png` | 200x385 | landmark, drawn 190px tall |
+| `sky/arch.png` | 440x520 | landmark, drawn into 220x260 |
+| `sky/beacon.png` | 120x488 | the goal |
+| `sky/flyer.png` | 128x90 | the stage's only enemy |
+
+Three drawing changes came out of looking at the result rather than at the
+files:
+
+* `sky/keel.png` has its own hanging chains, so `decor.gd` no longer draws
+  the vector ones over it -- two sets, half a link apart.
+* `updraft.gd` now stretches its column instead of tiling it: the stage has
+  two column shapes, and tiled at the taller one's scale the shorter one lost
+  its right-hand edge -- which is the bright part that says where the lift
+  ends.
+* `sky_canvas.gd` now reads the strip drawn under the painted backdrop out of
+  the backdrop itself. `PANORAMA_FLOOR` was a constant sampled from 1-1's
+  `bg/parallax.png` -- an earth brown -- and it was right for exactly as long
+  as there was one backdrop. Under 1-S's dawn cloud sea it drew a band of soil
+  across the bottom of the sky. Nothing in the test suite can see this: it is
+  a colour, in a strip that only appears when the camera is low enough, and it
+  took a screenshot.

@@ -323,9 +323,12 @@ func _rubble(base: Vector2, scale: float) -> void:
 ## deleted.
 func _keel(base: Vector2, width: float) -> void:
 	var depth := clampf(width * 0.62, 90.0, 240.0)
+	# No vector chains over the painting: it has its own, hanging off the same
+	# rock they are bolted to, and the second set landed a hand's width to the
+	# side of the first. The fallback still draws them, because without them the
+	# fallback wedge is a triangle rather than something somebody built.
 	if Art.draw_stretched(self, "sky_keel",
 			Rect2(base.x - width * 0.5, base.y, width, depth)):
-		_keel_chains(base, width, depth)
 		return
 	var stone := Color("7b8291")
 	var dark := Color("4e5666")

@@ -82,7 +82,15 @@ func holds(at: Vector2) -> bool:
 
 func _draw() -> void:
 	var rect := Rect2(-span.x * 0.5, -span.y, span.x, span.y)
-	if Art.draw_tiled(self, "sky_updraft", rect, span.y):
+	# Stretched rather than tiled. A column is one object, not a repeating
+	# surface, and the two columns in the stage are different shapes: 240x720
+	# for the route in section 3 and 170x560 for the four that carry a fallen
+	# runner back up. Tiled at the taller one's scale the shorter one overhangs
+	# its own rect by 9% and gets its right-hand edge cut off -- and the edges
+	# are the brightest part of the painting, the part that says where the lift
+	# stops. Stretching costs a 9% difference in width that nobody can see on a
+	# column of light.
+	if Art.draw_stretched(self, "sky_updraft", rect):
 		_draw_motes(rect)
 		return
 

@@ -43,8 +43,17 @@ const PANORAMA_HORIZON := 0.735
 ## Height of the backdrop as a multiple of the screen, so there is painted sky
 ## left above the horizon when the runner is at the top of the climb.
 const PANORAMA_SCALE := 1.30
-## The colour of the painted backdrop's bottom row, continued underneath it.
+## Fallback for the colour continued under the painted backdrop, used only if
+## the texture cannot be read back. This is 1-1's earth, which is what the value
+## used to be for every stage -- and that was wrong the moment there was a
+## second backdrop: 1-S paints a dawn cloud sea, and a band of soil came out
+## across the bottom of the sky under it. _panorama_floor() reads the real
+## bottom row out of whichever backdrop is being drawn.
 const PANORAMA_FLOOR := Color(0.624, 0.408, 0.286)
+
+## Bottom-row colour per backdrop texture. Read once: get_image() pulls the
+## texture back off the GPU, which is not something to do in a _draw().
+static var _floor_cache: Dictionary = {}
 
 ## The supplied backdrop, repeated across the stage.
 ##
@@ -78,12 +87,38 @@ func _panorama(view: Vector2, offset: float) -> bool:
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Below the panorama is the sky gradient again, and where the stage has a pit
 	# the player looks straight through the hole in the floor at it: a strip of
-	# blue under the distant ground. Continue the panorama's own earth down to
-	# the bottom of the screen instead.
+	# blue under the distant ground. Continue the panorama's OWN bottom row down
+	# to the bottom of the screen instead.
 	var floor_y := top + h
 	if floor_y < view.y:
-		draw_rect(Rect2(0.0, floor_y - 1.0, view.x, view.y - floor_y + 1.0), PANORAMA_FLOOR)
+		draw_rect(Rect2(0.0, floor_y - 1.0, view.x, view.y - floor_y + 1.0),
+			_panorama_floor(t))
 	return true
+
+## The average of the backdrop's own bottom row.
+##
+## Averaged rather than sampled at one x, because the bottom row of a painting
+## is not a flat colour -- 1-1's has grass tufts in it and 1-S's has the shadowed
+## troughs between clouds, and a single pixel picks whichever of those happens to
+## sit at x=0.
+func _panorama_floor(t: Texture2D) -> Color:
+	var key := t.resource_path
+	if _floor_cache.has(key):
+		return _floor_cache[key]
+	var col := PANORAMA_FLOOR
+	var img := t.get_image()
+	if img != null:
+		if img.is_compressed():
+			img.decompress()
+		var w := img.get_width()
+		var y := img.get_height() - 1
+		if w > 0 and y >= 0:
+			var sum := Color(0, 0, 0)
+			for x in range(w):
+				sum += img.get_pixel(x, y)
+			col = Color(sum.r / float(w), sum.g / float(w), sum.b / float(w))
+	_floor_cache[key] = col
+	return col
 
 ## Screen y of a layer's horizon. Parallax has to work vertically too: when the
 ## runner jumps, the ground slides down the screen and the background has to
