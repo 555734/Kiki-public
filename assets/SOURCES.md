@@ -70,17 +70,17 @@ Mockups: `m1` solid holograms + mid-jump runner, `m2` dashed previews +
 clear walker, `m3` full-screen scope (~1.5x scale, best for detail).
 
 **Supplied painted art, stage 1-2.** A second hand-over, for THE HOLLOW
-OUTSKIRTS. These replaced the hand-written SVG placeholders of the same
-subjects, which are gone; the three horror SVGs still in `horror/` are the
-ones nothing was painted for.
+OUTSKIRTS. **Half of it has since been rolled back** -- see the note under the
+table; the five rows marked *(reverted)* are no longer in the project and their
+SVG placeholders are back in their place.
 
 | file | size | replaced |
 |---|---|---|
-| `bg/horror_stage_1_2.jpg` | 1280x720 | `bg/horror_stage_1_2.svg` |
-| `horror/pursuer.png` | 320x427 | `horror/pursuer.svg` |
-| `horror/gate.png` | 384x480 | `horror/gate.svg`, the stage's goal |
-| `horror/fence.png` | 512x377 | `horror/fence.svg` |
-| `horror/thorns.png` | 512x372 | `horror/thorns.svg`, the hazard strip |
+| ~~`bg/horror_stage_1_2.jpg`~~ *(reverted)* | 1280x720 | `bg/horror_stage_1_2.svg` |
+| ~~`horror/pursuer.png`~~ *(reverted)* | 320x427 | `horror/pursuer.svg` |
+| ~~`horror/gate.png`~~ *(reverted)* | 384x480 | `horror/gate.svg`, the stage's goal |
+| ~~`horror/fence.png`~~ *(reverted)* | 512x377 | `horror/fence.svg` |
+| ~~`horror/thorns.png`~~ *(reverted)* | 512x372 | `horror/thorns.svg`, the hazard strip |
 | `horror/cart.png` | 512x374 | drawn by hand in `decor.gd` |
 | `horror/crate.png` | 256x260 | drawn by hand in `decor.gd` |
 | `horror/grave.png` | 200x276 | drawn by hand in `decor.gd` |
@@ -94,7 +94,25 @@ gate gimmick for the small one to be.
 
 `horror/mud_tile.svg` and `horror/moss_cap.svg` were recoloured to suit the
 new backdrop -- colour values only, the same shapes. Against a night
-graveyard the old warm sand read as a beach.
+graveyard the old warm sand read as a beach. The recolour was **kept**.
+
+**The reversal.** The five subjects that had an SVG placeholder before this
+hand-over are back on those placeholders, restored from `312f8a0^`, and the
+paintings that replaced them are deleted along with their `.import` files.
+`Art.MANIFEST` points `horror_panorama`, `horror_pursuer`, `horror_goal`,
+`horror_fence` and `horror_thorns` at the `.svg` files again.
+
+Only those five. The other five rows above (`cart`, `crate`, `grave`,
+`lantern`, `puddle`) were never SVGs -- `decor.gd` drew them by hand and there
+is nothing to go back to -- so those paintings stay, as does the tile recolour
+above. That split is deliberate: this reverts a replacement, not the whole
+hand-over.
+
+Nothing else moves with them. The SVG set has no tracked `.import` (the
+repository ignores `*.svg.import`, because every build path runs its own
+`--editor --import` pass) and `test/horror_stage_probe.gd` walks the
+`horror_*` keys out of the manifest rather than naming files, so it follows
+the manifest wherever it points.
 
 Unlike the first hand-over these are used at their supplied resolution and
 have not been through `tools/import_assets.py`; they arrived already
@@ -166,3 +184,73 @@ files:
   across the bottom of the sky. Nothing in the test suite can see this: it is
   a colour, in a strip that only appears when the camera is low enough, and it
   took a screenshot.
+
+**Supplied painted art, stage 1-1.** A fourth hand-over, and the first to
+arrive as **atlas sheets** rather than one file per subject: nine boards
+carrying about a hundred separate drawings. Brought in by
+`tools/import_assets.py --one-one`, whose `ONE_ONE_PLAN` holds every crop box.
+
+Finding the subjects was machine-assisted and human-checked. Connected-
+component labelling on the alpha channel separates most of them, but it cannot
+tell a tree from the bush touching it -- on `03_decorations` it merged six
+subjects into one -- and it splits a starburst into a core plus three rays that
+do not touch it. So the boxes were read off a numbered contact sheet by eye and
+written down, which is why they are a table rather than a detection pass.
+
+| key | sheet | note |
+|---|---|---|
+| `parallax` | 01_background | the whole board, 1280x720 |
+| `dirt_tile`, `grass_tile` | 02_terrain_tiles | cut from the middle of the long slab -- see below |
+| `ground_block` | 02_terrain_tiles | a whole grass-topped block; `crumbling_floor.gd` stretches it |
+| `runner_*` (8) | 04_player_sprites | nineteen frames on the sheet, eight named poses here |
+| `walker`, `walker_spiky` | 05_enemy_sprites | two ground enemies arrived; see `Walker.skin` |
+| `qblock`, `brick`, `coin`, `moving_platform` | 06_items_blocks_platform | |
+| `goal` | 07_goal_gate | |
+| `tree`, `fence`, `flowers` | 03_decorations | |
+| `signpost`, `heart` | 08_ui_and_signs | |
+| `hit_burst` | 09_effects_and_misc | the union of four components |
+
+**The terrain needed measuring, not cropping.** The sheet holds thirteen
+finished slabs; `terrain.gd` calls `Art.draw_tiled()` and repeats a seamless
+texture across a rect of any width. Tiling a finished slab would repeat its
+rounded ends forever. The two tiles are therefore cut from the MIDDLE of the
+816px slab, and the window was chosen by measurement: the slab's own left and
+right edges differ by 65x its internal grain, while this window's differ by
+1.9x (dirt) and 1.4x (grass). The seamless tile that was already in the
+repository measures 1.1x, so the cut is in the same class. Neither tile is
+resized, because a resize would undo the property they were cut for.
+
+The grass tile's crop starts 28 rows ABOVE the grass, in empty space, and that
+was found by a test rather than by looking. `terrain.gd` lifts the cap by
+`Balance.GRASS_LIP` so the tile's solid part lands on the collision surface and
+whatever is above it overhangs; the old tile spent its top quarter on feathered
+blade tips, while this painting has a hard silhouette -- measured, it goes from
+0% to 95% opaque in ONE row. So the quarter is transparent headroom instead of
+tips. The geometry is the same either way and the grass starts exactly at the
+surface; cut tight to the paint, the tile is solid from its first row and the
+grass sinks a quarter of its height into the ground. `run_tests` compares the
+artwork to the constant and failed at 0.0px against a required 11.5; the crop
+above measures 11.6.
+
+**The poses were matched by meaning, not by frame order.** The mapping was made
+with the sheet beside the eight poses already in use: `land` is a deep crouch
+here, `dash` is a low forward lean, `reach` is an arm extended forward. Frame
+order is an animation's order, not this game's. All eight go on one canvas at
+one scale aligned by the feet, as the first hand-over's poses do, which moved
+`Balance.RUNNER_POSE_HEADROOM` from 1.125 to 1.0625.
+
+**Not covered by this hand-over.** Roughly thirty registered keys have no
+drawing on these sheets and keep the art they had: the guardian's `platform`,
+`wall` and `warp_gate`, the whole optic (`scope_ring`, `crosshair`,
+`zoom_slider`, `cartridge`, `btn_reticle`), `spikes`, `spring`, `pipe`,
+`turret`, `flyer`, `projectile`, the lasers, the switches, the checkpoints,
+`cloud_a/b/c`, `castle`, the portraits and the HUD icons. The result is
+deliberately a mixed set.
+
+**Arrived with no home.** Ten number tiles, four clock faces, a second signpost,
+the enemies' shell and flattened frames, a dust puff, a sparkle, and about ten
+small plants and rocks. Nothing in the registry asks for them.
+
+`grass_cap`, `dirt_body` and `dirt_body_alt` were left alone: they are
+registered but drawn from nowhere, so replacing them would have been work
+nobody can see.

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://3b5rytf1xjpc"
-path="res://.godot/imported/thorns.png-47d0a9cd014ef89b2fbfaf8e79a5a50b.ctex"
+uid="uid://n64t1cvwy40l"
+path="res://.godot/imported/walker_spiky.png-cfa3c6254370d33cad8b3136da1486c2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/horror/thorns.png"
-dest_files=["res://.godot/imported/thorns.png-47d0a9cd014ef89b2fbfaf8e79a5a50b.ctex"]
+source_file="res://assets/characters/walker_spiky.png"
+dest_files=["res://.godot/imported/walker_spiky.png-cfa3c6254370d33cad8b3136da1486c2.ctex"]
 
 [params]
 

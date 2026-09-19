@@ -538,7 +538,7 @@ const DEFAULT_RELAY := "https://side-sky-signalling.a3506124.workers.dev"
 
 const USE_TEXTURES: bool = true
 const RUNNER_SPRITE_H: float = 60.0
-const RUNNER_POSE_HEADROOM: float = 1.125
+const RUNNER_POSE_HEADROOM: float = 1.0625
 const WALKER_SPRITE_H: float = 60.0
 const FLYER_SPRITE_H: float = 44.0
 const TURRET_SPRITE_H: float = 66.0

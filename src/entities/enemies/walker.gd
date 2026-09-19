@@ -4,6 +4,17 @@ extends Enemy
 ## be avoided by the runner or defeated by the guardian.
 
 @export var patrol_half_width: float = 110.0
+
+## Which of the two paintings this one wears. Purely cosmetic: both skins walk,
+## turn and die identically, and the 1-1 hand-over simply arrived with two
+## ground enemies where the game had one.
+##
+## It is LEVEL DATA, set once at build time from the same spec on both devices,
+## so it never goes on the wire -- the same reason a moving platform's path
+## does not (docs/netcode.md section 4). An enemy is identified across the link
+## by its index in that level data, and skin does not change that index.
+@export var skin: String = "walker"
+
 var direction: int = -1
 var _origin_x: float = 0.0
 var _walk_phase: float = 0.0

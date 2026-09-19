@@ -212,6 +212,11 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 		"walker":
 			var w := Walker.new()
 			w.patrol_half_width = float(spec.get("patrol", 110.0))
+			# Unknown skins fall back to the default rather than drawing
+			# nothing: a typo in level data should cost a wrong picture, not an
+			# invisible enemy the runner still dies to.
+			var skin := String(spec.get("skin", "walker"))
+			w.skin = skin if Art.MANIFEST.has(skin) else "walker"
 			return w
 		"flyer":
 			var f := Flyer.new()

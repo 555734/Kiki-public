@@ -18,7 +18,10 @@ func _ready() -> void:
 	check(Stage.current() == Stage.Which.GREENFIELD, "fresh launch defaults to GREENFIELD")
 	check(Stage.stage_number() == "1-1", "default stage is numbered 1-1")
 
-	# Every stage remains addressable through the same Stage facade.
+	# Every stage remains addressable through the same Stage facade -- INCLUDING
+	# the two that the start screen no longer offers. That is the point of
+	# hiding them rather than deleting them, and it is what makes putting the
+	# buttons back a one-line change rather than a restoration.
 	Stage.use(Stage.Which.HORROR)
 	check(Stage.stage_number() == "1-2", "horror stage remains selectable as 1-2")
 	Stage.use(Stage.Which.KEEPER)
@@ -46,8 +49,14 @@ func _ready() -> void:
 				for label in ["1-1", "1-2", "1-V", "1-B", "1-S"]:
 					if text.contains(label):
 						seen[label] = true
-			for label in ["1-1", "1-2", "1-V", "1-B", "1-S"]:
+			for label in ["1-1", "1-2", "1-V"]:
 				check(seen.has(label), "start screen has a %s stage button" % label)
+			# And the other half of the same claim. Without this, restoring the
+			# two buttons would pass every check in the suite and nobody would
+			# find out until they were on a screenshot.
+			for label in ["1-B", "1-S"]:
+				check(not seen.has(label),
+					"start screen does NOT offer %s (hidden on purpose)" % label)
 		main.queue_free()
 		await get_tree().process_frame
 

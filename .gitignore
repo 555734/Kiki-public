@@ -17,8 +17,11 @@ bin/
 *.apk
 *.aab
 *.ipa
-# ...except the hand-off builds in dist/, which are deliberately tracked while
-# GitHub Actions cannot publish Releases for this repository. See dist/README.md.
+# ...except the hand-off builds in dist/, which were tracked while GitHub
+# Actions could not publish Releases for this repository. Actions does publish
+# them now (android.yml runs `gh release create`), so this exception has
+# outlived its reason and the two files under it are several stages stale.
+# Kept only so the existing download links keep resolving. See dist/README.md.
 !dist/*.apk
 *.xcodeproj/
 *.xcworkspace/

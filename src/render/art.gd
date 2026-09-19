@@ -16,6 +16,9 @@ const MANIFEST := {
 	"runner_reach": "characters/runner_reach.png",
 	"runner_cheer": "characters/runner_cheer.png",
 	"walker": "characters/walker.png",
+	## The second ground enemy of the 1-1 set. Same behaviour as `walker`; see
+	## Walker.skin, which is static level data and so costs nothing on the wire.
+	"walker_spiky": "characters/walker_spiky.png",
 	# holograms
 	"platform": "holograms/platform.png",
 	"wall": "holograms/wall.png",
@@ -45,14 +48,14 @@ const MANIFEST := {
 	"parallax": "bg/parallax.png",
 	# stage 1-2 horror art. The painted pieces replaced the first vector pass;
 	# the three still on .svg are the ones nothing was painted for yet.
-	"horror_panorama": "bg/horror_stage_1_2.jpg",
-	"horror_pursuer": "horror/pursuer.png",
+	"horror_panorama": "bg/horror_stage_1_2.svg",
+	"horror_pursuer": "horror/pursuer.svg",
 	"horror_platform": "horror/platform.svg",
 	"horror_checkpoint_off": "horror/checkpoint_off.svg",
 	"horror_checkpoint_on": "horror/checkpoint_on.svg",
-	"horror_goal": "horror/gate.png",
-	"horror_fence": "horror/fence.png",
-	"horror_thorns": "horror/thorns.png",
+	"horror_goal": "horror/gate.svg",
+	"horror_fence": "horror/fence.svg",
+	"horror_thorns": "horror/thorns.svg",
 	"horror_mud_tile": "horror/mud_tile.svg",
 	"horror_moss_cap": "horror/moss_cap.svg",
 	# ...and the dressing, which until now was drawn by hand in decor.gd.

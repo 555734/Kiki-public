@@ -402,6 +402,228 @@ def import_stage(src: str) -> int:
     return 0
 
 
+
+# ---------------------------------------------------------------------------
+# The 1-1 hand-over: nine ATLAS SHEETS rather than one file per subject.
+#
+# This is the first set that arrives as sheets, so it needs a step the other
+# two did not: every subject has to be cut out of its sheet before anything
+# else can happen. The boxes below were found by connected-component labelling
+# on the alpha channel and then read off a numbered contact sheet by eye --
+# machine-found, human-checked, because labelling cannot tell a tree from the
+# bush touching it, and on 03_decorations it merged six subjects into one.
+#
+# name -> (sheet, (x0, y0, x1, y1), destination, mode, target, pad)
+#
+# Modes are the same as STAGE_PLAN's, plus "raw" for a crop that is already
+# the right pixels and must not be resampled at all (the terrain tiles: they
+# are cut to tile, and a resize would undo that).
+ONE_ONE_SHEETS = "kiki_1_1_assets"
+ONE_ONE_PLAN = {
+    # --- terrain ----------------------------------------------------------
+    #
+    # The sheet has thirteen finished slabs, and the game does not want a slab:
+    # terrain.gd calls Art.draw_tiled() and REPEATS a seamless texture across a
+    # rect of any width. Tiling a finished slab would repeat its rounded ends
+    # and its grass lumps forever.
+    #
+    # So these two are cut out of the middle of the long 816px slab, away from
+    # its shaped ends. That window was chosen by measurement, not by eye: the
+    # slab's own left-to-right edges differ by 65x its internal grain, while
+    # this window's differ by 1.9x (dirt) and 1.4x (grass). The seamless tile
+    # already in the repository measures 1.1x, so this is in the same class.
+    "dirt_tile":  ("02_terrain_tiles", (376, 303, 616, 393),
+                   "terrain/dirt_tile.png", "raw", None, 0),
+    # The top of this crop is 28 rows of NOTHING, and they are the point.
+    #
+    # terrain.gd draws the cap lifted by Balance.GRASS_LIP so the solid part of
+    # the tile lands on the collision surface and whatever is above it overhangs
+    # (run_tests checks the artwork against that constant). The old tile spent
+    # its top quarter on feathered blade tips; this painting has a hard silhouette
+    # instead -- measured, it goes from 0% to 95% opaque in ONE row -- so the
+    # quarter is transparent headroom rather than tips. Same geometry either way:
+    # the grass starts exactly at the surface. Cut to 220 instead, the tile is
+    # solid from its first row, the lip lands at 0.0px against a required 11.5,
+    # and the grass sinks into the ground by a quarter of its height.
+    "grass_tile": ("02_terrain_tiles", (376, 188, 616, 303),
+                   "terrain/grass_tile.png", "raw", None, 0),
+    # Stretched into a crumbling floor's rect (crumbling_floor.gd), so a whole
+    # grass-topped block is what it wants.
+    "ground_block": ("02_terrain_tiles", (309, 795, 607, 1027),
+                     "terrain/ground_block.png", "fit", 384, 4),
+
+    # --- props and scenery ------------------------------------------------
+    # The tree's box bleeds a fence post at its right edge -- the two touch on
+    # the sheet -- so its crop stops short of it.
+    "tree":     ("03_decorations", (32, 59, 645, 839), "props/tree.png", "fit", 256, 6),
+    "fence":    ("03_decorations", (582, 661, 993, 840), "props/fence.png", "fit", 196, 6),
+    "flowers":  ("03_decorations", (1160, 252, 1404, 442), "props/flowers.png", "fit", 160, 6),
+
+    # --- blocks, pickups, the guardian's slab ------------------------------
+    "qblock": ("06_items_blocks_platform", (74, 204, 447, 563), "props/qblock.png", "fit", 128, 6),
+    "brick":  ("06_items_blocks_platform", (557, 207, 916, 564), "props/brick.png", "fit", 128, 6),
+    "coin":   ("06_items_blocks_platform", (1052, 205, 1364, 568), "props/coin.png", "fit", 112, 6),
+    "moving_platform": ("06_items_blocks_platform", (311, 721, 1136, 951),
+                        "entities/moving_platform.png", "fit", 288, 6),
+
+    # --- enemies ----------------------------------------------------------
+    # Two ground enemies arrived and the game had one key. Both are kept: see
+    # walker.gd's `skin`. Walk frame rather than the shell/flattened one --
+    # those are states this game's walker does not have.
+    #
+    # Both face LEFT, which is the convention walker_visual.gd already uses
+    # (it passes flip_h = direction > 0, so the art is drawn unmirrored while
+    # walking left).
+    "walker":       ("05_enemy_sprites", (392, 231, 659, 446),
+                     "characters/walker.png", "fit", 148, 6),
+    "walker_spiky": ("05_enemy_sprites", (373, 585, 625, 770),
+                     "characters/walker_spiky.png", "fit", 148, 6),
+
+    # --- the rest ---------------------------------------------------------
+    "goal":     ("07_goal_gate", None, "entities/goal.png", "fit", 460, 8),
+    "signpost": ("08_ui_and_signs", (256, 88, 661, 528), "props/signpost.png", "fit", 168, 6),
+    "heart":    ("08_ui_and_signs", (59, 640, 238, 797), "ui/heart.png", "fit", 78, 4),
+    # The burst is four components on the sheet -- a core and three rays that
+    # do not touch it -- so this box is their union, found the same way.
+    "hit_burst": ("09_effects_and_misc", (604, 110, 1044, 433),
+                  "entities/hit_burst.png", "fit", 256, 10),
+
+    # --- the backdrop -----------------------------------------------------
+    "parallax": ("01_background", None, "bg/parallax.png", "bg", (1280, 720), 0),
+}
+
+## The runner, cut from 04_player_sprites.
+##
+## Nineteen frames on the sheet, eight named poses in the game. The mapping was
+## made by putting the sheet beside the eight poses already in use and matching
+## what each NAME means here -- `land` is a deep crouch, `dash` is a low
+## forward lean, `reach` is an arm extended forward -- rather than by frame
+## order, which is an animation's order and not this game's.
+ONE_ONE_POSES = {
+    "runner_idle":  0,    # upright, arms down
+    "runner_run":   7,    # full stride, cape streaming
+    "runner_jump":  11,   # rising, legs tucked
+    "runner_fall":  12,   # descending, arms out
+    "runner_land":  17,   # the deep crouch
+    "runner_dash":  13,   # low forward lean
+    "runner_reach": 15,   # arm extended forward
+    "runner_cheer": 16,   # fist up, with the stars
+}
+
+
+def _sheet_boxes(path: str) -> list:
+    """Connected components of the alpha channel, reading order."""
+    from collections import deque
+    a = np.array(Image.open(path).convert("RGBA"))[..., 3]
+    h, w = a.shape
+    seen = np.zeros((h, w), bool)
+    solid = a > 12
+    out = []
+    for y in range(h):
+        for x in np.where(solid[y] & ~seen[y])[0]:
+            if seen[y, x]:
+                continue
+            q = deque([(y, x)]); seen[y, x] = True
+            x0 = x1 = x; y0 = y1 = y; n = 0
+            while q:
+                cy, cx = q.popleft(); n += 1
+                x0 = min(x0, cx); x1 = max(x1, cx)
+                y0 = min(y0, cy); y1 = max(y1, cy)
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        ny, nx = cy + dy, cx + dx
+                        if 0 <= ny < h and 0 <= nx < w and solid[ny, nx] and not seen[ny, nx]:
+                            seen[ny, nx] = True; q.append((ny, nx))
+            if n >= 400:
+                out.append([x0, y0, x1 + 1, y1 + 1])
+    out.sort(key=lambda t: (t[1] // 140, t[0]))
+    return out
+
+
+def _merge_touching(boxes: list, gap: int = 6) -> list:
+    """A cheering figure and the stars beside it are one sprite."""
+    changed = True
+    while changed:
+        changed = False
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                a, b = boxes[i], boxes[j]
+                if (a[0] - gap < b[2] and b[0] - gap < a[2]
+                        and a[1] - gap < b[3] and b[1] - gap < a[3]):
+                    boxes[i] = [min(a[0], b[0]), min(a[1], b[1]),
+                                max(a[2], b[2]), max(a[3], b[3])]
+                    boxes.pop(j); changed = True; break
+            if changed:
+                break
+    return boxes
+
+
+def import_one_one(src: str) -> int:
+    sheets = os.path.join(src, ONE_ONE_SHEETS)
+    if not os.path.isdir(sheets):
+        sheets = src
+
+    # --- the eight poses, on one canvas, aligned by the feet ---------------
+    player = os.path.join(sheets, "04_player_sprites.png")
+    if not os.path.exists(player):
+        print(f"  MISSING  {player}")
+        return 1
+    frames = _merge_touching(_sheet_boxes(player))
+    board = Image.open(player).convert("RGBA")
+    loaded = {}
+    for name, idx in ONE_ONE_POSES.items():
+        if idx >= len(frames):
+            print(f"  MISSING  {name}: frame #{idx} (sheet has {len(frames)})")
+            return 1
+        cut = board.crop(tuple(frames[idx]))
+        box = bbox(cut)
+        loaded[name] = (cut, box, feet_centre(cut, box))
+
+    ref = loaded[POSE_REFERENCE][1]
+    scale = POSE_REFERENCE_PX / (ref[3] - ref[1])
+    height = POSE_MARGIN + max(round((b[3] - b[1]) * scale) for _, b, _ in loaded.values())
+    half = max(max(feet - b[0], b[2] - feet) for _, b, feet in loaded.values())
+    width = POSE_MARGIN * 2 + 2 * round(half * scale)
+
+    for name, (im, box, feet) in loaded.items():
+        cut = im.crop(box)
+        cut = resize_premultiplied(cut, max(1, round(cut.width * scale)))
+        canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        canvas.alpha_composite(cut, (round(width / 2 - (feet - box[0]) * scale),
+                                     height - cut.height))
+        out = os.path.join(ASSETS, "characters", name + ".png")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        canvas.save(out, optimize=True)
+        print(f"  {name:16s} frame #{ONE_ONE_POSES[name]:<2} -> {width}x{height}"
+              f"  {os.path.getsize(out) // 1024}KB")
+    figure = round((ref[3] - ref[1]) * scale)
+    print(f"  canvas {width}x{height}, reference figure {figure}px")
+    print(f"  Balance.RUNNER_POSE_HEADROOM = {height / figure:.4f}")
+
+    # --- everything else ---------------------------------------------------
+    for name, (sheet, box, dest, mode, target, pad) in ONE_ONE_PLAN.items():
+        source = os.path.join(sheets, sheet + ".png")
+        if not os.path.exists(source):
+            print(f"  MISSING  {name}: {source}")
+            return 1
+        im = Image.open(source)
+        original = im.size
+        if box is not None:
+            im = im.crop(box)
+        if mode == "bg":
+            im = im.convert("RGB").resize(target, Image.LANCZOS)
+        elif mode == "raw":
+            im = im.convert("RGBA")
+        else:
+            im = resize_premultiplied(crop_to_content(im.convert("RGBA"), pad), target)
+        out = os.path.join(ASSETS, dest)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        im.save(out, optimize=True)
+        print(f"  {name:16s} {sheet} {original[0]}x{original[1]} -> "
+              f"{im.size[0]}x{im.size[1]}  {os.path.getsize(out) // 1024}KB  {dest}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--from", dest="src", required=True, help="directory of <stem>-image.png")
@@ -409,12 +631,16 @@ def main() -> int:
     ap.add_argument("--poses", action="store_true", help="import the runner pose set")
     ap.add_argument("--stage-art", action="store_true",
                     help="import the 1-B/1-S hand-over (--from holds keeper/ and sky/)")
+    ap.add_argument("--one-one", action="store_true",
+                    help="import the 1-1 hand-over (--from holds the nine sheets)")
     args = ap.parse_args()
 
     if args.poses:
         return import_poses(args.src)
     if args.stage_art:
         return import_stage(args.src)
+    if args.one_one:
+        return import_one_one(args.src)
 
     rows = []
     for name, (stem, dest, width, pad) in PLAN.items():

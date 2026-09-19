@@ -125,16 +125,16 @@ static func enemies() -> Array[Dictionary]:
 		# D -- pressure while the floor is already going.
 		{"type": "flyer", "pos": Vector2(9200, 150), "patrol": 240.0},
 		{"type": "turret", "pos": Vector2(10620, 234), "aim": Vector2.LEFT, "burst": 3},
-		{"type": "walker", "pos": Vector2(9900, 239), "patrol": 220.0},
+		{"type": "walker", "pos": Vector2(9900, 239), "patrol": 220.0, "skin": "walker_spiky"},
 		# E -- the climb, harassed from above.
 		{"type": "flyer", "pos": Vector2(11500, 60), "patrol": 200.0},
 		{"type": "flyer", "pos": Vector2(12200, -40), "patrol": 220.0},
-		{"type": "walker", "pos": Vector2(12500, 19), "patrol": 240.0},
+		{"type": "walker", "pos": Vector2(12500, 19), "patrol": 240.0, "skin": "walker_spiky"},
 		# F -- everything at once.
 		{"type": "turret", "pos": Vector2(13450, 154), "aim": Vector2.RIGHT, "burst": 3},
 		{"type": "flyer", "pos": Vector2(14200, 60), "patrol": 260.0},
 		{"type": "turret", "pos": Vector2(15040, 154), "aim": Vector2.LEFT, "burst": 3},
-		{"type": "walker", "pos": Vector2(16100, 159), "patrol": 260.0},
+		{"type": "walker", "pos": Vector2(16100, 159), "patrol": 260.0, "skin": "walker_spiky"},
 		{"type": "flyer", "pos": Vector2(15400, 40), "patrol": 240.0},
 	]
 

@@ -16,8 +16,6 @@ var _root: Control = null
 var _stage_1_1: Button = null
 var _stage_1_2: Button = null
 var _stage_1_v: Button = null
-var _stage_1_b: Button = null
-var _stage_1_s: Button = null
 var _local: Button = null
 ## Everything that starts or changes a connection. Greyed out together while an
 ## attempt is in flight, which is the whole of "do not let a second tap build a
@@ -86,10 +84,9 @@ func _ready() -> void:
 	box.add_child(stage_row)
 	_stage_1_v = _button("", func() -> void: _select_stage(Stage.Which.QUIET))
 	box.add_child(_stage_1_v)
-	_stage_1_b = _button("", func() -> void: _select_stage(Stage.Which.KEEPER))
-	box.add_child(_stage_1_b)
-	_stage_1_s = _button("", func() -> void: _select_stage(Stage.Which.SKY))
-	box.add_child(_stage_1_s)
+	# 1-B and 1-S are built and tested but deliberately not offered here. They
+	# stay reachable from code (Stage.use), from the probes, and from a build
+	# that puts the buttons back -- this is a curtain, not a demolition.
 	_refresh_stage_buttons()
 
 	box.add_child(_spacer(4))
@@ -156,12 +153,6 @@ func _refresh_stage_buttons() -> void:
 	if _stage_1_v != null:
 		_stage_1_v.text = ("✓ " if Stage.current() == Stage.Which.QUIET else "") \
 			+ "1-V  THE QUIET　（2台専用・通話しながら）"
-	if _stage_1_b != null:
-		_stage_1_b.text = ("✓ " if Stage.current() == Stage.Which.KEEPER else "") \
-			+ "1-B  THE KEEPER　（ボス戦）"
-	if _stage_1_s != null:
-		_stage_1_s.text = ("✓ " if Stage.current() == Stage.Which.SKY else "") \
-			+ "1-S  THE OPEN SKY　（飛ぶ）"
 	# One screen means nobody to keep a secret from, and a stage built on
 	# keeping one becomes a walk. Saying so on the button is kinder than
 	# letting a pair play it once and wonder what it was for.

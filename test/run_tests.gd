@@ -143,6 +143,7 @@ func _run_all() -> void:
 	await _test_three_names_for_who()
 	_test_settings_survive_each_other()
 	_test_assets()
+	_test_walker_skins()
 
 ## Saving one setting must not delete the others.
 ##
@@ -1691,6 +1692,33 @@ func _test_solid_decor() -> void:
 ## Every texture the renderers ask for has to exist. A missing sprite is
 ## otherwise invisible: Art.tex() returns null, the renderer quietly falls back
 ## to its vector path, and nobody notices until a screenshot looks wrong.
+## The two ground enemies of the 1-1 set.
+##
+## `skin` is the one piece of enemy state that is NOT sent: it is level data,
+## read the same way on both devices at build time. That makes it cheap and it
+## makes it silent -- a misspelled skin draws the wrong picture rather than
+## raising anything -- so the spelling is what gets checked here.
+func _test_walker_skins() -> void:
+	_current = "walker skins"
+	var seen := {}
+	var previous: int = Stage.current()
+	Stage.use(Stage.Which.GREENFIELD)
+	for spec in Stage.enemies():
+		if String(spec.get("type", "")) != "walker":
+			continue
+		var skin := String(spec.get("skin", "walker"))
+		seen[skin] = int(seen.get(skin, 0)) + 1
+		check(Art.MANIFEST.has(skin),
+			"walker skin %s is a registered texture" % skin)
+	Stage.use(previous)
+
+	# Both paintings arrived, so both are on the stage. If one of these ever
+	# fails it means an edit quietly reduced the set back to one enemy.
+	check(seen.has("walker"), "1-1 still uses the default walker skin")
+	check(seen.has("walker_spiky"), "1-1 uses the second ground enemy too")
+	check(seen.size() == 2,
+		"and exactly those two (%s)" % ", ".join(PackedStringArray(seen.keys())))
+
 func _test_assets() -> void:
 	_current = "assets"
 	var gone: Array = Art.missing()
