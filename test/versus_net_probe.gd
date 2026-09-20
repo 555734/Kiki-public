@@ -32,6 +32,7 @@ func _ready() -> void:
 	_test_a_lost_peer()
 	_test_the_guardian()
 	_test_duel_combined()
+	_test_duel_ready_requires_first_input()
 	_test_input_isolation()
 	_test_build_revisions()
 
@@ -386,6 +387,44 @@ func _test_the_guardian() -> void:
 	check(host.builds.size() == before,
 		"and a peer claiming somebody else's seat is ignored")
 
+# -------------------------------------- two-player start and real touch input
+func _test_duel_ready_requires_first_input() -> void:
+	_current = "duel startup with no phantom dead runner"
+	var mesh := VersusLoopback.mesh(2)
+	var host := VersusHost.new()
+	host.start(mesh[0], _world(), 8401, VersusRoster.RoomMode.DUEL_COMBINED)
+	var guest := VersusClient.new()
+	guest.start(mesh[1], VersusRoster.SEAT_B_RUNNER,
+		VersusRoster.RoomMode.DUEL_COMBINED)
+	var rng := RandomNumberGenerator.new()
+	for t in range(18):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(_moving_seat(0, t, rng))
+		guest.step(null, VersusRoster.SEAT_B_RUNNER)
+	check(host.roster.can_play() and guest.connected,
+		"both runner seats are authenticated")
+	check(not host.playing and host.match_rules.tick == 0,
+		"authenticated HELLO alone does not start without runner input")
+	check(guest.seen_world and guest.phase == 2,
+		"the joiner still sees waiting before its first position is sent")
+	var initial := _moving_seat(1, 0, rng)
+	initial.position = VersusStageData.start_positions()[1]
+	initial.can_act = false
+	initial.strike_seq = 0
+	for t in range(12):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		guest.step(initial, VersusRoster.SEAT_B_RUNNER)
+		host.step(_moving_seat(0, t, rng))
+	check(host.playing and host.match_rules.tick > 0,
+		"host starts after actual initial runner position is received")
+	check(host.match_rules.seats[1].alive and \
+		host.match_rules.seats[1].position.distance_to(initial.position) < 2.0,
+		"first active host snapshot has a living guest at its actual spawn")
+	check(guest.phase == VersusMatch.Phase.PLAYING,
+		"guest leaves the waiting overlay after first runner input")
+
 # ------------------------------------------------------------- input ownership
 func _test_input_isolation() -> void:
 	_current = "input ownership"
@@ -398,6 +437,20 @@ func _test_input_isolation() -> void:
 	adapter.poll()
 	check(is_equal_approx(adapter.hubs[0].move_axis, 0.75),
 		"versus poll cannot erase a phone's held virtual stick")
+	var h: InputHub = adapter.hubs[0]
+	h._on_roles_swapped(false)
+	check(h.runner_on_left, "co-op role swaps cannot mirror versus joystick")
+	var size := h._screen_size()
+	var place: Dictionary = h.stick_place(size)
+	var center: Vector2 = place["center"]
+	var radius: float = float(place["radius"])
+	h._touch_down(91, center)
+	h._touch_move(91, center + Vector2(radius * 0.65, 0.0))
+	check(h.move_axis > 0.2, "dragging virtual stick right moves right")
+	h._touch_move(91, center - Vector2(radius * 0.65, 0.0))
+	check(h.move_axis < -0.2, "dragging virtual stick left moves left")
+	h._touch_up(91)
+	check(is_zero_approx(h.move_axis), "releasing stick cancels input")
 	adapter.queue_free()
 
 # ---------------------------------------------------------- build revisions

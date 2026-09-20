@@ -56,7 +56,12 @@ func make_hubs(parent: Node, local_shared: bool = true) -> void:
 	for i in range(2):
 		var hub := InputHub.new()
 		hub.name = "VersusHub%d" % i
-		hub.scripted = shared_keyboard or i != 0
+		# Mobile touch must not be overwritten by desktop/action polling. Only
+		# the local hub receives touch; the second is always a remote puppet.
+		hub.scripted = shared_keyboard or i != 0 \
+			or OS.has_feature("android") or OS.has_feature("ios")
+		hub.force_runner_left = not shared_keyboard
+		hub.runner_on_left = true
 		# Never let the remote puppet's scripted hub capture a touch intended
 		# for this device's runner or guardian.
 		if not shared_keyboard and i != 0:

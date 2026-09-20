@@ -113,10 +113,17 @@ var _has_touch: bool = false
 ## headless capture or a unit test can write the intent fields directly. Nothing
 ## in the shipping game sets this.
 var scripted: bool = false
+## A versus runner always has the stick on the left; global co-op role-swap
+## signals must never mirror the versus touch map independently of its HUD.
+var force_runner_left: bool = false
 
 func _ready() -> void:
 	process_priority = -100
-	Events.roles_swapped.connect(func(on_left: bool) -> void: runner_on_left = on_left)
+	Events.roles_swapped.connect(_on_roles_swapped)
+
+func _on_roles_swapped(on_left: bool) -> void:
+	if not force_runner_left:
+		runner_on_left = on_left
 	Events.scope_state_changed.connect(func(active: bool, _z: float) -> void: scope_engaged = active)
 
 # ------------------------------------------------------------------- presses

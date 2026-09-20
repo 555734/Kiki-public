@@ -75,9 +75,14 @@ func step(local: VersusMatch.Seat) -> void:
 	_take_post()
 
 	_reported[VersusRoster.SEAT_A_RUNNER] = local
-	if not playing and roster.can_play():
+	# A HELLO only proves a socket joined. The guest must report their
+	# own runner once before the host can simulate either side. Otherwise
+	# the first live snapshot marks the guest dead at an uninitialised pose.
+	if not playing and roster.can_play() \
+			and (roster.room_mode != VersusRoster.RoomMode.DUEL_COMBINED \
+			or _reported.has(VersusRoster.SEAT_B_RUNNER)):
 		playing = true
-		diagnostic.emit("START: two runner seats authenticated; host match begins")
+		diagnostic.emit("START: guest first runner input received; host match begins")
 	if not playing:
 		out_events.clear()
 		_since_snapshot += 1
@@ -159,7 +164,7 @@ func _on_hello(from: int, payload: PackedByteArray) -> void:
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
 			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("席が埋まっています。部屋番号と対戦モードを確認してください"))
 		return
-	diagnostic.emit("WELCOME peer=%d seat=%d unique_players=%d roster=%s" % [
+	diagnostic.emit("WELCOME peer=%d seat=%d unique_players=%d roster=%s (awaiting first runner INPUT)" % [
 		from, seat, roster.peers_filled(), roster.describe()])
 	transport.send_to(from, VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,

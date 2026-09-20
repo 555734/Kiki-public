@@ -54,6 +54,8 @@ var _debug_copy_button: Button = null
 var _relay_probe: HTTPRequest = null
 var _relay_probe_detail: String = ""
 var _last_match_state: String = ""
+var _last_input_direction: int = 0
+var _input_trace_ticks: int = 0
 
 var runners: Array[Runner] = []
 var input: VersusInput = null
@@ -435,6 +437,25 @@ func _on_relay_probe_complete(result: int, http_status: int,
 	else:
 		_relay_probe_detail = "中継の /room4 が HTTP %d を返しました" % http_status
 
+## The value Runner actually reads, plus touch owner and the local actor.
+## Emit on direction changes and at 3-second intervals so a stuck input can
+## be diagnosed from the copyable log without recording every physics frame.
+func _trace_local_input() -> void:
+	if mode == Mode.SOLO or local_team < 0 or input.hubs.is_empty():
+		return
+	var h: InputHub = input.hubs[0]
+	var direction := int(signf(h.move_axis))
+	_input_trace_ticks += 1
+	if direction == _last_input_direction and _input_trace_ticks < 180:
+		return
+	_last_input_direction = direction
+	_input_trace_ticks = 0
+	_debug("INPUT team=%d axis=%.2f y=%.2f touch=%s fingers=%s left=%s scripted=%s physics=%s x=%.1f vx=%.1f" % [
+		local_team, h.move_axis, h.move_axis_y, str(h._has_touch),
+		str(h._touch_owner), str(h.runner_on_left), str(h.scripted),
+		str(runners[local_team].is_physics_processing()),
+		runners[local_team].global_position.x, runners[local_team].velocity.x])
+
 func _record_match_state() -> void:
 	var info := ""
 	if host != null:
@@ -500,6 +521,7 @@ func _physics_process(_delta: float) -> void:
 	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
 		_update_duel_activity()
 	var seqs := input.poll()
+	_trace_local_input()
 
 	if phase() == VersusMatch.Phase.OVER and room_mode != VersusRoster.RoomMode.DUEL_COMBINED:
 		if Input.is_physical_key_pressed(KEY_R) and mode != Mode.CLIENT:
@@ -600,7 +622,15 @@ func _tick_client(seqs: Array[int]) -> void:
 	if client == null:
 		return
 	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and waiting():
-		client.step(null, _seat)
+		# The guest cannot simulate movement before START, but the host needs
+		# its spawn position and ALIVE state to start safely. A HELLO by itself
+		# is insufficient. Report an idle, non-acting runner while waiting.
+		var initial = null
+		if client.connected and local_team >= 0:
+			initial = _observe(local_team, 0)
+			initial.can_act = false
+			initial.strike_seq = 0
+		client.step(initial, _seat)
 		return
 	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
 			and phase() == VersusMatch.Phase.OVER:
@@ -742,6 +772,9 @@ func waiting_detail() -> String:
 	if mode == Mode.HOST:
 		if host == null:
 			return "room %s · 中継に接続中（/room4を確認）" % code
+		if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and \
+				host.roster.can_play() and not host._reported.has(VersusRoster.SEAT_B_RUNNER):
+			return "room %s · 2/2認証済み / 相手の初期位置を受信待ち" % code
 		return "room %s · 参加認証 %d/2" % [code, host.roster.peers_filled()]
 	if mode == Mode.CLIENT:
 		if client == null:
