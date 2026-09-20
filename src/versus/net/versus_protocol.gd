@@ -98,8 +98,13 @@ static func read_welcome(payload: PackedByteArray) -> Dictionary:
 	return {"seat": b.get_u8(), "seed": b.get_u32(),
 		"room_mode": b.get_u8()}
 
-static func full() -> PackedByteArray:
-	return _buf(Msg.FULL).data_array
+static func full(reason: String = "") -> PackedByteArray:
+	var out := _buf(Msg.FULL).data_array
+	out.append_array(reason.to_utf8_buffer())
+	return out
+
+static func read_full_reason(payload: PackedByteArray) -> String:
+	return payload.slice(1).get_string_from_utf8() if payload.size() > 1 else ""
 
 static func bye(seat: int) -> PackedByteArray:
 	var b := _buf(Msg.BYE)

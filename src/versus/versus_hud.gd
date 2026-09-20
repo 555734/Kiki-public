@@ -131,7 +131,7 @@ func _waiting() -> void:
 	draw_string(font, panel.position + Vector2(0.0, 58.0), "まっています",
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 34, COL_INK)
 	draw_string(font, panel.position + Vector2(0.0, 98.0),
-		String(arena.status), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 22,
+		String(arena.waiting_detail()), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 18,
 		COL_INK)
 	draw_string(font, panel.position + Vector2(0.0, 128.0),
 		"ふたりで両役を操作" if arena.room_mode == VersusRoster.RoomMode.DUEL_COMBINED \

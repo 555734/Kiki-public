@@ -25,6 +25,7 @@ func check(ok: bool, label: String) -> void:
 
 func _ready() -> void:
 	_test_the_wire()
+	_test_waiting_transition()
 	_test_seating()
 	_test_agreement()
 	_test_reordering()
@@ -98,6 +99,32 @@ func _test_the_wire() -> void:
 		% [snap.size(), VersusTransport.MAX_PACKET_BYTES])
 	check(snap.size() <= 768,
 		"a full snapshot fits the 768-byte budget (%d)" % snap.size())
+
+# --------------------------------------------------------- waiting transition
+## The host intentionally freezes the match tick while waiting. START at tick
+## zero still has to replace a previous waiting snapshot at tick zero.
+func _test_waiting_transition() -> void:
+	_current = "wait -> start at the same host tick"
+	var c := VersusClient.new()
+	var runners: Array = []
+	for i in range(2):
+		runners.append({"position": Vector2.ZERO, "velocity": Vector2.ZERO,
+			"facing": 1, "alive": false, "can_act": false,
+			"invulnerable": false, "on_floor": false, "hp": 2,
+			"combat_phase": 0, "combat_dir": 0})
+	c._absorb(VersusProtocol.snapshot(0, 2, -1, runners, [], []))
+	check(c.seen_world and c.phase == 2, "initial waiting state is received")
+	c._absorb(VersusProtocol.snapshot(0, VersusMatch.Phase.PLAYING,
+		-1, runners, [], []))
+	check(c.phase == VersusMatch.Phase.PLAYING,
+		"START at tick zero clears the waiting overlay")
+	c._absorb(VersusProtocol.snapshot(0, 2, -1, runners, [], []))
+	check(c.phase == VersusMatch.Phase.PLAYING,
+		"a delayed waiting packet cannot re-freeze a started match")
+	check(VersusProtocol.read_full_reason(VersusProtocol.full("version mismatch"))
+		== "version mismatch", "joining failure explains the reason")
+	check(VersusProtocol.read_full_reason(VersusProtocol.full()).is_empty(),
+		"legacy one-byte refusal remains decodable")
 
 # ------------------------------------------------------------------- seating
 func _test_seating() -> void:

@@ -413,6 +413,8 @@ func _update_duel_activity() -> void:
 	var active := not waiting() and phase() != VersusMatch.Phase.OVER
 	if runners[local_team].is_physics_processing() != active:
 		runners[local_team].set_physics_process(active)
+	# Both Runner nodes exist before joining. Do not show a fake opponent.
+	runners[1 - local_team].visible = active
 
 ## Bring a runner back into the middle lap when it walks off the end of one.
 ##
@@ -617,6 +619,28 @@ func map_marks() -> Array[Dictionary]:
 			"x01": VersusStageData.lap_fraction(runners[i].global_position.x),
 		})
 	return out
+
+## Show the authenticated peer count, not the two locally spawned avatars.
+func waiting_detail() -> String:
+	var code := room_code if not room_code.is_empty() else "------"
+	if link != null and not link.last_error().is_empty():
+		return "room %s · 通信エラー: %s" % [code, link.last_error()]
+	if mode == Mode.HOST:
+		if host == null:
+			return "room %s · 中継に接続中（/room4を確認）" % code
+		return "room %s · 参加認証 %d/2" % [code, host.roster.peers_filled()]
+	if mode == Mode.CLIENT:
+		if client == null:
+			return "room %s · 中継に接続中（/room4を確認）" % code
+		if client.refused:
+			return client.refusal_reason if not client.refusal_reason.is_empty() \
+				else "入室拒否：APK・対戦モード・部屋番号を確認"
+		if not client.connected:
+			return "room %s · ホストからの入室認証待ち" % code
+		if not client.seen_world:
+			return "room %s · 認証済み、状態の受信待ち" % code
+		return "room %s · 認証済み、ホストの開始待ち" % code
+	return ""
 
 func waiting() -> bool:
 	if mode == Mode.SOLO:

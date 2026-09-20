@@ -130,7 +130,7 @@ func _take_post() -> void:
 func _on_hello(from: int, payload: PackedByteArray) -> void:
 	if payload.size() != 5:
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
-			VersusTransport.Reliability.RELIABLE, VersusProtocol.full())
+			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("接続情報が不正です。両端末を更新してください"))
 		return
 	var hello := VersusProtocol.read_hello(payload)
 	if int(hello["version"]) != VersusProtocol.VERSION \
@@ -139,12 +139,12 @@ func _on_hello(from: int, payload: PackedByteArray) -> void:
 		# handshake does the same and it is the reason a mismatched build is a
 		# message instead of a mystery.
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
-			VersusTransport.Reliability.RELIABLE, VersusProtocol.full())
+			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("ゲームのバージョンまたは対戦モードが違います。両端末を同じAPKにしてください"))
 		return
 	var seat := roster.seat_peer(from, int(hello["wanted_seat"]))
 	if seat < 0:
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
-			VersusTransport.Reliability.RELIABLE, VersusProtocol.full())
+			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("席が埋まっています。部屋番号と対戦モードを確認してください"))
 		return
 	transport.send_to(from, VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,

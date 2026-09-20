@@ -19,6 +19,7 @@ var seat: int = -1
 var seed_value: int = 0
 var connected: bool = false
 var refused: bool = false
+var refusal_reason: String = ""
 var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 
 ## The last world the host described. Everything the scene draws that is not
@@ -47,6 +48,7 @@ func start(link: VersusTransport, wanted_seat: int = -1,
 	seat = -1
 	connected = false
 	refused = false
+	refusal_reason = ""
 	seen_world = false
 	world_revision = -1
 	world_tick = 0
@@ -125,12 +127,14 @@ func _take_post() -> void:
 				var w := VersusProtocol.read_welcome(payload)
 				if int(w["room_mode"]) != room_mode:
 					refused = true
+					refusal_reason = "対戦モードが一致しません"
 					continue
 				seat = int(w["seat"])
 				seed_value = int(w["seed"])
 				connected = true
 			VersusProtocol.Msg.FULL:
 				refused = true
+				refusal_reason = VersusProtocol.read_full_reason(payload)
 			VersusProtocol.Msg.SNAPSHOT:
 				_absorb(payload)
 
@@ -138,7 +142,13 @@ func _absorb(payload: PackedByteArray) -> void:
 	var s := VersusProtocol.read_snapshot(payload)
 	# Older than what we already have. Snapshots are unreliable and jitter
 	# reorders them, so a late one must not undo a newer one.
-	if seen_world and int(s["tick"]) <= world_tick:
+	var next_tick := int(s["tick"])
+	var next_phase := int(s["phase"])
+	# START may follow a waiting snapshot at the same game tick (zero), because
+	# the match clock is intentionally stopped while waiting. Never suppress
+	# that transition; equally, do not let a delayed waiting packet undo START.
+	if seen_world and (next_tick < world_tick or (next_tick == world_tick \
+			and (next_phase == phase or (phase != 2 and next_phase == 2)))):
 		stale_dropped += 1
 		return
 	world_tick = int(s["tick"])
