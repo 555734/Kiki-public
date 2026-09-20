@@ -115,7 +115,7 @@ func _ready() -> void:
 	# more controls, and putting them here pushed the buttons below the fold on
 	# a 720-tall display. A mode you cannot reach without scrolling is only
 	# slightly better than one you cannot reach without a keyboard.
-	box.add_child(_button("よにんで たいせん（1-1）", _on_versus, false))
+	box.add_child(_button("1対1 コイン対戦／チーム戦（1-1）", _on_versus, false))
 
 	box.add_child(_spacer(6))
 	box.add_child(_button("ボタンの位置を変える", _on_layout, false))
