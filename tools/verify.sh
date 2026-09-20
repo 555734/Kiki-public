@@ -149,6 +149,11 @@ step "do four machines agree about one match"
 # host's score, on every tick they share, not merely that packets arrived.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_net_probe.tscn
 
+step "can both online runners move using real touch events"
+# Separate viewports and actual input dispatch catch an unused hub stealing
+# touches; writing intent fields directly cannot exercise that failure.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_touch_probe.tscn
+
 step "boot the coin battle headlessly"
 # Not part of the cooperative launch path: run/main_scene is untouched and the
 # menu does not reach this (P5). Booted anyway, because a scene that only ever

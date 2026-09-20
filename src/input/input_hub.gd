@@ -120,11 +120,11 @@ var force_runner_left: bool = false
 func _ready() -> void:
 	process_priority = -100
 	Events.roles_swapped.connect(_on_roles_swapped)
+	Events.scope_state_changed.connect(func(active: bool, _z: float) -> void: scope_engaged = active)
 
 func _on_roles_swapped(on_left: bool) -> void:
 	if not force_runner_left:
 		runner_on_left = on_left
-	Events.scope_state_changed.connect(func(active: bool, _z: float) -> void: scope_engaged = active)
 
 # ------------------------------------------------------------------- presses
 # Edge-triggered inputs go through these so touch, keyboard and tests all take
