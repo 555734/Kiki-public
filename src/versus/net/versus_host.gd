@@ -24,6 +24,7 @@ var world: ArenaStage = null
 
 var seed_value: int = 0
 var tick: int = 0
+var playing: bool = true
 
 ## The newest thing each runner said about itself, by SEAT. Kept rather than
 ## consumed, so a dropped input packet leaves the last one standing instead of
@@ -43,14 +44,16 @@ const MAX_BUILDS: int = 12
 var _since_snapshot: int = 0
 
 func start(link: VersusTransport, collision: ArenaStage,
-		match_seed: int = 0) -> void:
+		match_seed: int = 0,
+		selected_mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> void:
 	transport = link
 	world = collision
 	seed_value = match_seed if match_seed != 0 \
 		else int(Time.get_ticks_usec() & 0x7fffffff)
 	match_rules = VersusMatch.new()
 	match_rules.setup(world, seed_value)
-	roster = VersusRoster.new()
+	roster = VersusRoster.new(selected_mode)
+	playing = selected_mode == VersusRoster.RoomMode.TEAM_SPLIT
 	# The host takes the first runner's chair. It is a runner's device by
 	# definition: the guardian has no body to simulate, so hosting from one
 	# would mean both runners were remote and neither felt right.
@@ -68,6 +71,15 @@ func step(local: VersusMatch.Seat) -> void:
 	_take_post()
 
 	_reported[VersusRoster.SEAT_A_RUNNER] = local
+	if not playing and roster.can_play():
+		playing = true
+	if not playing:
+		out_events.clear()
+		_since_snapshot += 1
+		if _since_snapshot >= SNAPSHOT_EVERY:
+			_since_snapshot = 0
+			_broadcast_snapshot()
+		return
 
 	var observed: Array = []
 	for team in range(2):
@@ -110,11 +122,19 @@ func _take_post() -> void:
 			VersusProtocol.Msg.COMMAND:
 				_on_command(from, payload)
 			VersusProtocol.Msg.BYE:
-				roster.vacate(from)
+				var vacated := roster.vacate(from)
+				_reported.erase(vacated)
+				if roster.room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
+					playing = false
 
 func _on_hello(from: int, payload: PackedByteArray) -> void:
+	if payload.size() != 5:
+		transport.send_to(from, VersusTransport.Channel.CONTROL,
+			VersusTransport.Reliability.RELIABLE, VersusProtocol.full())
+		return
 	var hello := VersusProtocol.read_hello(payload)
-	if int(hello["version"]) != VersusProtocol.VERSION:
+	if int(hello["version"]) != VersusProtocol.VERSION \
+			or int(hello["room_mode"]) != roster.room_mode:
 		# Refused by name rather than left to desynchronise. The co-op
 		# handshake does the same and it is the reason a mismatched build is a
 		# message instead of a mystery.
@@ -128,15 +148,17 @@ func _on_hello(from: int, payload: PackedByteArray) -> void:
 		return
 	transport.send_to(from, VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,
-		VersusProtocol.welcome(seat, seed_value))
+		VersusProtocol.welcome(seat, seed_value, roster.room_mode))
 	out_events.append({"kind": "seated", "seat": seat, "peer": from})
 
 func _on_input(from: int, payload: PackedByteArray) -> void:
+	if payload.size() != 18:
+		return
 	var m := VersusProtocol.read_input(payload)
-	var seat := roster.seat_of(from)
+	var seat := int(m["seat"])
 	# The seat the packet claims is NOT trusted; the seat the host gave that
 	# peer is. Otherwise anyone on the link can report a position for anyone.
-	if seat < 0 or seat != int(m["seat"]):
+	if not roster.owns_seat(from, seat):
 		return
 	if VersusRoster.role_of(seat) != VersusRoster.Role.RUNNER:
 		return
@@ -151,9 +173,11 @@ func _on_input(from: int, payload: PackedByteArray) -> void:
 	_reported[seat] = s
 
 func _on_command(from: int, payload: PackedByteArray) -> void:
+	if payload.size() != 11:
+		return
 	var c := VersusProtocol.read_command(payload)
-	var seat := roster.seat_of(from)
-	if seat < 0 or seat != int(c["seat"]):
+	var seat := int(c["seat"])
+	if not roster.owns_seat(from, seat):
 		return
 	if VersusRoster.role_of(seat) != VersusRoster.Role.GUARDIAN:
 		return
@@ -231,8 +255,9 @@ func _broadcast_snapshot() -> void:
 		gs.append({"seat": g["seat"], "position": r.position, "size": r.size,
 			"build_id": g["build_id"]})
 
+	var phase_to_send := 2 if not playing else match_rules.phase
 	var payload := VersusProtocol.snapshot(match_rules.tick,
-		match_rules.phase, match_rules.winner, runners, coins, gs,
+		phase_to_send, match_rules.winner, runners, coins, gs,
 		world_revision)
 	transport.broadcast(VersusTransport.Channel.SNAPSHOT,
 		VersusTransport.Reliability.UNRELIABLE, payload)

@@ -134,7 +134,8 @@ func _waiting() -> void:
 		String(arena.status), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 22,
 		COL_INK)
 	draw_string(font, panel.position + Vector2(0.0, 128.0),
-		"よにん：それぞれのチームに ランナーと ガーディアン",
+		"ふたりで両役を操作" if arena.room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
+		else "チーム戦：各チームに ランナーと ガーディアン",
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 15, COL_DIM)
 
 func _result() -> void:
@@ -152,5 +153,6 @@ func _result() -> void:
 		"%d  -  %d" % [arena.score(0), arena.score(1)],
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 28, COL_INK)
 	draw_string(font, panel.position + Vector2(0.0, 156.0),
-		"R でもういちど  ·  Esc でやめる",
+		"戻るボタンでメニューへ" if arena.room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
+		else "R でもういちど  ·  Esc でやめる",
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 16, COL_DIM)

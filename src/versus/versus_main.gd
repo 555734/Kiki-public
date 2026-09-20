@@ -45,6 +45,8 @@ var host: VersusHost = null
 var client: VersusClient = null
 var link: VersusWsTransport = null
 var room_code: String = ""
+var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
+var controls: Control = null
 var status: String = ""
 
 var runners: Array[Runner] = []
@@ -58,6 +60,7 @@ var level: LevelBuilder = null
 var _camera: Camera2D = null
 var _built_body: StaticBody2D = null
 var _built: Array[Rect2] = []
+var _built_revision: int = -1
 var _build_owner: Array[int] = []
 var _respawn_in := [0, 0]
 ## Where each runner was when it died, so it comes back at the checkpoint
@@ -88,6 +91,11 @@ func _ready() -> void:
 	hud = preload("res://src/versus/versus_hud.gd").new()
 	hud.arena = self
 	layer.add_child(hud)
+	if mode != Mode.SOLO and local_team >= 0:
+		controls = preload("res://src/versus/versus_controls.gd").new()
+		controls.arena = self
+		controls.duel = room_mode == VersusRoster.RoomMode.DUEL_COMBINED
+		layer.add_child(controls)
 
 	match mode:
 		Mode.SOLO:
@@ -98,8 +106,12 @@ func _ready() -> void:
 		Mode.CLIENT:
 			_open_link(false)
 
-	if VersusRoster.role_of(_seat) == VersusRoster.Role.GUARDIAN:
+	if room_mode != VersusRoster.RoomMode.DUEL_COMBINED \
+			and VersusRoster.role_of(_seat) == VersusRoster.Role.GUARDIAN:
 		_build_guardian()
+	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and mode != Mode.SOLO:
+		for r in runners:
+			r.set_physics_process(false)
 
 func _read_command_line() -> void:
 	# The start screen first: on a phone there is no command line, and needing
@@ -114,6 +126,7 @@ func _read_command_line() -> void:
 				mode = Mode.SOLO
 		room_code = VersusLaunch.code
 		_seat = clampi(VersusLaunch.seat, 0, 3)
+		room_mode = VersusLaunch.room_mode
 		if not VersusLaunch.relay.is_empty():
 			_relay = VersusLaunch.relay
 	else:
@@ -126,10 +139,14 @@ func _read_command_line() -> void:
 				room_code = arg.split("=", true, 1)[1].to_upper()
 			elif arg.begins_with("--versus-seat="):
 				_seat = clampi(int(arg.split("=", true, 1)[1]), 0, 3)
+			elif arg == "--versus-duel":
+				room_mode = VersusRoster.RoomMode.DUEL_COMBINED
 			elif arg.begins_with("--versus-relay="):
 				_relay = arg.split("=", true, 1)[1]
 	if mode == Mode.HOST:
 		_seat = VersusRoster.SEAT_A_RUNNER
+	elif mode == Mode.CLIENT and room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
+		_seat = VersusRoster.SEAT_B_RUNNER
 	local_team = VersusRoster.team_of(_seat) \
 		if VersusRoster.role_of(_seat) == VersusRoster.Role.RUNNER else -1
 
@@ -145,15 +162,7 @@ var _relay: String = Balance.DEFAULT_RELAY
 ## of it, or the lap they are about to enter is a hole until the instant they
 ## wrap into it.
 func _collision_rects() -> Array[Rect2]:
-	var one: Array[Rect2] = VersusStageData.lap_ground()
-	one.append_array(Stage.solid_decor())
-	var out: Array[Rect2] = []
-	for lap in [-1, 0, 1]:
-		var shift := VersusStageData.LOOP_SPAN * float(lap)
-		for r in one:
-			out.append(Rect2(r.position + Vector2(shift, 0.0), r.size))
-	out.append_array(_built)
-	return out
+	return VersusStageData.collision_rects(_built)
 
 ## 1-1, built the way the cooperative game builds it. Terrain, decor, hazards,
 ## enemies, checkpoints and the goal all come from LevelBuilder, so the stage
@@ -340,7 +349,7 @@ func _build_guardian() -> void:
 # --------------------------------------------------------------------- the link
 func _open_link(as_host: bool) -> void:
 	link = VersusWsTransport.new()
-	if as_host:
+	if as_host and room_code.is_empty():
 		room_code = VersusWsTransport.new_code()
 	var err := link.open_room(_relay, room_code, "versus-%d" % (Time.get_ticks_usec() & 0xffff))
 	if not err.is_empty():
@@ -358,12 +367,12 @@ func _network_ready() -> void:
 			status = "room %s is already hosted elsewhere" % room_code
 			return
 		host = VersusHost.new()
-		host.start(link, ArenaStage.new(_collision_rects()))
+		host.start(link, ArenaStage.new(_collision_rects()), 0, room_mode)
 		match_rules = host.match_rules
 		status = "room %s" % room_code
 	else:
 		client = VersusClient.new()
-		client.start(link, _seat)
+		client.start(link, _seat, room_mode)
 		if guardian != null:
 			var router := preload("res://src/versus/versus_command_router.gd").new()
 			router.client = client
@@ -377,9 +386,11 @@ func _physics_process(_delta: float) -> void:
 		link.poll_socket()
 		_network_ready()
 
+	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
+		_update_duel_activity()
 	var seqs := input.poll()
 
-	if phase() == VersusMatch.Phase.OVER:
+	if phase() == VersusMatch.Phase.OVER and room_mode != VersusRoster.RoomMode.DUEL_COMBINED:
 		if Input.is_physical_key_pressed(KEY_R) and mode != Mode.CLIENT:
 			_start_solo() if mode == Mode.SOLO else _restart_host()
 		_redraw()
@@ -392,7 +403,16 @@ func _physics_process(_delta: float) -> void:
 			_tick_host(seqs)
 		Mode.CLIENT:
 			_tick_client(seqs)
+	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
+		_update_duel_activity()
 	_redraw()
+
+func _update_duel_activity() -> void:
+	if local_team < 0:
+		return
+	var active := not waiting() and phase() != VersusMatch.Phase.OVER
+	if runners[local_team].is_physics_processing() != active:
+		runners[local_team].set_physics_process(active)
 
 ## Bring a runner back into the middle lap when it walks off the end of one.
 ##
@@ -445,11 +465,18 @@ func _tick_solo(seqs: Array[int]) -> void:
 func _tick_host(seqs: Array[int]) -> void:
 	if host == null:
 		return
+	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
+			and phase() == VersusMatch.Phase.OVER:
+		host.step(_observe(0, seqs[0]))
+		return
+	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and not host.playing:
+		host.step(_observe(0, seqs[0]))
+		return
 	_wrap_bodies()
 	_apply_respawns()
 	_catch_deaths()
 	host.step(_observe(0, seqs[0]))
-	_sync_builds(host.builds)
+	_sync_builds(host.builds, host.world_revision)
 	# The other runner is wherever its own machine says it is.
 	_place_puppet(1, host.match_rules.seats[1].position,
 		host.match_rules.seats[1].facing)
@@ -458,6 +485,13 @@ func _tick_host(seqs: Array[int]) -> void:
 func _tick_client(seqs: Array[int]) -> void:
 	if client == null:
 		return
+	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and waiting():
+		client.step(null, _seat)
+		return
+	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
+			and phase() == VersusMatch.Phase.OVER:
+		client.step(null, _seat)
+		return
 	var mine = null
 	if local_team >= 0:
 		_wrap_bodies()
@@ -465,7 +499,7 @@ func _tick_client(seqs: Array[int]) -> void:
 		_catch_deaths_local()
 		mine = _observe(local_team, seqs[0])
 	client.step(mine, _seat)
-	_sync_builds_from_snapshot(client.builds)
+	_sync_builds_from_snapshot(client.builds, client.world_revision)
 	# Everyone the host describes and this machine does not own.
 	for i in range(2):
 		if i == local_team:
@@ -502,24 +536,26 @@ func _place_puppet(i: int, at: Vector2, facing: int) -> void:
 		r.global_position = r.global_position.lerp(here, 0.35)
 	r.facing = facing
 
-func _sync_builds(from: Array) -> void:
-	if from.size() == _built.size():
+func _sync_builds(from: Array, revision: int) -> void:
+	if revision == _built_revision:
 		return
 	_built.clear()
 	_build_owner.clear()
 	for g in from:
 		_built.append(g["rect"])
 		_build_owner.append(int(g["seat"]))
+	_built_revision = revision
 	_refresh_ground()
 
-func _sync_builds_from_snapshot(from: Array) -> void:
-	if from.size() == _built.size():
+func _sync_builds_from_snapshot(from: Array, revision: int) -> void:
+	if revision == _built_revision:
 		return
 	_built.clear()
 	_build_owner.clear()
 	for g in from:
 		_built.append(Rect2(g["position"], g["size"]))
 		_build_owner.append(int(g["seat"]))
+	_built_revision = revision
 	_refresh_ground()
 
 # ------------------------------------------------------------------- readouts
@@ -586,8 +622,10 @@ func waiting() -> bool:
 	if mode == Mode.SOLO:
 		return false
 	if mode == Mode.HOST:
-		return host == null or not host.roster.can_play()
-	return client == null or not client.connected or not client.seen_world
+		return host == null or not host.roster.can_play() or \
+			(room_mode == VersusRoster.RoomMode.DUEL_COMBINED and not host.playing)
+	return client == null or not client.connected or not client.seen_world or \
+		(room_mode == VersusRoster.RoomMode.DUEL_COMBINED and client.phase == 2)
 
 # ---------------------------------------------------------------- lives, deaths
 func _start_solo() -> void:
@@ -596,10 +634,11 @@ func _start_solo() -> void:
 	_reset_bodies()
 
 func _restart_host() -> void:
-	host.start(link, ArenaStage.new(_collision_rects()))
+	host.start(link, ArenaStage.new(_collision_rects()), 0, room_mode)
 	match_rules = host.match_rules
 	_built.clear()
 	_build_owner.clear()
+	_built_revision = -1
 	_refresh_ground()
 	_reset_bodies()
 
@@ -673,6 +712,33 @@ func _apply_respawns() -> void:
 		# for one mistake is a forfeit, not a rule.
 		runners[i].respawn(VersusStageData.respawn_for(i, _died_at[i]))
 		runners[i].facing = VersusStageData.start_facing()[i]
+
+## In combined mode the same peer owns its team's Runner and Guardian seats.
+## The host's own commands take the identical place_build / undo_build path.
+func request_construct(slot: int, at: Vector2) -> void:
+	if room_mode != VersusRoster.RoomMode.DUEL_COMBINED or waiting() \
+			or phase() == VersusMatch.Phase.OVER:
+		return
+	if slot not in [1, 2]:
+		return
+	if mode == Mode.HOST and host != null:
+		host.place_build(VersusRoster.SEAT_A_GUARDIAN, at, slot)
+	elif mode == Mode.CLIENT and client != null:
+		client.request_build(at, slot)
+
+func request_construct_undo() -> void:
+	if room_mode != VersusRoster.RoomMode.DUEL_COMBINED or waiting():
+		return
+	if mode == Mode.HOST and host != null:
+		host.undo_build(VersusRoster.SEAT_A_GUARDIAN)
+	elif mode == Mode.CLIENT and client != null:
+		client.request_undo()
+
+func leave_versus() -> void:
+	if link != null:
+		link.close()
+	VersusLaunch.clear()
+	get_tree().change_scene_to_file("res://src/main.tscn")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \

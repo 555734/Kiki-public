@@ -13,6 +13,10 @@ extends Control
 var _relay: LineEdit = null
 var _code: LineEdit = null
 var _seat: OptionButton = null
+var _mode: OptionButton = null
+var _seat_label: Label = null
+var _host_button: Button = null
+var _join_button: Button = null
 var _status: Label = null
 
 func _ready() -> void:
@@ -38,14 +42,23 @@ func _ready() -> void:
 	box.add_theme_constant_override("separation", 10)
 	centre.add_child(box)
 
-	box.add_child(_title("よにんで たいせん", 30, Color(1, 1, 1)))
+	box.add_child(_title("コイン たいせん", 30, Color(1, 1, 1)))
 	box.add_child(_title("ステージは 1-1。2チームにわかれて コインを とりあいます。",
 		15, Color(0.72, 0.85, 0.95)))
 	box.add_child(_title("さきに %d まい あつめたチームの かち" % VersusRules.WIN_AT,
 		15, Color(0.72, 0.85, 0.95)))
 
 	box.add_child(_spacer(6))
-	box.add_child(_title("あなたの せき", 15, Color(0.72, 0.85, 0.95)))
+	_mode = OptionButton.new()
+	_mode.add_item("1対1：ふたりとも ランナー＋ガーディアン",
+		VersusRoster.RoomMode.DUEL_COMBINED)
+	_mode.add_item("チーム戦：最大4人で役割を分担",
+		VersusRoster.RoomMode.TEAM_SPLIT)
+	_mode.selected = 0
+	_mode.custom_minimum_size = Vector2(0, 48)
+	box.add_child(_mode)
+	_seat_label = _title("あなたの せき", 15, Color(0.72, 0.85, 0.95))
+	box.add_child(_seat_label)
 	_seat = OptionButton.new()
 	_seat.add_item("Aチーム：ランナー（うごかす）", VersusRoster.SEAT_A_RUNNER)
 	_seat.add_item("Aチーム：ガーディアン（たすける）", VersusRoster.SEAT_A_GUARDIAN)
@@ -62,8 +75,12 @@ func _ready() -> void:
 	_code.max_length = VersusWsTransport.CODE_LENGTH
 	box.add_child(_code)
 
-	box.add_child(_button("部屋を作る（あなたが Aチームのランナー）", _on_host))
-	box.add_child(_button("部屋に入る", _on_join))
+	_host_button = _button("1対1の部屋を作る", _on_host)
+	_join_button = _button("1対1の部屋に入る", _on_join)
+	box.add_child(_host_button)
+	box.add_child(_join_button)
+	_mode.item_selected.connect(func(_index: int) -> void: _update_mode())
+	_update_mode()
 	box.add_child(_spacer(4))
 	box.add_child(_button("1台で ためす（ランナー2人・通信なし）", _on_solo))
 	box.add_child(_button("もどる", func() -> void: queue_free()))
@@ -83,6 +100,16 @@ func _remembered_relay() -> String:
 			return kept
 	return Balance.DEFAULT_RELAY
 
+func _room_mode() -> int:
+	return _mode.get_item_id(_mode.selected)
+
+func _update_mode() -> void:
+	var duel := _room_mode() == VersusRoster.RoomMode.DUEL_COMBINED
+	_seat.visible = not duel
+	_seat_label.visible = not duel
+	_host_button.text = "1対1の部屋を作る" if duel else "チーム戦の部屋を作る"
+	_join_button.text = "1対1の部屋に入る" if duel else "チーム戦の部屋に入る"
+
 func _on_host() -> void:
 	var relay := _relay.text.strip_edges()
 	if relay.is_empty():
@@ -90,7 +117,7 @@ func _on_host() -> void:
 		return
 	var code := VersusWsTransport.new_code()
 	_code.text = code
-	_status.text = "ルーム番号：%s\nこの6もじを ほかの3人に おしえてください。" % code
+	_status.text = "ルーム番号：%s\nこの6もじを 相手に おしえてください。" % code
 	_go(VersusLaunch.How.HOST, code, relay, VersusRoster.SEAT_A_RUNNER)
 
 func _on_join() -> void:
@@ -102,7 +129,8 @@ func _on_join() -> void:
 	if not VersusWsTransport.valid_code(code):
 		_status.text = "ルーム番号は 6もじです（数字と アルファベット）"
 		return
-	var seat: int = _seat.get_item_id(_seat.selected)
+	var seat: int = VersusRoster.SEAT_B_RUNNER if _room_mode() == VersusRoster.RoomMode.DUEL_COMBINED \
+		else _seat.get_item_id(_seat.selected)
 	if seat == VersusRoster.SEAT_A_RUNNER:
 		# Seat 0 belongs to whoever made the room; the host is a runner's
 		# device by definition, because a guardian has no body to simulate.
@@ -118,6 +146,8 @@ func _go(how: int, code: String, relay: String, seat: int) -> void:
 	VersusLaunch.code = code
 	VersusLaunch.relay = relay
 	VersusLaunch.seat = seat
+	VersusLaunch.room_mode = _room_mode() if how != VersusLaunch.How.SOLO \
+		else VersusRoster.RoomMode.TEAM_SPLIT
 	get_tree().change_scene_to_file("res://src/versus/versus_main.tscn")
 
 # ------------------------------------------------------------------- widgets

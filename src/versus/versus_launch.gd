@@ -13,12 +13,14 @@ static var how: int = How.NONE
 static var code: String = ""
 static var relay: String = ""
 static var seat: int = 0
+static var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 
 static func clear() -> void:
 	how = How.NONE
 	code = ""
 	relay = ""
 	seat = 0
+	room_mode = VersusRoster.RoomMode.TEAM_SPLIT
 
 static func chosen() -> bool:
 	return how != How.NONE

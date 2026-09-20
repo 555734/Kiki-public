@@ -67,6 +67,11 @@ func make_hubs(parent: Node, local_shared: bool = true) -> void:
 		parent.add_child(hub)
 		hubs.append(hub)
 
+## Touch and keyboard share the same monotonic edge count.
+func press_strike() -> void:
+	if not shared_keyboard:
+		_online_strike_seq += 1
+
 ## One poll. Returns the strike sequence for each side, which is what the rules
 ## read; the movement has already gone into the hubs.
 func poll() -> Array[int]:

@@ -19,6 +19,7 @@ var seat: int = -1
 var seed_value: int = 0
 var connected: bool = false
 var refused: bool = false
+var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 
 ## The last world the host described. Everything the scene draws that is not
 ## the local runner comes from here.
@@ -39,7 +40,9 @@ var stale_dropped: int = 0
 
 var _hello_every: int = 0
 
-func start(link: VersusTransport, wanted_seat: int = -1) -> void:
+func start(link: VersusTransport, wanted_seat: int = -1,
+		selected_mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> void:
+	room_mode = selected_mode
 	transport = link
 	seat = -1
 	connected = false
@@ -58,7 +61,7 @@ func _say_hello(wanted_seat: int) -> void:
 	transport.send_to(VersusTransport.HOST_PEER,
 		VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,
-		VersusProtocol.hello(wanted_seat))
+		VersusProtocol.hello(wanted_seat, room_mode))
 
 ## One tick. `local` is this machine's own runner as its own scene sees it, or
 ## null for a guardian.
@@ -87,29 +90,42 @@ func step(local, wanted_seat: int = -1) -> void:
 ## Ask the host to build. Sent reliably: a lost platform is a guardian who
 ## spent their gauge on nothing.
 func request_build(at: Vector2, slot: int = 1) -> void:
-	if not connected or VersusRoster.role_of(seat) != VersusRoster.Role.GUARDIAN:
+	if not connected:
+		return
+	var guardian_seat := seat + 1 if room_mode == VersusRoster.RoomMode.DUEL_COMBINED else seat
+	if VersusRoster.role_of(guardian_seat) != VersusRoster.Role.GUARDIAN:
 		return
 	transport.send_to(VersusTransport.HOST_PEER,
 		VersusTransport.Channel.COMMAND,
 		VersusTransport.Reliability.RELIABLE,
-		VersusProtocol.command(seat, world_tick, slot, at))
+		VersusProtocol.command(guardian_seat, world_tick, slot, at))
 
 ## Take the last one back. Slot 0 is the undo, which keeps it to one message
 ## kind rather than two that differ by a bool.
 func request_undo() -> void:
-	if not connected or VersusRoster.role_of(seat) != VersusRoster.Role.GUARDIAN:
+	if not connected:
+		return
+	var guardian_seat := seat + 1 if room_mode == VersusRoster.RoomMode.DUEL_COMBINED else seat
+	if VersusRoster.role_of(guardian_seat) != VersusRoster.Role.GUARDIAN:
 		return
 	transport.send_to(VersusTransport.HOST_PEER,
 		VersusTransport.Channel.COMMAND,
 		VersusTransport.Reliability.RELIABLE,
-		VersusProtocol.command(seat, world_tick, 0, Vector2.ZERO))
+		VersusProtocol.command(guardian_seat, world_tick, 0, Vector2.ZERO))
 
 func _take_post() -> void:
 	for packet in transport.poll():
+		if int(packet["from"]) != VersusTransport.HOST_PEER:
+			continue
 		var payload: PackedByteArray = packet["payload"]
 		match VersusProtocol.kind_of(payload):
 			VersusProtocol.Msg.WELCOME:
+				if payload.size() != 7:
+					continue
 				var w := VersusProtocol.read_welcome(payload)
+				if int(w["room_mode"]) != room_mode:
+					refused = true
+					continue
 				seat = int(w["seat"])
 				seed_value = int(w["seed"])
 				connected = true

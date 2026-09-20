@@ -30,6 +30,7 @@ func _ready() -> void:
 	_test_reordering()
 	_test_a_lost_peer()
 	_test_the_guardian()
+	_test_duel_combined()
 	_test_input_isolation()
 	_test_build_revisions()
 
@@ -440,6 +441,69 @@ func _test_build_revisions() -> void:
 		"undo also increments the revision")
 	check(not host.place_build(VersusRoster.SEAT_A_GUARDIAN,
 		Vector2(INF, 100)), "infinite coordinates cannot create constructs")
+
+# ----------------------------------------------------------- two-peer combined
+func _test_duel_combined() -> void:
+	_current = "two peers, four roles"
+	var mesh := VersusLoopback.mesh(3)
+	var host := VersusHost.new()
+	host.start(mesh[0], _world(), 31337, VersusRoster.RoomMode.DUEL_COMBINED)
+	check(host.roster.owns_seat(0, VersusRoster.SEAT_A_RUNNER)
+		and host.roster.owns_seat(0, VersusRoster.SEAT_A_GUARDIAN),
+		"host atomically owns runner A and guardian A")
+	check(not host.roster.can_play(), "host alone does not start a 1v1")
+	for t in range(20):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(VersusMatch.Seat.new())
+	check(host.match_rules.tick == 0 and not host.playing
+		and host.match_rules.score(0) == 0,
+		"waiting cannot advance the match or grant a coin")
+	var guest := VersusClient.new()
+	guest.start(mesh[1], VersusRoster.SEAT_B_RUNNER,
+		VersusRoster.RoomMode.DUEL_COMBINED)
+	for t in range(20):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(_moving_seat(0, t, RandomNumberGenerator.new()))
+		guest.step(_moving_seat(1, t, RandomNumberGenerator.new()))
+	check(guest.connected and guest.seat == VersusRoster.SEAT_B_RUNNER
+		and guest.room_mode == VersusRoster.RoomMode.DUEL_COMBINED,
+		"joiner is assigned runner B in the combined room")
+	check(host.playing and host.roster.can_play()
+		and host.roster.owns_seat(1, VersusRoster.SEAT_B_GUARDIAN)
+		and host.roster.peers_filled() == 2,
+		"the joiner also owns guardian B; two peers start")
+	var extra := VersusClient.new()
+	extra.start(mesh[2], VersusRoster.SEAT_B_RUNNER,
+		VersusRoster.RoomMode.DUEL_COMBINED)
+	for t in range(4):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(_moving_seat(0, t, RandomNumberGenerator.new()))
+		guest.step(null)
+		extra.step(null, VersusRoster.SEAT_B_RUNNER)
+	check(extra.refused and not extra.connected,
+		"third peer is refused instead of taking a different seat")
+	check(host.place_build(VersusRoster.SEAT_A_GUARDIAN,
+		Vector2(7210, 100), 1), "host player can place through guardian A")
+	guest.request_build(Vector2(7350, 100), 2)
+	for m in mesh:
+		m.advance(1.0 / 60.0)
+	host.step(_moving_seat(0, 0, RandomNumberGenerator.new()))
+	check(host.builds.size() == 2
+		and int(host.builds[1]["seat"]) == VersusRoster.SEAT_B_GUARDIAN,
+		"joiner's guardian builds over its runner's one socket")
+	var before := host.builds.size()
+	mesh[2].send_to(0, VersusTransport.Channel.COMMAND,
+		VersusTransport.Reliability.RELIABLE,
+		VersusProtocol.command(VersusRoster.SEAT_B_GUARDIAN,
+			0, 1, Vector2(7700, 100)))
+	for m in mesh:
+		m.advance(1.0 / 60.0)
+	host.step(_moving_seat(0, 1, RandomNumberGenerator.new()))
+	check(host.builds.size() == before,
+		"unseated third peer cannot forge guardian B's seat")
 
 # ------------------------------------------------------------------ helpers
 func _world() -> ArenaStage:

@@ -20,6 +20,9 @@ extends RefCounted
 ## is the whole reason they are different numbers.
 
 enum Role { RUNNER, GUARDIAN }
+enum RoomMode { TEAM_SPLIT, DUEL_COMBINED }
+
+var room_mode: int = RoomMode.TEAM_SPLIT
 
 const SEATS: int = 4
 const SEAT_A_RUNNER: int = 0
@@ -30,7 +33,8 @@ const SEAT_B_GUARDIAN: int = 3
 ## seat -> peer_id, or -1 while empty.
 var occupants: Array[int] = []
 
-func _init() -> void:
+func _init(selected_mode: int = RoomMode.TEAM_SPLIT) -> void:
+	room_mode = selected_mode
 	for i in range(SEATS):
 		occupants.append(-1)
 
@@ -59,9 +63,23 @@ func seat_peer(peer_id: int, wanted: int = -1) -> int:
 	var already := seat_of(peer_id)
 	if already >= 0:
 		return already
+	if room_mode == RoomMode.DUEL_COMBINED:
+		if wanted != SEAT_A_RUNNER and wanted != SEAT_B_RUNNER:
+			return -1
+		if occupants[wanted] != -1 or occupants[wanted + 1] != -1:
+			return -1
+		occupants[wanted] = peer_id
+		occupants[wanted + 1] = peer_id
+		return wanted
+	# A requested chair is authoritative; never silently assign a different
+	# actor after the client created its local Runner/Guardian.
+	if wanted >= 0 and wanted < SEATS and occupants[wanted] != -1:
+		return -1
 	if wanted >= 0 and wanted < SEATS and occupants[wanted] == -1:
 		occupants[wanted] = peer_id
 		return wanted
+	if wanted >= 0:
+		return -1
 	for i in range(SEATS):
 		if occupants[i] == -1:
 			occupants[i] = peer_id
@@ -74,14 +92,25 @@ func seat_of(peer_id: int) -> int:
 			return i
 	return -1
 
+func owns_seat(peer_id: int, seat: int) -> bool:
+	return seat >= 0 and seat < SEATS and occupants[seat] == peer_id
+
 func peer_at(seat: int) -> int:
 	return occupants[seat] if seat >= 0 and seat < SEATS else -1
 
 func vacate(peer_id: int) -> int:
 	var seat := seat_of(peer_id)
-	if seat >= 0:
-		occupants[seat] = -1
+	for i in range(SEATS):
+		if occupants[i] == peer_id:
+			occupants[i] = -1
 	return seat
+
+func peers_filled() -> int:
+	var found: Dictionary = {}
+	for p in occupants:
+		if p >= 0:
+			found[p] = true
+	return found.size()
 
 func filled() -> int:
 	var n := 0

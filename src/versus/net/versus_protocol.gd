@@ -30,7 +30,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 2
+const VERSION: int = 3
 
 ## Velocity is stored in eighths of a pixel per second, as the co-op snapshot
 ## does. A runner tops out around 1000px/s, so 8000 fits an i16 with room.
@@ -70,27 +70,33 @@ static func _get_vel(b: StreamPeerBuffer) -> Vector2:
 	return Vector2(float(b.get_16()) / VEL_SCALE, float(b.get_16()) / VEL_SCALE)
 
 # ----------------------------------------------------------------- handshake
-static func hello(wanted_seat: int) -> PackedByteArray:
+static func hello(wanted_seat: int,
+		room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> PackedByteArray:
 	var b := _buf(Msg.HELLO)
 	b.put_u16(VERSION)
 	b.put_8(wanted_seat)
+	b.put_u8(room_mode)
 	return b.data_array
 
 static func read_hello(payload: PackedByteArray) -> Dictionary:
 	var b := reader(payload)
 	b.get_u8()
-	return {"version": b.get_u16(), "wanted_seat": b.get_8()}
+	return {"version": b.get_u16(), "wanted_seat": b.get_8(),
+		"room_mode": b.get_u8()}
 
-static func welcome(seat: int, match_seed: int) -> PackedByteArray:
+static func welcome(seat: int, match_seed: int,
+		room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> PackedByteArray:
 	var b := _buf(Msg.WELCOME)
 	b.put_u8(seat)
 	b.put_u32(match_seed)
+	b.put_u8(room_mode)
 	return b.data_array
 
 static func read_welcome(payload: PackedByteArray) -> Dictionary:
 	var b := reader(payload)
 	b.get_u8()
-	return {"seat": b.get_u8(), "seed": b.get_u32()}
+	return {"seat": b.get_u8(), "seed": b.get_u32(),
+		"room_mode": b.get_u8()}
 
 static func full() -> PackedByteArray:
 	return _buf(Msg.FULL).data_array
