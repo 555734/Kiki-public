@@ -9,6 +9,17 @@
 
 const DEFAULT_ROOM_IDLE_MS = 10 * 60 * 1000;
 const MAX_PEERS = 2;
+// The versus mode's rooms, reached at /room4/<code>. A separate route and a
+// separate Durable Object namespace, so the cooperative room keeps refusing a
+// third peer exactly as it always has -- raising MAX_PEERS would have changed
+// the meaning of every existing room and of the test that asserts it.
+const MAX_PEERS_VERSUS = 4;
+// A versus frame begins with one routing byte: the destination peer index, or
+// BROADCAST. The relay rewrites that byte to the SENDER's index on the way out,
+// which is the addressing the cooperative relay has no room for -- it forwards
+// verbatim and the receiver cannot tell who sent what. Everything after the
+// byte stays opaque.
+const VERSUS_BROADCAST = 0xff;
 const MAX_MESSAGE_BYTES = 1170;
 const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const CODE_LENGTH = 6;
@@ -74,7 +85,8 @@ export default {
     // check happens before touching ROOMS, so rejected abuse does not create a
     // room Durable Object or hold a WebSocket open.
     const roomPath = url.pathname.match(/^\/room\/([A-Z0-9]{4,12})$/);
-    if ((url.pathname === "/room" && request.method === "POST") || roomPath) {
+    const versusPath = url.pathname.match(/^\/room4\/([A-Z0-9]{4,12})$/);
+    if ((url.pathname === "/room" && request.method === "POST") || roomPath || versusPath) {
       const limited = await rateLimitResponse(request, env);
       if (limited) return limited;
     }
@@ -89,6 +101,14 @@ export default {
 
     if (roomPath) {
       const id = env.ROOMS.idFromName(roomPath[1]);
+      return env.ROOMS.get(id).fetch(request);
+    }
+
+    // Namespaced, so /room4/ABC and /room/ABC are different rooms. Without the
+    // prefix a versus room and a co-op room sharing a code would be the same
+    // Durable Object with two different capacities.
+    if (versusPath) {
+      const id = env.ROOMS.idFromName(`v4:${versusPath[1]}`);
       return env.ROOMS.get(id).fetch(request);
     }
 
@@ -145,6 +165,8 @@ export class Room {
       return json({ error: "expected a websocket upgrade" }, 426);
     }
     const url = new URL(request.url);
+    const versus = url.pathname.startsWith("/room4/");
+    const cap = versus ? MAX_PEERS_VERSUS : MAX_PEERS;
     const cid = (url.searchParams.get("cid") || "").slice(0, 32);
     const askedFor = url.searchParams.get("role");
     const wanted = askedFor === "host" || askedFor === "guest" ? askedFor : null;
@@ -161,22 +183,37 @@ export class Room {
       existing = this.state.getWebSockets().filter((p) => !isRetired(p));
     }
 
-    if (existing.length >= MAX_PEERS) {
+    if (existing.length >= cap) {
       return json({ error: "room is full" }, 409);
     }
 
-    const taken = new Set(existing.map((p) => (p.deserializeAttachment() || {}).role));
+    const attachments = existing.map((p) => p.deserializeAttachment() || {});
+    const taken = new Set(attachments.map((a) => a.role));
     const free = ["host", "guest"].filter((r) => !taken.has(r));
     const role = wanted && free.includes(wanted) ? wanted : free[0];
+
+    // A stable 0..3 index, which is what the versus transport addresses by.
+    // The lowest free one, so a peer that drops and returns reclaims its own
+    // number rather than pushing everyone else along.
+    //
+    // Null in a cooperative room, and that matters: webSocketMessage decides
+    // whether to route by whether the sender HAS an index, and giving co-op
+    // peers a 0 made every co-op binary packet get its first byte rewritten.
+    let index = null;
+    if (versus) {
+      index = 0;
+      const used = new Set(attachments.map((a) => a.index));
+      while (used.has(index)) index += 1;
+    }
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.state.acceptWebSocket(server);
 
-    server.serializeAttachment({ role, cid });
+    server.serializeAttachment({ role, cid, index });
     server.send(JSON.stringify({
       t: "joined", role, peers: existing.length + 1,
-      granted: role === wanted,
+      granted: role === wanted, index, cap,
     }));
 
     for (const peer of existing) {
@@ -187,15 +224,42 @@ export class Room {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  /** Forward verbatim to the other peer, text or binary, unread. */
+  /**
+   * Co-op rooms: forward verbatim to the other peer, text or binary, unread.
+   *
+   * Versus rooms: read the first byte as a destination and rewrite it to the
+   * sender's index. One byte of addressing is the difference between a relay
+   * four peers can use and a broadcast bus where nobody can tell who spoke or
+   * send anyone a private correction.
+   */
   webSocketMessage(ws, message) {
     const size = typeof message === "string" ? message.length : message.byteLength;
     if (size > MAX_MESSAGE_BYTES) {
       ws.send(JSON.stringify({ t: "error", reason: "message too large" }));
       return;
     }
+    const mine = ws.deserializeAttachment() || {};
+    const routed = typeof mine.index === "number" && typeof message !== "string";
+
+    if (!routed) {
+      for (const peer of this.state.getWebSockets()) {
+        if (peer !== ws && !isRetired(peer)) peer.send(message);
+      }
+      return;
+    }
+
+    const bytes = new Uint8Array(message);
+    if (bytes.length < 1) return;
+    const dest = bytes[0];
+    // Copied rather than mutated in place: the same buffer goes to several
+    // peers and the sender byte must be the same for all of them.
+    const out = bytes.slice();
+    out[0] = mine.index;
     for (const peer of this.state.getWebSockets()) {
-      if (peer !== ws && !isRetired(peer)) peer.send(message);
+      if (peer === ws || isRetired(peer)) continue;
+      const att = peer.deserializeAttachment() || {};
+      if (dest !== VERSUS_BROADCAST && att.index !== dest) continue;
+      peer.send(out);
     }
   }
 

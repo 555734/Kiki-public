@@ -105,8 +105,55 @@ step "can two people get through 1-C"
 # factor of two. Every section is then played the way it is meant to be played.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_probe.tscn
 
+step "does the coin battle's ledger hold"
+# The whole of P0's gate. Seven coin IDs exist for a match; being dropped,
+# blasted out, going stale and being recycled move a coin between states and
+# none of them may create or destroy one -- asserted on EVERY tick of a
+# randomised match, not at the whistle. A ledger that is wrong for two hundred
+# ticks and right again by the end is still a ledger that showed somebody the
+# wrong score.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/arena_rules_probe.tscn
+
+step "does the arena's movement re-run the same way twice"
+# The precondition for the prediction and correction in P2: the same terrain and
+# the same inputs have to land in the same place from any save point. It also
+# holds JumpMath against the runner's own vertical step, which is the only thing
+# that can say the extraction was verbatim -- and which found two first-tick
+# bugs the rules probe could not see.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/arena_motion_probe.tscn
+
 step "boot the real stage headlessly"
 run_checked "$GODOT" --headless --path . --quit-after 240
+
+step "do the 1-1 coin match's rules hold"
+# The ledger is the whole of it: coins are neither created nor destroyed, and
+# the score is derived from who holds what rather than counted separately. Also
+# measures the slice of 1-1 the mode is played on -- that both ends are open
+# pits, that every coin point has a floor under it, and that neither runner
+# starts nearer the middle coin than the other.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_probe.tscn
+
+step "does the 1-1 coin match actually play"
+# The rules probe drives the rules with made-up observations and proves nothing
+# about the scene you launch. This builds the real thing -- two real Runners on
+# real 1-1 collision -- and walks one into the other. It caught three wiring
+# bugs the rules probe could not see, including nobody being able to touch a
+# coin for the first second of every match.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
+
+step "do four machines agree about one match"
+# No sockets and no second process: four worlds in one, joined by a loopback
+# mesh that drops 6% of packets and reorders the rest. The claim under test is
+# the one the whole design rests on -- the host decides the contest and the
+# other three believe it -- so what is asserted is that every peer derives the
+# host's score, on every tick they share, not merely that packets arrived.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_net_probe.tscn
+
+step "boot the coin battle headlessly"
+# Not part of the cooperative launch path: run/main_scene is untouched and the
+# menu does not reach this (P5). Booted anyway, because a scene that only ever
+# runs by hand is a scene that is broken for a fortnight before anyone notices.
+run_checked "$GODOT" --headless --path . --quit-after 300 res://src/arena/arena_main.tscn
 
 if [ "$SHOTS" = "1" ]; then
 	if command -v xvfb-run >/dev/null 2>&1; then
@@ -133,6 +180,13 @@ if [ "$SHOTS" = "1" ]; then
 	fi
 fi
 
+# The two that need a relay are not part of this run, because a suite that
+# depends on a server nobody started is a suite that cries wolf. Both are one
+# command each:
+#
+#   cd server/signaling && npm run dev     # then, in another shell:
+#   node server/signaling/test4.mjs        # the relay's four-peer room
+#   tools/versus4.sh                       # four processes, one match
 if [ "$fail" -eq 0 ]; then printf '\n\033[32mall checks passed\033[0m\n'
 else printf '\n\033[31mFAILURES\033[0m\n'; fi
 exit "$fail"

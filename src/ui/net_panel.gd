@@ -12,6 +12,7 @@ var main: Node2D = null
 var _status: Label = null
 var _relay: LineEdit = null
 var _code: LineEdit = null
+
 var _root: Control = null
 var _stage_1_1: Button = null
 var _stage_1_2: Button = null
@@ -107,6 +108,14 @@ func _ready() -> void:
 	box.add_child(_button("部屋を作る（あなたがランナー）", _on_host_relay))
 	box.add_child(_button("ルーム番号で入る（あなたがガーディアン）", _on_join_relay))
 	_load_settings()
+
+	box.add_child(_spacer(6))
+	# たいせん gets one button and its own screen. Everything it needs -- a
+	# relay, a room code, and which of four seats you are taking -- is four
+	# more controls, and putting them here pushed the buttons below the fold on
+	# a 720-tall display. A mode you cannot reach without scrolling is only
+	# slightly better than one you cannot reach without a keyboard.
+	box.add_child(_button("よにんで たいせん（1-1）", _on_versus, false))
 
 	box.add_child(_spacer(6))
 	box.add_child(_button("ボタンの位置を変える", _on_layout, false))
@@ -258,6 +267,10 @@ func _on_local() -> void:
 ## that quietly drops WebSocket upgrades.
 ## Hands differ and so do phones. The defaults are a guess; this is where the
 ## guess gets corrected.
+# ------------------------------------------------------------------ たいせん
+func _on_versus() -> void:
+	add_child(preload("res://src/ui/versus_panel.gd").new())
+
 func _on_layout() -> void:
 	add_child(LayoutEditor.new())
 

@@ -1,0 +1,771 @@
+extends Node2D
+## The coin match, played on 1-1.
+##
+## Stage 1-1, whole and unaltered: built by the cooperative game's own
+## LevelBuilder, all 16,700px of it, with its enemies, its hazards, its
+## checkpoints and its goal. The camera follows your runner exactly as it does
+## in co-op. Nothing about the stage is special-cased for this mode -- what
+## changes is that there are two runners on it and coins to fight over.
+##
+## An earlier version cut a 2,100px arena out of the middle and watched it from
+## a fixed camera. That is not 1-1; it was a box wearing 1-1's scenery.
+##
+## Started from the start screen, not from a command line. The flags are still
+## there for development and for the probes, but nobody needs a terminal:
+## see NetPanel's たいせん section, which fills VersusLaunch and changes scene.
+##
+## Who simulates what: your own runner is yours, always, because a round trip
+## between pressing right and moving right makes the mode unplayable. The host
+## owns the CONTEST -- coins, strikes, the score -- so four screens cannot
+## disagree about who is winning. See VersusHost.
+
+const RunnerVisualScript = preload("res://src/runner/runner_visual.gd")
+
+enum Mode { SOLO, HOST, CLIENT }
+
+const COL_COIN := Color(1.0, 0.82, 0.29)
+const COL_COIN_EDGE := Color(0.62, 0.45, 0.10)
+## A guardian's construct, in its own team's colour. Read off the shared team
+## palette rather than restated, so a platform is unmistakably one side's.
+## Drawn nearly solid: the first version was translucent and vanished against
+## 1-1's bright grass, which made a platform something you found by walking
+## into it.
+static func build_fill(team: int) -> Color:
+	var c: Color = ArenaRules.TEAM_COLOURS[team]
+	return Color(c.r, c.g, c.b, 0.80)
+
+static func build_edge(team: int) -> Color:
+	var c: Color = ArenaRules.TEAM_COLOURS[team]
+	return Color(minf(1.0, c.r + 0.35), minf(1.0, c.g + 0.35),
+		minf(1.0, c.b + 0.35), 1.0)
+
+var mode: int = Mode.SOLO
+var match_rules: VersusMatch = null       ## host and solo only
+var host: VersusHost = null
+var client: VersusClient = null
+var link: VersusWsTransport = null
+var room_code: String = ""
+var status: String = ""
+
+var runners: Array[Runner] = []
+var input: VersusInput = null
+var hud: Control = null
+var guardian: Guardian = null
+
+## Which runner this machine drives, or -1 for a guardian. Solo drives both.
+var local_team: int = 0
+var level: LevelBuilder = null
+var _camera: Camera2D = null
+var _built_body: StaticBody2D = null
+var _built: Array[Rect2] = []
+var _build_owner: Array[int] = []
+var _respawn_in := [0, 0]
+## Where each runner was when it died, so it comes back at the checkpoint
+## behind THAT rather than behind wherever its corpse drifted to.
+var _died_at := [Vector2.ZERO, Vector2.ZERO]
+var _seat: int = VersusRoster.SEAT_A_RUNNER
+
+func _ready() -> void:
+	process_physics_priority = 100
+	z_index = 5
+	_read_command_line()
+	_build_world()
+
+	input = VersusInput.new()
+	input.name = "VersusInput"
+	add_child(input)
+	input.make_hubs(self)
+
+	_build_runners()
+	_finish_world()
+	_build_camera()
+
+	# In a CanvasLayer, because the camera moves now: the scoreboard belongs to
+	# the screen, not to a place on the stage.
+	var layer := CanvasLayer.new()
+	layer.name = "Hud"
+	add_child(layer)
+	hud = preload("res://src/versus/versus_hud.gd").new()
+	hud.arena = self
+	layer.add_child(hud)
+
+	match mode:
+		Mode.SOLO:
+			match_rules = VersusMatch.new()
+			_start_solo()
+		Mode.HOST:
+			_open_link(true)
+		Mode.CLIENT:
+			_open_link(false)
+
+	if VersusRoster.role_of(_seat) == VersusRoster.Role.GUARDIAN:
+		_build_guardian()
+
+func _read_command_line() -> void:
+	# The start screen first: on a phone there is no command line, and needing
+	# one to reach a mode is the same as not shipping it.
+	if VersusLaunch.chosen():
+		match VersusLaunch.how:
+			VersusLaunch.How.HOST:
+				mode = Mode.HOST
+			VersusLaunch.How.JOIN:
+				mode = Mode.CLIENT
+			_:
+				mode = Mode.SOLO
+		room_code = VersusLaunch.code
+		_seat = clampi(VersusLaunch.seat, 0, 3)
+		if not VersusLaunch.relay.is_empty():
+			_relay = VersusLaunch.relay
+	else:
+		for arg in OS.get_cmdline_user_args() + OS.get_cmdline_args():
+			if arg == "--versus-host":
+				mode = Mode.HOST
+				_seat = VersusRoster.SEAT_A_RUNNER
+			elif arg.begins_with("--versus-join="):
+				mode = Mode.CLIENT
+				room_code = arg.split("=", true, 1)[1].to_upper()
+			elif arg.begins_with("--versus-seat="):
+				_seat = clampi(int(arg.split("=", true, 1)[1]), 0, 3)
+			elif arg.begins_with("--versus-relay="):
+				_relay = arg.split("=", true, 1)[1]
+	if mode == Mode.HOST:
+		_seat = VersusRoster.SEAT_A_RUNNER
+	local_team = VersusRoster.team_of(_seat) \
+		if VersusRoster.role_of(_seat) == VersusRoster.Role.RUNNER else -1
+
+var _relay: String = Balance.DEFAULT_RELAY
+
+# ------------------------------------------------------------------- the world
+## The collision world the COINS fall through. The runners use the real
+## StaticBody2D that LevelBuilder made; coins are not characters and do not
+## need one, so they sweep against the same rectangles directly.
+## The collision world the COINS fall through, three laps wide.
+##
+## Three, not one: a runner standing on the join needs real floor on both sides
+## of it, or the lap they are about to enter is a hole until the instant they
+## wrap into it.
+func _collision_rects() -> Array[Rect2]:
+	var one: Array[Rect2] = VersusStageData.lap_ground()
+	one.append_array(Stage.solid_decor())
+	var out: Array[Rect2] = []
+	for lap in [-1, 0, 1]:
+		var shift := VersusStageData.LOOP_SPAN * float(lap)
+		for r in one:
+			out.append(Rect2(r.position + Vector2(shift, 0.0), r.size))
+	out.append_array(_built)
+	return out
+
+## 1-1, built the way the cooperative game builds it. Terrain, decor, hazards,
+## enemies, checkpoints and the goal all come from LevelBuilder, so the stage
+## in this mode is the stage -- not a copy of it that can drift.
+func _build_world() -> void:
+	Stage.use(Stage.Which.GREENFIELD)
+	level = LevelBuilder.new()
+	level.name = "Level"
+	add_child(level)
+
+## The laps either side of the one 1-1 was built in: the steps that close the
+## circuit, and a copy of the terrain and the scenery to each side.
+##
+## Painted and collided, but NOT populated. The enemies, the spikes and the
+## gimmicks stay in the middle lap. They would be a second set of the same
+## creatures if they were repeated, and they do not need to be: 1-1's eastmost
+## enemy is at x=16,100 and the join is at 17,400, so what is on screen while
+## you cross it is empty plateau either way.
+func _build_laps() -> void:
+	var one: Array[Rect2] = VersusStageData.lap_ground()
+	var scenery := Stage.decor()
+	var body := StaticBody2D.new()
+	body.name = "Laps"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	add_child(body)
+
+	for lap in [-1, 0, 1]:
+		var shift := VersusStageData.LOOP_SPAN * float(lap)
+		# The middle lap's own terrain is LevelBuilder's; only the steps are
+		# added to it, so 1-1 is painted exactly once by the thing that paints
+		# it everywhere else.
+		var slabs: Array[Rect2] = one if lap != 0 \
+			else VersusStageData.connector()
+		var painted: Array[Rect2] = []
+		for r in slabs:
+			painted.append(Rect2(r.position + Vector2(shift, 0.0), r.size))
+		var terrain := preload("res://src/render/terrain.gd").new()
+		terrain.slabs = painted
+		add_child(terrain)
+		for r in painted:
+			var shape := CollisionShape2D.new()
+			var box := RectangleShape2D.new()
+			box.size = r.size
+			shape.shape = box
+			shape.position = r.position + r.size * 0.5
+			body.add_child(shape)
+		if lap == 0:
+			continue
+		var decor := preload("res://src/render/decor.gd").new()
+		var moved: Array[Dictionary] = []
+		for d in scenery:
+			var copy := d.duplicate()
+			copy["pos"] = Vector2(d["pos"]) + Vector2(shift, 0.0)
+			moved.append(copy)
+		decor.items = moved
+		add_child(decor)
+
+## 1-1's goal is a place to arrive at. On a circuit you arrive at it every lap,
+## and it would announce the stage cleared every time round.
+func _remove_the_goal() -> void:
+	for node in level.find_children("*", "", true, false):
+		if node.name.to_lower().contains("goal"):
+			node.queue_free()
+
+## LevelBuilder wants the runner and the hub before it builds, because an
+## asymmetric stage decides what to paint from who is watching. 1-1 hides
+## nothing, but it is given the local player's hub anyway rather than null --
+## the same call the cooperative game makes.
+func _finish_world() -> void:
+	level.runner = runners[maxi(local_team, 0)]
+	level.input_hub = input.hubs[0]
+	level.build()
+	_remove_the_goal()
+	_build_laps()
+
+func _build_camera() -> void:
+	_camera = Camera2D.new()
+	_camera.name = "Camera"
+	_camera.position_smoothing_enabled = false   # smoothed by hand, below
+	_camera.zoom = Vector2.ONE * Balance.CAMERA_ZOOM
+	_camera.global_position = runners[maxi(local_team, 0)].global_position
+	add_child(_camera)
+	_camera.make_current()
+
+	var sky := preload("res://src/render/sky.gd").new()
+	sky.name = "Sky"
+	sky.camera = _camera
+	add_child(sky)
+
+## Follows YOUR runner, with the same lead and the same smoothing the
+## cooperative camera uses -- a guardian is reading the road ahead of their own
+## runner here exactly as they do there. A guardian's view follows the runner
+## on their own team.
+func _update_camera(delta: float) -> void:
+	var who := runners[maxi(_view_team(), 0)]
+	if who == null or not is_instance_valid(who):
+		return
+	var lead := clampf(who.velocity.x / Balance.RUNNER_RUN_SPEED, -1.0, 1.0) \
+		* Balance.CAMERA_LOOKAHEAD
+	var target := who.global_position + Vector2(lead, -40.0)
+	var t := clampf(delta * Balance.CAMERA_SMOOTH, 0.0, 1.0)
+	_camera.global_position = _camera.global_position.lerp(target, t)
+
+func _view_team() -> int:
+	if local_team >= 0:
+		return local_team
+	# A guardian watches their own team's runner.
+	return VersusRoster.team_of(_seat)
+
+func _process(delta: float) -> void:
+	if _camera != null:
+		_update_camera(delta)
+
+## The guardians' constructs are ordinary ground for both teams. Rebuilt as one
+## body whenever the list changes rather than added one at a time, so the shape
+## of the world is always exactly the list.
+func _refresh_ground() -> void:
+	if _built_body == null:
+		_built_body = StaticBody2D.new()
+		_built_body.name = "Built"
+		_built_body.collision_layer = 1
+		_built_body.collision_mask = 0
+		add_child(_built_body)
+	for child in _built_body.get_children():
+		child.queue_free()
+	for rect in _built:
+		var shape := CollisionShape2D.new()
+		var box := RectangleShape2D.new()
+		box.size = rect.size
+		shape.shape = box
+		shape.position = rect.position + rect.size * 0.5
+		_built_body.add_child(shape)
+
+func _build_runners() -> void:
+	runners.clear()
+	var starts := VersusStageData.start_positions()
+	var facings := VersusStageData.start_facing()
+	for i in range(2):
+		var r := Runner.new()
+		r.name = "Runner%d" % i
+		r.global_position = starts[i]
+		r.facing = facings[i]
+		# Only the runner this machine drives has a hub and its own physics.
+		# The other is a puppet: its position arrives from the network, and
+		# simulating it here would be two machines disagreeing about one body.
+		if mode == Mode.SOLO or i == local_team:
+			r.input_hub = input.hubs[i if mode == Mode.SOLO else 0]
+		add_child(r)
+		# Team A is Lira exactly as she is. Only the second runner is
+		# recoloured -- the request was the characters already in the game, and
+		# tinting both would have made neither of them the one people know.
+		# Which team you are is told by the ring at your feet, not by a wash
+		# over the art.
+		if r.visual != null and i == 1:
+			r.visual.modulate = Color(0.46, 0.78, 1.35)
+		runners.append(r)
+	_apply_puppets()
+
+func _apply_puppets() -> void:
+	for i in range(2):
+		var mine := mode == Mode.SOLO or i == local_team
+		runners[i].set_physics_process(mine)
+
+## The guardian's own node, with all four tools, aiming with the mouse. Its
+## presses go to the host through the router rather than changing the world
+## here -- the seam Guardian already has for exactly this.
+func _build_guardian() -> void:
+	var hub: InputHub = input.hubs[0]
+	hub.scripted = false
+	hub.solo_role = "guardian"
+	guardian = Guardian.new()
+	guardian.name = "Guardian"
+	guardian.runner = runners[VersusRoster.team_of(_seat)]
+	guardian.input_hub = hub
+	guardian.world_root = self
+	if client != null:
+		var router := preload("res://src/versus/versus_command_router.gd").new()
+		router.client = client
+		add_child(router)
+		guardian.command_router = router
+	add_child(guardian)
+
+# --------------------------------------------------------------------- the link
+func _open_link(as_host: bool) -> void:
+	link = VersusWsTransport.new()
+	if as_host:
+		room_code = VersusWsTransport.new_code()
+	var err := link.open_room(_relay, room_code, "versus-%d" % (Time.get_ticks_usec() & 0xffff))
+	if not err.is_empty():
+		status = err
+		return
+	status = "room %s - waiting" % room_code
+
+func _network_ready() -> void:
+	if host != null or client != null:
+		return
+	if not link.is_open():
+		return
+	if mode == Mode.HOST:
+		if link.local_peer() != VersusTransport.HOST_PEER:
+			status = "room %s is already hosted elsewhere" % room_code
+			return
+		host = VersusHost.new()
+		host.start(link, ArenaStage.new(_collision_rects()))
+		match_rules = host.match_rules
+		status = "room %s" % room_code
+	else:
+		client = VersusClient.new()
+		client.start(link, _seat)
+		if guardian != null:
+			var router := preload("res://src/versus/versus_command_router.gd").new()
+			router.client = client
+			add_child(router)
+			guardian.command_router = router
+		status = "room %s - joining" % room_code
+
+# --------------------------------------------------------------------- the tick
+func _physics_process(_delta: float) -> void:
+	if link != null:
+		link.poll_socket()
+		_network_ready()
+
+	var seqs := input.poll()
+
+	if phase() == VersusMatch.Phase.OVER:
+		if Input.is_physical_key_pressed(KEY_R) and mode != Mode.CLIENT:
+			_start_solo() if mode == Mode.SOLO else _restart_host()
+		_redraw()
+		return
+
+	match mode:
+		Mode.SOLO:
+			_tick_solo(seqs)
+		Mode.HOST:
+			_tick_host(seqs)
+		Mode.CLIENT:
+			_tick_client(seqs)
+	_redraw()
+
+## Bring a runner back into the middle lap when it walks off the end of one.
+##
+## The whole of "seamless". The world is periodic, so subtracting exactly one
+## lap from a position puts the runner somewhere that looks identical -- same
+## ground under the feet, same scenery either side. The camera is moved by the
+## same amount in the same frame, or it would pan the full nineteen thousand
+## pixels back and the join would read as a catapult.
+##
+## Nothing else is touched: velocity, state, the jump in progress and the coins
+## in hand all carry straight through, because as far as the runner is
+## concerned it did not happen.
+func _wrap_bodies() -> void:
+	for i in range(2):
+		var r := runners[i]
+		var was := r.global_position.x
+		var now := VersusStageData.wrap_x(was)
+		if is_equal_approx(was, now):
+			continue
+		var shift := now - was
+		r.global_position.x = now
+		if i == _view_team() and _camera != null:
+			_camera.global_position.x += shift
+
+func _redraw() -> void:
+	queue_redraw()
+	hud.queue_redraw()
+
+func _observe(i: int, seq: int) -> VersusMatch.Seat:
+	var s := VersusMatch.Seat.new()
+	s.team = i
+	s.position = runners[i].global_position
+	s.facing = runners[i].facing
+	s.alive = runners[i].state != Runner.State.DEAD and _respawn_in[i] <= 0
+	# Being untouchable does not stop you acting: Runner.respawn grants a
+	# second of it, and folding that into can_act meant nobody could take a
+	# coin for the first second of the match.
+	s.can_act = s.alive and runners[i].state != Runner.State.HURT
+	s.invulnerable = runners[i].is_invulnerable()
+	s.strike_seq = seq
+	return s
+
+func _tick_solo(seqs: Array[int]) -> void:
+	_wrap_bodies()
+	_apply_respawns()
+	_catch_deaths()
+	match_rules.step([_observe(0, seqs[0]), _observe(1, seqs[1])])
+	_apply_events(match_rules.events)
+
+func _tick_host(seqs: Array[int]) -> void:
+	if host == null:
+		return
+	_wrap_bodies()
+	_apply_respawns()
+	_catch_deaths()
+	host.step(_observe(0, seqs[0]))
+	_sync_builds(host.builds)
+	# The other runner is wherever its own machine says it is.
+	_place_puppet(1, host.match_rules.seats[1].position,
+		host.match_rules.seats[1].facing)
+	_apply_events(host.out_events)
+
+func _tick_client(seqs: Array[int]) -> void:
+	if client == null:
+		return
+	var mine = null
+	if local_team >= 0:
+		_wrap_bodies()
+		_apply_respawns()
+		_catch_deaths_local()
+		mine = _observe(local_team, seqs[0])
+	client.step(mine, _seat)
+	_sync_builds_from_snapshot(client.builds)
+	# Everyone the host describes and this machine does not own.
+	for i in range(2):
+		if i == local_team:
+			continue
+		if client.runners.size() > i:
+			var r: Dictionary = client.runners[i]
+			_place_puppet(i, r["position"], int(r["facing"]))
+	if local_team >= 0 and client.connected:
+		_apply_client_hits()
+
+## The host says this runner has been hit; the local body is told, so the
+## knockback, the flash and the health are the game's own.
+func _apply_client_hits() -> void:
+	var r: Dictionary = client.runners[local_team] if client.runners.size() > local_team else {}
+	if r.is_empty():
+		return
+	if not bool(r["alive"]) and runners[local_team].state != Runner.State.DEAD:
+		runners[local_team].die("host")
+		_begin_respawn(local_team)
+
+## A body this machine does not simulate. Eased rather than snapped: snapshots
+## arrive 30 times a second and the screen draws 60, so a hard set is visibly
+## steppy. A big jump is snapped, because that is a respawn rather than a walk.
+func _place_puppet(i: int, at: Vector2, facing: int) -> void:
+	var r := runners[i]
+	# In the lap nearest the camera. The position on the wire is wrapped into
+	# one lap, and dropping it there unchanged would put the other runner a
+	# whole circuit away whenever you were on the other side of the join.
+	var here := VersusStageData.nearest_image(at, _camera.global_position) \
+		if _camera != null else at
+	if r.global_position.distance_to(here) > 240.0:
+		r.global_position = here
+	else:
+		r.global_position = r.global_position.lerp(here, 0.35)
+	r.facing = facing
+
+func _sync_builds(from: Array) -> void:
+	if from.size() == _built.size():
+		return
+	_built.clear()
+	_build_owner.clear()
+	for g in from:
+		_built.append(g["rect"])
+		_build_owner.append(int(g["seat"]))
+	_refresh_ground()
+
+func _sync_builds_from_snapshot(from: Array) -> void:
+	if from.size() == _built.size():
+		return
+	_built.clear()
+	_build_owner.clear()
+	for g in from:
+		_built.append(Rect2(g["position"], g["size"]))
+		_build_owner.append(int(g["seat"]))
+	_refresh_ground()
+
+# ------------------------------------------------------------------- readouts
+## One place the HUD asks, whichever side of the network this machine is on.
+func coins() -> Array:
+	if match_rules != null:
+		var out: Array = []
+		for c in match_rules.ledger.coins:
+			out.append({"id": c.coin_id, "state": c.state, "owner": c.owner,
+				"position": c.position, "world_since": c.world_since,
+				"pickup_tick": c.pickup_tick})
+		return out
+	return client.coins if client != null else []
+
+func score(team: int) -> int:
+	if match_rules != null:
+		return match_rules.score(team)
+	return client.score(team) if client != null else 0
+
+func phase() -> int:
+	if match_rules != null:
+		return match_rules.phase
+	return client.phase if client != null else VersusMatch.Phase.PLAYING
+
+func winner() -> int:
+	if match_rules != null:
+		return match_rules.winner
+	return client.winner if client != null else -1
+
+func world_tick() -> int:
+	if match_rules != null:
+		return match_rules.tick
+	return client.world_tick if client != null else 0
+
+func held_by(team: int) -> int:
+	var n := 0
+	for c in coins():
+		if int(c["state"]) == ArenaCoin.State.HELD and int(c["owner"]) == team:
+			n += 1
+	return n
+
+## What the map shows: both runners and every loose coin, each as a fraction
+## around the lap.
+##
+## Data, not drawing. The HUD renders whatever this returns, which is what lets
+## a headless probe check the map's CONTENTS -- that the other runner is on it,
+## that the coins are -- without looking at a single pixel.
+func map_marks() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for c in coins():
+		if int(c["state"]) != ArenaCoin.State.WORLD:
+			continue
+		out.append({"kind": "coin", "team": -1,
+			"x01": VersusStageData.lap_fraction(Vector2(c["position"]).x)})
+	for i in range(2):
+		out.append({
+			"kind": "you" if i == _view_team() else "them",
+			"team": i,
+			"x01": VersusStageData.lap_fraction(runners[i].global_position.x),
+		})
+	return out
+
+func waiting() -> bool:
+	if mode == Mode.SOLO:
+		return false
+	if mode == Mode.HOST:
+		return host == null or not host.roster.can_play()
+	return client == null or not client.connected or not client.seen_world
+
+# ---------------------------------------------------------------- lives, deaths
+func _start_solo() -> void:
+	match_rules.setup(ArenaStage.new(_collision_rects()),
+		int(Time.get_ticks_usec() & 0x7fffffff))
+	_reset_bodies()
+
+func _restart_host() -> void:
+	host.start(link, ArenaStage.new(_collision_rects()))
+	match_rules = host.match_rules
+	_built.clear()
+	_build_owner.clear()
+	_refresh_ground()
+	_reset_bodies()
+
+func _reset_bodies() -> void:
+	var starts := VersusStageData.start_positions()
+	var facings := VersusStageData.start_facing()
+	for i in range(2):
+		runners[i].respawn(starts[i])
+		runners[i].facing = facings[i]
+		_respawn_in[i] = 0
+
+func _apply_events(events: Array) -> void:
+	for e in events:
+		match String(e.get("kind", "")):
+			"hurt":
+				var side: int = e["side"]
+				if not _owns(side):
+					continue
+				runners[side].facing = -int(e["dir"])
+				runners[side].take_damage(1)
+				if runners[side].state == Runner.State.DEAD:
+					_begin_respawn(side)
+			"fell":
+				if _owns(e["side"]):
+					runners[e["side"]].die("fell")
+					_begin_respawn(e["side"])
+
+func _owns(side: int) -> bool:
+	return mode == Mode.SOLO or side == local_team
+
+## Every way a runner can stop being in the match, in one place. Written as "is
+## it dead" rather than as a list of causes: the first version handled only the
+## two this file creates and missed 1-1's spike strip, which the runner detects
+## and dies to entirely on its own.
+func _catch_deaths() -> void:
+	for i in range(2):
+		if not _owns(i):
+			continue
+		_catch_death(i)
+
+func _catch_deaths_local() -> void:
+	if local_team >= 0:
+		_catch_death(local_team)
+
+func _catch_death(i: int) -> void:
+	if _respawn_in[i] > 0:
+		return
+	if runners[i].state == Runner.State.DEAD:
+		_begin_respawn(i)
+	elif runners[i].global_position.y > VersusStageData.kill_y():
+		runners[i].die("pit")
+		_begin_respawn(i)
+
+func _begin_respawn(side: int) -> void:
+	if _respawn_in[side] > 0:
+		return
+	_died_at[side] = runners[side].global_position
+	if match_rules != null:
+		match_rules.note_death(side)
+	_respawn_in[side] = VersusRules.RESPAWN_TICKS
+
+func _apply_respawns() -> void:
+	for i in range(2):
+		if _respawn_in[i] <= 0:
+			continue
+		_respawn_in[i] -= 1
+		if _respawn_in[i] > 0:
+			continue
+		# The checkpoint behind where they died, which is 1-1's own answer.
+		# Sending someone back to the start of a sixteen-thousand-pixel stage
+		# for one mistake is a forfeit, not a rule.
+		runners[i].respawn(VersusStageData.respawn_for(i, _died_at[i]))
+		runners[i].facing = VersusStageData.start_facing()[i]
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo \
+			and event.physical_keycode == KEY_ESCAPE:
+		get_tree().quit(0)
+
+# ---------------------------------------------------------------------- paint
+func _draw() -> void:
+	_builds()
+	_markers()
+	_coins()
+	_heads()
+	_strikes()
+
+## How many each runner is carrying, over their head. Pips, not a number: what
+## you need at a glance is "more than them". World space, which is why it lives
+## here and not in the HUD.
+func _heads() -> void:
+	for i in range(2):
+		var held := held_by(i)
+		if held <= 0:
+			continue
+		var centre: Vector2 = runners[i].global_position
+		var y := centre.y - Balance.RUNNER_SIZE.y * 0.5 - 18.0
+		var pitch := 12.0
+		var x0 := centre.x - pitch * float(held - 1) * 0.5
+		for k in range(held):
+			var at := Vector2(x0 + pitch * float(k), y)
+			draw_circle(at, 4.5, COL_COIN)
+			draw_arc(at, 4.5, 0.0, TAU, 10, Color(0.25, 0.18, 0.04, 0.9), 1.2)
+
+func _builds() -> void:
+	for i in range(_built.size()):
+		var team := VersusRoster.team_of(_build_owner[i]) \
+			if i < _build_owner.size() else 0
+		# A dark outline under the bright one. Team A's colour is a sky blue and
+		# 1-1's sky is behind half the arena, so a platform drawn in it alone
+		# disappeared into the background -- something you found by walking into
+		# it rather than by looking.
+		draw_rect(_built[i].grow(2.0), Color(0.06, 0.07, 0.10, 0.85), false, 5.0)
+		draw_rect(_built[i], build_fill(team))
+		draw_rect(_built[i], build_edge(team), false, 3.0)
+		# A highlight along the top, so which side of it you can stand on is
+		# obvious from across the arena.
+		draw_line(_built[i].position + Vector2(0.0, 1.5),
+			_built[i].position + Vector2(_built[i].size.x, 1.5),
+			Color(1, 1, 1, 0.75), 3.0)
+
+func _markers() -> void:
+	for i in range(2):
+		if _respawn_in[i] > 0:
+			continue
+		var at: Vector2 = runners[i].global_position \
+			+ Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5)
+		draw_arc(at, 17.0, 0.0, TAU, 20, build_edge(i), 3.0)
+
+func _coins() -> void:
+	for c in coins():
+		if int(c["state"]) != ArenaCoin.State.WORLD:
+			continue
+		var at: Vector2 = c["position"]
+		var fill := COL_COIN
+		if c.has("world_since"):
+			var left := VersusRules.STALE_TICKS - (world_tick() - int(c["world_since"]))
+			if left <= 90:
+				fill.a = 0.35 + 0.65 * absf(sin(float(left) * 0.25))
+		draw_circle(at, 11.0, fill)
+		draw_arc(at, 11.0, 0.0, TAU, 16, COL_COIN_EDGE, 2.0)
+		if c.has("pickup_tick") and world_tick() < int(c["pickup_tick"]):
+			draw_arc(at, 15.0, 0.0, TAU, 16, Color(1, 1, 1, 0.35), 1.0)
+
+## The strike while it is live, and the wind-up before it. Both shown: the whole
+## fight is about whether eight frames was enough warning.
+func _strikes() -> void:
+	if match_rules == null:
+		for i in range(2):
+			if client == null or client.runners.size() <= i:
+				continue
+			var r: Dictionary = client.runners[i]
+			if int(r["combat_phase"]) == ArenaCombat.Phase.ACTIVE:
+				_strike_box_at(r["position"], int(r["combat_dir"]))
+		return
+	for i in range(2):
+		var c := match_rules.combat[i]
+		var at: Vector2 = runners[i].global_position
+		if c.phase == ArenaCombat.Phase.STARTUP:
+			draw_arc(at + Vector2(float(c.attack_dir) * 22.0, 0.0), 7.0,
+				0.0, TAU, 12, Color(1, 1, 1, 0.45), 2.0)
+		elif c.phase == ArenaCombat.Phase.ACTIVE:
+			_strike_box_at(at, c.attack_dir)
+
+func _strike_box_at(at: Vector2, dir: int) -> void:
+	var mid := Vector2(at.x + float(dir) * VersusRules.STRIKE_REACH, at.y)
+	var box := Rect2(mid - VersusRules.STRIKE_SIZE * 0.5, VersusRules.STRIKE_SIZE)
+	draw_rect(box, Color(1.0, 0.95, 0.70, 0.30))
+	draw_rect(box, Color(1.0, 0.95, 0.70, 0.85), false, 2.0)

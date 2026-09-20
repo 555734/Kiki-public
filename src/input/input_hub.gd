@@ -155,6 +155,31 @@ func _refresh_jump_held() -> void:
 	if was_held and not jump_held:
 		jump_release_sequence += 1
 
+## Drive the RUNNER half of this hub from values the caller already has.
+##
+## The seam a second player enters through. `_poll_desktop` reads the `p1_*`
+## actions, and an action fires for every device and every key bound to it, so
+## two runners on one machine cannot be told apart that way -- the arrow keys
+## are a second binding on `p1_left`, and a second runner driven from them would
+## move the first as well.
+##
+## Everything still goes through the same latches `_poll_desktop` uses, so the
+## jump release sequence, the buffered press and the dash edge behave exactly as
+## they do in co-op. A hub being driven should have `scripted = true` set, which
+## is what stops it also reading the keyboard for itself.
+func drive_runner(axis: float, axis_y: float, jump: bool, dash: bool) -> void:
+	move_axis = clampf(axis, -1.0, 1.0)
+	move_axis_y = clampf(axis_y, -1.0, 1.0)
+	var was_jump := _jump_from_button
+	_jump_from_button = jump
+	_refresh_jump_held()
+	if jump and not was_jump:
+		_latch_jump_press()
+	var was_dash := dash_held
+	dash_held = dash
+	if dash and not was_dash:
+		press_dash()
+
 func press_dash() -> void:
 	_dash_latched = true
 	dash_held = true

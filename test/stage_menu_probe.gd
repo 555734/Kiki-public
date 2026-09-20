@@ -57,6 +57,42 @@ func _ready() -> void:
 			for label in ["1-B", "1-S"]:
 				check(not seen.has(label),
 					"start screen does NOT offer %s (hidden on purpose)" % label)
+
+			# The versus mode has to be reachable from HERE, with a finger.
+			# It began life behind command-line flags, which on a phone means
+			# it does not exist -- so "you can start it without a keyboard" is
+			# a claim, and claims get checked.
+			var door := false
+			for node in panel.find_children("*", "Button", true, false):
+				if String((node as Button).text).contains("たいせん"):
+					door = true
+			check(door, "start screen has a たいせん button")
+
+			# And that the screen behind it can actually start one. Checked on
+			# its own rather than through a click, so a failure says which of
+			# the two is broken.
+			var versus := preload("res://src/ui/versus_panel.gd").new()
+			panel.add_child(versus)
+			await get_tree().process_frame
+			var can := {"make": false, "join": false, "solo": false}
+			for node in versus.find_children("*", "Button", true, false):
+				var text := String((node as Button).text)
+				if text.contains("部屋を作る"):
+					can["make"] = true
+				if text == "部屋に入る":
+					can["join"] = true
+				if text.contains("1台で ためす"):
+					can["solo"] = true
+			check(can["make"], "the たいせん screen can make a room")
+			check(can["join"], "and join one")
+			check(can["solo"], "and try it on one device")
+			var seats := versus.find_children("*", "OptionButton", true, false)
+			check(seats.size() == 1, "with one seat picker")
+			if seats.size() == 1:
+				check((seats[0] as OptionButton).item_count == VersusRoster.SEATS,
+					"offering all %d seats" % VersusRoster.SEATS)
+			versus.queue_free()
+			await get_tree().process_frame
 		main.queue_free()
 		await get_tree().process_frame
 

@@ -132,3 +132,31 @@ godot --headless --path ../.. res://test/ws_probe.tscn
 無傷で届く**ことを確認します。モックではなく本物のソケット・本物の中継・本物の
 フレーミングを通します。
 
+## Four-peer rooms (`/room4/<code>`)
+
+The versus mode needs four peers in one room, and the cooperative room cannot
+be widened to hold them: raising `MAX_PEERS` would change the meaning of every
+room that already exists, and `test.mjs` asserts that a third peer is refused.
+So there is a second door.
+
+`/room4/<code>` holds four, lives in its own Durable Object namespace (`v4:`
+prefixed, so `/room4/ABC` and `/room/ABC` are different rooms) and tells each
+peer a stable `index` of 0..3 in its `joined` message. A peer that drops and
+returns reclaims the lowest free index, which is how a seat survives a
+reconnect.
+
+It also **routes**. A versus frame is
+
+    [destination][channel][payload...]
+
+and the relay rewrites the first byte to the *sender's* index on the way out,
+delivering to one peer or, for `0xff`, to all the others. One byte of
+addressing is the difference between a relay four peers can use and a broadcast
+bus where nobody can tell who spoke. Everything after that byte stays opaque.
+
+Cooperative rooms are untouched: they have no index, so their messages take the
+old verbatim-broadcast path exactly as before.
+
+    npm run dev           # in one shell
+    node test4.mjs        # in another -- the four-peer room
+    node test.mjs         # and the cooperative one, still green
