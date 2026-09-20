@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - android-test
     paths:
       - "src/**"
       - "assets/**"
@@ -159,6 +160,7 @@ jobs:
           EOF
           )
           gh release create "$TAG" build/android/*.apk \
+            --target "$GITHUB_SHA" \
             --title "SIDE / SKY $TAG" --notes "$NOTES" || \
           gh release upload "$TAG" build/android/*.apk --clobber
           echo "Release: $(gh release view "$TAG" --json url -q .url)"
