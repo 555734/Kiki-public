@@ -461,9 +461,9 @@ func _test_build_revisions() -> void:
 	Stage.use(Stage.Which.GREENFIELD)
 	var circuit := VersusStageData.collision_rects()
 	var connector := ArenaStage.new(circuit)
-	check(connector.floor_below(Vector2(16800, 40), 500.0) < INF,
+	check(connector.floor_below(Vector2(VersusStageData.STEP_FROM + 100, 40), 500.0) < INF,
 		"the host and client collision factory includes the closing stairs")
-	check(connector.floor_below(Vector2(17420, 40), 500.0) < INF,
+	check(connector.floor_below(Vector2(VersusStageData.LOOP_TO + 20, 40), 500.0) < INF,
 		"and the next lap starts with solid ground past the seam")
 	var mesh := VersusLoopback.mesh(2)
 	var host := VersusHost.new()

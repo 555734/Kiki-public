@@ -69,6 +69,7 @@ var seats: Array[Seat] = []
 var _spawn_in: int = 0
 var _next_strike_id: int = 1
 var _rng := RandomNumberGenerator.new()
+var _last_spawn_point := Vector2(INF, INF)
 
 ## Things the scene has to apply this tick. Cleared and refilled every tick.
 ## Each is {"kind": ..., ...}: "hurt" (side), "died" (side), "pickup", "drop".
@@ -92,6 +93,7 @@ func setup(collision: ArenaStage, match_seed: int = 20260920) -> void:
 	tick = 0
 	winner = -1
 	_spawn_in = 0
+	_last_spawn_point = Vector2(INF, INF)
 	events.clear()
 
 ## The score, derived. There is no counter to increment (3.4).
@@ -292,17 +294,32 @@ func _top_up() -> void:
 	_spawn_in = VersusRules.SPAWN_GAP_TICKS
 	events.append({"kind": "spawn", "coin": r.coin_id})
 
-## The first point from the middle outwards that has no coin on it. Middle
-## first, so the contested stones fill before the safe ledges.
+## Host-seeded random selection, not the first empty point in stage order.
+## Keep a small displacement within the safe ledge so even one candidate does
+## not always mean exactly the same pixel. Never repeat the last spawn region.
 func _free_point() -> Variant:
+	var available: Array[Vector2] = []
 	for p in VersusStageData.coin_points():
+		if p.distance_to(_last_spawn_point) < 96.0:
+			continue
 		var taken := false
 		for c in ledger.coins:
-			if c.state == ArenaCoin.State.WORLD and c.position.distance_to(p) < 48.0:
+			if c.state == ArenaCoin.State.WORLD and c.position.distance_to(p) < 96.0:
 				taken = true
 				break
 		if not taken:
-			return p
+			available.append(p)
+	while not available.is_empty():
+		var index := _rng.randi_range(0, available.size() - 1)
+		var p := available[index]
+		available.remove_at(index)
+		var shifted := p + Vector2(_rng.randf_range(-24.0, 24.0), 0)
+		# Include constructed walls in the check; never spawn inside a solid.
+		if world.overlaps(Rect2(shifted - Vector2(12, 12), Vector2(24, 24))) \
+				or world.floor_below(shifted, 80.0) == INF:
+			continue
+		_last_spawn_point = p
+		return shifted
 	return null
 
 ## Nearest body wins; inside a pixel it is drawn from the match seed, so that

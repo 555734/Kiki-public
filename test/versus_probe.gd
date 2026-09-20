@@ -22,6 +22,7 @@ func check(ok: bool, label: String) -> void:
 
 func _ready() -> void:
 	_test_the_stage()
+	_test_random_spawns()
 	_test_the_loop()
 	await _test_the_map()
 	_test_conservation()
@@ -73,8 +74,12 @@ func _test_the_stage() -> void:
 		span = maxf(span, p.x)
 	print("    %d coin points, reaching x=%.0f of 1-1's %.0f"
 		% [points.size(), span, Level01Data.goal().x])
-	check(span > Level01Data.goal().x * 0.8,
+	check(span > VersusStageData.STEP_FROM * 0.8 and span < VersusStageData.STEP_FROM,
 		"they reach the far end of the stage, not just the start")
+	check(VersusStageData.LOOP_SPAN == 13000.0,
+		"versus circuit is shortened from 19000px to 13000px")
+	check(Level01Data.ground()[-1].end.x == 16700.0,
+		"cooperative 1-1 still has its complete original ground")
 
 	# Both runners start together, on the ground, at 1-1's own start. Neither
 	# gets a head start: the whole stage is ahead of both of them.
@@ -95,6 +100,51 @@ func _test_the_stage() -> void:
 		"and dying before the first one sends you to the start")
 
 # -------------------------------------------------------------------- the loop
+func _test_random_spawns() -> void:
+	_current = "random spawns"
+	var world := ArenaStage.new(VersusStageData.collision_rects())
+	var first := VersusMatch.new()
+	var replay := VersusMatch.new()
+	var other := VersusMatch.new()
+	first.setup(world, 4815)
+	replay.setup(world, 4815)
+	other.setup(world, 9281)
+	var same := true
+	var different := 0
+	var regions: Dictionary = {}
+	var previous := Vector2(INF, INF)
+	var safe := true
+	var repeats := 0
+	for i in range(100):
+		var p: Vector2 = first._free_point()
+		same = same and p == replay._free_point()
+		if p != other._free_point():
+			different += 1
+		regions[int(p.x / (VersusStageData.STEP_FROM / 4.0))] = true
+		if p.distance_to(previous) < 48.0:
+			repeats += 1
+		previous = p
+		safe = safe and p.x < VersusStageData.STEP_FROM \
+			and world.floor_below(p, 80.0) != INF \
+			and not world.overlaps(Rect2(p - Vector2(12, 12), Vector2(24, 24)))
+	check(same, "same host seed reproduces the spawn sequence")
+	check(different > 90, "different match seeds change actual spawn positions")
+	check(regions.size() == 4, "random spawns reach all four quarters of the course")
+	check(repeats == 0, "successive spawns do not repeat the same region")
+	check(safe, "all random spawns are clear of solids and above retained ground")
+	# Exercise actual top-up, not only the selector, with existing loose coins.
+	var actors := _seats()
+	for actor in actors:
+		actor.alive = false
+	for i in range(150):
+		first.step(actors)
+	var loose: Array[Vector2] = []
+	for coin in first.ledger.coins:
+		if coin.state == ArenaCoin.State.WORLD:
+			loose.append(coin.position)
+	check(loose.size() == VersusRules.ON_FIELD, "random top-up keeps three loose coins")
+	check(first.ledger.conserved(), "random top-up preserves the 18-coin ledger")
+
 ## Is the circuit actually seamless, and does the match measure around it?
 func _test_the_loop() -> void:
 	_current = "the loop"
@@ -210,7 +260,7 @@ func _test_the_map() -> void:
 	check(outside == 0, "with everything placed inside the bar (%d outside)" % outside)
 
 	# A coin at the far end of the lap must not read as being at the near end.
-	var far := VersusStageData.lap_fraction(16000.0)
+	var far := VersusStageData.lap_fraction(VersusStageData.STEP_FROM - 200.0)
 	var near := VersusStageData.lap_fraction(200.0)
 	check(far > near + 0.5,
 		"the far end of the lap is drawn far along the bar (%.2f vs %.2f)"
@@ -391,9 +441,7 @@ func _test_winning() -> void:
 # ------------------------------------------------------------------- helpers
 func _world() -> ArenaStage:
 	Stage.use(Stage.Which.GREENFIELD)
-	var rects: Array[Rect2] = Stage.ground()
-	rects.append_array(Stage.solid_decor())
-	return ArenaStage.new(rects)
+	return ArenaStage.new(VersusStageData.collision_rects())
 
 func _fresh() -> VersusMatch:
 	var m := VersusMatch.new()

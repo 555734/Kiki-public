@@ -1,54 +1,43 @@
 class_name VersusStageData
-## Where things go on 1-1, for the coin match.
-##
-## 1-1 itself is NOT changed and NOT cut down. The stage is built the way the
-## cooperative game builds it -- LevelBuilder, the whole 16,700px of it, its
-## enemies, its hazards, its checkpoints and its goal -- and this file only
-## answers "where do the coins appear" and "where do the runners start".
-##
-## An earlier version carved a 2,100px slice out of section C and played inside
-## it behind a fixed camera. It read well in a screenshot and it was not 1-1: a
-## stage whose whole shape is a journey had been turned into a box, which is
-## the thing the mode was asked NOT to be.
-##
-## Everything here is DERIVED from Level01Data rather than written down again,
-## so a balance pass on 1-1 moves the coins with it.
+## The versus circuit uses sections A-D of 1-1, followed by a return stair.
+## Co-op Level01Data is unchanged. All versus geometry reads these bounds.
 
-# ------------------------------------------------------------------- the loop
-## 1-1 is a one-way road: it starts on a plateau whose surface is at y=400 and
-## ends 16,700px later on a ledge at y=180. For a mode about chasing each other
-## it wants to be a CIRCUIT, and joining those two ends directly would be a
-## 220px cliff -- there is no surface at 400 near the far end and none at 180
-## near the near one, so no choice of seam makes them meet.
-##
-## So the ends are not forced together. A short flight of steps is added after
-## the stage's last ledge, walking 180 down to 400 in four 55px steps, and the
-## next lap's plateau begins exactly where those steps finish. The join is flat.
-##
-##     ... 15640→16700  surface 180   (1-1's last ledge)
-##         16700→16875  surface 235   ┐
-##         16875→17050  surface 290   │ the steps this mode adds
-##         17050→17225  surface 345   │
-##         17225→17400  surface 400   ┘
-##         17400→...    surface 400     the next lap's plateau -- no step at all
-##
-## 55px a step: free going down, and well inside a jump (about 146px) going the
-## other way, so the circuit is walkable in both directions. The probe measures
-## that rather than taking it on trust.
-##
-## 1-1's own data is NOT modified. The steps exist only in this mode.
 const LOOP_FROM: float = -1600.0
-const LOOP_TO: float = 17400.0
-const LOOP_SPAN: float = LOOP_TO - LOOP_FROM   ## 19000
-const STEP_FROM: float = 16700.0
+const LOOP_TO: float = 11400.0
+const LOOP_SPAN: float = LOOP_TO - LOOP_FROM   ## 13000
+const STEP_FROM: float = 10700.0
 const STEP_COUNT: int = 4
+
+static func ground() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for rect in Level01Data.ground():
+		if rect.position.x >= STEP_FROM:
+			continue
+		rect.size.x = minf(rect.end.x, STEP_FROM) - rect.position.x
+		out.append(rect)
+	return out
+
+static func solid_decor() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for rect in Stage.solid_decor():
+		if rect.end.x <= STEP_FROM:
+			out.append(rect)
+	return out
+
+static func decor() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for item in Level01Data.decor():
+		if Vector2(item["pos"]).x < STEP_FROM:
+			out.append(item)
+	return out
 
 ## The steps. Drawn down to 1-1's own GROUND_BASE so they read as columns of
 ## earth like every other slab, rather than slabs floating in the sky.
 static func connector() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	var width := (LOOP_TO - STEP_FROM) / float(STEP_COUNT)
-	var last_top := Level01Data.ground()[Level01Data.ground().size() - 1].position.y
+	var slabs := ground()
+	var last_top := slabs[slabs.size() - 1].position.y
 	var plateau_top := Level01Data.ground()[0].position.y
 	var rise := (plateau_top - last_top) / float(STEP_COUNT)
 	for i in range(STEP_COUNT):
@@ -59,7 +48,7 @@ static func connector() -> Array[Rect2]:
 
 ## Everything solid in one lap: 1-1's own ground plus the steps.
 static func lap_ground() -> Array[Rect2]:
-	var out: Array[Rect2] = Stage.ground()
+	var out: Array[Rect2] = ground()
 	out.append_array(connector())
 	return out
 
@@ -108,7 +97,7 @@ static func start_facing() -> Array[int]:
 ## every few steps.
 static func coin_points() -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	for slab in Level01Data.ground():
+	for slab in ground():
 		# The start plateau runs a long way off-screen to the left; only the
 		# part anybody plays on is worth putting a coin on.
 		var from := maxf(slab.position.x, 0.0)
@@ -129,7 +118,7 @@ static func coin_points() -> Array[Vector2]:
 static func respawn_for(_team: int, from: Vector2 = Vector2.ZERO) -> Vector2:
 	var best := Stage.start()
 	for c in Stage.checkpoints():
-		if c.x <= from.x and c.x > best.x:
+		if c.x < STEP_FROM and c.x <= from.x and c.x > best.x:
 			best = c
 	return best
 
@@ -146,7 +135,7 @@ static func in_bounds(at: Vector2) -> bool:
 static func collision_rects(constructs: Array[Rect2] = []) -> Array[Rect2]:
 	Stage.use(Stage.Which.GREENFIELD)
 	var one: Array[Rect2] = lap_ground()
-	one.append_array(Stage.solid_decor())
+	one.append_array(solid_decor())
 	var out: Array[Rect2] = []
 	for lap in [-1, 0, 1]:
 		var shift := VersusStageData.LOOP_SPAN * float(lap)

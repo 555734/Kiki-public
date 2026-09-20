@@ -1,23 +1,6 @@
 extends Node2D
-## The coin match, played on 1-1.
-##
-## Stage 1-1, whole and unaltered: built by the cooperative game's own
-## LevelBuilder, all 16,700px of it, with its enemies, its hazards, its
-## checkpoints and its goal. The camera follows your runner exactly as it does
-## in co-op. Nothing about the stage is special-cased for this mode -- what
-## changes is that there are two runners on it and coins to fight over.
-##
-## An earlier version cut a 2,100px arena out of the middle and watched it from
-## a fixed camera. That is not 1-1; it was a box wearing 1-1's scenery.
-##
-## Started from the start screen, not from a command line. The flags are still
-## there for development and for the probes, but nobody needs a terminal:
-## see NetPanel's たいせん section, which fills VersusLaunch and changes scene.
-##
-## Who simulates what: your own runner is yours, always, because a round trip
-## between pressing right and moving right makes the mode unplayable. The host
-## owns the CONTEST -- coins, strikes, the score -- so four screens cannot
-## disagree about who is winning. See VersusHost.
+## Coin match on the shortened A-D circuit of 1-1. Uses the game's Runner,
+## a local following camera, and a host-owned coin ledger.
 
 const RunnerVisualScript = preload("res://src/runner/runner_visual.gd")
 
@@ -185,7 +168,7 @@ func _collision_rects() -> Array[Rect2]:
 ## in this mode is the stage -- not a copy of it that can drift.
 func _build_world() -> void:
 	Stage.use(Stage.Which.GREENFIELD)
-	level = LevelBuilder.new()
+	level = preload("res://src/versus/versus_level_builder.gd").new()
 	level.name = "Level"
 	add_child(level)
 
@@ -194,12 +177,10 @@ func _build_world() -> void:
 ##
 ## Painted and collided, but NOT populated. The enemies, the spikes and the
 ## gimmicks stay in the middle lap. They would be a second set of the same
-## creatures if they were repeated, and they do not need to be: 1-1's eastmost
-## enemy is at x=16,100 and the join is at 17,400, so what is on screen while
-## you cross it is empty plateau either way.
+## creatures if they were repeated. The connector closes the shortened lap.
 func _build_laps() -> void:
 	var one: Array[Rect2] = VersusStageData.lap_ground()
-	var scenery := Stage.decor()
+	var scenery := VersusStageData.decor()
 	var body := StaticBody2D.new()
 	body.name = "Laps"
 	body.collision_layer = 1
@@ -555,7 +536,7 @@ func _update_duel_activity() -> void:
 ## The whole of "seamless". The world is periodic, so subtracting exactly one
 ## lap from a position puts the runner somewhere that looks identical -- same
 ## ground under the feet, same scenery either side. The camera is moved by the
-## same amount in the same frame, or it would pan the full nineteen thousand
+## same amount in the same frame, or it would pan the full circuit's
 ## pixels back and the join would read as a catapult.
 ##
 ## Nothing else is touched: velocity, state, the jump in progress and the coins
@@ -651,18 +632,9 @@ func _tick_client(seqs: Array[int]) -> void:
 		if client.runners.size() > i:
 			var r: Dictionary = client.runners[i]
 			_place_puppet(i, r["position"], int(r["facing"]))
-	if local_team >= 0 and client.connected:
-		_apply_client_hits()
-
-## The host says this runner has been hit; the local body is told, so the
-## knockback, the flash and the health are the game's own.
-func _apply_client_hits() -> void:
-	var r: Dictionary = client.runners[local_team] if client.runners.size() > local_team else {}
-	if r.is_empty():
-		return
-	if not bool(r["alive"]) and runners[local_team].state != Runner.State.DEAD:
-		runners[local_team].die("host")
-		_begin_respawn(local_team)
+	# Our runner owns its life/respawn simulation. The snapshot contains the
+	# host's delayed ECHO of our observation, not a new death command. Applying
+	# alive=false here killed the runner again immediately after every respawn.
 
 ## A body this machine does not simulate. Eased rather than snapped: snapshots
 ## arrive 30 times a second and the screen draws 60, so a hard set is visibly

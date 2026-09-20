@@ -190,6 +190,12 @@ func _on_input(from: int, payload: PackedByteArray) -> void:
 	s.can_act = bool(m["can_act"])
 	s.invulnerable = bool(m["invulnerable"])
 	s.strike_seq = int(m["strike_seq"])
+	# The remote scene cannot call our ledger directly. Return its hand once
+	# on the alive -> dead edge, using the reported death position. Repeated
+	# dead observations must not restart combat/respawn state every tick.
+	if not s.alive and (not _reported.has(seat) or _reported[seat].alive):
+		match_rules.seats[s.team] = s.duplicate_seat()
+		match_rules.note_death(s.team)
 	_reported[seat] = s
 	if not _input_seen.has(seat):
 		_input_seen[seat] = true

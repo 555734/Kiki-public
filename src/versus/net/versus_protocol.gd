@@ -30,7 +30,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 3
+const VERSION: int = 4 # Shorter versus circuit; reject peers using the old map.
 
 ## Velocity is stored in eighths of a pixel per second, as the co-op snapshot
 ## does. A runner tops out around 1000px/s, so 8000 fits an i16 with room.
