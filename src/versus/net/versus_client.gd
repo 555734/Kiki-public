@@ -28,6 +28,7 @@ var winner: int = -1
 var coins: Array = []
 var runners: Array = []
 var builds: Array = []
+var world_revision: int = -1
 ## True once a snapshot has ever arrived. Before that there is nothing to draw
 ## and the scene should say "waiting" rather than draw an empty world.
 var seen_world: bool = false
@@ -44,6 +45,13 @@ func start(link: VersusTransport, wanted_seat: int = -1) -> void:
 	connected = false
 	refused = false
 	seen_world = false
+	world_revision = -1
+	world_tick = 0
+	builds.clear()
+	coins.clear()
+	runners.clear()
+	stale_dropped = 0
+	_hello_every = 0
 	_say_hello(wanted_seat)
 
 func _say_hello(wanted_seat: int) -> void:
@@ -123,18 +131,17 @@ func _absorb(payload: PackedByteArray) -> void:
 	runners = s["runners"]
 	coins = s["coins"]
 	builds = s["builds"]
+	world_revision = int(s["world_revision"])
 	seen_world = true
 
 ## The collision world the host says exists, including whatever the guardians
 ## have built. A client needs it so its own runner stands on the same platforms
 ## everyone else can see.
 func collision() -> ArenaStage:
-	Stage.use(Stage.Which.GREENFIELD)
-	var rects: Array[Rect2] = Stage.ground()
-	rects.append_array(Stage.solid_decor())
+	var rects: Array[Rect2] = []
 	for g in builds:
 		rects.append(Rect2(g["position"], g["size"]))
-	return ArenaStage.new(rects)
+	return ArenaStage.new(VersusStageData.collision_rects(rects))
 
 ## The score, derived from the host's coins exactly as the host derives it. Not
 ## a number sent over the wire: if it were, a lost packet could leave a screen

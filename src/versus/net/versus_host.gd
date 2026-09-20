@@ -31,6 +31,9 @@ var tick: int = 0
 var _reported: Dictionary = {}
 ## Platforms the guardians have built, shared by everyone.
 var builds: Array[Dictionary] = []
+## A revision changes on EVERY add/remove, including same-count replacements.
+var world_revision: int = 0
+var _next_build_id: int = 1
 ## Raised for the scene: things that want a noise or a flash.
 var out_events: Array[Dictionary] = []
 
@@ -54,6 +57,10 @@ func start(link: VersusTransport, collision: ArenaStage,
 	roster.seat_peer(transport.local_peer(), VersusRoster.SEAT_A_RUNNER)
 	tick = 0
 	builds.clear()
+	world_revision = 0
+	_next_build_id = 1
+	_reported.clear()
+	_since_snapshot = 0
 	out_events.clear()
 
 ## One tick. `local` is the host's own runner, observed by its own scene.
@@ -161,6 +168,10 @@ func _on_command(from: int, payload: PackedByteArray) -> void:
 ## platform is a real floor for both teams the moment it appears, not a picture
 ## on one screen.
 func place_build(seat: int, at: Vector2, slot: int = 1) -> bool:
+	if VersusRoster.role_of(seat) != VersusRoster.Role.GUARDIAN or slot not in [1, 2]:
+		return false
+	if is_nan(at.x) or is_nan(at.y) or is_inf(at.x) or is_inf(at.y):
+		return false
 	if not VersusStageData.in_bounds(at):
 		return false
 	if builds.size() >= MAX_BUILDS:
@@ -173,7 +184,9 @@ func place_build(seat: int, at: Vector2, slot: int = 1) -> bool:
 	# every stage's gaps were measured against.
 	var size: Vector2 = Balance.WALL_SIZE if slot == 2 else Balance.PLATFORM_SIZE
 	var rect := Rect2(at - size * 0.5, size)
-	builds.append({"seat": seat, "rect": rect})
+	builds.append({"seat": seat, "rect": rect, "build_id": _next_build_id})
+	_next_build_id += 1
+	world_revision += 1
 	_rebuild_world()
 	out_events.append({"kind": "built", "seat": seat, "rect": rect})
 	return true
@@ -184,21 +197,17 @@ func undo_build(seat: int) -> bool:
 	for i in range(builds.size() - 1, -1, -1):
 		if int(builds[i]["seat"]) == seat:
 			builds.remove_at(i)
+			world_revision += 1
 			_rebuild_world()
 			out_events.append({"kind": "unbuilt", "seat": seat})
 			return true
 	return false
 
 func _rebuild_world() -> void:
-	# Stage.ground() answers for whichever stage is selected, and the coin match
-	# is played on 1-1. Said here rather than assumed, because a host that had
-	# just been in a different stage would otherwise build the wrong floor.
-	Stage.use(Stage.Which.GREENFIELD)
-	var rects: Array[Rect2] = Stage.ground()
-	rects.append_array(Stage.solid_decor())
+	var rects: Array[Rect2] = []
 	for g in builds:
 		rects.append(g["rect"])
-	world = ArenaStage.new(rects)
+	world = ArenaStage.new(VersusStageData.collision_rects(rects))
 	match_rules.world = world
 
 func _broadcast_snapshot() -> void:
@@ -219,9 +228,11 @@ func _broadcast_snapshot() -> void:
 	var gs: Array = []
 	for g in builds:
 		var r: Rect2 = g["rect"]
-		gs.append({"seat": g["seat"], "position": r.position, "size": r.size})
+		gs.append({"seat": g["seat"], "position": r.position, "size": r.size,
+			"build_id": g["build_id"]})
 
 	var payload := VersusProtocol.snapshot(match_rules.tick,
-		match_rules.phase, match_rules.winner, runners, coins, gs)
+		match_rules.phase, match_rules.winner, runners, coins, gs,
+		world_revision)
 	transport.broadcast(VersusTransport.Channel.SNAPSHOT,
 		VersusTransport.Reliability.UNRELIABLE, payload)

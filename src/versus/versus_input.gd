@@ -39,6 +39,9 @@ class Pad:
 
 var pads: Array[Pad] = []
 var hubs: Array[InputHub] = []
+var shared_keyboard: bool = true
+var _online_strike_seq: int = 0
+var _online_strike_down: bool = false
 
 func _init() -> void:
 	pads.append(Pad.new(KEY_A, KEY_D, KEY_W, KEY_S, KEY_F, KEY_Q))
@@ -47,12 +50,17 @@ func _init() -> void:
 
 ## Make the two hubs. They are Nodes, so the caller adds them to the tree; they
 ## are `scripted` so they never read the keyboard for themselves.
-func make_hubs(parent: Node) -> void:
+func make_hubs(parent: Node, local_shared: bool = true) -> void:
+	shared_keyboard = local_shared
 	hubs.clear()
 	for i in range(2):
 		var hub := InputHub.new()
 		hub.name = "VersusHub%d" % i
-		hub.scripted = true
+		hub.scripted = shared_keyboard or i != 0
+		# Never let the remote puppet's scripted hub capture a touch intended
+		# for this device's runner or guardian.
+		if not shared_keyboard and i != 0:
+			hub.set_process_unhandled_input(false)
 		# Both runners own the whole screen in this mode; there is no divider
 		# and no guardian half to keep clear of.
 		hub.solo_role = "runner"
@@ -62,6 +70,15 @@ func make_hubs(parent: Node) -> void:
 ## One poll. Returns the strike sequence for each side, which is what the rules
 ## read; the movement has already gone into the hubs.
 func poll() -> Array[int]:
+	if not shared_keyboard:
+		# The active InputHub polls the ordinary p1 actions and receives real
+		# touches. Never drive_runner() here: that overwrote live stick input
+		# with zero on every physics tick on a phone.
+		var down := Input.is_physical_key_pressed(KEY_F)
+		if down and not _online_strike_down:
+			_online_strike_seq += 1
+		_online_strike_down = down
+		return [_online_strike_seq, _online_strike_seq]
 	var seqs: Array[int] = []
 	for i in range(pads.size()):
 		var p := pads[i]

@@ -140,3 +140,17 @@ static func respawn_for(_team: int, from: Vector2 = Vector2.ZERO) -> Vector2:
 ## which is 1-1's own kill plane.
 static func in_bounds(at: Vector2) -> bool:
 	return at.y < kill_y()
+
+## The one authoritative collision representation of 1-1's closed circuit.
+## Scene runners, host coin physics and remote coin physics must all use it.
+static func collision_rects(constructs: Array[Rect2] = []) -> Array[Rect2]:
+	Stage.use(Stage.Which.GREENFIELD)
+	var one: Array[Rect2] = lap_ground()
+	one.append_array(Stage.solid_decor())
+	var out: Array[Rect2] = []
+	for lap in [-1, 0, 1]:
+		var shift := VersusStageData.LOOP_SPAN * float(lap)
+		for r in one:
+			out.append(Rect2(r.position + Vector2(shift, 0.0), r.size))
+	out.append_array(constructs)
+	return out

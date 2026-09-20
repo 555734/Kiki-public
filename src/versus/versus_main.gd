@@ -74,7 +74,7 @@ func _ready() -> void:
 	input = VersusInput.new()
 	input.name = "VersusInput"
 	add_child(input)
-	input.make_hubs(self)
+	input.make_hubs(self, mode == Mode.SOLO)
 
 	_build_runners()
 	_finish_world()

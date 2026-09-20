@@ -30,6 +30,8 @@ func _ready() -> void:
 	_test_reordering()
 	_test_a_lost_peer()
 	_test_the_guardian()
+	_test_input_isolation()
+	_test_build_revisions()
 
 	print("versus net probe: %d checks failed" % failures.size())
 	if failures.is_empty():
@@ -70,9 +72,9 @@ func _test_the_wire() -> void:
 	for i in range(VersusRules.COIN_TOTAL):
 		coins.append({"id": i, "state": i % 4, "owner": (i % 3) - 1,
 			"position": Vector2(7000 + i, 300 - i)})
-	var builds := [{"seat": 1, "position": Vector2(7100, 120),
+	var builds := [{"build_id": 99, "seat": 1, "position": Vector2(7100, 120),
 		"size": Balance.PLATFORM_SIZE}]
-	var snap := VersusProtocol.snapshot(999, 0, -1, runners, coins, builds)
+	var snap := VersusProtocol.snapshot(999, 0, -1, runners, coins, builds, 42)
 	var s := VersusProtocol.read_snapshot(snap)
 	check(s["tick"] == 999 and s["winner"] == -1, "a snapshot keeps its clock")
 	check(s["coins"].size() == VersusRules.COIN_TOTAL,
@@ -85,6 +87,9 @@ func _test_the_wire() -> void:
 	check(same, "with every state and owner intact")
 	check(s["builds"].size() == 1 and s["builds"][0]["size"] == Balance.PLATFORM_SIZE,
 		"and the guardian's platform")
+
+	check(s["world_revision"] == 42 and s["builds"][0]["build_id"] == 99,
+		"and the world revision and stable build identity")
 
 	# The budget the plan set. A full match has to fit the relay's packet cap
 	# with room to spare, or the mode does not work on the internet at all.
@@ -352,6 +357,86 @@ func _test_the_guardian() -> void:
 		host.step(_moving_seat(0, t + 240, rng))
 	check(host.builds.size() == before,
 		"and a peer claiming somebody else's seat is ignored")
+
+# ------------------------------------------------------------- input ownership
+func _test_input_isolation() -> void:
+	_current = "input ownership"
+	var adapter := VersusInput.new()
+	add_child(adapter)
+	adapter.make_hubs(adapter, false)
+	check(not adapter.hubs[0].scripted and adapter.hubs[1].scripted,
+		"only the local online hub reads real keyboard and touch")
+	adapter.hubs[0].move_axis = 0.75
+	adapter.poll()
+	check(is_equal_approx(adapter.hubs[0].move_axis, 0.75),
+		"versus poll cannot erase a phone's held virtual stick")
+	adapter.queue_free()
+
+# ---------------------------------------------------------- build revisions
+## Replacing the oldest of twelve creates one new build without changing the
+## array size. The original renderer compared size only and kept a ghost floor.
+func _test_build_revisions() -> void:
+	_current = "build revisions"
+	Stage.use(Stage.Which.GREENFIELD)
+	var circuit := VersusStageData.collision_rects()
+	var connector := ArenaStage.new(circuit)
+	check(connector.floor_below(Vector2(16800, 40), 500.0) < INF,
+		"the host and client collision factory includes the closing stairs")
+	check(connector.floor_below(Vector2(17420, 40), 500.0) < INF,
+		"and the next lap starts with solid ground past the seam")
+	var mesh := VersusLoopback.mesh(2)
+	var host := VersusHost.new()
+	host.start(mesh[0], connector, 5150)
+	var guard := VersusClient.new()
+	guard.start(mesh[1], VersusRoster.SEAT_A_GUARDIAN)
+	var rng := RandomNumberGenerator.new()
+	for t in range(8):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(_moving_seat(0, t, rng))
+		guard.step(null)
+	check(guard.connected, "guardian connected for world-revision trial")
+	for i in range(VersusHost.MAX_BUILDS):
+		check(host.place_build(VersusRoster.SEAT_A_GUARDIAN,
+			Vector2(7200 + i * 40, 100)), "construct %d accepted" % i)
+	var previous_id := int(host.builds[0]["build_id"])
+	for m in mesh:
+		m.advance(1.0 / 60.0)
+	host.step(_moving_seat(0, 9, rng))
+	for m in mesh:
+		m.advance(1.0 / 60.0)
+	guard.step(null)
+	check(guard.builds.size() == VersusHost.MAX_BUILDS
+		and guard.world_revision == VersusHost.MAX_BUILDS,
+		"twelve constructs reach the remote side with revision twelve")
+	check(host.place_build(VersusRoster.SEAT_A_GUARDIAN,
+		Vector2(8200, 100)), "thirteenth construct accepted")
+	for m in mesh:
+		m.advance(1.0 / 60.0)
+	host.step(_moving_seat(0, 10, rng))
+	for m in mesh:
+		m.advance(1.0 / 60.0)
+	guard.step(null)
+	check(host.builds.size() == VersusHost.MAX_BUILDS
+		and guard.builds.size() == VersusHost.MAX_BUILDS,
+		"FIFO replacement preserves the twelve-build cap")
+	check(guard.world_revision == host.world_revision
+		and host.world_revision == VersusHost.MAX_BUILDS + 1,
+		"same-size replacement increments the transmitted world revision")
+	check(int(host.builds[0]["build_id"]) != previous_id
+		and int(guard.builds[0]["build_id"]) == int(host.builds[0]["build_id"]),
+		"same-count replacement removes the old id from both peers")
+	var target: Rect2 = host.builds[host.builds.size() - 1]["rect"]
+	var look := target.position + Vector2(target.size.x * 0.5, -20)
+	check(guard.collision().floor_below(look, 500.0) < INF
+		and host.world.floor_below(look, 500.0) < INF,
+		"newly replaced platform collides on both sides")
+	check(host.undo_build(VersusRoster.SEAT_A_GUARDIAN),
+		"guardian can undo the most recent construct")
+	check(host.world_revision == VersusHost.MAX_BUILDS + 2,
+		"undo also increments the revision")
+	check(not host.place_build(VersusRoster.SEAT_A_GUARDIAN,
+		Vector2(INF, 100)), "infinite coordinates cannot create constructs")
 
 # ------------------------------------------------------------------ helpers
 func _world() -> ArenaStage:
