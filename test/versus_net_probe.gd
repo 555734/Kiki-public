@@ -403,6 +403,8 @@ func _test_build_revisions() -> void:
 	for m in mesh:
 		m.advance(1.0 / 60.0)
 	host.step(_moving_seat(0, 9, rng))
+	# Snapshot cadence is 30Hz: tick nine is not broadcast.
+	host.step(_moving_seat(0, 10, rng))
 	for m in mesh:
 		m.advance(1.0 / 60.0)
 	guard.step(null)
@@ -413,7 +415,8 @@ func _test_build_revisions() -> void:
 		Vector2(8200, 100)), "thirteenth construct accepted")
 	for m in mesh:
 		m.advance(1.0 / 60.0)
-	host.step(_moving_seat(0, 10, rng))
+	host.step(_moving_seat(0, 11, rng))
+	host.step(_moving_seat(0, 12, rng))
 	for m in mesh:
 		m.advance(1.0 / 60.0)
 	guard.step(null)
