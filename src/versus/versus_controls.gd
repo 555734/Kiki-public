@@ -152,7 +152,7 @@ func _draw() -> void:
 	for id in _circles():
 		var center: Vector2 = _circles()[id]
 		var radius := _radius(id)
-		var active := (id == "floor" and selected_slot == 1) \
+		var active: bool = (id == "floor" and selected_slot == 1) \
 			or (id == "wall" and selected_slot == 2)
 		draw_circle(center, radius, Color(0.13, 0.31, 0.45, 0.86) if active
 			else Color(0.08, 0.12, 0.23, 0.75))
