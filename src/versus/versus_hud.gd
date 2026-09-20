@@ -137,6 +137,28 @@ func _waiting() -> void:
 		"ふたりで両役を操作" if arena.room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
 		else "チーム戦：各チームに ランナーと ガーディアン",
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 15, COL_DIM)
+	_debug_trace()
+
+## Deliberately legible in a screenshot: users can report what the relay said,
+## not just a generic 'waiting' state. Full log is user://versus-debug.log.
+func _debug_trace() -> void:
+	var lines: Array[String] = arena.debug_lines()
+	if lines.is_empty():
+		return
+	var font := _font()
+	var size := _view()
+	var width := minf(size.x - 36.0, 880.0)
+	var count := mini(lines.size(), 6)
+	var top := size.y * 0.5 + 76.0
+	var panel := Rect2(Vector2((size.x - width) * 0.5, top),
+		Vector2(width, float(count) * 19.0 + 16.0))
+	draw_rect(panel, Color(0.03, 0.05, 0.08, 0.89))
+	draw_rect(panel, Color(0.72, 0.80, 0.94, 0.85), false, 1.0)
+	var offset := maxi(0, lines.size() - count)
+	for i in range(count):
+		draw_string(font, panel.position + Vector2(8.0, 21.0 + float(i) * 19.0),
+			lines[offset + i], HORIZONTAL_ALIGNMENT_LEFT, width - 16.0, 14,
+			Color(0.96, 0.97, 0.99))
 
 func _result() -> void:
 	var font := _font()

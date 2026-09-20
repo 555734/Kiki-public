@@ -1,5 +1,8 @@
 class_name VersusWsTransport
 extends VersusTransport
+
+## One event per state change, not one log line per frame.
+signal diagnostic(message: String)
 ## Four peers over the same Cloudflare relay the cooperative game uses, at a
 ## different door.
 ##
@@ -30,6 +33,24 @@ var _index: int = -1
 var _present: Array[int] = []
 var _inbox: Array[Dictionary] = []
 var _last_error: String = ""
+var _last_state: int = -1
+var _started_ms: int = 0
+var _timed_out: bool = false
+
+static func state_name(state: int) -> String:
+	match state:
+		WebSocketPeer.STATE_CONNECTING: return "CONNECTING"
+		WebSocketPeer.STATE_OPEN: return "OPEN"
+		WebSocketPeer.STATE_CLOSING: return "CLOSING"
+		WebSocketPeer.STATE_CLOSED: return "CLOSED"
+	return "UNKNOWN(%d)" % state
+
+func socket_state() -> String:
+	return state_name(_socket.get_ready_state())
+
+func endpoint() -> String:
+	# Exclude the random client identifier query from copied debug reports.
+	return _url.split("?")[0]
 
 ## Six characters from the relay's alphabet. Not the co-op's six digits: a
 ## versus code and a co-op code are different rooms even when they read the
@@ -63,9 +84,14 @@ func open_room(relay: String, code: String, client_id: String = "") -> String:
 	_url = "%s/room4/%s" % [base, code.to_upper()]
 	if not client_id.is_empty():
 		_url += "?cid=" + client_id.uri_encode()
+	_last_error = ""
+	_timed_out = false
+	_started_ms = Time.get_ticks_msec()
+	diagnostic.emit("DIAL " + endpoint())
 	var err := _socket.connect_to_url(_url)
 	if err != OK:
-		_last_error = "could not open %s (error %d)" % [_url, err]
+		_last_error = "connect_to_url error %d" % err
+		diagnostic.emit(_last_error)
 		return _last_error
 	return ""
 
@@ -73,6 +99,19 @@ func open_room(relay: String, code: String, client_id: String = "") -> String:
 ## peers' binary frames arrive on the same wire and are told apart by type.
 func poll_socket() -> void:
 	_socket.poll()
+	var state := _socket.get_ready_state()
+	if state != _last_state:
+		_last_state = state
+		diagnostic.emit("WebSocket " + state_name(state))
+		if state == WebSocketPeer.STATE_CLOSED and _last_error.is_empty():
+			_last_error = "WebSocket CLOSED (code=%d reason=%s)" % [
+				_socket.get_close_code(), _socket.get_close_reason()]
+			diagnostic.emit(_last_error)
+	if state == WebSocketPeer.STATE_CONNECTING and not _timed_out \
+			and Time.get_ticks_msec() - _started_ms > 15000:
+		_timed_out = true
+		_last_error = "WebSocket CONNECTING 15秒超過 (DNS/TLS/サーバーを確認)"
+		diagnostic.emit(_last_error)
 	while _socket.get_ready_state() == WebSocketPeer.STATE_OPEN \
 			and _socket.get_available_packet_count() > 0:
 		# get_packet() FIRST: was_string_packet() reports on the packet already
@@ -96,17 +135,19 @@ func poll_socket() -> void:
 func _control(text: String) -> void:
 	var parsed = JSON.parse_string(text)
 	if typeof(parsed) != TYPE_DICTIONARY:
+		diagnostic.emit("invalid relay control JSON")
 		return
 	match String(parsed.get("t", "")):
 		"joined":
 			_index = int(parsed.get("index", -1))
+			diagnostic.emit("RELAY joined index=%d peers=%d cap=%d" % [
+				_index, int(parsed.get("peers", -1)), int(parsed.get("cap", -1))])
 		"peer-joined", "peer-left":
-			# The relay reports a count rather than a list, so who is present is
-			# discovered from who talks. The roster is the game's answer to that
-			# question anyway; this is only for "is anybody there at all".
-			pass
+			diagnostic.emit("RELAY %s peers=%d" % [
+				String(parsed.get("t", "")), int(parsed.get("peers", -1))])
 		"error":
 			_last_error = String(parsed.get("reason", "relay error"))
+			diagnostic.emit("RELAY error: " + _last_error)
 
 func local_peer() -> int:
 	return _index
@@ -144,8 +185,12 @@ func _send(dest: int, channel: int, payload: PackedByteArray) -> void:
 	frame.append_array(payload)
 	if frame.size() > MAX_PACKET_BYTES:
 		_last_error = "packet of %d bytes is over the relay's limit" % frame.size()
+		diagnostic.emit(_last_error)
 		return
-	_socket.send(frame)
+	var err := _socket.send(frame)
+	if err != OK:
+		_last_error = "WebSocket.send error %d" % err
+		diagnostic.emit(_last_error)
 
 func poll() -> Array[Dictionary]:
 	var out := _inbox

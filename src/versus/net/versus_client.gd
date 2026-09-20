@@ -1,5 +1,7 @@
 class_name VersusClient
 extends RefCounted
+
+signal diagnostic(message: String)
 ## A machine that is not the host: the other runner, or either guardian.
 ##
 ## It simulates exactly one thing -- its own runner, if it has one -- and
@@ -57,9 +59,12 @@ func start(link: VersusTransport, wanted_seat: int = -1,
 	runners.clear()
 	stale_dropped = 0
 	_hello_every = 0
+	diagnostic.emit("CLIENT start mode=%d wanted_seat=%d" % [room_mode, wanted_seat])
 	_say_hello(wanted_seat)
 
 func _say_hello(wanted_seat: int) -> void:
+	diagnostic.emit("SEND HELLO version=%d mode=%d seat=%d" % [
+		VersusProtocol.VERSION, room_mode, wanted_seat])
 	transport.send_to(VersusTransport.HOST_PEER,
 		VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,
@@ -123,18 +128,23 @@ func _take_post() -> void:
 		match VersusProtocol.kind_of(payload):
 			VersusProtocol.Msg.WELCOME:
 				if payload.size() != 7:
+					diagnostic.emit("WELCOME unexpected bytes=%d" % payload.size())
 					continue
 				var w := VersusProtocol.read_welcome(payload)
 				if int(w["room_mode"]) != room_mode:
 					refused = true
 					refusal_reason = "対戦モードが一致しません"
+					diagnostic.emit("WELCOME room mode mismatch")
 					continue
 				seat = int(w["seat"])
 				seed_value = int(w["seed"])
 				connected = true
+				diagnostic.emit("WELCOME confirmed seat=%d seed=%d mode=%d" % [
+					seat, seed_value, room_mode])
 			VersusProtocol.Msg.FULL:
 				refused = true
 				refusal_reason = VersusProtocol.read_full_reason(payload)
+				diagnostic.emit("REFUSED: " + refusal_reason)
 			VersusProtocol.Msg.SNAPSHOT:
 				_absorb(payload)
 
@@ -144,6 +154,9 @@ func _absorb(payload: PackedByteArray) -> void:
 	# reorders them, so a late one must not undo a newer one.
 	var next_tick := int(s["tick"])
 	var next_phase := int(s["phase"])
+	if not seen_world or next_phase != phase:
+		diagnostic.emit("SNAPSHOT tick=%d phase=%d (was=%d) coins=%d" % [
+			next_tick, next_phase, phase, s["coins"].size()])
 	# START may follow a waiting snapshot at the same game tick (zero), because
 	# the match clock is intentionally stopped while waiting. Never suppress
 	# that transition; equally, do not let a delayed waiting packet undo START.

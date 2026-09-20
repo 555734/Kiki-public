@@ -106,6 +106,22 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
           "$GODOT" --headless --path . --quit-after 240
 
+      # This checks the DEPLOYED worker, not only server/signaling/test4.mjs.
+      # Keep the diagnostic APK available even when the worker is outdated.
+      - name: Probe deployed versus relay (expect HTTP 426)
+        run: |
+          set -uo pipefail
+          URL="https://side-sky-signalling.a3506124.workers.dev/room4/ABC234"
+          code=$(curl --silent --show-error --max-time 12 \
+            --output /tmp/versus-route-response.txt \
+            --write-out '%{http_code}' "$URL") || code="000"
+          echo "Deployed relay: GET $URL -> HTTP $code (426 means /room4 exists)"
+          head -c 300 /tmp/versus-route-response.txt 2>/dev/null || true
+          echo
+          if [ "$code" != "426" ]; then
+            echo "::warning::Deployed versus relay returned HTTP $code, expected 426. Room4 may not be deployed or reachable; this APK includes connection diagnostics."
+          fi
+
       - name: Build both APKs
         run: |
           export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64

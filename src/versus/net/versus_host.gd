@@ -1,5 +1,7 @@
 class_name VersusHost
 extends RefCounted
+
+signal diagnostic(message: String)
 ## The machine that decides. One of the two runners' devices.
 ##
 ## It owns exactly one thing: VersusMatch -- the ledger, whose strike landed,
@@ -30,6 +32,7 @@ var playing: bool = true
 ## consumed, so a dropped input packet leaves the last one standing instead of
 ## teleporting a runner to the origin.
 var _reported: Dictionary = {}
+var _input_seen: Dictionary = {}
 ## Platforms the guardians have built, shared by everyone.
 var builds: Array[Dictionary] = []
 ## A revision changes on EVERY add/remove, including same-count replacements.
@@ -63,6 +66,7 @@ func start(link: VersusTransport, collision: ArenaStage,
 	world_revision = 0
 	_next_build_id = 1
 	_reported.clear()
+	_input_seen.clear()
 	_since_snapshot = 0
 	out_events.clear()
 
@@ -73,6 +77,7 @@ func step(local: VersusMatch.Seat) -> void:
 	_reported[VersusRoster.SEAT_A_RUNNER] = local
 	if not playing and roster.can_play():
 		playing = true
+		diagnostic.emit("START: two runner seats authenticated; host match begins")
 	if not playing:
 		out_events.clear()
 		_since_snapshot += 1
@@ -122,19 +127,26 @@ func _take_post() -> void:
 			VersusProtocol.Msg.COMMAND:
 				_on_command(from, payload)
 			VersusProtocol.Msg.BYE:
+				diagnostic.emit("BYE peer=%d" % from)
 				var vacated := roster.vacate(from)
 				_reported.erase(vacated)
 				if roster.room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
 					playing = false
 
 func _on_hello(from: int, payload: PackedByteArray) -> void:
+	diagnostic.emit("HELLO peer=%d bytes=%d" % [from, payload.size()])
 	if payload.size() != 5:
+		diagnostic.emit("REJECT HELLO: size != 5")
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
 			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("接続情報が不正です。両端末を更新してください"))
 		return
 	var hello := VersusProtocol.read_hello(payload)
+	diagnostic.emit("HELLO version=%d mode=%d requested_seat=%d; expected v%d mode=%d" % [
+		int(hello["version"]), int(hello["room_mode"]), int(hello["wanted_seat"]),
+		VersusProtocol.VERSION, roster.room_mode])
 	if int(hello["version"]) != VersusProtocol.VERSION \
 			or int(hello["room_mode"]) != roster.room_mode:
+		diagnostic.emit("REJECT HELLO: version or mode mismatch")
 		# Refused by name rather than left to desynchronise. The co-op
 		# handshake does the same and it is the reason a mismatched build is a
 		# message instead of a mystery.
@@ -143,9 +155,12 @@ func _on_hello(from: int, payload: PackedByteArray) -> void:
 		return
 	var seat := roster.seat_peer(from, int(hello["wanted_seat"]))
 	if seat < 0:
+		diagnostic.emit("REJECT HELLO: requested seat occupied/unavailable")
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
 			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("席が埋まっています。部屋番号と対戦モードを確認してください"))
 		return
+	diagnostic.emit("WELCOME peer=%d seat=%d unique_players=%d roster=%s" % [
+		from, seat, roster.peers_filled(), roster.describe()])
 	transport.send_to(from, VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,
 		VersusProtocol.welcome(seat, seed_value, roster.room_mode))
@@ -171,6 +186,9 @@ func _on_input(from: int, payload: PackedByteArray) -> void:
 	s.invulnerable = bool(m["invulnerable"])
 	s.strike_seq = int(m["strike_seq"])
 	_reported[seat] = s
+	if not _input_seen.has(seat):
+		_input_seen[seat] = true
+		diagnostic.emit("FIRST INPUT from peer=%d runner_seat=%d" % [from, seat])
 
 func _on_command(from: int, payload: PackedByteArray) -> void:
 	if payload.size() != 11:

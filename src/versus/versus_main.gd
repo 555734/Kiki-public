@@ -48,6 +48,12 @@ var room_code: String = ""
 var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 var controls: Control = null
 var status: String = ""
+var _debug_lines: Array[String] = []
+var _debug_file: FileAccess = null
+var _debug_copy_button: Button = null
+var _relay_probe: HTTPRequest = null
+var _relay_probe_detail: String = ""
+var _last_match_state: String = ""
 
 var runners: Array[Runner] = []
 var input: VersusInput = null
@@ -72,6 +78,7 @@ func _ready() -> void:
 	process_physics_priority = 100
 	z_index = 5
 	_read_command_line()
+	_start_debug_log()
 	_build_world()
 
 	input = VersusInput.new()
@@ -91,6 +98,13 @@ func _ready() -> void:
 	hud = preload("res://src/versus/versus_hud.gd").new()
 	hud.arena = self
 	layer.add_child(hud)
+	if mode != Mode.SOLO:
+		_debug_copy_button = Button.new()
+		_debug_copy_button.text = "接続ログをコピー"
+		_debug_copy_button.custom_minimum_size = Vector2(200, 44)
+		_debug_copy_button.size = Vector2(200, 44)
+		_debug_copy_button.pressed.connect(_copy_debug_log)
+		layer.add_child(_debug_copy_button)
 	if mode != Mode.SOLO and local_team >= 0:
 		controls = preload("res://src/versus/versus_controls.gd").new()
 		controls.arena = self
@@ -276,6 +290,11 @@ func _view_team() -> int:
 func _process(delta: float) -> void:
 	if _camera != null:
 		_update_camera(delta)
+	if _debug_copy_button != null:
+		_debug_copy_button.visible = waiting()
+		var viewport_size := get_viewport_rect().size
+		_debug_copy_button.position = Vector2(viewport_size.x * 0.5 - 100.0,
+			viewport_size.y * 0.5 + 214.0)
 
 ## The guardians' constructs are ordinary ground for both teams. Rebuilt as one
 ## body whenever the list changes rather than added one at a time, so the shape
@@ -346,14 +365,100 @@ func _build_guardian() -> void:
 		guardian.command_router = router
 	add_child(guardian)
 
+# ----------------------- on-device diagnostic log (also in user://)
+func _start_debug_log() -> void:
+	_debug_lines.clear()
+	_debug_file = FileAccess.open("user://versus-debug.log", FileAccess.WRITE)
+	_debug("build=versus diag-v1 role=%s room=%s mode=%d protocol=%d" % [
+		"HOST" if mode == Mode.HOST else ("JOIN" if mode == Mode.CLIENT else "SOLO"),
+		room_code, room_mode, VersusProtocol.VERSION])
+	_debug("relay=%s (WebSocket uses /room4/<code>)" % _relay.strip_edges().rstrip("/"))
+	if _debug_file == null:
+		_debug("user://versus-debug.log could not be opened: %d" % FileAccess.get_open_error())
+
+func _debug(message: String) -> void:
+	var line := "%s %s" % [Time.get_time_string_from_system(), message]
+	print("[versus] " + line)
+	_debug_lines.append(line)
+	if _debug_lines.size() > 9:
+		_debug_lines.pop_front()
+	if _debug_file != null:
+		_debug_file.store_line(line)
+		_debug_file.flush()
+
+func debug_lines() -> Array[String]:
+	return _debug_lines.duplicate()
+
+func _copy_debug_log() -> void:
+	var content := FileAccess.get_file_as_string("user://versus-debug.log")
+	if content.is_empty():
+		content = "\n".join(_debug_lines)
+	DisplayServer.clipboard_set(content)
+	_debug("log copied to clipboard")
+
+## A GET without Upgrade MUST return 426 on our deployed /room4 handler.
+## 404 instead means the worker serving this URL does not have /room4.
+## WebSocketPeer itself does not expose HTTP handshake response status.
+func _probe_relay_route() -> void:
+	var base := _relay.strip_edges().rstrip("/")
+	if base.begins_with("wss://"):
+		base = "https://" + base.substr(6)
+	elif base.begins_with("ws://"):
+		base = "http://" + base.substr(5)
+	elif not base.begins_with("https://") and not base.begins_with("http://"):
+		base = "https://" + base
+	_relay_probe = HTTPRequest.new()
+	_relay_probe.name = "VersusRelayProbe"
+	_relay_probe.timeout = 10.0
+	add_child(_relay_probe)
+	_relay_probe.request_completed.connect(_on_relay_probe_complete)
+	var url := "%s/room4/%s" % [base, room_code]
+	_debug("PROBE GET " + url + " (expected HTTP 426; no websocket upgrade)")
+	var err := _relay_probe.request(url)
+	if err != OK:
+		_relay_probe_detail = "接続先のHTTP検査を開始できません (%d)" % err
+		_debug("PROBE request error=%d" % err)
+
+func _on_relay_probe_complete(result: int, http_status: int,
+		_headers: PackedStringArray, body: PackedByteArray) -> void:
+	_debug("PROBE result=%d HTTP=%d body=%s" % [result, http_status,
+		body.get_string_from_utf8().substr(0, 120).replace("\n", " ")])
+	if result != HTTPRequest.RESULT_SUCCESS:
+		_relay_probe_detail = "中継HTTP接続失敗 result=%d (DNS/通信を確認)" % result
+	elif http_status == 426:
+		_relay_probe_detail = ""
+		_debug("PROBE /room4 exists on deployed relay")
+	elif http_status == 404:
+		_relay_probe_detail = "中継に /room4 がありません (サーバーの更新が必要)"
+	elif http_status == 429:
+		_relay_probe_detail = "中継の接続回数制限 HTTP 429"
+	else:
+		_relay_probe_detail = "中継の /room4 が HTTP %d を返しました" % http_status
+
+func _record_match_state() -> void:
+	var info := ""
+	if host != null:
+		info = "HOST authenticated=%d can_play=%s playing=%s" % [
+			host.roster.peers_filled(), str(host.roster.can_play()), str(host.playing)]
+	elif client != null:
+		info = "JOIN connected=%s refused=%s seen_world=%s phase=%d seat=%d" % [
+			str(client.connected), str(client.refused), str(client.seen_world),
+			client.phase, client.seat]
+	if not info.is_empty() and info != _last_match_state:
+		_last_match_state = info
+		_debug(info)
+
 # --------------------------------------------------------------------- the link
 func _open_link(as_host: bool) -> void:
 	link = VersusWsTransport.new()
+	link.diagnostic.connect(_debug)
 	if as_host and room_code.is_empty():
 		room_code = VersusWsTransport.new_code()
+	_probe_relay_route()
 	var err := link.open_room(_relay, room_code, "versus-%d" % (Time.get_ticks_usec() & 0xffff))
 	if not err.is_empty():
 		status = err
+		_debug("open_room failed: " + err)
 		return
 	status = "room %s - waiting" % room_code
 
@@ -365,19 +470,25 @@ func _network_ready() -> void:
 	if mode == Mode.HOST:
 		if link.local_peer() != VersusTransport.HOST_PEER:
 			status = "room %s is already hosted elsewhere" % room_code
+			_debug("HOST rejected: relay assigned index=%d (expected 0)" % link.local_peer())
 			return
 		host = VersusHost.new()
+		host.diagnostic.connect(_debug)
 		host.start(link, ArenaStage.new(_collision_rects()), 0, room_mode)
 		match_rules = host.match_rules
+		_debug("HOST ready: relay peer=%d roster=%s" % [
+			link.local_peer(), host.roster.describe()])
 		status = "room %s" % room_code
 	else:
 		client = VersusClient.new()
+		client.diagnostic.connect(_debug)
 		client.start(link, _seat, room_mode)
 		if guardian != null:
 			var router := preload("res://src/versus/versus_command_router.gd").new()
 			router.client = client
 			add_child(router)
 			guardian.command_router = router
+		_debug("JOIN ready: relay peer=%d" % link.local_peer())
 		status = "room %s - joining" % room_code
 
 # --------------------------------------------------------------------- the tick
@@ -405,6 +516,7 @@ func _physics_process(_delta: float) -> void:
 			_tick_client(seqs)
 	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
 		_update_duel_activity()
+	_record_match_state()
 	_redraw()
 
 func _update_duel_activity() -> void:
@@ -625,6 +737,8 @@ func waiting_detail() -> String:
 	var code := room_code if not room_code.is_empty() else "------"
 	if link != null and not link.last_error().is_empty():
 		return "room %s · 通信エラー: %s" % [code, link.last_error()]
+	if not _relay_probe_detail.is_empty():
+		return "room %s · %s" % [code, _relay_probe_detail]
 	if mode == Mode.HOST:
 		if host == null:
 			return "room %s · 中継に接続中（/room4を確認）" % code
