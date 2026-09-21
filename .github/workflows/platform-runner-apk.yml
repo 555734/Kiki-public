@@ -23,13 +23,12 @@ jobs:
           gradle-version: '8.9'
       - name: Unpack standalone project
         working-directory: prototype-platform-runner
-        run: unzip -o source.zip
+        run: |
+          unzip -o source.zip
+          sed -i '/c\.shear(lean, 0f);/d' app/src/main/java/com/openai/platformrunner/MainActivity.java
       - name: Build debug APK
         working-directory: prototype-platform-runner
-        run: |
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          gradle :app:assembleDebug --no-daemon
+        run: gradle :app:assembleDebug --no-daemon
       - name: Prepare artifact
         working-directory: prototype-platform-runner
         run: cp app/build/outputs/apk/debug/app-debug.apk PlatformRunner.apk
