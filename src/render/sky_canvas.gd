@@ -12,6 +12,9 @@ func _draw() -> void:
 	var t: float = sky.time()
 
 	draw_texture_rect(sky.gradient(), Rect2(Vector2.ZERO, view), false)
+	if Balance.USE_3D:
+		_three_background(view,scroll,t)
+		return
 	if _panorama(view, scroll * PANORAMA_RATE):
 		# The painted backdrop already contains its own clouds, hills, castle and
 		# bush line. Drawing the procedural ones on top of it would be two of
@@ -36,6 +39,40 @@ func _draw() -> void:
 ## castle layer (0.24) and the near hills (0.38): the panorama spans that whole
 ## range of depth, so it takes the middle of it.
 const PANORAMA_RATE := 0.30
+
+## Broad, quiet silhouettes rather than a detailed painted foreground behind
+## small 3D actors. Night/ruins and the cloud stage keep their own atmosphere.
+func _three_background(view: Vector2, scroll: float, time: float) -> void:
+	var night := Stage.is_horror() or Stage.is_keeper()
+	if Stage.is_sky():
+		_clouds(view,scroll*.05-time*3,view.y*.18)
+		_cloud_sea(view,scroll*.14,view.y*.75,0.0)
+		return
+	if not night:
+		for i in 5:
+			var x := fposmod(i*353.0-scroll*.06-time*2,view.x+240)-120
+			var y := view.y*(.17+float(i%3)*.065)
+			for k in 3:
+				draw_set_transform(Vector2(x+k*26,y),0,Vector2(1,.55))
+				draw_circle(Vector2.ZERO,25+float(k%2)*12,Color("e8f3eb"))
+			draw_set_transform(Vector2.ZERO)
+	for layer in 2:
+		var rate := .10+layer*.09
+		var ridge := PackedVector2Array([Vector2(0,view.y)])
+		for i in range(-1,int(view.x/70)+3):
+			var x := i*70.0
+			var height := sin((x+scroll*rate)*.004)*45+cos((x+scroll*rate)*.007)*20
+			ridge.append(Vector2(x,view.y*(.59+layer*.16)+height))
+		ridge.append(Vector2(view.x+140,view.y))
+		var colour := Color("8bbdc0") if layer==0 else Color("699e9b")
+		if night: colour=Color("354355") if layer==0 else Color("293743")
+		draw_colored_polygon(ridge,colour)
+	if night:
+		for i in 9:
+			var x := fposmod(i*187.0-scroll*.22,view.x+200)-100
+			var h := 80.0+float(i%4)*29
+			draw_rect(Rect2(x,view.y*.76-h,18,h),Color("34404b"))
+			draw_colored_polygon(PackedVector2Array([Vector2(x-35,view.y*.76-h*.4),Vector2(x+9,view.y*.76-h-60),Vector2(x+55,view.y*.76-h*.4)]),Color("34404b"))
 ## Where the grass line sits in the painted backdrop, as a fraction of its
 ## height. The horizon is pinned to this, so the painted ground meets the real
 ## ground instead of floating above or below it.

@@ -42,6 +42,15 @@ func _ready() -> void:
 		g.set_color(1, Balance.C_SKY_BOTTOM)
 		g.add_point(0.55, Balance.C_SKY_TOP.lerp(Balance.C_SKY_BOTTOM, 0.55))
 	_gradient.gradient = g
+	if Balance.USE_3D:
+		if Stage.is_horror() or Stage.is_keeper():
+			g.set_color(0,Color("172237"))
+			g.set_color(1,Color("536175"))
+			g.set_color(2,Color("344453"))
+		elif not Stage.is_sky():
+			g.set_color(0,Color("449ee0"))
+			g.set_color(1,Color("c9e7e2"))
+			g.set_color(2,Color("84cbdc"))
 	_gradient.fill_from = Vector2(0, 0)
 	_gradient.fill_to = Vector2(0, 1)
 	_gradient.width = 4

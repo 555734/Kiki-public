@@ -1057,6 +1057,10 @@ func _test_four_ways_to_change_direction() -> void:
 		r.velocity = Vector2.ZERO
 		hub.move_axis = 0.0
 		hub.dash_held = false
+		# Teleporting preserves the previous move_and_slide floor result.
+		# physics_frame fires before body callbacks; allow a complete body
+		# update before testing contact at the new position.
+		await _physics(2)
 		for _i in range(40):
 			await get_tree().physics_frame
 			if r.is_on_floor():

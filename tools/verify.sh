@@ -42,6 +42,9 @@ fi
 step "parse every script and shader"
 run_checked "$GODOT" --headless --path . res://test/check_scripts.tscn
 
+step "2.5D scene integration and camera alignment (not a visual-quality test)"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/three_view_probe.tscn
+
 step "logic tests"
 run_checked "$GODOT" --headless --path . res://test/run_tests.tscn
 

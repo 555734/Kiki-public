@@ -86,6 +86,7 @@ func _draw() -> void:
 			Color("1b2029") if active else Color("cfd6e2"))
 
 func _draw_body() -> void:
+	if has_meta("model_3d"): return
 	var lit := Color("8b93a1") if _locked > 0.0 \
 		else (Color("ffd24a") if active else Color("8b93a1"))
 	var glow := 0.5 + 0.5 * sin(_pulse * (7.0 if active else 2.2))

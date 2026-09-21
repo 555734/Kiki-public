@@ -50,6 +50,9 @@ const MANIFEST := {
 	# the three still on .svg are the ones nothing was painted for yet.
 	"horror_panorama": "bg/horror_stage_1_2.svg",
 	"horror_pursuer": "horror/pursuer.svg",
+	"horror_wisp": "horror/wisp.svg",
+	"horror_thornmite": "horror/thornmite.svg",
+	"horror_ruin_block": "horror/ruin_block.svg",
 	"horror_platform": "horror/platform.svg",
 	"horror_checkpoint_off": "horror/checkpoint_off.svg",
 	"horror_checkpoint_on": "horror/checkpoint_on.svg",
@@ -205,6 +208,8 @@ static func _resolved_key(key: String) -> String:
 		return key
 	match key:
 		"parallax": return "horror_panorama"
+		"flyer": return "horror_wisp"
+		"ground_block": return "horror_mud_tile"
 		"platform": return "horror_platform"
 		"checkpoint_off": return "horror_checkpoint_off"
 		"checkpoint_on": return "horror_checkpoint_on"

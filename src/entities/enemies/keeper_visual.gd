@@ -55,6 +55,10 @@ func _draw() -> void:
 	# players need it and only one of them has a HUD worth putting it on.
 	if state == Keeper.State.BRACE:
 		_draw_lane(face, foot)
+	if has_meta("model_3d"):
+		if state == Keeper.State.BRACE or state == Keeper.State.CHARGE:
+			_draw_dust(size,foot)
+		return
 
 	var lean := 0.0
 	var drop := 0.0

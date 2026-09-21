@@ -8,6 +8,7 @@ extends Node2D
 
 const BlackHoleChaserScript = preload("res://src/entities/enemies/black_hole_chaser.gd")
 const SkyPursuerScript = preload("res://src/entities/enemies/sky_pursuer.gd")
+const ThornmiteScript = preload("res://src/entities/enemies/thornmite.gd")
 
 var runner: Runner = null
 ## Needed before build(): which player this screen belongs to decides what the
@@ -209,6 +210,11 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			p.catchup_speed = float(spec.get("catchup", 520.0))
 			p.stun_duration = float(spec.get("stun", 1.35))
 			return p
+		"thornmite":
+			var tm = ThornmiteScript.new()
+			tm.runner = runner
+			tm.patrol_half_width = float(spec.get("patrol", 140.0))
+			return tm
 		"walker":
 			var w := Walker.new()
 			w.patrol_half_width = float(spec.get("patrol", 110.0))

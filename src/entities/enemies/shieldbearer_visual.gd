@@ -29,8 +29,9 @@ func _draw() -> void:
 	if bearer == null or not is_instance_valid(bearer):
 		return
 	var size: Vector2 = Balance.SHIELDBEARER_SIZE
-	draw_rect(Rect2(-size * 0.5, size), BODY, true)
-	draw_rect(Rect2(-size * 0.5, size), BODY_EDGE, false, 2.0)
+	if not has_meta("model_3d"):
+		draw_rect(Rect2(-size * 0.5, size), BODY, true)
+		draw_rect(Rect2(-size * 0.5, size), BODY_EDGE, false, 2.0)
 
 	var face := float(bearer.facing_now())
 

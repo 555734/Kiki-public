@@ -13,6 +13,8 @@ func _draw() -> void:
 			"pipe": _pipe(item["pos"], item.get("size", Vector2(90, 76)))
 			"blocks": _blocks(item["pos"], int(item.get("count", 3)),
 				float(item.get("cell", 46.0)))
+			"ruin_blocks": _ruin_blocks(item["pos"], int(item.get("count", 2)),
+				float(item.get("cell", 48.0)))
 			"fence": _fence(item["pos"], float(item.get("width", 180.0)))
 			"tree": _tree(item["pos"])
 			"flowers": _flowers(item["pos"])
@@ -62,6 +64,34 @@ func _blocks(at: Vector2, count: int, cell: float) -> void:
 			_question_block(r)
 		else:
 			_brick_block(r)
+
+func _ruin_blocks(at: Vector2, count: int, cell: float) -> void:
+	# Chunky square masonry, painted with a top plane and dark right plane.
+	# The matching collision rectangles live in level_horror_data.solid_decor;
+	# this function is deliberately visual-only like every other decor item.
+	for i in range(count):
+		var r := Rect2(at.x + float(i) * cell, at.y, cell, cell)
+		if Art.draw_stretched(self, "horror_ruin_block", r):
+			continue
+		var front := Color("303a47")
+		var top := Color("526171")
+		var side := Color("202a36")
+		draw_rect(r, front)
+		draw_colored_polygon(PackedVector2Array([
+			r.position,
+			r.position + Vector2(8.0, -7.0),
+			r.position + Vector2(r.size.x + 8.0, -7.0),
+			r.position + Vector2(r.size.x, 0.0),
+		]), top)
+		draw_colored_polygon(PackedVector2Array([
+			r.position + Vector2(r.size.x, 0.0),
+			r.position + Vector2(r.size.x + 8.0, -7.0),
+			r.position + Vector2(r.size.x + 8.0, r.size.y - 7.0),
+			r.position + r.size,
+		]), side)
+		draw_rect(r, Color("17202b"), false, 2.0)
+		draw_line(r.position + Vector2(8.0, 9.0),
+			r.position + Vector2(r.size.x - 8.0, 9.0), Color("577a61"), 4.0)
 
 func _brick_block(r: Rect2) -> void:
 	draw_rect(r, Balance.C_BRICK)

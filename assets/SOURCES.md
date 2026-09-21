@@ -254,3 +254,16 @@ small plants and rocks. Nothing in the registry asks for them.
 `grass_cap`, `dirt_body` and `dirt_body_alt` were left alone: they are
 registered but drawn from nowhere, so replacing them would have been work
 nobody can see.
+
+
+**Original stage 1-2 runtime SVGs (2026-09-21).** These were authored for
+the 1-2 redesign from the approved character/environment direction rather than
+cropped from a third-party game or from the earlier mockups. They are transparent
+runtime assets and intentionally use simple 2.5D planes so silhouettes stay
+readable on a phone.
+
+| file | purpose |
+|---|---|
+| `horror/thornmite.svg` | low quadruped rock enemy; replaces the rejected round walker silhouette |
+| `horror/wisp.svg` | dark airborne Wisp skin for the existing Flyer behaviour |
+| `horror/ruin_block.svg` | beveled dark masonry used by collidable floating block rows |

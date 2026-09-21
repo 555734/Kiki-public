@@ -60,6 +60,8 @@ func _ready() -> void:
 	match_state = ArenaMatchState.new()
 	hud.arena = self
 	_start_match()
+	if Balance.USE_3D:
+		add_child(preload("res://src/render/three/world_view.gd").new())
 
 func _on_joy_changed(_device: int, _connected: bool) -> void:
 	input.assign_devices()
@@ -121,6 +123,7 @@ func _draw() -> void:
 	_fighters()
 
 func _backdrop() -> void:
+	if Balance.USE_3D: return
 	draw_rect(Rect2(CAMERA_CENTRE - Vector2(680.0, 400.0),
 		Vector2(1360.0, 800.0)), COL_BACKDROP)
 
@@ -137,6 +140,7 @@ func _blast_lines() -> void:
 		Vector2(ArenaStageData.BLAST_RIGHT, bottom), COL_BLAST, 3.0)
 
 func _floors() -> void:
+	if Balance.USE_3D: return
 	for b in stage.boxes():
 		draw_rect(b, COL_FLOOR)
 		draw_rect(b, COL_FLOOR_EDGE, false, 1.5)
@@ -167,8 +171,9 @@ func _coins() -> void:
 			alpha = 0.35 + 0.65 * absf(sin(float(left) * 0.25))
 		var fill := COL_COIN
 		fill.a = alpha
-		draw_circle(c.position, 7.0, fill)
-		draw_arc(c.position, 7.0, 0.0, TAU, 16, COL_COIN_EDGE, 1.5)
+		if not Balance.USE_3D:
+			draw_circle(c.position, 7.0, fill)
+			draw_arc(c.position, 7.0, 0.0, TAU, 16, COL_COIN_EDGE, 1.5)
 		# Locked out: nobody may take it yet.
 		if match_state.tick < c.pickup_tick:
 			draw_arc(c.position, 11.0, 0.0, TAU, 16,
@@ -204,12 +209,16 @@ func _body(f: ArenaFighter) -> void:
 			else f.combat.hit_invuln
 		col.a = 0.45 if (flash / 4) % 2 == 0 else 0.9
 	var body := f.body()
-	DrawUtil.rounded_rect(self, body, 7.0, col)
-	draw_rect(body, ArenaRules.MATE_TRIM[f.actor_id % 2], false, 2.0)
+	if not Balance.USE_3D:
+		DrawUtil.rounded_rect(self, body, 7.0, col)
+		draw_rect(body, ArenaRules.MATE_TRIM[f.actor_id % 2], false, 2.0)
+	else:
+		draw_arc(f.centre()+Vector2(0,ArenaRules.BODY_SIZE.y*.5),16,0,TAU,20,
+			ArenaRules.MATE_TRIM[f.actor_id%2],2.0)
 
 	# Which way a swing would go.
 	var eye := f.centre() + Vector2(float(f.motor.facing) * 8.0, -12.0)
-	draw_circle(eye, 3.0, Color(0.06, 0.07, 0.10))
+	if not Balance.USE_3D: draw_circle(eye, 3.0, Color(0.06, 0.07, 0.10))
 
 	# Pressure. Not HP and not the coin count -- it only says how far the next
 	# hit will send them (4.2).

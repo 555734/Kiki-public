@@ -12,6 +12,12 @@ func _draw() -> void:
 	if turret == null:
 		return
 	var dir: Vector2 = turret.aim_direction.normalized()
+	if has_meta("model_3d"):
+		var heat := pow(turret.charge(),3.0)
+		var muzzle := dir*(Balance.TURRET_SIZE.x*.5+16)
+		if heat>.02:
+			draw_circle(muzzle,5+heat*5,Color(1,.65,.25,.3+heat*.6))
+		return
 	if Balance.USE_TEXTURES and _draw_painted(dir):
 		return
 	var s := Balance.TURRET_SIZE

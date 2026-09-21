@@ -62,6 +62,7 @@ func _draw() -> void:
 		Sigil.draw_mark(self, wants, plate, 10.0, Color("8fd8ff"))
 
 func _draw_body() -> void:
+	if has_meta("model_3d"): return
 	var lift := _open_amount * span.y * 0.92
 	var r := Rect2(-span.x * 0.5, -span.y * 0.5 - lift, span.x, span.y)
 	if Balance.USE_TEXTURES and Art.tex("gate") != null:

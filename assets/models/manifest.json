@@ -1,0 +1,86 @@
+{
+	"black_hole": {
+		"mesh_parts": 1,
+		"triangles": 376
+	},
+	"checkpoint": {
+		"mesh_parts": 1,
+		"triangles": 124
+	},
+	"coin": {
+		"mesh_parts": 1,
+		"triangles": 80
+	},
+	"crystal": {
+		"mesh_parts": 1,
+		"triangles": 72
+	},
+	"fence": {
+		"mesh_parts": 1,
+		"triangles": 168
+	},
+	"flyer": {
+		"mesh_parts": 3,
+		"triangles": 196
+	},
+	"goal": {
+		"mesh_parts": 1,
+		"triangles": 496
+	},
+	"grass_terrain": {
+		"mesh_parts": 1,
+		"triangles": 542
+	},
+	"keeper": {
+		"mesh_parts": 5,
+		"triangles": 368
+	},
+	"lira": {
+		"mesh_parts": 11,
+		"triangles": 1040
+	},
+	"platform": {
+		"mesh_parts": 1,
+		"triangles": 164
+	},
+	"pursuer": {
+		"mesh_parts": 3,
+		"triangles": 256
+	},
+	"ruin_blocks": {
+		"mesh_parts": 1,
+		"triangles": 48
+	},
+	"shieldbearer": {
+		"mesh_parts": 3,
+		"triangles": 272
+	},
+	"spring": {
+		"mesh_parts": 1,
+		"triangles": 72
+	},
+	"thornmite": {
+		"mesh_parts": 5,
+		"triangles": 372
+	},
+	"tree": {
+		"mesh_parts": 1,
+		"triangles": 210
+	},
+	"turret": {
+		"mesh_parts": 1,
+		"triangles": 260
+	},
+	"walker": {
+		"mesh_parts": 3,
+		"triangles": 236
+	},
+	"walker_spiky": {
+		"mesh_parts": 3,
+		"triangles": 296
+	},
+	"wisp": {
+		"mesh_parts": 1,
+		"triangles": 134
+	}
+}

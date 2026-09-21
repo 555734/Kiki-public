@@ -75,7 +75,7 @@ func _ready() -> void:
 	# all emissive by design, and without glow they read as flat cyan shapes
 	# rather than as light -- which is most of what separates the painted look
 	# from the vector one.
-	if Balance.ENABLE_BLOOM:
+	if Balance.ENABLE_BLOOM and not Balance.USE_3D:
 		var env_node := WorldEnvironment.new()
 		env_node.name = "Bloom"
 		var env := Environment.new()
@@ -142,6 +142,8 @@ func _ready() -> void:
 	panel.name = "NetPanel"
 	panel.main = self
 	add_child(panel)
+	if Balance.USE_3D:
+		add_child(preload("res://src/render/three/world_view.gd").new())
 
 ## Starts hosting for a guardian on the same network. Returns "" or a reason.
 func host_online(port: int) -> String:

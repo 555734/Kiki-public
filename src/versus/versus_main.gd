@@ -111,6 +111,8 @@ func _ready() -> void:
 	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and mode != Mode.SOLO:
 		for r in runners:
 			r.set_physics_process(false)
+	if Balance.USE_3D:
+		add_child(preload("res://src/render/three/world_view.gd").new())
 
 func _read_command_line() -> void:
 	# The start screen first: on a phone there is no command line, and needing
@@ -948,8 +950,9 @@ func _coins() -> void:
 			var left := VersusRules.STALE_TICKS - (world_tick() - int(c["world_since"]))
 			if left <= 90:
 				fill.a = 0.35 + 0.65 * absf(sin(float(left) * 0.25))
-		draw_circle(at, 11.0, fill)
-		draw_arc(at, 11.0, 0.0, TAU, 16, COL_COIN_EDGE, 2.0)
+		if not Balance.USE_3D:
+			draw_circle(at, 11.0, fill)
+			draw_arc(at, 11.0, 0.0, TAU, 16, COL_COIN_EDGE, 2.0)
 		if c.has("pickup_tick") and world_tick() < int(c["pickup_tick"]):
 			draw_arc(at, 15.0, 0.0, TAU, 16, Color(1, 1, 1, 0.35), 1.0)
 

@@ -530,6 +530,8 @@ const GUARDIAN_PAN_RETURN: float = 2.6
 
 # --------------------------------------------------------------------- art
 const ENABLE_BLOOM: bool = true
+## Presentation switch for regression comparisons; no gameplay code reads it.
+const USE_3D: bool = true
 const MAX_PARTICLE_BURSTS: int = 8
 
 ## Online play. ENet over UDP on this port; nothing else needs to be reachable.
