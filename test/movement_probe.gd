@@ -211,6 +211,8 @@ func _chains() -> void:
 	var third := await _arc()
 	_ok(runner.jump_chain() == 3 and third.x > second.x * 1.10,
 		"third timed landing makes the highest jump")
+	_ok(third.y > second.y * 1.05,
+		"third jump is also the farthest forward-running jump")
 	_ok(third.y + Balance.RUNNER_SIZE.x < 600.0,
 		"600px crossings still require help even with a triple jump")
 	_ok(third.y + Balance.RUNNER_SIZE.x < 480.0,
@@ -243,8 +245,11 @@ func _walls() -> void:
 		runner.velocity = Vector2(0, 200)
 		hub.move_axis = 1.0
 		hub.release_jump()
-		await _tick(10)
-		_ok(runner.can_wall_jump(), "ordinary wall offers kick %d" % (attempt + 1))
+		await _tick(1)
+		_ok(not runner.can_wall_jump(),
+			"first wall-contact frame does not instantly arm a kick")
+		await _tick(9)
+		_ok(runner.can_wall_jump(), "short wall slide arms kick %d" % (attempt + 1))
 		_ok(runner.velocity.y <= Balance.WALL_SLIDE_SPEED + 1.0,
 			"pressing into a wall slows the fall")
 		hub.press_jump()

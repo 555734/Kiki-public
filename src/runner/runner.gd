@@ -167,15 +167,31 @@ func _hug_the_ground() -> void:
 # ------------------------------------------------------------- walls
 var _wall_coyote: float = 0.0
 var _wall_normal: float = 0.0
+var _wall_slide_time: float = 0.0
+var _wall_jump_ready: bool = false
 
 func _track_wall(delta: float) -> void:
 	_wall_coyote = maxf(0.0, _wall_coyote - delta)
-	if is_on_floor() or _wall_kick_lock > 0.0:
+	if is_on_floor():
 		_wall_coyote = 0.0
+		_wall_slide_time = 0.0
+		_wall_jump_ready = false
+		return
+	if _wall_kick_lock > 0.0:
+		_wall_coyote = 0.0
+		_wall_slide_time = 0.0
+		_wall_jump_ready = false
 		return
 	if _kickable_wall() != null:
-		_wall_normal = signf(get_wall_normal().x)
+		var normal := signf(get_wall_normal().x)
+		if _wall_normal != 0.0 and normal != _wall_normal:
+			_wall_slide_time = 0.0
+			_wall_jump_ready = false
+		_wall_normal = normal
 		_wall_coyote = Balance.WALL_COYOTE_TIME
+	elif _wall_coyote <= 0.0:
+		_wall_slide_time = 0.0
+		_wall_jump_ready = false
 
 func _kickable_wall() -> Node2D:
 	if not is_on_wall():
@@ -193,7 +209,8 @@ func _kickable_wall() -> Node2D:
 	return null
 
 func can_wall_jump() -> bool:
-	return _wall_coyote > 0.0 and _wall_kick_lock <= 0.0 and not is_on_floor()
+	return _wall_jump_ready and _wall_coyote > 0.0 \
+		and _wall_kick_lock <= 0.0 and not is_on_floor()
 
 # ------------------------------------------------------- player jump shaping
 func _begin_player_jump(press_sequence: int) -> void:
@@ -470,11 +487,17 @@ func _process_normal(delta: float) -> void:
 	_normal_vertical_step(delta)
 
 	_track_wall(delta)
-	if can_wall_jump() and is_on_wall() and axis * _wall_normal < -0.1:
-		_wall_sliding = velocity.y > 0.0
+	var touching_wall := _kickable_wall() != null
+	if touching_wall and axis * _wall_normal < -0.1 and velocity.y > 0.0:
+		_wall_sliding = true
+		_wall_slide_time += delta
+		if _wall_slide_time >= Balance.WALL_SLIDE_ARM_TIME:
+			_wall_jump_ready = true
 		velocity.y = minf(velocity.y, Balance.WALL_SLIDE_SPEED)
-		if _wall_sliding:
-			_end_player_jump()
+		_end_player_jump()
+	elif touching_wall:
+		_wall_slide_time = 0.0
+		_wall_jump_ready = false
 	if _try_to_catch_the_edge():
 		return
 
@@ -489,6 +512,8 @@ func _process_normal(delta: float) -> void:
 		_wall_kick_visual = Balance.WALL_KICK_VISUAL_TIME
 		_reset_jump_chain()
 		_wall_coyote = 0.0
+		_wall_slide_time = 0.0
+		_wall_jump_ready = false
 		_jump_buffer = 0.0
 		_begin_player_jump(press_sequence)
 		Events.runner_wall_jumped.emit(global_position, int(_wall_normal))
@@ -591,7 +616,8 @@ static func ground_jump_height(horizontal_speed: float, chain: int = 1) -> float
 
 func _start_ground_jump() -> void:
 	var direction := signi(int(signf(velocity.x)))
-	var running := absf(velocity.x) >= Balance.RUNNER_CHAIN_MIN_SPEED \
+	var running := ground_sprint_requested() \
+		and absf(velocity.x) >= Balance.RUNNER_CHAIN_MIN_SPEED \
 		and _move_axis() * velocity.x > 0.0
 	if running and _chain_window > 0.0 and direction == _chain_direction:
 		_jump_chain = _jump_chain + 1 if _jump_chain < 3 else 1
@@ -601,6 +627,14 @@ func _start_ground_jump() -> void:
 	_chain_window = 0.0
 	_chain_flight = running
 	velocity.y = -sqrt(2.0 * Balance.RUNNER_GRAVITY * ground_jump_height(velocity.x, _jump_chain))
+	if direction != 0 and _jump_chain == 2:
+		velocity.x = float(direction) * minf(
+			absf(velocity.x) * Balance.RUNNER_DOUBLE_FORWARD_BOOST,
+			Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER * 1.05)
+	elif direction != 0 and _jump_chain == 3:
+		velocity.x = float(direction) * minf(
+			absf(velocity.x) * Balance.RUNNER_TRIPLE_FORWARD_BOOST,
+			Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER * 1.12)
 
 func _reset_jump_chain() -> void:
 	_jump_chain = 0
@@ -873,6 +907,8 @@ func launch(velocity_out: Vector2) -> void:
 	_wall_coyote = 0.0
 	_wall_kick_lock = 0.0
 	_wall_kick_visual = 0.0
+	_wall_slide_time = 0.0
+	_wall_jump_ready = false
 	velocity = velocity_out
 	if absf(velocity_out.x) > 1.0:
 		facing = signi(int(signf(velocity_out.x)))
@@ -898,6 +934,8 @@ func respawn(at: Vector2) -> void:
 	_wall_coyote = 0.0
 	_wall_kick_lock = 0.0
 	_wall_kick_visual = 0.0
+	_wall_slide_time = 0.0
+	_wall_jump_ready = false
 	_coyote = 0.0
 	_jump_buffer = 0.0
 	_hang_left = 0.0

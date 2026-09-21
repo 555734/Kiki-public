@@ -187,10 +187,14 @@ const RUNNER_TIME_TO_AIR_STOP: float = 0.24
 ## Horizontal speed at take-off continuously adds up to 20% height.
 ## A stationary player pressing sprint gets no free height bonus.
 const RUNNER_SPRINT_JUMP_BONUS: float = 0.20
-const RUNNER_CHAIN_WINDOW: float = 0.18
+## Running multiple-jump timing. Keep dash intent, speed and direction and
+## press jump again almost immediately after each landing.
+const RUNNER_CHAIN_WINDOW: float = 0.13
 const RUNNER_CHAIN_MIN_SPEED: float = RUNNER_RUN_SPEED * 1.05
-const RUNNER_DOUBLE_HEIGHT: float = 1.16
-const RUNNER_TRIPLE_HEIGHT: float = 1.40
+const RUNNER_DOUBLE_HEIGHT: float = 1.20
+const RUNNER_TRIPLE_HEIGHT: float = 1.46
+const RUNNER_DOUBLE_FORWARD_BOOST: float = 1.03
+const RUNNER_TRIPLE_FORWARD_BOOST: float = 1.10
 
 const RUNNER_ACCEL: float = RUNNER_RUN_SPEED / RUNNER_TIME_TO_TOP_SPEED
 const RUNNER_FRICTION: float = RUNNER_RUN_SPEED / RUNNER_TIME_TO_STOP
@@ -291,6 +295,8 @@ const WALL_JUMP_HEIGHT: float = 2.15 * B
 const WALL_JUMP_UP: float = -sqrt(2.0 * RUNNER_GRAVITY * WALL_JUMP_HEIGHT)
 const WALL_JUMP_OUT: float = 1.42 * RUNNER_RUN_SPEED
 const WALL_KICK_LOCK: float = 0.10
+## Require a short visible slide before a wall kick becomes armed.
+const WALL_SLIDE_ARM_TIME: float = 0.055
 const WALL_SLIDE_SPEED: float = 100.0
 const WALL_COYOTE_TIME: float = 0.12
 ## Presentation-only window used to show a distinct kick pose after leaving a wall.
