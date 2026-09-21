@@ -245,9 +245,9 @@ func _walls() -> void:
 		runner.velocity = Vector2(0, 200)
 		hub.move_axis = 1.0
 		hub.release_jump()
-		await _tick(1)
+		await _tick(2) # first tick also syncs a direct fixture teleport into PhysicsServer
 		_ok(runner.can_wall_jump(),
-			"near-wall probe arms kick %d on the first input frame" % (attempt + 1))
+			"near-wall probe arms kick %d immediately after contact" % (attempt + 1))
 		_ok(runner.velocity.y <= Balance.WALL_SLIDE_SPEED + 1.0,
 			"pressing into a wall slows the fall")
 		hub.press_jump()
