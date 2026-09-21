@@ -169,6 +169,21 @@ var _wall_coyote: float = 0.0
 var _wall_normal: float = 0.0
 var _wall_slide_time: float = 0.0
 var _wall_jump_ready: bool = false
+const WALL_PROBE_DISTANCE: float = 8.0
+
+func _probe_wall_normal() -> float:
+	# move_and_slide only reports a wall after collision resolution. For a
+	# platformer input this is one frame too late, especially on touch screens.
+	# Probe a few pixels in the intended direction so a buffered jump at the wall
+	# is consumed as a wall kick instead of a normal falling frame.
+	var axis := _move_axis()
+	var first := signf(axis) if absf(axis) > 0.05 else float(facing)
+	if first == 0.0:
+		first = 1.0
+	for direction in [first, -first]:
+		if test_move(global_transform, Vector2(direction * WALL_PROBE_DISTANCE, 0.0)):
+			return -direction
+	return 0.0
 
 func _track_wall(delta: float) -> void:
 	_wall_coyote = maxf(0.0, _wall_coyote - delta)
@@ -180,8 +195,11 @@ func _track_wall(delta: float) -> void:
 		_wall_coyote = 0.0
 		_wall_jump_ready = false
 		return
-	if _kickable_wall() != null:
-		_wall_normal = signf(get_wall_normal().x)
+	var normal := _probe_wall_normal()
+	if normal == 0.0 and _kickable_wall() != null:
+		normal = signf(get_wall_normal().x)
+	if normal != 0.0:
+		_wall_normal = normal
 		_wall_coyote = Balance.WALL_COYOTE_TIME
 		_wall_jump_ready = true
 	elif _wall_coyote <= 0.0:
@@ -481,10 +499,8 @@ func _process_normal(delta: float) -> void:
 	_normal_vertical_step(delta)
 
 	_track_wall(delta)
-	var touching_wall := _kickable_wall() != null
+	var touching_wall := _wall_jump_ready
 	if touching_wall:
-		_wall_jump_ready = true
-		_wall_coyote = Balance.WALL_COYOTE_TIME
 		if axis * _wall_normal < -0.1 and velocity.y > 0.0:
 			_wall_sliding = true
 			velocity.y = minf(velocity.y, Balance.WALL_SLIDE_SPEED)
