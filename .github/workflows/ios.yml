@@ -76,7 +76,10 @@ jobs:
         run: |
           set -euo pipefail
           requested=true
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "${MANUAL_SUBMIT:-true}" != "true" ]; then
+          # Public sync verification: push-triggered runs build only; never submit.
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            requested=false
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "${MANUAL_SUBMIT:-true}" != "true" ]; then
             requested=false
           fi
 
