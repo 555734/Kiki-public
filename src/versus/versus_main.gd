@@ -220,6 +220,36 @@ func _build_laps() -> void:
 		decor.items = moved
 		add_child(decor)
 
+## The enemies this mode adds on top of 1-1's own.
+##
+## Built through LevelBuilder's own _make_enemy, so they are the same classes
+## configured the same way -- there is no second kind of walker here. They go
+## into the same Dynamic node, so a rebuild frees them with everything else.
+##
+## Middle lap only, which IS the whole circuit: a runner is always wrapped back
+## into it, and the laps either side exist to make the join look continuous
+## rather than to be played in.
+func _build_extra_enemies() -> void:
+	var extra := VersusStageData.extra_enemies()
+	if extra.is_empty():
+		return
+	var into: Node = level.get_node_or_null("Dynamic")
+	if into == null:
+		into = level
+	# Past 1-1's own, so the two sets cannot collide on an id. Nothing in this
+	# mode sends enemies over the wire -- every machine builds the same list
+	# from the same data -- but an id that means two things is a trap for
+	# whoever adds that later.
+	var id := Stage.enemies().size()
+	for spec in extra:
+		var node := level._make_enemy(spec)
+		if node == null:
+			continue
+		node.global_position = spec["pos"]
+		node.net_id = id
+		into.add_child(node)
+		id += 1
+
 ## 1-1's goal is a place to arrive at. On a circuit you arrive at it every lap,
 ## and it would announce the stage cleared every time round.
 func _remove_the_goal() -> void:
@@ -236,6 +266,7 @@ func _finish_world() -> void:
 	level.input_hub = input.hubs[0]
 	level.build()
 	_remove_the_goal()
+	_build_extra_enemies()
 	_build_laps()
 
 func _build_camera() -> void:

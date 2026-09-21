@@ -123,6 +123,26 @@ func _test_striking() -> void:
 
 	await _test_the_spikes()
 	await _test_a_lap()
+	_test_the_enemies()
+
+## The extra enemies are data until something builds them. This is the check
+## that they became nodes: the versus_probe can only say the list is right.
+func _test_the_enemies() -> void:
+	_current = "the enemies"
+	var alive := 0
+	for node in arena.find_children("*", "", true, false):
+		if node.is_in_group("enemy"):
+			alive += 1
+	# 1-1's enemies that are INSIDE the circuit, not all of 1-1's: the versus
+	# builder frees everything past the connecting steps, because the circuit
+	# is shorter than the stage it is cut from.
+	var want := VersusStageData.circuit_enemies().size() \
+		+ VersusStageData.extra_enemies().size()
+	print("    %d enemy nodes in the scene, expecting %d" % [alive, want])
+	# 1-1 builds every one of its own, and the circuit adds its own on top.
+	check(alive == want,
+		"1-1's enemies and the circuit's extras are all in the scene (%d of %d)"
+			% [alive, want])
 
 ## Run off the end of the stage and come out at the start, with nothing to
 ## show for it. The seam is the one thing in this mode that has to be

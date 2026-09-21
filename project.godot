@@ -20,6 +20,21 @@ Audio="*res://src/autoload/audio.gd"
 Events="*res://src/autoload/events.gd"
 GameState="*res://src/autoload/game_state.gd"
 
+[debug]
+
+; The app kept no log on the device, which is why a freeze on a phone came
+; back as a bug report with nothing in it: the kernel's ring buffer had been
+; overwritten and Godot had written nothing of its own. Godot's own default
+; only logs on desktop (the `.pc` override), so the base key is set here to
+; get a log on Android too.
+;
+; It lands in Android/data/<package>/files/logs/ on the device, five files
+; deep, which is enough to survive a couple of restarts without growing
+; without limit.
+file_logging/enable_file_logging=true
+file_logging/log_path="user://logs/godot.log"
+file_logging/max_log_files=5
+
 [display]
 
 window/size/viewport_width=1280

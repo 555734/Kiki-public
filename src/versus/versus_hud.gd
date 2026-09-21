@@ -17,7 +17,9 @@ extends Control
 
 const COL_INK := Color(0.96, 0.97, 0.99)
 const COL_DIM := Color(0.66, 0.70, 0.78)
-const COL_PANEL := Color(0.05, 0.06, 0.09, 0.82)
+## Nearly opaque. At 0.82 a flyer passing behind the map showed through it,
+## and a map you have to look twice at is not doing its job.
+const COL_PANEL := Color(0.05, 0.06, 0.09, 0.94)
 const COL_COIN := Color(1.0, 0.82, 0.29)
 
 ## Untyped: versus_main.gd is a scene root, not a library, so it has no

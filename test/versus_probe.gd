@@ -13,6 +13,11 @@ extends Node
 var failures: Array[String] = []
 var _current: String = ""
 
+## What 1-1 shipped with when the circuit's extra enemies were placed against
+## it. Written down rather than derived, so a change to 1-1 is a failure here
+## and not a silent re-balance of the versus circuit.
+const ONE_ONE_ENEMIES: int = 20
+
 func check(ok: bool, label: String) -> void:
 	if ok:
 		print("  ok    %s" % label)
@@ -24,6 +29,7 @@ func _ready() -> void:
 	_test_the_stage()
 	_test_random_spawns()
 	_test_the_loop()
+	_test_the_enemies()
 	await _test_the_map()
 	_test_conservation()
 	_test_stealing()
@@ -227,6 +233,133 @@ func _test_the_loop() -> void:
 		m.step(seats)
 	check(_held_of(m, 1, [0]) == 0,
 		"and a strike across the join takes the coin")
+
+# ----------------------------------------------------------------- the enemies
+## The extra enemies the circuit gets: are they standing on it, are they spread,
+## and did any of them leak into the cooperative stage?
+func _test_the_enemies() -> void:
+	_current = "the enemies"
+	Stage.use(Stage.Which.GREENFIELD)
+	var before := Stage.enemies().size()
+	var in_play := VersusStageData.circuit_enemies().size()
+	var extra := VersusStageData.extra_enemies()
+	print("    1-1 has %d enemies, %d of them inside the shorter circuit; it adds %d"
+		% [before, in_play, extra.size()])
+	check(extra.size() >= 8 and extra.size() <= 14,
+		"the circuit adds about ten enemies (%d)" % extra.size())
+
+	# The cooperative stage is untouched, checked against a NUMBER rather than
+	# against itself. The first version of this compared Stage.enemies().size()
+	# to a variable read from Stage.enemies() two lines earlier, so it could
+	# never fail -- a negative control that added an enemy to 1-1 sailed past
+	# it while the cooperative suite caught the same change three times over.
+	# The extras are placed by topping up whatever 1-1 leaves thin, so if 1-1's
+	# own population changes they need re-measuring, and this is what says so.
+	check(before == ONE_ONE_ENEMIES,
+		"and 1-1 itself still has exactly %d enemies (%d) -- the extras were "
+			% [ONE_ONE_ENEMIES, before] + "measured against that number")
+
+	var world := ArenaStage.new(VersusStageData.lap_ground())
+	var floating := 0
+	var buried := 0
+	var in_the_seam := 0
+	var at_the_start := 0
+	var turrets := 0
+	for e in extra:
+		var at: Vector2 = e["pos"]
+		var kind := String(e["type"])
+		if kind == "turret":
+			turrets += 1
+		# Against STEP_FROM and against written-down margins, NOT against the
+		# constants the placement reads. A negative control that widened
+		# EXTRA_SEAM_MARGIN until enemies stood past the join sailed past the
+		# first version of this, because it moved the check by exactly as much
+		# as it moved the placement. STEP_FROM is VersusLevelBuilder's own cut
+		# line: anything at or past it is freed before anybody sees it.
+		if at.x > VersusStageData.STEP_FROM - 200.0:
+			in_the_seam += 1
+		if at.x < 300.0:
+			at_the_start += 1
+		var top := world.floor_below(Vector2(at.x, -400.0), 1600.0)
+		if top == INF:
+			floating += 1
+			continue
+		if kind == "walker":
+			# The seating rule 1-1 uses: feet on the ledge, half a body above it.
+			var feet := at.y + VersusStageData.WALKER_FEET
+			if absf(feet - top) > 2.0:
+				buried += 1
+		elif at.y > top:
+			# A flyer below the floor it was hung from is inside the ground.
+			buried += 1
+
+	check(floating == 0, "every one of them has floor beneath it (%d without)" % floating)
+	check(buried == 0, "and is seated on it rather than in it (%d wrong)" % buried)
+	check(in_the_seam == 0, "none of them is at the join (%d)" % in_the_seam)
+	check(at_the_start == 0, "nor on top of the start (%d)" % at_the_start)
+	# Turrets read "the runner" singular as a range gate, so two machines would
+	# disagree about whether one is firing. Deliberately none.
+	check(turrets == 0, "and none of them is a turret (%d)" % turrets)
+
+	# Evenly, measured. Every bucket of the circuit that a runner plays through
+	# has to have something in it once the extras are added.
+	var counts: Dictionary = {}
+	var last := int(VersusStageData.extra_clear_seam() / VersusStageData.EXTRA_BUCKET)
+	for b in range(0, last + 1):
+		counts[b] = 0
+	for e in VersusStageData.circuit_enemies() + extra:
+		var at: Vector2 = e.get("pos", Vector2.ZERO)
+		var b := int(floor(at.x / VersusStageData.EXTRA_BUCKET))
+		if counts.has(b):
+			counts[b] = int(counts[b]) + 1
+	var empty := 0
+	var thinnest := 999
+	for b in counts.keys():
+		thinnest = mini(thinnest, int(counts[b]))
+		if int(counts[b]) == 0:
+			empty += 1
+	print("    thinnest %.0fpx stretch of the circuit now holds %d"
+		% [VersusStageData.EXTRA_BUCKET, thinnest])
+	check(empty == 0, "no stretch of the circuit is empty (%d empty)" % empty)
+	# Every stretch topped up to the target, not merely "not empty". Two of the
+	# ideal spots on this circuit sit over 1-1's gaps; before the placement was
+	# allowed to step off a gap and look for floor, the two stretches they were
+	# meant to fill stayed exactly as thin as they had been.
+	# Three, written down, not read from EXTRA_PER_BUCKET -- lowering the knob
+	# should fail this, not move it.
+	check(thinnest >= 3,
+		"and every one of them is topped up to three (thinnest %d)" % thinnest)
+
+	# Stepping off a gap is only safe if it cannot step INTO somebody. Measured
+	# against every enemy on the circuit, 1-1's own included.
+	var crowded := 0
+	var closest := 1e9
+	for e in extra:
+		var at: Vector2 = e["pos"]
+		for other in VersusStageData.circuit_enemies() + extra:
+			if other == e:
+				continue
+			var gap := absf(Vector2(other["pos"]).x - at.x)
+			closest = minf(closest, gap)
+			# 200px written down here rather than read from EXTRA_APART, for
+			# the same reason as the seam: a check that reads the constant it
+			# is checking cannot fail when that constant is wrong.
+			if gap < 200.0:
+				crowded += 1
+	print("    closest two enemies on the circuit stand %.0fpx apart" % closest)
+	check(crowded == 0, "no new enemy is standing within 200px of another (%d)"
+		% crowded)
+
+	# Same list every time, on every machine: nothing about these goes over the
+	# wire, so four machines agreeing depends on them being derived, not drawn.
+	var again := VersusStageData.extra_enemies()
+	var same := again.size() == extra.size()
+	if same:
+		for i in range(extra.size()):
+			if Vector2(again[i]["pos"]) != Vector2(extra[i]["pos"]) \
+					or String(again[i]["type"]) != String(extra[i]["type"]):
+				same = false
+	check(same, "and asking twice gives the same enemies in the same places")
 
 # --------------------------------------------------------------------- the map
 ## The map is data the HUD draws, so its CONTENTS can be checked here without
