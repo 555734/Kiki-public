@@ -174,23 +174,17 @@ func _track_wall(delta: float) -> void:
 	_wall_coyote = maxf(0.0, _wall_coyote - delta)
 	if is_on_floor():
 		_wall_coyote = 0.0
-		_wall_slide_time = 0.0
 		_wall_jump_ready = false
 		return
 	if _wall_kick_lock > 0.0:
 		_wall_coyote = 0.0
-		_wall_slide_time = 0.0
 		_wall_jump_ready = false
 		return
 	if _kickable_wall() != null:
-		var normal := signf(get_wall_normal().x)
-		if _wall_normal != 0.0 and normal != _wall_normal:
-			_wall_slide_time = 0.0
-			_wall_jump_ready = false
-		_wall_normal = normal
+		_wall_normal = signf(get_wall_normal().x)
 		_wall_coyote = Balance.WALL_COYOTE_TIME
+		_wall_jump_ready = true
 	elif _wall_coyote <= 0.0:
-		_wall_slide_time = 0.0
 		_wall_jump_ready = false
 
 func _kickable_wall() -> Node2D:
@@ -488,21 +482,18 @@ func _process_normal(delta: float) -> void:
 
 	_track_wall(delta)
 	var touching_wall := _kickable_wall() != null
-	if touching_wall and axis * _wall_normal < -0.1 and velocity.y > 0.0:
-		_wall_sliding = true
-		_wall_slide_time += delta
-		if _wall_slide_time >= Balance.WALL_SLIDE_ARM_TIME:
-			_wall_jump_ready = true
-		velocity.y = minf(velocity.y, Balance.WALL_SLIDE_SPEED)
-		_end_player_jump()
-	elif touching_wall:
-		_wall_slide_time = 0.0
-		_wall_jump_ready = false
+	if touching_wall:
+		_wall_jump_ready = true
+		_wall_coyote = Balance.WALL_COYOTE_TIME
+		if axis * _wall_normal < -0.1 and velocity.y > 0.0:
+			_wall_sliding = true
+			velocity.y = minf(velocity.y, Balance.WALL_SLIDE_SPEED)
+			_end_player_jump()
 	if _try_to_catch_the_edge():
 		return
 
 	# Wall jump gets priority over coyote jump while in contact.
-	if _jump_buffer > 0.0 and _coyote <= 0.0 and can_wall_jump() \
+	if _jump_buffer > 0.0 and can_wall_jump() \
 			and not _external_takeoff_pending:
 		var press_sequence := _buffer_press_release_sequence
 		velocity = Vector2(_wall_normal * Balance.WALL_JUMP_OUT, Balance.WALL_JUMP_UP)
@@ -512,7 +503,6 @@ func _process_normal(delta: float) -> void:
 		_wall_kick_visual = Balance.WALL_KICK_VISUAL_TIME
 		_reset_jump_chain()
 		_wall_coyote = 0.0
-		_wall_slide_time = 0.0
 		_wall_jump_ready = false
 		_jump_buffer = 0.0
 		_begin_player_jump(press_sequence)
@@ -907,7 +897,6 @@ func launch(velocity_out: Vector2) -> void:
 	_wall_coyote = 0.0
 	_wall_kick_lock = 0.0
 	_wall_kick_visual = 0.0
-	_wall_slide_time = 0.0
 	_wall_jump_ready = false
 	velocity = velocity_out
 	if absf(velocity_out.x) > 1.0:
@@ -934,7 +923,6 @@ func respawn(at: Vector2) -> void:
 	_wall_coyote = 0.0
 	_wall_kick_lock = 0.0
 	_wall_kick_visual = 0.0
-	_wall_slide_time = 0.0
 	_wall_jump_ready = false
 	_coyote = 0.0
 	_jump_buffer = 0.0

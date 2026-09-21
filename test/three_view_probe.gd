@@ -42,6 +42,11 @@ func run() -> void:
 	check(rig.animation_player!=null,"LIRA imports a real AnimationPlayer")
 	check(rig.available_animation_count()>=6,"LIRA exposes imported humanoid animation clips")
 	check(rig._resolve_clip(["Run"])!=&"","rigged LIRA has a run animation")
+	check(Lira.AVATAR_SCALE>=40.0,"LIRA is large enough to read at gameplay camera distance")
+	rig.animate(.2,Vector2(220,0),true,Runner.State.RUN,1)
+	check(rig.rig_root.rotation.y>0.0,"rightward runner faces screen-right")
+	rig.animate(.2,Vector2(-220,0),true,Runner.State.RUN,-1)
+	check(rig.rig_root.rotation.y<0.0,"leftward runner faces screen-left")
 	var start_x: float=main.runner.position.x
 	for i in 20: await get_tree().physics_frame
 	check(main.runner.position.x>start_x+20 and rig.pose in ["walk","run","sprint"],"actual Runner movement drives the imported run cycle")

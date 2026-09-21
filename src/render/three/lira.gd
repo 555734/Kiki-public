@@ -10,7 +10,7 @@ extends Node3D
 ## chained jumps without changing collision, timing, networking or controls.
 const CLOTH := Color("e2a334")
 const AVATAR_SCENE := preload("res://assets/models/third_party/quaternius/casual_hoodie.gltf")
-const AVATAR_SCALE := 28.0
+const AVATAR_SCALE := 44.0
 
 const LAND_SQUASH_TIME := 0.13
 const TAKEOFF_STRETCH_TIME := 0.10
@@ -19,9 +19,9 @@ const TRIPLE_SPIN_SPEED := TAU * 1.45
 const IDLE_CLIPS := ["Idle_Neutral", "Idle"]
 const WALK_CLIPS := ["Walk", "Walking", "Run"]
 const RUN_CLIPS := ["Run", "Running", "Walk"]
-const JUMP_UP_CLIPS := ["Jump_Start", "JumpStart", "Jump_Up", "JumpUp", "Jump", "Idle_Neutral", "Idle"]
-const APEX_CLIPS := ["Jump_Idle", "JumpIdle", "Jump", "Idle_Neutral", "Idle"]
-const FALL_CLIPS := ["Fall", "Falling", "Jump_Fall", "JumpFall", "Jump_Idle", "Jump", "Idle_Neutral", "Idle"]
+const JUMP_UP_CLIPS := ["Kick_Right", "Kick_Left", "Run"]
+const APEX_CLIPS := ["Kick_Left", "Kick_Right", "Idle_Neutral", "Idle"]
+const FALL_CLIPS := ["Run_Back", "Run", "Idle_Neutral", "Idle"]
 const LAND_CLIPS := ["Land", "Landing", "Jump_Land", "JumpLand", "Idle_Neutral", "Idle"]
 const CROUCH_CLIPS := ["Crouch_Idle", "CrouchIdle", "Crouch", "Idle_Neutral", "Idle"]
 const ROLL_CLIPS := ["Roll", "Run"]
@@ -274,7 +274,7 @@ func animate(delta: float, velocity: Vector2, grounded: bool, state: int, face: 
 	var blend := 1.0 - exp(-delta * 18.0)
 	rig_root.rotation.y = lerp_angle(
 		rig_root.rotation.y,
-		-PI * 0.5 if face >= 0 else PI * 0.5,
+		PI * 0.5 if face >= 0 else -PI * 0.5,
 		blend
 	)
 	rig_root.scale = Vector3.ONE * AVATAR_SCALE

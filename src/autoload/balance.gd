@@ -295,8 +295,6 @@ const WALL_JUMP_HEIGHT: float = 2.15 * B
 const WALL_JUMP_UP: float = -sqrt(2.0 * RUNNER_GRAVITY * WALL_JUMP_HEIGHT)
 const WALL_JUMP_OUT: float = 1.42 * RUNNER_RUN_SPEED
 const WALL_KICK_LOCK: float = 0.10
-## Require a short visible slide before a wall kick becomes armed.
-const WALL_SLIDE_ARM_TIME: float = 0.055
 const WALL_SLIDE_SPEED: float = 100.0
 const WALL_COYOTE_TIME: float = 0.12
 ## Presentation-only window used to show a distinct kick pose after leaving a wall.

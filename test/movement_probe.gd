@@ -245,11 +245,9 @@ func _walls() -> void:
 		runner.velocity = Vector2(0, 200)
 		hub.move_axis = 1.0
 		hub.release_jump()
-		await _tick(1)
-		_ok(not runner.can_wall_jump(),
-			"first wall-contact frame does not instantly arm a kick")
-		await _tick(9)
-		_ok(runner.can_wall_jump(), "short wall slide arms kick %d" % (attempt + 1))
+		await _tick(2)
+		_ok(runner.can_wall_jump(),
+			"wall contact arms kick %d without a slide delay" % (attempt + 1))
 		_ok(runner.velocity.y <= Balance.WALL_SLIDE_SPEED + 1.0,
 			"pressing into a wall slows the fall")
 		hub.press_jump()
