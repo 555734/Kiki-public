@@ -42,7 +42,7 @@ func run() -> void:
 	check(rig.animation_player!=null,"LIRA imports a real AnimationPlayer")
 	check(rig.available_animation_count()>=6,"LIRA exposes imported humanoid animation clips")
 	check(rig._resolve_clip(["Run"])!=&"","rigged LIRA has a run animation")
-	check(Lira.AVATAR_SCALE>=40.0,"LIRA is large enough to read at gameplay camera distance")
+	check(rig.rig_root.scale.x>=40.0,"LIRA is large enough to read at gameplay camera distance")
 	rig.animate(.2,Vector2(220,0),true,Runner.State.RUN,1)
 	check(rig.rig_root.rotation.y>0.0,"rightward runner faces screen-right")
 	rig.animate(.2,Vector2(-220,0),true,Runner.State.RUN,-1)
