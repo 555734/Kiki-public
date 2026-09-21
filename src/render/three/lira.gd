@@ -1,151 +1,271 @@
 extends Node3D
-## LIRA: angular chestnut hair, ochre field jacket, indigo trousers, red scarf.
-## A hierarchical, articulated model. Animation reads state, never writes it.
-const Recipe = preload("res://src/render/three/mesh_recipe.gd")
-const SKIN := Color("d99b69")
-const HAIR := Color("442b28")
+## Rigged LIRA presentation using a real humanoid skeleton and imported clips.
+## Gameplay remains 2D: this node only reads Runner state and drives visuals.
+##
+## Source character: Quaternius Ultimate Modular Men / Casual Hoodie (CC0).
+## The glTF contains one humanoid skin plus 24 baked animation clips.
+##
+## Visual goal: a responsive platform-character silhouette. Physics stays in
+## Runner; this layer exaggerates take-off, apex, landing, sprint, skid and
+## chained jumps without changing collision, timing, networking or controls.
 const CLOTH := Color("e2a334")
-const PANTS := Color("244766")
-const BOOT := Color("382f34")
-const RED := Color("c52f43")
-var body: Node3D
-var head: Node3D
-var arms: Array[Node3D] = []
-var legs: Array[Node3D] = []
-var knees: Array[Node3D] = []
-var elbows: Array[Node3D] = []
-var scarf: Node3D
-var phase := 0.0
-var landing := 0.0
-var was_grounded := true
+const AVATAR_SCENE := preload("res://assets/models/third_party/quaternius/casual_hoodie.gltf")
+const AVATAR_SCALE := 28.0
+
+const LAND_SQUASH_TIME := 0.13
+const TAKEOFF_STRETCH_TIME := 0.10
+const TRIPLE_SPIN_SPEED := TAU * 1.45
+
+const IDLE_CLIPS := ["Idle_Neutral", "Idle"]
+const WALK_CLIPS := ["Walk", "Walking", "Run"]
+const RUN_CLIPS := ["Run", "Running", "Walk"]
+const JUMP_UP_CLIPS := ["Jump_Start", "JumpStart", "Jump_Up", "JumpUp", "Jump", "Idle_Neutral", "Idle"]
+const APEX_CLIPS := ["Jump_Idle", "JumpIdle", "Jump", "Idle_Neutral", "Idle"]
+const FALL_CLIPS := ["Fall", "Falling", "Jump_Fall", "JumpFall", "Jump_Idle", "Jump", "Idle_Neutral", "Idle"]
+const LAND_CLIPS := ["Land", "Landing", "Jump_Land", "JumpLand", "Idle_Neutral", "Idle"]
+const CROUCH_CLIPS := ["Crouch_Idle", "CrouchIdle", "Crouch", "Idle_Neutral", "Idle"]
+const ROLL_CLIPS := ["Roll", "Run"]
+const HIT_CLIPS := ["HitRecieve", "HitReceive", "HitRecieve_2", "HitReact", "Hit", "Idle_Neutral", "Idle"]
+const DEATH_CLIPS := ["Death", "Die", "Idle_Neutral", "Idle"]
+const HANG_CLIPS := ["Climb", "Hang", "Idle_Neutral", "Idle"]
+
+var rig_root: Node3D
+var spin_root: Node3D
+var motion_root: Node3D
+var avatar: Node3D
+var animation_player: AnimationPlayer
+var current_clip: StringName = &""
 var pose := "idle"
-var last_position := Vector2.ZERO
+
+var _was_grounded := true
+var _air_time := 0.0
+var _landing_time := 0.0
+var _last_face := 1
+var _turn_flash := 0.0
 
 func _init(accent: Color = CLOTH) -> void:
-	body = Node3D.new()
-	add_child(body)
-	var m := Recipe.new()
-	m.loft(Vector3(0,16,0),[Vector3(0,6,4),Vector3(3,7,4),Vector3(13,8,4.8),Vector3(16,5.5,3.5)],accent)
-	m.box(Vector3(0,19,0),Vector3(13,2.5,9),BOOT)
-	m.box(Vector3(0,19,5),Vector3(3,2.6,1),Color("f1d582"))
-	m.prism([Vector2(-1,23),Vector2(1,23),Vector2(1,30),Vector2(-1,30)],4.5,1,PANTS)
-	m.box(Vector3(-4,24,4.5),Vector3(3.5,3,1),Color("be772c"))
-	m.loft(Vector3(0,31,0),[Vector3(0,6,4.8),Vector3(3,6.5,5),Vector3(4,4,3)],RED)
-	m.instance(body,"JacketBeltCollar")
-	head = Node3D.new()
-	head.position.y = 34
-	body.add_child(head)
-	m = Recipe.new()
-	m.loft(Vector3.ZERO,[Vector3(-1,4,3.5),Vector3(1,6.5,5),Vector3(7,7,5.5),Vector3(11,5.5,4)],SKIN,10)
-	# Profile nose, ears, eyebrows, cream eyes, pupils and a short mouth.
-	m.gem(Vector3(0,4.5,6),Vector3(3.2,3,3),SKIN,6)
-	for side in [-1,1]:
-		m.gem(Vector3(side*6.7,4,0),Vector3(3,4,3),SKIN,6)
-		m.box(Vector3(side*2.8,5.9,5.25),Vector3(3.4,3.4,1),Color("fff0d3"))
-		m.box(Vector3(side*2.4,5.7,5.85),Vector3(1.4,2.3,.6),Color("253444"))
-		m.box(Vector3(side*2.7,8,5.6),Vector3(3.8,1.1,.8),HAIR)
-	m.box(Vector3(0,1.5,4.8),Vector3(2.5,.7,.8),Color("713f39"))
-	m.loft(Vector3(0,0,-.5),[Vector3(7,7.5,5.8),Vector3(11,7.8,6),Vector3(14,4.5,4),Vector3(15,0,0)],HAIR,10)
-	for lock in [ [Vector2(-7,8),Vector2(-3,6),Vector2(-1,12)], [Vector2(-3,10),Vector2(2,7),Vector2(5,13)], [Vector2(3,11),Vector2(8,8),Vector2(6,14)] ]:
-		m.prism(lock,5.5,2,HAIR.lightened(.06))
-	m.instance(head,"SculptedHead")
-	for side in [-1,1]:
-		var arm := Node3D.new()
-		arm.position = Vector3(side*8,29,0)
-		body.add_child(arm)
-		arms.append(arm)
-		m = Recipe.new()
-		m.loft(Vector3.ZERO,[Vector3(-7,2.1,2.3),Vector3(-3,2.8,2.8),Vector3(1,3,3)],accent,6)
-		m.instance(arm,"Sleeve")
-		var elbow := Node3D.new()
-		elbow.position.y=-7
-		arm.add_child(elbow)
-		elbows.append(elbow)
-		m=Recipe.new()
-		m.loft(Vector3(0,-5,.5),[Vector3(0,1.8,2),Vector3(5,2.1,2.2)],SKIN,6)
-		m.gem(Vector3(0,-6,1),Vector3(4.8,5,5),BOOT,6)
-		m.instance(elbow,"GloveForearm")
-		var leg := Node3D.new()
-		leg.position = Vector3(side*3.8,17,0)
-		body.add_child(leg)
-		legs.append(leg)
-		m = Recipe.new()
-		m.loft(Vector3.ZERO,[Vector3(-8,2.4,2.7),Vector3(1,3.2,3.2)],PANTS,6)
-		m.instance(leg,"Thigh")
-		var knee := Node3D.new()
-		knee.position.y=-8
-		leg.add_child(knee)
-		knees.append(knee)
-		m=Recipe.new()
-		m.loft(Vector3.ZERO,[Vector3(-5,2.4,2.7),Vector3(0,2.5,2.7)],PANTS,6)
-		m.loft(Vector3(0,-9,1.2),[Vector3(0,3.2,4.6),Vector3(2,3.5,4.8),Vector3(5,2.7,3)],BOOT,8)
-		m.box(Vector3(0,-8.7,1.2),Vector3(6,1,8),Color("b99561"))
-		m.instance(knee,"ShinBoot")
-	scarf = Node3D.new()
-	scarf.position = Vector3(-3,32,-3)
-	body.add_child(scarf)
-	m = Recipe.new()
-	m.prism([Vector2(-19,-3),Vector2(-14,-5),Vector2(0,-1),Vector2(0,3),Vector2(-11,1)],0,1.3,RED)
-	m.instance(scarf,"ScarfTail")
+	rig_root = Node3D.new()
+	rig_root.name = "RigRoot"
+	add_child(rig_root)
+
+	spin_root = Node3D.new()
+	spin_root.name = "SpinRoot"
+	rig_root.add_child(spin_root)
+
+	motion_root = Node3D.new()
+	motion_root.name = "MotionRoot"
+	spin_root.add_child(motion_root)
+
+	avatar = AVATAR_SCENE.instantiate()
+	avatar.name = "RiggedLira"
+	motion_root.add_child(avatar)
+	rig_root.scale = Vector3.ONE * AVATAR_SCALE
+
+	animation_player = _find_animation_player(avatar)
+	_disable_shadows(avatar)
+	_apply_accent(avatar, accent)
+	_set_looping(IDLE_CLIPS)
+	_set_looping(WALK_CLIPS)
+	_set_looping(RUN_CLIPS)
+	_play_first(IDLE_CLIPS, 1.0, 0.0)
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child in node.get_children():
+		var found := _find_animation_player(child)
+		if found != null:
+			return found
+	return null
+
+func _disable_shadows(node: Node) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in node.get_children():
+		_disable_shadows(child)
+
+func _apply_accent(node: Node, accent: Color) -> void:
+	if accent != CLOTH and node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh != null:
+			for surface in mesh_instance.mesh.get_surface_count():
+				var source := mesh_instance.mesh.surface_get_material(surface)
+				if source is StandardMaterial3D and source.resource_name in ["Purple", "LightBlue"]:
+					var material := source.duplicate() as StandardMaterial3D
+					material.albedo_color = accent
+					mesh_instance.set_surface_override_material(surface, material)
+	for child in node.get_children():
+		_apply_accent(child, accent)
+
+func _set_looping(candidates: Array) -> void:
+	if animation_player == null:
+		return
+	var clip := _resolve_clip(candidates)
+	if clip == &"":
+		return
+	var animation := animation_player.get_animation(clip)
+	if animation != null:
+		animation.loop_mode = Animation.LOOP_LINEAR
+
+func _play_first(candidates: Array, speed: float = 1.0, blend: float = 0.08) -> void:
+	if animation_player == null:
+		return
+	var clip := _resolve_clip(candidates)
+	if clip == &"":
+		return
+	if current_clip != clip:
+		animation_player.play(clip, blend, speed)
+		current_clip = clip
+	else:
+		animation_player.speed_scale = speed
+
+func _resolve_clip(candidates: Array) -> StringName:
+	if animation_player == null:
+		return &""
+	for candidate in candidates:
+		if animation_player.has_animation(StringName(candidate)):
+			return StringName(candidate)
+	for available in animation_player.get_animation_list():
+		var lower := String(available).to_lower()
+		for candidate in candidates:
+			var wanted := String(candidate).to_lower()
+			if lower.ends_with(wanted) or lower.ends_with("/" + wanted):
+				return StringName(available)
+	return &""
+
+func available_animation_count() -> int:
+	return animation_player.get_animation_list().size() if animation_player != null else 0
 
 func animate(delta: float, velocity: Vector2, grounded: bool, state: int, face: int,
-		crouch: bool = false, pound: bool = false, wall: bool = false) -> void:
+		crouch: bool = false, pound: bool = false, wall: bool = false,
+		jump_chain: int = 0) -> void:
 	var speed := absf(velocity.x)
-	phase += delta * (2.0 + speed*.065)
-	if grounded and not was_grounded: landing = 1.0
-	was_grounded = grounded
-	landing = maxf(0.0,landing-delta*7)
-	var stride := sin(phase)*clampf(speed/190,0,1)*.65
-	var a := Vector2(-stride,stride)
-	var l := Vector2(stride,-stride)
-	var lean := -float(face)*clampf(speed/1600,0,.23)
-	var compact := 1.0-landing*.13
-	pose = "run" if speed>5 else "idle"
-	if speed>300: pose="sprint"
-	if not grounded:
-		pose = "rise" if velocity.y < -45 else ("fall" if velocity.y>45 else "apex")
-		a=Vector2(-.8,.8) if velocity.y<45 else Vector2(-1.6,1.6)
-		l=Vector2(.45,-.65) if velocity.y<0 else Vector2(.18,-.18)
-	if crouch:
-		pose="slide" if speed>80 else "crouch"
-		compact=.62
-		a=Vector2(-.9,.9)
-		l=Vector2(-.65,.65)
-	if state==Runner.State.DASH:
-		pose="dash"
-		lean=-face*.45
-		a=Vector2(face*.9,face*.6)
-		l=Vector2(.7,-.9)
-	if wall or state==Runner.State.HANG:
-		pose="wall"
-		a=Vector2(-face*1.9,-face*1.5)
-		l=Vector2(-face*.5,face*.4)
-	if pound:
-		pose="pound"
-		compact=.7
-		a=Vector2(-2.2,2.2)
-		l=Vector2(-.65,.65)
-	if state==Runner.State.HURT:
-		pose="hurt"
-		a=Vector2(-1.9,1.9)
-		lean=face*.4
-	if state==Runner.State.DEAD:
-		pose="dead"
-		lean=face*1.45
-		compact=.8
-		a=Vector2(-1.8,1.8)
-	if landing>.2 and grounded: pose="land"
-	var blend := 1.0-exp(-delta*18)
-	body.rotation.z=lerp_angle(body.rotation.z,lean,blend)
-	body.rotation.y=lerp_angle(body.rotation.y,face*.5,blend)
-	body.scale.y=lerpf(body.scale.y,compact,blend)
-	body.position.y=lerpf(body.position.y,absf(sin(phase))*1.1 if grounded and speed>5 else 0.0,blend)
-	for i in 2:
-		arms[i].rotation.z=lerp_angle(arms[i].rotation.z,a[i],blend)
-		legs[i].rotation.z=lerp_angle(legs[i].rotation.z,l[i],blend)
-		var knee_bend := maxf(0,sin(phase+float(i)*PI))*.65*clampf(speed/190,0,1) if grounded else .35
-		knees[i].rotation.z=lerp_angle(knees[i].rotation.z,-face*knee_bend,blend)
-		elbows[i].rotation.z=lerp_angle(elbows[i].rotation.z,face*(.5 if speed>5 else .12),blend)
-	scarf.rotation.y=lerp_angle(scarf.rotation.y,0.0 if face>0 else PI,blend)
-	scarf.rotation.z=sin(phase*.65)*.12+clampf(speed/1000,0,.3)
-	head.rotation.z=sin(phase*.3)*.025
+	var clip_speed := clampf(speed / 210.0, 0.72, 1.75)
+	var just_landed := grounded and not _was_grounded
+	var just_left_ground := not grounded and _was_grounded
+
+	if just_landed:
+		_landing_time = LAND_SQUASH_TIME
+		_air_time = 0.0
+	elif grounded:
+		_landing_time = maxf(0.0, _landing_time - delta)
+		_air_time = 0.0
+	else:
+		if just_left_ground:
+			_air_time = 0.0
+			spin_root.rotation.z = 0.0
+		_air_time += delta
+
+	if face != _last_face and grounded and speed > 70.0:
+		_turn_flash = 0.10
+	_turn_flash = maxf(0.0, _turn_flash - delta)
+	_last_face = face
+	_was_grounded = grounded
+
+	var skidding := grounded and speed > 70.0 and signf(velocity.x) != 0.0 		and signi(int(signf(velocity.x))) != face
+	var target_lean := 0.0
+	var target_scale := Vector3.ONE
+	var target_offset_y := 0.0
+
+	if state == Runner.State.DEAD:
+		pose = "dead"
+		_play_first(DEATH_CLIPS, 1.0)
+		target_lean = float(face) * 1.35
+		target_scale = Vector3(1.04, 0.90, 1.04)
+	elif state == Runner.State.HURT:
+		pose = "hurt"
+		_play_first(HIT_CLIPS, 1.0)
+		target_lean = float(face) * 0.34
+		target_scale = Vector3(1.06, 0.92, 1.02)
+	elif pound:
+		pose = "pound"
+		_play_first(ROLL_CLIPS, 1.05)
+		target_scale = Vector3(0.90, 1.10, 0.94)
+		target_lean = -float(face) * 0.08
+	elif wall or state == Runner.State.HANG:
+		pose = "wall" if wall else "hang"
+		_play_first(HANG_CLIPS, 0.85)
+		target_lean = float(face) * 0.13
+		target_scale = Vector3(0.96, 1.04, 1.0)
+	elif crouch:
+		if grounded and speed > 80.0:
+			pose = "slide"
+			_play_first(ROLL_CLIPS, maxf(1.0, clip_speed))
+			target_lean = -float(face) * 0.22
+		else:
+			pose = "crouch"
+			_play_first(CROUCH_CLIPS, 1.0)
+		target_scale = Vector3(1.08, 0.72, 1.04)
+		target_offset_y = -0.02
+	elif not grounded:
+		if velocity.y < -65.0:
+			pose = "rise"
+			_play_first(JUMP_UP_CLIPS, 1.0)
+			target_lean = -float(face) * 0.09
+		elif velocity.y > 90.0:
+			pose = "fall"
+			_play_first(FALL_CLIPS, 1.0)
+			target_lean = float(face) * 0.07
+		else:
+			pose = "apex"
+			_play_first(APEX_CLIPS, 0.9)
+			target_scale = Vector3(1.03, 0.97, 1.02)
+
+		if _air_time < TAKEOFF_STRETCH_TIME:
+			var takeoff := 1.0 - _air_time / TAKEOFF_STRETCH_TIME
+			target_scale.x *= lerpf(1.0, 0.93, takeoff)
+			target_scale.y *= lerpf(1.0, 1.10 + 0.03 * minf(float(jump_chain), 3.0), takeoff)
+
+		# A third chained jump gets a clean forward somersault. It is visual only:
+		# the authoritative 2D body follows exactly the same trajectory as before.
+		if jump_chain >= 3:
+			spin_root.rotation.z += float(face) * TRIPLE_SPIN_SPEED * delta
+		elif jump_chain == 2:
+			target_lean += -float(face) * 0.13
+	elif _landing_time > 0.0:
+		pose = "land"
+		_play_first(LAND_CLIPS, 1.0)
+		var impact := clampf(_landing_time / LAND_SQUASH_TIME, 0.0, 1.0)
+		target_scale = Vector3(
+			lerpf(1.0, 1.13, impact),
+			lerpf(1.0, 0.78, impact),
+			lerpf(1.0, 1.06, impact)
+		)
+	elif state == Runner.State.DASH:
+		pose = "dash"
+		_play_first(RUN_CLIPS, maxf(1.3, clip_speed))
+		target_lean = -float(face) * 0.24
+		target_scale = Vector3(1.02, 0.98, 1.0)
+	elif skidding or _turn_flash > 0.0:
+		pose = "skid"
+		_play_first(RUN_CLIPS, maxf(0.75, clip_speed * 0.75))
+		target_lean = float(face) * 0.26
+		target_scale = Vector3(1.04, 0.96, 1.0)
+	elif speed > 300.0:
+		pose = "sprint"
+		_play_first(RUN_CLIPS, clip_speed)
+		target_lean = -float(face) * 0.13
+	elif speed > 35.0:
+		pose = "run"
+		_play_first(RUN_CLIPS, clip_speed)
+		target_lean = -float(face) * 0.06
+	elif speed > 5.0:
+		pose = "walk"
+		_play_first(WALK_CLIPS, clampf(speed / 150.0, 0.65, 1.1))
+	else:
+		pose = "idle"
+		_play_first(IDLE_CLIPS, 1.0)
+
+	var blend := 1.0 - exp(-delta * 18.0)
+	rig_root.rotation.y = lerp_angle(
+		rig_root.rotation.y,
+		-PI * 0.5 if face >= 0 else PI * 0.5,
+		blend
+	)
+	rig_root.scale = Vector3.ONE * AVATAR_SCALE
+
+	if grounded or jump_chain < 3:
+		spin_root.rotation.z = lerp_angle(spin_root.rotation.z, 0.0, minf(1.0, blend * 1.5))
+	motion_root.rotation.z = lerp_angle(motion_root.rotation.z, target_lean, blend)
+	motion_root.scale = motion_root.scale.lerp(target_scale, blend)
+	motion_root.position.y = lerpf(motion_root.position.y, target_offset_y, blend)

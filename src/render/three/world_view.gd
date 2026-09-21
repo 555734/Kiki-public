@@ -208,7 +208,7 @@ func _process(delta: float) -> void:
 		model.position=point(node.global_position,12)
 		if b.kind=="runner":
 			model.position=point(node.global_position+Vector2(0,Balance.RUNNER_SIZE.y*.5),12)
-			model.animate(delta,node.velocity,node.on_ground(),node.state,node.facing,node.crouching(),node.pounding(),(node.movement_flags()&8)!=0)
+			model.animate(delta,node.velocity,node.on_ground(),node.state,node.facing,node.crouching(),node.pounding(),(node.movement_flags()&8)!=0,node.jump_chain())
 			model.visible=not node.is_invulnerable() or fmod(elapsed*9,1)>.35
 		elif b.kind in ["coin","crystal"]:
 			model.rotation.y=elapsed*2

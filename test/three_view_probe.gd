@@ -39,10 +39,12 @@ func run() -> void:
 	main.input_hub.scripted=true
 	main.input_hub.set_process(true)
 	main.input_hub.move_axis=1.0
+	check(rig.animation_player!=null,"LIRA imports a real AnimationPlayer")
+	check(rig.available_animation_count()>=6,"LIRA exposes imported humanoid animation clips")
+	check(rig._resolve_clip(["Run"])!=&"","rigged LIRA has a run animation")
 	var start_x: float=main.runner.position.x
-	var start_phase: float=rig.phase
 	for i in 20: await get_tree().physics_frame
-	check(main.runner.position.x>start_x+20 and rig.phase>start_phase,"actual Runner movement drives the run cycle")
+	check(main.runner.position.x>start_x+20 and rig.pose in ["walk","run","sprint"],"actual Runner movement drives the imported run cycle")
 	main.input_hub.move_axis=0.0
 	main.input_hub.press_jump()
 	var observed: Dictionary={}
@@ -79,8 +81,11 @@ func run() -> void:
 	if DisplayServer.get_name()!="headless":
 		print("desktop main frame ms median=%.2f p95=%.2f" % [samples[samples.size()/2],samples[int(samples.size()*.95)]])
 	for state in [Runner.State.IDLE,Runner.State.RUN,Runner.State.DASH,Runner.State.JUMP,Runner.State.FALL,Runner.State.HURT,Runner.State.DEAD,Runner.State.HANG]:
-		rig.animate(.1,Vector2(200,-100),state==Runner.State.RUN,state,1)
+		rig.animate(.1,Vector2(200,-100),state==Runner.State.RUN,state,1,false,false,state==Runner.State.HANG,1)
 		check(not rig.pose.is_empty(),"pose mapping for runner state %d" % state)
+	var spin_before: float=rig.spin_root.rotation.z
+	rig.animate(.1,Vector2(260,-260),false,Runner.State.JUMP,1,false,false,false,3)
+	check(absf(rig.spin_root.rotation.z-spin_before)>.2,"third chained jump drives a visual somersault")
 	main.queue_free()
 	await get_tree().process_frame
 	for stage_id in range(1,7):
