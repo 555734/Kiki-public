@@ -1,0 +1,2 @@
+# Blender source files are not Godot runtime resources.  In particular, do not
+# invoke Blender's editor importer when the checked-in GLB is already present.

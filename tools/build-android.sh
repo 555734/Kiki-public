@@ -79,7 +79,9 @@ restore_stamp() {
 trap 'restore; restore_stamp' EXIT
 echo "== build $STAMP =="
 
-echo "== import =="
+cp project.godot project.godot.bak
+sed -E -i 's#renderer/rendering_method.mobile="(mobile|gl_compatibility)"#renderer/rendering_method.mobile="mobile"#' project.godot
+echo "== Vulkan import =="
 godot_run --headless --editor --import --path . >/dev/null
 
 echo "== Vulkan build (mobile renderer) =="
@@ -87,8 +89,7 @@ godot_run --headless --path . --export-release "Android" "$OUT/side-sky-vulkan.a
 	| tee "$OUT/export.log"
 
 echo "== GLES3 build (compatibility renderer) =="
-cp project.godot project.godot.bak
-sed -i 's#renderer/rendering_method.mobile="mobile"#renderer/rendering_method.mobile="gl_compatibility"#' project.godot
+sed -E -i 's#renderer/rendering_method.mobile="(mobile|gl_compatibility)"#renderer/rendering_method.mobile="gl_compatibility"#' project.godot
 godot_run --headless --editor --import --path . >/dev/null
 godot_run --headless --path . --export-release "Android GLES3" "$OUT/side-sky-gles3.apk" \
 	| tee "$OUT/export.log"

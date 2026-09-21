@@ -111,8 +111,8 @@ func _ready() -> void:
 	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and mode != Mode.SOLO:
 		for r in runners:
 			r.set_physics_process(false)
-	if Balance.USE_3D:
-		add_child(preload("res://src/render/three/world_view.gd").new())
+	if Balance.USE_3D_RUNNER:
+		add_child(preload("res://src/render/three/character_view.gd").new())
 
 func _read_command_line() -> void:
 	# The start screen first: on a phone there is no command line, and needing

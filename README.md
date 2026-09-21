@@ -258,9 +258,10 @@ GODOT=/path/to/godot ANDROID_HOME=/path/to/android-sdk tools/build-android.sh
 | ファイル | レンダラ | 性格 |
 |---|---|---|
 | `side-sky-vulkan.apk` | Vulkan（Godot の "mobile"） | 新しい端末で速い |
-| `side-sky-gles3.apk` | GLES3（"compatibility"） | 対応端末が広い。純粋な2Dではこちらが速いことも多い |
+| `side-sky-gles3.apk` | GLES3（"compatibility"） | **既定・推奨**。対応端末が広く、2D主体の現在版ではこちらを優先 |
 
 実機で試せない環境で作っているため、レンダラを1つに賭けずに両方出している。
+通常はGLES3版を使い、対応する新しい端末でのみVulkan版と比較する。
 
 署名は `ci/debug.keystore`（**リポジトリにコミット済み・秘密ではない**）。
 毎回同じ鍵で署名されるので端末に上書きインストールできる。ストア公開には使えない

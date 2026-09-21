@@ -261,14 +261,19 @@ try {
         Write-Warning "Godot console binary was not found; using $Godot. The console build is preferred for synchronous CLI exports."
     }
 
-    Write-Host "`n== import =="
+    # The checked-in default is GLES3 for broad device compatibility. Force
+    # each export explicitly so that changing the default cannot silently turn
+    # both APKs into the same renderer again.
+    $VulkanProject = $ProjectOriginal -replace 'renderer/rendering_method.mobile="(?:mobile|gl_compatibility)"', 'renderer/rendering_method.mobile="mobile"'
+    Write-Utf8NoBom $ProjectPath $VulkanProject
+    Write-Host "`n== Vulkan import =="
     Run-Godot @("--headless", "--editor", "--import", "--path", ".")
 
     Write-Host "`n== Vulkan/mobile APK =="
     Export-Android "Android" $VulkanApk
 
     Write-Host "`n== GLES3/compatibility APK =="
-    $GlesProject = $ProjectOriginal -replace 'renderer/rendering_method.mobile="mobile"', 'renderer/rendering_method.mobile="gl_compatibility"'
+    $GlesProject = $ProjectOriginal -replace 'renderer/rendering_method.mobile="(?:mobile|gl_compatibility)"', 'renderer/rendering_method.mobile="gl_compatibility"'
     Write-Utf8NoBom $ProjectPath $GlesProject
     Run-Godot @("--headless", "--editor", "--import", "--path", ".")
     Export-Android "Android GLES3" $GlesApk

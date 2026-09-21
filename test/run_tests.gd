@@ -1833,7 +1833,10 @@ func _test_the_game_has_a_voice() -> void:
 		await get_tree().physics_frame
 		if main.runner.is_on_floor():
 			break
-	await _physics(6)
+	# Audio's repeat guard uses wall time, while headless fixed-fps physics can
+	# run much faster than wall time. Waiting a frame count made this assertion
+	# fail precisely when rendering became faster.
+	await _wait(Audio.REPEAT_GAP * 2.0)
 
 	# Events in, sound names out. The gap between them is the whole feature.
 	var wiring := [
@@ -1857,6 +1860,10 @@ func _test_the_game_has_a_voice() -> void:
 	for row in wiring:
 		var want: String = row[0]
 		Audio.last_key = ""
+		# This loop verifies event-to-sound wiring, not repeat suppression. A real
+		# landing can occur immediately before this synthetic landing in a fast
+		# headless run, so isolate the key under test explicitly.
+		Audio._last_played.erase(want)
 		# The rate limiter drops a repeat of the SAME key inside 45ms; these are
 		# all different keys, so each one gets through.
 		(row[1] as Callable).call()
@@ -4105,17 +4112,17 @@ func _test_the_aim_stream_is_rationed() -> void:
 	await _frames(2)
 
 	host_side.poll()
-	# Counted over real seconds, and the link has to be advanced to deliver
-	# anything -- a loopback that is not pumped reports zero of everything,
-	# which is what the first version of this check measured.
-	var began := Time.get_ticks_msec()
+	# Count against simulation time. Fixed-fps headless runs may execute 50-80
+	# frames per wall second depending on the machine, but the network throttle
+	# is driven by frame delta and must remain about 20 per simulated second.
+	var frames := Engine.physics_ticks_per_second
 	var aims := 0
-	while Time.get_ticks_msec() - began < 1000:
+	for _i in frames:
 		await _pump(pair, 1)
 		for p in host_side.poll():
 			if int(p["channel"]) == NetTransport.Channel.AIM:
 				aims += 1
-	var elapsed := float(Time.get_ticks_msec() - began) / 1000.0
+	var elapsed := float(frames) / float(Engine.physics_ticks_per_second)
 	var rate := float(aims) / maxf(elapsed, 0.001)
 	check_range(rate, 8.0, 30.0,
 		"the aim stream is around 20 a second, not one per frame (%.0f/s)" % rate)

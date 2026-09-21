@@ -173,8 +173,10 @@ common/physics_ticks_per_second=60
 ; as a *blank* configuration error, so it is worth a note. Comments in this file
 ; must start with ';' -- a '#' line silently swallows the key that follows it.
 textures/vram_compression/import_etc2_astc=true
-renderer/rendering_method="mobile"
-renderer/rendering_method.mobile="mobile"
+; Compatibility/GLES3 is the safe default for older phones. Release scripts
+; still produce a separate Vulkan/mobile build for newer devices.
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
-anti_aliasing/quality/msaa_2d=1
+anti_aliasing/quality/msaa_2d=0
 

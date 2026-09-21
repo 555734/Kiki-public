@@ -60,8 +60,8 @@ func _ready() -> void:
 	match_state = ArenaMatchState.new()
 	hud.arena = self
 	_start_match()
-	if Balance.USE_3D:
-		add_child(preload("res://src/render/three/world_view.gd").new())
+	if Balance.USE_3D_RUNNER:
+		add_child(preload("res://src/render/three/character_view.gd").new())
 
 func _on_joy_changed(_device: int, _connected: bool) -> void:
 	input.assign_devices()
@@ -209,7 +209,7 @@ func _body(f: ArenaFighter) -> void:
 			else f.combat.hit_invuln
 		col.a = 0.45 if (flash / 4) % 2 == 0 else 0.9
 	var body := f.body()
-	if not Balance.USE_3D:
+	if not Balance.USE_3D_RUNNER:
 		DrawUtil.rounded_rect(self, body, 7.0, col)
 		draw_rect(body, ArenaRules.MATE_TRIM[f.actor_id % 2], false, 2.0)
 	else:
@@ -218,7 +218,7 @@ func _body(f: ArenaFighter) -> void:
 
 	# Which way a swing would go.
 	var eye := f.centre() + Vector2(float(f.motor.facing) * 8.0, -12.0)
-	if not Balance.USE_3D: draw_circle(eye, 3.0, Color(0.06, 0.07, 0.10))
+	if not Balance.USE_3D_RUNNER: draw_circle(eye, 3.0, Color(0.06, 0.07, 0.10))
 
 	# Pressure. Not HP and not the coin count -- it only says how far the next
 	# hit will send them (4.2).

@@ -142,8 +142,8 @@ func _ready() -> void:
 	panel.name = "NetPanel"
 	panel.main = self
 	add_child(panel)
-	if Balance.USE_3D:
-		add_child(preload("res://src/render/three/world_view.gd").new())
+	if Balance.USE_3D_RUNNER:
+		add_child(preload("res://src/render/three/character_view.gd").new())
 
 ## Starts hosting for a guardian on the same network. Returns "" or a reason.
 func host_online(port: int) -> String:
