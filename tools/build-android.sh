@@ -87,6 +87,7 @@ godot_run --headless --editor --import --path . >/dev/null
 echo "== Vulkan build (mobile renderer) =="
 godot_run --headless --path . --export-release "Android" "$OUT/side-sky-vulkan.apk" \
 	| tee "$OUT/export.log"
+cp "$OUT/side-sky-vulkan.apk" "$OUT/side-sky-motorola-vulkan.apk"
 
 echo "== GLES3 build (compatibility renderer) =="
 sed -E -i 's#renderer/rendering_method.mobile="(mobile|gl_compatibility)"#renderer/rendering_method.mobile="gl_compatibility"#' project.godot

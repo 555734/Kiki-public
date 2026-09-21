@@ -252,16 +252,17 @@ tools/verify.sh /path/to/godot --shots    # ＋スクリーンショット出力
 GODOT=/path/to/godot ANDROID_HOME=/path/to/android-sdk tools/build-android.sh
 ```
 
-**APK は2本出る。** レンダラは project 設定なので、スクリプトが `project.godot` を
-書き換えて2回書き出す。パッケージ ID が違うので**同じ端末に両方入れて比べられる**。
+ActionsはVulkan版とGLES3版を生成し、Motorola向けにはVulkan版を明示した同一APKも添付する。
+レンダラはproject設定なので、スクリプトが`project.godot`を書き換えて2回書き出す。
 
 | ファイル | レンダラ | 性格 |
 |---|---|---|
 | `side-sky-vulkan.apk` | Vulkan（Godot の "mobile"） | 新しい端末で速い |
-| `side-sky-gles3.apk` | GLES3（"compatibility"） | **既定・推奨**。対応端末が広く、2D主体の現在版ではこちらを優先 |
+| `side-sky-motorola-vulkan.apk` | Vulkan（Godot の "mobile"） | **Motorola / PowerVR端末用**。Astraの3Dステージを維持 |
+| `side-sky-gles3.apk` | GLES3（"compatibility"） | 比較・診断用。Motorolaでは使用しない |
 
-実機で試せない環境で作っているため、レンダラを1つに賭けずに両方出している。
-通常はGLES3版を使い、対応する新しい端末でのみVulkan版と比較する。
+Motorola端末では`side-sky-motorola-vulkan.apk`を使用する。GLES3版は同GPU系統の
+ドライバクラッシュを避けられないため、Motorola向け配布物として扱わない。
 
 署名は `ci/debug.keystore`（**リポジトリにコミット済み・秘密ではない**）。
 毎回同じ鍵で署名されるので端末に上書きインストールできる。ストア公開には使えない
@@ -272,15 +273,12 @@ GODOT=/path/to/godot ANDROID_HOME=/path/to/android-sdk tools/build-android.sh
 ビルド済みの APK を [`dist/`](dist/) に置いてある（[説明](dist/README.md)）。
 端末で直接開けばインストールできる。
 
-CI（`.github/workflows/android.yml`）はブランチへの push、`v*` タグ、Actions タブからの
-手動実行で走り、テストを通したうえで両 APK をビルドして **Release に添付**する。
-ただし**現状このリポジトリでは Actions が起動しない**（run は作られるが数秒で
-ログ無しに終了する＝Actions が利用できない状態。private リポジトリの請求設定が
-よくある原因）。有効化すれば以後は Release が自動で出るので、そのとき `dist/` は消してよい。
+公開リポジトリへのpushで`.github/workflows/android.yml`が走り、テスト後に各APKを
+GitHub Releaseへ添付する。同じpushでiOSワークフローも起動する。
 
 ### iOS ビルド
 
-**Codemagic で行います。GitHub Actions ではありません。**
+公開リポジトリのGitHub ActionsでAndroidと同時にビルドする。
 署名付き（TestFlight 向け）の手順は **[`docs/testflight.md`](docs/testflight.md)** に分けてあります。
 
 このリポジトリでは Actions が動きません——run は生成されるのに、ランナーが割り当てられず

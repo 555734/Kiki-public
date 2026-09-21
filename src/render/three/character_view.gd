@@ -11,6 +11,7 @@ const MODEL_SCALE := 0.20
 const MODEL_FOOT_OFFSET := 0.70 * MODEL_SCALE
 const MAX_RENDER_WIDTH := 720.0
 const MAX_RENDER_SCALE := 0.75
+const FACING_ANGLE := 52.0
 
 var source: Node
 var viewport3d: SubViewport
@@ -197,7 +198,9 @@ func _sync_runner(binding: Dictionary, runner: Runner, delta: float, visible_rec
 	var feet := runner.global_position + Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5)
 	model.position = point(feet, 0.0)
 	model.position.y += MODEL_FOOT_OFFSET
-	model.rotation.y = deg_to_rad(-52.0 * float(runner.facing))
+	# The imported model's positive yaw is screen-right. This deliberately
+	# matches Runner.facing; the old negative sign made every run look backwards.
+	model.rotation.y = deg_to_rad(FACING_ANGLE * float(runner.facing))
 
 	var grounded := runner.on_ground()
 	if grounded and not bool(binding.was_grounded):
@@ -259,7 +262,7 @@ func _sync_arena(delta: float) -> void:
 			var feet := fighter.centre() + Vector2(0.0, ArenaRules.BODY_SIZE.y * 0.5)
 			model.position = point(feet)
 			model.position.y += MODEL_FOOT_OFFSET
-			model.rotation.y = deg_to_rad(-52.0 * float(fighter.motor.facing))
+			model.rotation.y = deg_to_rad(FACING_ANGLE * float(fighter.motor.facing))
 			_play(entry, "run" if absf(fighter.motor.velocity.x) > 8.0 else "idle",
 				clampf(absf(fighter.motor.velocity.x) / 180.0, 0.72, 1.75))
 		arena_models[i] = entry

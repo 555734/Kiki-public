@@ -31,10 +31,12 @@ var client_session: ClientSession = null
 ## One owner for the question, so the panel, the sessions and the diagnostic
 ## cannot disagree about it. See NetLink.
 var link: NetLink = null
+var _home_active: bool = false
 
 func _ready() -> void:
 	link = NetLink.new()
 	link.name = "NetLink"
+	link.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(link)
 
 	input_hub = InputHub.new()
@@ -142,8 +144,32 @@ func _ready() -> void:
 	panel.name = "NetPanel"
 	panel.main = self
 	add_child(panel)
-	if Balance.USE_3D_RUNNER:
-		add_child(preload("res://src/render/three/character_view.gd").new())
+	if Balance.USE_3D:
+		add_child(load("res://src/render/three/world_view.gd").new())
+
+## The home screen is not an overlay over a live match. Its CanvasLayer keeps
+## processing, while this gameplay subtree and the authoritative stage clock
+## stand still until a mode has actually been chosen.
+func suspend_for_home() -> void:
+	_home_active = true
+	process_mode = Node.PROCESS_MODE_DISABLED
+	Clock.set_physics_process(false)
+	GameState.running = false
+
+func resume_from_home(fresh_local_run: bool) -> void:
+	if not _home_active:
+		return
+	_home_active = false
+	if fresh_local_run:
+		Clock.reset(0)
+		GameState.reset_run(Stage.start())
+		# The world was constructed at the start and never advanced. Calling
+		# respawn here would add a post-hit invulnerability window to a brand-new
+		# run, making the first enemy contact appear to do nothing.
+		camera.global_position = runner.global_position
+	Clock.set_physics_process(true)
+	GameState.running = true
+	process_mode = Node.PROCESS_MODE_INHERIT
 
 ## Starts hosting for a guardian on the same network. Returns "" or a reason.
 func host_online(port: int) -> String:
@@ -268,6 +294,7 @@ func _become_host(t: NetTransport) -> void:
 	host_session.name = "HostSession"
 	host_session.main = self
 	host_session.transport = t
+	host_session.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(host_session)
 	# One device, one role: the local player is the runner and owns the whole
 	# screen, rather than the left third of a shared one.
@@ -280,6 +307,7 @@ func _become_client(t: NetTransport) -> void:
 	client_session.name = "ClientSession"
 	client_session.main = self
 	client_session.transport = t
+	client_session.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(client_session)
 	input_hub.solo_role = "guardian"
 	guardian.command_router = client_session
@@ -295,6 +323,7 @@ func _offer_reconnect() -> void:
 	var panel := NetPanel.new()
 	panel.name = "NetPanel"
 	panel.main = self
+	panel.fresh_run = false
 	add_child(panel)
 
 func _process(delta: float) -> void:

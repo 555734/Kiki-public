@@ -536,10 +536,10 @@ const GUARDIAN_PAN_RETURN: float = 2.6
 
 # --------------------------------------------------------------------- art
 const ENABLE_BLOOM: bool = true
-## The retired full-world 3D pass stays off. Original 2D art remains canonical.
-const USE_3D: bool = false
-## Only controllable characters use the Blender-authored mobile model.
-const USE_3D_RUNNER: bool = true
+## Astra's complete 2.5D presentation: terrain, actors, enemies and props.
+const USE_3D: bool = true
+const USE_3D_RUNNER: bool = false
+
 const MAX_PARTICLE_BURSTS: int = 8
 
 ## Online play. ENet over UDP on this port; nothing else needs to be reachable.

@@ -173,10 +173,11 @@ common/physics_ticks_per_second=60
 ; as a *blank* configuration error, so it is worth a note. Comments in this file
 ; must start with ';' -- a '#' line silently swallows the key that follows it.
 textures/vram_compression/import_etc2_astc=true
-; Compatibility/GLES3 is the safe default for older phones. Release scripts
-; still produce a separate Vulkan/mobile build for newer devices.
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+; Astra's complete 3D world uses the mobile renderer. The Android workflow
+; also emits a compatibility build, but Motorola/PowerVR devices must use the
+; explicitly named Vulkan artifact to avoid the GLES3 mesh driver crash.
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
 textures/canvas_textures/default_texture_filter=0
-anti_aliasing/quality/msaa_2d=0
+anti_aliasing/quality/msaa_2d=1
 

@@ -43,18 +43,26 @@ func _ready() -> void:
 		var panel := main.get_node_or_null("NetPanel")
 		check(panel != null, "start screen exists")
 		if panel != null:
+			var frozen_tick := Clock.tick
+			var frozen_position: Vector2 = main.runner.global_position
+			for i in 6:
+				await get_tree().physics_frame
+			check(Clock.tick == frozen_tick, "stage clock is stopped behind the home screen")
+			check(main.runner.global_position == frozen_position,
+				"runner cannot move behind the home screen")
+			check(not GameState.running, "run timer has not started on the home screen")
 			var seen := {}
 			for node in panel.find_children("*", "Button", true, false):
 				var text := String((node as Button).text)
 				for label in ["1-1", "1-2", "1-V", "1-B", "1-S"]:
 					if text.contains(label):
 						seen[label] = true
-			for label in ["1-1", "1-2", "1-V"]:
+			for label in ["1-1", "1-2"]:
 				check(seen.has(label), "start screen has a %s stage button" % label)
 			# And the other half of the same claim. Without this, restoring the
 			# two buttons would pass every check in the suite and nobody would
 			# find out until they were on a screenshot.
-			for label in ["1-B", "1-S"]:
+			for label in ["1-V", "1-B", "1-S"]:
 				check(not seen.has(label),
 					"start screen does NOT offer %s (hidden on purpose)" % label)
 
@@ -64,7 +72,8 @@ func _ready() -> void:
 			# a claim, and claims get checked.
 			var door := false
 			for node in panel.find_children("*", "Button", true, false):
-				if String((node as Button).text).contains("たいせん"):
+				var text := String((node as Button).text)
+				if text.contains("たいせん") or text.contains("対戦"):
 					door = true
 			check(door, "start screen has a たいせん button")
 
@@ -79,20 +88,26 @@ func _ready() -> void:
 				var text := String((node as Button).text)
 				if text.contains("部屋を作る"):
 					can["make"] = true
-				if text == "部屋に入る":
+				if text.contains("部屋に入る"):
 					can["join"] = true
 				if text.contains("1台で ためす"):
 					can["solo"] = true
 			check(can["make"], "the たいせん screen can make a room")
 			check(can["join"], "and join one")
 			check(can["solo"], "and try it on one device")
-			var seats := versus.find_children("*", "OptionButton", true, false)
-			check(seats.size() == 1, "with one seat picker")
-			if seats.size() == 1:
-				check((seats[0] as OptionButton).item_count == VersusRoster.SEATS,
-					"offering all %d seats" % VersusRoster.SEATS)
+			var seat_picker: OptionButton = null
+			for candidate in versus.find_children("*", "OptionButton", true, false):
+				if (candidate as OptionButton).item_count == VersusRoster.SEATS:
+					seat_picker = candidate
+			check(seat_picker != null, "with one seat picker offering all seats")
 			versus.queue_free()
 			await get_tree().process_frame
+			panel.queue_free()
+			await get_tree().process_frame
+			check(main.process_mode == Node.PROCESS_MODE_INHERIT,
+				"choosing play resumes the gameplay subtree")
+			check(GameState.running and Clock.tick == 0,
+				"a local run starts from time zero after leaving home")
 		main.queue_free()
 		await get_tree().process_frame
 

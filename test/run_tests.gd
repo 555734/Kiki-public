@@ -64,13 +64,20 @@ func _wait(seconds: float) -> void:
 ## stage is pinned here rather than left to whatever the game's default happens
 ## to be: a default that moves would silently re-aim two hundred checks at
 ## terrain that is not there.
-func _boot() -> void:
+func _boot(dismiss_home: bool = true) -> void:
 	Stage.use(Stage.Which.GREENFIELD)
 	if main != null:
 		main.free()
 	main = load("res://src/main.tscn").instantiate()
 	add_child(main)
 	await _frames(4)
+	# Production deliberately freezes the world behind the home screen. Logic
+	# probes are already choosing their stage above, so dismiss home before they
+	# begin driving the runner.
+	var panel := main.get_node_or_null("NetPanel")
+	if dismiss_home and panel != null:
+		panel.queue_free()
+		await _frames(2)
 	main.input_hub.scripted = true
 
 func _run_all() -> void:
@@ -744,7 +751,7 @@ func _pump(pair: Array, frames: int) -> void:
 ## that was wrong and the input hand-off around it.
 func _test_connect_screen_responds_to_touch() -> void:
 	_current = "connect screen"
-	await _boot()
+	await _boot(false)
 	check(Input.is_emulating_mouse_from_touch(),
 		"touch is emulated as mouse, or no button can ever be pressed")
 

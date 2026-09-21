@@ -150,7 +150,10 @@ jobs:
           | file | renderer |
           |---|---|
           | `side-sky-vulkan.apk` | Vulkan / Godot mobile |
+          | `side-sky-motorola-vulkan.apk` | **Motorola / PowerVR向け** Vulkan版 |
           | `side-sky-gles3.apk` | GLES3 / Godot compatibility |
+
+          Motorola端末ではGLES3版を使わず、`side-sky-motorola-vulkan.apk`を使用してください。
 
           These APKs are signed with a throwaway key generated only for this
           workflow run. They are for device testing and are not Google Play
