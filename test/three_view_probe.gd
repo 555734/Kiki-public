@@ -81,11 +81,16 @@ func run() -> void:
 	if DisplayServer.get_name()!="headless":
 		print("desktop main frame ms median=%.2f p95=%.2f" % [samples[samples.size()/2],samples[int(samples.size()*.95)]])
 	for state in [Runner.State.IDLE,Runner.State.RUN,Runner.State.DASH,Runner.State.JUMP,Runner.State.FALL,Runner.State.HURT,Runner.State.DEAD,Runner.State.HANG]:
-		rig.animate(.1,Vector2(200,-100),state==Runner.State.RUN,state,1,false,false,state==Runner.State.HANG,1)
+		rig.animate(.1,Vector2(200,-100),state==Runner.State.RUN,state,1,false,false,state==Runner.State.HANG,false,1)
 		check(not rig.pose.is_empty(),"pose mapping for runner state %d" % state)
+	rig.animate(.1,Vector2(-Balance.WALL_JUMP_OUT,Balance.WALL_JUMP_UP),false,Runner.State.JUMP,-1,false,false,false,true,0)
+	check(rig.pose=="wall_kick","wall jump selects a distinct kick pose")
 	var spin_before: float=rig.spin_root.rotation.z
-	rig.animate(.1,Vector2(260,-260),false,Runner.State.JUMP,1,false,false,false,3)
+	rig.animate(.1,Vector2(260,-260),false,Runner.State.JUMP,1,false,false,false,false,3)
 	check(absf(rig.spin_root.rotation.z-spin_before)>.2,"third chained jump drives a visual somersault")
+	for _i in 20:
+		rig.animate(.05,Vector2(260,50),false,Runner.State.FALL,1,false,false,false,false,3)
+	check(absf(rig._triple_spin_angle-TAU)<0.01,"third jump somersault is exactly one full visual turn")
 	main.queue_free()
 	await get_tree().process_frame
 	for stage_id in range(1,7):

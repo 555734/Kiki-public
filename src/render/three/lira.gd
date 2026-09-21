@@ -28,6 +28,8 @@ const ROLL_CLIPS := ["Roll", "Run"]
 const HIT_CLIPS := ["HitRecieve", "HitReceive", "HitRecieve_2", "HitReact", "Hit", "Idle_Neutral", "Idle"]
 const DEATH_CLIPS := ["Death", "Die", "Idle_Neutral", "Idle"]
 const HANG_CLIPS := ["Climb", "Hang", "Idle_Neutral", "Idle"]
+const WALL_KICK_LEFT_CLIPS := ["Kick_Left", "Kick_Right", "Roll", "Run"]
+const WALL_KICK_RIGHT_CLIPS := ["Kick_Right", "Kick_Left", "Roll", "Run"]
 
 var rig_root: Node3D
 var spin_root: Node3D
@@ -42,6 +44,7 @@ var _air_time := 0.0
 var _landing_time := 0.0
 var _last_face := 1
 var _turn_flash := 0.0
+var _triple_spin_angle := 0.0
 
 func _init(accent: Color = CLOTH) -> void:
 	rig_root = Node3D.new()
@@ -138,7 +141,7 @@ func available_animation_count() -> int:
 
 func animate(delta: float, velocity: Vector2, grounded: bool, state: int, face: int,
 		crouch: bool = false, pound: bool = false, wall: bool = false,
-		jump_chain: int = 0) -> void:
+		wall_kick: bool = false, jump_chain: int = 0) -> void:
 	var speed := absf(velocity.x)
 	var clip_speed := clampf(speed / 210.0, 0.72, 1.75)
 	var just_landed := grounded and not _was_grounded
@@ -154,6 +157,7 @@ func animate(delta: float, velocity: Vector2, grounded: bool, state: int, face: 
 		if just_left_ground:
 			_air_time = 0.0
 			spin_root.rotation.z = 0.0
+			_triple_spin_angle = 0.0
 		_air_time += delta
 
 	if face != _last_face and grounded and speed > 70.0:
@@ -182,6 +186,12 @@ func animate(delta: float, velocity: Vector2, grounded: bool, state: int, face: 
 		_play_first(ROLL_CLIPS, 1.05)
 		target_scale = Vector3(0.90, 1.10, 0.94)
 		target_lean = -float(face) * 0.08
+	elif wall_kick:
+		pose = "wall_kick"
+		_play_first(WALL_KICK_RIGHT_CLIPS if face > 0 else WALL_KICK_LEFT_CLIPS, 1.15, 0.035)
+		target_lean = -float(face) * 0.30
+		target_scale = Vector3(0.94, 1.08, 1.0)
+		target_offset_y = 0.015
 	elif wall or state == Runner.State.HANG:
 		pose = "wall" if wall else "hang"
 		_play_first(HANG_CLIPS, 0.85)
@@ -216,12 +226,17 @@ func animate(delta: float, velocity: Vector2, grounded: bool, state: int, face: 
 			target_scale.x *= lerpf(1.0, 0.93, takeoff)
 			target_scale.y *= lerpf(1.0, 1.10 + 0.03 * minf(float(jump_chain), 3.0), takeoff)
 
-		# A third chained jump gets a clean forward somersault. It is visual only:
-		# the authoritative 2D body follows exactly the same trajectory as before.
+		# Chained jumps read as three distinct take-offs. The second carries a
+		# stronger forward pose; the third performs one complete forward somersault.
+		# This is presentation only: the CharacterBody2D remains authoritative.
 		if jump_chain >= 3:
-			spin_root.rotation.z += float(face) * TRIPLE_SPIN_SPEED * delta
+			_play_first(ROLL_CLIPS, 1.20, 0.035)
+			target_scale *= Vector3(0.94, 0.96, 0.96)
+			_triple_spin_angle = minf(TAU, _triple_spin_angle + TRIPLE_SPIN_SPEED * delta)
+			spin_root.rotation.z = float(face) * _triple_spin_angle
 		elif jump_chain == 2:
-			target_lean += -float(face) * 0.13
+			target_lean += -float(face) * 0.16
+			target_scale *= Vector3(0.97, 1.04, 1.0)
 	elif _landing_time > 0.0:
 		pose = "land"
 		_play_first(LAND_CLIPS, 1.0)
@@ -266,6 +281,8 @@ func animate(delta: float, velocity: Vector2, grounded: bool, state: int, face: 
 
 	if grounded or jump_chain < 3:
 		spin_root.rotation.z = lerp_angle(spin_root.rotation.z, 0.0, minf(1.0, blend * 1.5))
+		if grounded:
+			_triple_spin_angle = 0.0
 	motion_root.rotation.z = lerp_angle(motion_root.rotation.z, target_lean, blend)
 	motion_root.scale = motion_root.scale.lerp(target_scale, blend)
 	motion_root.position.y = lerpf(motion_root.position.y, target_offset_y, blend)

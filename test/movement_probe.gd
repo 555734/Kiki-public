@@ -251,6 +251,9 @@ func _walls() -> void:
 		await _tick(2)
 		_ok(runner.velocity.x < 0.0 and runner.velocity.y < 0.0,
 			"kick moves up and away despite held direction")
+		_ok(absf(runner.velocity.x) >= Balance.RUNNER_RUN_SPEED * 1.25,
+			"wall kick leaves with a strong near-sprint outward burst")
+		_ok(runner.wall_kicking(), "wall kick exposes a short presentation pose window")
 		_ok(not runner.can_wall_jump(), "old contact cannot immediately provide a second kick")
 		hub.release_jump()
 		await _tick(8)

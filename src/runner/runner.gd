@@ -42,6 +42,7 @@ var _chain_window: float = 0.0
 var _chain_direction: int = 0
 var _chain_flight: bool = false
 var _wall_kick_lock: float = 0.0
+var _wall_kick_visual: float = 0.0
 var _crouched: bool = false
 var _pound_phase: int = 0  # 0 normal, 1 wind-up, 2 falling
 var _pound_timer: float = 0.0
@@ -265,6 +266,7 @@ func _normal_vertical_step(delta: float) -> void:
 
 func _tick_timers(delta: float) -> void:
 	_wall_kick_lock = maxf(0.0, _wall_kick_lock - delta)
+	_wall_kick_visual = maxf(0.0, _wall_kick_visual - delta)
 	_chain_window = maxf(0.0, _chain_window - delta)
 	if is_on_floor() and not _chain_flight and _chain_window <= 0.0:
 		_reset_jump_chain()
@@ -484,6 +486,7 @@ func _process_normal(delta: float) -> void:
 		facing = signi(int(_wall_normal))
 		_launched = false
 		_wall_kick_lock = Balance.WALL_KICK_LOCK
+		_wall_kick_visual = Balance.WALL_KICK_VISUAL_TIME
 		_reset_jump_chain()
 		_wall_coyote = 0.0
 		_jump_buffer = 0.0
@@ -561,13 +564,18 @@ func pounding() -> bool:
 	return _pound_phase > 0
 
 func movement_flags() -> int:
-	return (1 if _crouched else 0) | (_pound_phase << 1) | (8 if _wall_sliding else 0)
+	return (1 if _crouched else 0) | (_pound_phase << 1) \
+		| (8 if _wall_sliding else 0) | (16 if _wall_kick_visual > 0.0 else 0)
 
 ## The guardian is a puppet: use the host's stance rather than local inputs.
 func apply_movement_flags(flags: int) -> void:
 	_set_crouched((flags & 1) != 0)
 	_pound_phase = clampi((flags >> 1) & 3, 0, 2)
 	_wall_sliding = (flags & 8) != 0
+	_wall_kick_visual = Balance.WALL_KICK_VISUAL_TIME if (flags & 16) != 0 else 0.0
+
+func wall_kicking() -> bool:
+	return _wall_kick_visual > 0.0
 
 ## Speed bonus is sampled once, at take-off. Mid-air sprint never boosts Y.
 static func ground_jump_height(horizontal_speed: float, chain: int = 1) -> float:
@@ -864,6 +872,7 @@ func launch(velocity_out: Vector2) -> void:
 	_pound_phase = 0
 	_wall_coyote = 0.0
 	_wall_kick_lock = 0.0
+	_wall_kick_visual = 0.0
 	velocity = velocity_out
 	if absf(velocity_out.x) > 1.0:
 		facing = signi(int(signf(velocity_out.x)))
@@ -888,6 +897,7 @@ func respawn(at: Vector2) -> void:
 	_reset_jump_chain()
 	_wall_coyote = 0.0
 	_wall_kick_lock = 0.0
+	_wall_kick_visual = 0.0
 	_coyote = 0.0
 	_jump_buffer = 0.0
 	_hang_left = 0.0

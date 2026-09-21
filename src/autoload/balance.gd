@@ -187,10 +187,10 @@ const RUNNER_TIME_TO_AIR_STOP: float = 0.24
 ## Horizontal speed at take-off continuously adds up to 20% height.
 ## A stationary player pressing sprint gets no free height bonus.
 const RUNNER_SPRINT_JUMP_BONUS: float = 0.20
-const RUNNER_CHAIN_WINDOW: float = 0.14
+const RUNNER_CHAIN_WINDOW: float = 0.18
 const RUNNER_CHAIN_MIN_SPEED: float = RUNNER_RUN_SPEED * 1.05
-const RUNNER_DOUBLE_HEIGHT: float = 1.18
-const RUNNER_TRIPLE_HEIGHT: float = 1.38
+const RUNNER_DOUBLE_HEIGHT: float = 1.16
+const RUNNER_TRIPLE_HEIGHT: float = 1.40
 
 const RUNNER_ACCEL: float = RUNNER_RUN_SPEED / RUNNER_TIME_TO_TOP_SPEED
 const RUNNER_FRICTION: float = RUNNER_RUN_SPEED / RUNNER_TIME_TO_STOP
@@ -287,12 +287,14 @@ const AIR_MOMENTUM_DRAG: float = 60.0
 
 # ------------------------------------------------------------- the wall jump
 ## Off a solid wall, including ordinary terrain and guardian walls.
-const WALL_JUMP_HEIGHT: float = 1.9 * B
+const WALL_JUMP_HEIGHT: float = 2.15 * B
 const WALL_JUMP_UP: float = -sqrt(2.0 * RUNNER_GRAVITY * WALL_JUMP_HEIGHT)
-const WALL_JUMP_OUT: float = 1.25 * RUNNER_RUN_SPEED
-const WALL_KICK_LOCK: float = 0.08
-const WALL_SLIDE_SPEED: float = 120.0
+const WALL_JUMP_OUT: float = 1.42 * RUNNER_RUN_SPEED
+const WALL_KICK_LOCK: float = 0.10
+const WALL_SLIDE_SPEED: float = 100.0
 const WALL_COYOTE_TIME: float = 0.12
+## Presentation-only window used to show a distinct kick pose after leaving a wall.
+const WALL_KICK_VISUAL_TIME: float = 0.16
 
 # ----------------------------------------------------------------- the sky
 #
