@@ -1,1 +1,4 @@
-Android CI trigger for recovery/unified 2.5D sync.
+Latest public sync build trigger
+Source: Kiki/recovery-unified 5e7afba
+Assets completed: e0cfd557
+Build request: Android + unsigned iOS
