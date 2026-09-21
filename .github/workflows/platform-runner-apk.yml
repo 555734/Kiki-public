@@ -12,20 +12,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Android SDK
-        run: |
-          SDKMANAGER=/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
@@ -34,7 +26,10 @@ jobs:
         run: unzip -o source.zip
       - name: Build debug APK
         working-directory: prototype-platform-runner
-        run: gradle :app:assembleDebug --no-daemon
+        run: |
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          gradle :app:assembleDebug --no-daemon
       - name: Prepare artifact
         working-directory: prototype-platform-runner
         run: cp app/build/outputs/apk/debug/app-debug.apk PlatformRunner.apk
