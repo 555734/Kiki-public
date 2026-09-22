@@ -51,7 +51,9 @@ STAMP="${BUILD_STAMP:-play-${VERSION_CODE}}"
 sed -i "s/^const BUILD_ID: String = \"dev\"/const BUILD_ID: String = \"$STAMP\"/" src/autoload/balance.gd
 
 echo "== install Android Gradle template =="
-godot_run --headless --path . --install-android-build-template
+# The standalone installer enters Godot's main loop on 4.7.  There is no UI
+# to close in CI, so explicitly exit once installation has completed.
+godot_run --headless --path . --install-android-build-template --quit
 python3 tools/configure-eosg-android.py
 echo "== import Vulkan/mobile project =="
 godot_run --headless --editor --import --path . >/dev/null
