@@ -43,6 +43,8 @@ func _ready() -> void:
 		var panel := main.get_node_or_null("NetPanel")
 		check(panel != null, "start screen exists")
 		if panel != null:
+			check(panel.get("_code") == null,
+				"stage selection is its own first screen")
 			var frozen_tick := Clock.tick
 			var frozen_position: Vector2 = main.runner.global_position
 			for i in 6:
@@ -65,6 +67,14 @@ func _ready() -> void:
 			for label in ["1-V", "1-B", "1-S"]:
 				check(not seen.has(label),
 					"start screen does NOT offer %s (hidden on purpose)" % label)
+
+			panel._show_play_screen()
+			await get_tree().process_frame
+			check(panel.get("_code") != null,
+				"choosing a stage opens the separate play/connect screen")
+			check(panel.find_children("*", "Button", true, false).all(
+				func(button: Button) -> bool: return not button.text.contains("1-2")),
+				"stage cards are not duplicated on the play screen")
 
 			# The versus mode has to be reachable from HERE, with a finger.
 			# It began life behind command-line flags, which on a phone means

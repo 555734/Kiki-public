@@ -22,6 +22,8 @@ func _ready() -> void:
 	var panel := NetPanel.new()
 	add_child(panel)
 	await get_tree().process_frame
+	panel._show_play_screen()
+	await get_tree().process_frame
 	var code_field: LineEdit = panel.get("_code") as LineEdit
 	check(code_field != null, "room code input exists")
 	if code_field != null:

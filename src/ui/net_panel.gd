@@ -16,6 +16,8 @@ var _relay: LineEdit = null
 var _code: LineEdit = null
 
 var _root: Control = null
+var _screen_host: MarginContainer = null
+var _logo: Label = null
 var _stage_1_1: Button = null
 var _stage_1_2: Button = null
 var _local: Button = null
@@ -23,6 +25,7 @@ var _local: Button = null
 ## attempt is in flight, which is the whole of "do not let a second tap build a
 ## second session".
 var _actions: Array[Button] = []
+static var _open_play_after_reload: bool = false
 
 func _ready() -> void:
 	layer = 20
@@ -51,122 +54,247 @@ func _ready() -> void:
 	var backdrop := TextureRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	backdrop.stretch_mode = TextureRect.STRETCH_SCALE
-	var gradient := Gradient.new()
-	gradient.colors = PackedColorArray([
-		Color("071523"), Color("123451"), Color("6c3852")
-	])
-	gradient.offsets = PackedFloat32Array([0.0, 0.58, 1.0])
-	var gradient_texture := GradientTexture2D.new()
-	gradient_texture.gradient = gradient
-	gradient_texture.width = 1280
-	gradient_texture.height = 720
-	gradient_texture.fill_from = Vector2(0.08, 0.0)
-	gradient_texture.fill_to = Vector2(0.92, 1.0)
-	backdrop.texture = gradient_texture
+	backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	backdrop.texture = preload("res://assets/bg/parallax.png")
+	backdrop.modulate = Color(1.12, 1.12, 1.12, 1.0)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(backdrop)
 
 	var veil := ColorRect.new()
 	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
-	veil.color = Color(0.01, 0.025, 0.05, 0.24)
+	veil.color = Color(0.90, 0.97, 1.0, 0.72)
+	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(veil)
 
-	# A CenterContainer rather than an anchor preset plus a hand-computed offset.
-	# The offset version put half the panel off the left edge, which is the kind
-	# of thing that only shows up once someone actually looks at the screen.
-	#
-	# And a ScrollContainer around it, because a phone held sideways is about
-	# 720px tall. Scrolling keeps the stage picker and connection tools reachable
-	# on every aspect ratio.
-	var scroll := ScrollContainer.new()
-	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_root.add_child(scroll)
+	_logo = _title("SIDE / SKY   ✦", 34, Color("0751a5"))
+	_logo.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_logo.position = Vector2(54, 20)
+	_logo.size = Vector2(310, 96)
+	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_logo.z_index = 5
+	_root.add_child(_logo)
 
-	var centre := CenterContainer.new()
-	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	centre.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.add_child(centre)
+	_screen_host = MarginContainer.new()
+	_screen_host.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_screen_host.add_theme_constant_override("margin_left", 54)
+	_screen_host.add_theme_constant_override("margin_top", 112)
+	_screen_host.add_theme_constant_override("margin_right", 54)
+	_screen_host.add_theme_constant_override("margin_bottom", 24)
+	_root.add_child(_screen_host)
 
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(680, 0)
-	card.add_theme_stylebox_override("panel", _panel_style())
-	centre.add_child(card)
-	var margin := MarginContainer.new()
-	for side in ["margin_left", "margin_top", "margin_right", "margin_bottom"]:
-		margin.add_theme_constant_override(side, 24)
-	card.add_child(margin)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	margin.add_child(box)
-
-	box.add_child(_title("SIDE / SKY", 38, Color("f8fbff")))
-	box.add_child(_title("ふたりで道をつくる、横スクロールアクション", 14, Color("9fc8e5")))
-	box.add_child(_spacer(4))
-	box.add_child(_section_title("STAGE SELECT", "遊ぶステージを選択"))
-
-	var stage_row := HBoxContainer.new()
-	stage_row.add_theme_constant_override("separation", 10)
-	_stage_1_1 = _stage_button("", func() -> void: _select_stage(Stage.Which.GREENFIELD), Color("36a8d4"))
-	_stage_1_2 = _stage_button("", func() -> void: _select_stage(Stage.Which.HORROR), Color("d35a72"))
-	_stage_1_1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_stage_1_2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage_row.add_child(_stage_1_1)
-	stage_row.add_child(_stage_1_2)
-	box.add_child(stage_row)
-	_refresh_stage_buttons()
-
-	box.add_child(_spacer(8))
-	box.add_child(_section_title("PLAY", "遊び方を選択"))
-	_local = _button("この1台で 2人プレイを始める", _on_local)
-	_local.custom_minimum_size.y = 58
-	box.add_child(_local)
-
-	box.add_child(_spacer(4))
-	# One way to play apart, not three.
-	box.add_child(_title("オンラインで離れて遊ぶ", 14, Color("8eabc0")))
-	_relay = _field("中継サーバーのURL")
-	_relay.text = Balance.DEFAULT_RELAY
-	box.add_child(_relay)
-	_code = _field("ルーム番号（6桁）")
-	_code.max_length = WebSocketTransport.CODE_LENGTH
-	_code.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
-	box.add_child(_code)
-	box.add_child(_button("部屋を作る（あなたがランナー）", _on_host_relay))
-	box.add_child(_button("ルーム番号で入る（あなたがガーディアン）", _on_join_relay))
-	_load_settings()
-
-	box.add_child(_spacer(6))
-	# たいせん gets one button and its own screen. Everything it needs -- a
-	# relay, a room code, and which of four seats you are taking -- is four
-	# more controls, and putting them here pushed the buttons below the fold on
-	# a 720-tall display. A mode you cannot reach without scrolling is only
-	# slightly better than one you cannot reach without a keyboard.
-	box.add_child(_button("1対1 コイン対戦／チーム戦（1-1）", _on_versus, false))
-
-	box.add_child(_spacer(6))
-	box.add_child(_button("ボタンの位置を変える", _on_layout, false))
-	box.add_child(_button("つながらないときは → 接続診断", _on_diagnose, false))
-	_cancel = _button("やめる（接続を切る）", _on_cancel, false)
-	_cancel.visible = false
-	box.add_child(_cancel)
-
-	box.add_child(_spacer(6))
-	_phase_label = _title("", 14, Color(0.62, 0.92, 0.72))
-	box.add_child(_phase_label)
-	_status = _title("", 15, Color(0.85, 0.92, 1.0))
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size = Vector2(560, 66)
-	box.add_child(_status)
-
-	# The panel does not track the connection itself. It renders whatever the
-	# one owner of that question says, so a stale label cannot outlive the fact.
-	if main != null and main.link != null:
-		main.link.phase_changed.connect(_on_phase)
-		_on_phase(main.link.phase, "")
+	if _open_play_after_reload:
+		_open_play_after_reload = false
+		_show_play_screen()
+	else:
+		_show_stage_screen()
 
 var _phase_label: Label = null
 var _cancel: Button = null
+
+func _clear_screen() -> void:
+	for child in _screen_host.get_children():
+		child.queue_free()
+	_actions.clear()
+	_stage_1_1 = null
+	_stage_1_2 = null
+	_local = null
+	_relay = null
+	_code = null
+	_phase_label = null
+	_status = null
+	_cancel = null
+
+func _show_stage_screen() -> void:
+	_clear_screen()
+	_logo.show()
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 12)
+	_screen_host.add_child(box)
+
+	box.add_child(_title("—  ステージを選択  —", 30, Color("073f89")))
+	box.add_child(_title("遊ぶステージをタップしてください", 15, Color("37638d")))
+	box.add_child(_spacer(8))
+
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 22)
+	box.add_child(row)
+	_stage_1_1 = _stage_card(
+		"1-1", "GREENFIELD PLAINS", "走る・跳ぶ・助け合う最初のステージ",
+		preload("res://assets/bg/parallax.png"), Stage.Which.GREENFIELD, Color("15cf8a"))
+	_stage_1_2 = _stage_card(
+		"1-2", "THE HOLLOW OUTSKIRTS", "月明かりの村を駆け抜ける追跡ステージ",
+		preload("res://assets/bg/horror_stage_1_2.svg"), Stage.Which.HORROR, Color("4688ef"))
+	row.add_child(_stage_1_1)
+	row.add_child(_stage_1_2)
+	_refresh_stage_buttons()
+
+	box.add_child(_title("カードを選ぶと、遊び方の画面へ進みます", 14, Color("416b91")))
+
+func _show_play_screen() -> void:
+	_clear_screen()
+	_logo.show()
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 10)
+	_screen_host.add_child(box)
+	box.add_child(_title("—  遊び方を選択  —", 28, Color("073f89")))
+	box.add_child(_title("一緒に遊ぶ方法を選んでください", 14, Color("37638d")))
+
+	var body := HBoxContainer.new()
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 18)
+	box.add_child(body)
+	body.add_child(_selected_stage_preview())
+
+	var play_card := PanelContainer.new()
+	play_card.custom_minimum_size = Vector2(570, 0)
+	play_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	play_card.add_theme_stylebox_override("panel", _panel_style())
+	body.add_child(play_card)
+	var margin := MarginContainer.new()
+	for side in ["margin_left", "margin_top", "margin_right", "margin_bottom"]:
+		margin.add_theme_constant_override(side, 18)
+	play_card.add_child(margin)
+	var choices := VBoxContainer.new()
+	choices.add_theme_constant_override("separation", 8)
+	margin.add_child(choices)
+
+	choices.add_child(_title("この1台で一緒に遊ぶ", 20, Color("073f89")))
+	_local = _button("▶  この1台で 2人プレイを始める", _on_local)
+	_local.custom_minimum_size.y = 54
+	choices.add_child(_local)
+	choices.add_child(_title("オンラインで離れて遊ぶ", 20, Color("073f89")))
+	_relay = _field("接続先URL")
+	_relay.text = Balance.DEFAULT_RELAY
+	choices.add_child(_relay)
+	_code = _field("ルーム番号（6桁）")
+	_code.max_length = WebSocketTransport.CODE_LENGTH
+	_code.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	choices.add_child(_code)
+	var online_row := HBoxContainer.new()
+	online_row.add_theme_constant_override("separation", 10)
+	var host := _button("＋  部屋を作る", _on_host_relay)
+	var join := _button("→  ルームに入る", _on_join_relay)
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	join.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	online_row.add_child(host)
+	online_row.add_child(join)
+	choices.add_child(online_row)
+	_load_settings()
+
+	_cancel = _button("接続をやめる", _on_cancel, false)
+	_cancel.visible = false
+	choices.add_child(_cancel)
+	_phase_label = _title("", 13, Color("08796e"))
+	choices.add_child(_phase_label)
+	_status = _title("", 13, Color("264c70"))
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status.custom_minimum_size.y = 34
+	choices.add_child(_status)
+
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 10)
+	var back := _button("‹  もどる", _show_stage_screen, false)
+	var versus := _button("1対1 コイン対戦／チーム戦", _on_versus, false)
+	var layout := _button("ボタン配置", _on_layout, false)
+	var diagnose := _button("接続診断", _on_diagnose, false)
+	versus.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(back)
+	footer.add_child(versus)
+	footer.add_child(layout)
+	footer.add_child(diagnose)
+	box.add_child(footer)
+
+	# The panel renders the connection owner's state; it does not invent a
+	# second version of whether a room is connected.
+	if main != null and main.link != null:
+		if not main.link.phase_changed.is_connected(_on_phase):
+			main.link.phase_changed.connect(_on_phase)
+		_on_phase(main.link.phase, "")
+
+func _stage_card(number: String, stage_name: String, description: String,
+		texture: Texture2D, which: int, accent: Color) -> Button:
+	var button := Button.new()
+	button.text = number
+	button.custom_minimum_size = Vector2(0, 390)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.clip_contents = true
+	button.add_theme_font_size_override("font_size", 1)
+	button.add_theme_color_override("font_color", Color.TRANSPARENT)
+	button.add_theme_stylebox_override("normal", _stage_style(Color.WHITE, 0.94, 18, 2))
+	button.add_theme_stylebox_override("hover", _stage_style(accent, 0.28, 18, 4))
+	button.add_theme_stylebox_override("pressed", _stage_style(accent, 0.42, 18, 4))
+	button.pressed.connect(func() -> void: _select_stage(which))
+	_actions.append(button)
+
+	var art := TextureRect.new()
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.texture = texture
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Leave the button's coloured selection rim visible around the artwork.
+	art.offset_left = 5
+	art.offset_top = 5
+	art.offset_right = -5
+	art.offset_bottom = -5
+	button.add_child(art)
+
+	var shade := ColorRect.new()
+	shade.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	shade.offset_top = -106
+	shade.offset_bottom = 0
+	shade.color = Color(0.015, 0.09, 0.18, 0.76)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(shade)
+	var caption := _title("%s   %s\n%s" % [number, stage_name, description], 16, Color.WHITE)
+	caption.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	caption.offset_top = -94
+	caption.offset_bottom = -8
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(caption)
+	var badge := _title("✓", 32, accent)
+	badge.position = Vector2(18, 14)
+	badge.size = Vector2(100, 50)
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	badge.add_theme_color_override("font_outline_color", Color.WHITE)
+	badge.add_theme_constant_override("outline_size", 7)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(badge)
+	button.set_meta("which", which)
+	button.set_meta("accent", accent)
+	button.set_meta("badge", badge)
+	return button
+
+func _selected_stage_preview() -> PanelContainer:
+	var preview := PanelContainer.new()
+	preview.custom_minimum_size = Vector2(500, 0)
+	preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preview.clip_contents = true
+	var accent := Color("4688ef") if Stage.current() == Stage.Which.HORROR else Color("15cf8a")
+	preview.add_theme_stylebox_override("panel", _stage_style(accent, 0.96, 18, 3))
+	var art := TextureRect.new()
+	art.texture = preload("res://assets/bg/horror_stage_1_2.svg") \
+		if Stage.current() == Stage.Which.HORROR else preload("res://assets/bg/parallax.png")
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	preview.add_child(art)
+	var label := _title(
+		"選択中  1-2\nTHE HOLLOW OUTSKIRTS" if Stage.current() == Stage.Which.HORROR \
+		else "選択中  1-1\nGREENFIELD PLAINS", 18, Color.WHITE)
+	label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	label.offset_top = -76
+	label.offset_bottom = -10
+	label.add_theme_color_override("font_outline_color", Color("07325f"))
+	label.add_theme_constant_override("outline_size", 8)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview.add_child(label)
+	return preview
 
 ## Stage buttons are selection, not launch. Rebuilding by reloading the current
 ## scene guarantees every stage-owned object uses the same Stage value; trying
@@ -175,17 +303,26 @@ func _select_stage(which: int) -> void:
 	if main != null and main.link != null and main.link.busy():
 		return
 	if Stage.current() == which:
+		_show_play_screen()
 		return
 	Stage.use(which)
-	get_tree().reload_current_scene()
+	if main != null:
+		_open_play_after_reload = true
+		get_tree().reload_current_scene()
+	else:
+		_show_play_screen()
 
 func _refresh_stage_buttons() -> void:
 	if _stage_1_1 == null or _stage_1_2 == null:
 		return
-	_stage_1_1.text = ("✓ " if Stage.current() == Stage.Which.GREENFIELD else "") \
-		+ "1-1\nGREENFIELD PLAINS\n走る・跳ぶ・助け合う最初のステージ"
-	_stage_1_2.text = ("✓ " if Stage.current() == Stage.Which.HORROR else "") \
-		+ "1-2\nTHE HOLLOW OUTSKIRTS\n暗い村を駆け抜ける追跡ステージ"
+	for button in [_stage_1_1, _stage_1_2]:
+		var selected: bool = int(button.get_meta("which")) == Stage.current()
+		var accent: Color = button.get_meta("accent")
+		var badge: Label = button.get_meta("badge")
+		badge.visible = selected
+		button.add_theme_stylebox_override("normal",
+			_stage_style(accent if selected else Color.WHITE, 0.30 if selected else 0.94,
+				18, 5 if selected else 2))
 	if _local != null:
 		_local.disabled = false
 
@@ -256,10 +393,10 @@ func _field(placeholder: String) -> LineEdit:
 	e.placeholder_text = placeholder
 	e.custom_minimum_size = Vector2(0, 42)
 	e.add_theme_font_size_override("font_size", 16)
-	e.add_theme_color_override("font_color", Color("eef8ff"))
-	e.add_theme_color_override("font_placeholder_color", Color("7593a8"))
-	e.add_theme_stylebox_override("normal", _control_style(Color("18384d"), 0.72, 10))
-	e.add_theme_stylebox_override("focus", _control_style(Color("3da7c8"), 0.38, 10))
+	e.add_theme_color_override("font_color", Color("123f70"))
+	e.add_theme_color_override("font_placeholder_color", Color("8aa5bc"))
+	e.add_theme_stylebox_override("normal", _control_style(Color("eaf4fb"), 0.94, 10))
+	e.add_theme_stylebox_override("focus", _control_style(Color("bce7fb"), 1.0, 10))
 	return e
 
 func _spacer(h: int) -> Control:
@@ -276,12 +413,26 @@ func _section_title(kicker: String, text: String) -> VBoxContainer:
 
 func _panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.065, 0.105, 0.94)
-	style.border_color = Color(0.32, 0.70, 0.86, 0.45)
+	style.bg_color = Color(1.0, 1.0, 1.0, 0.90)
+	style.border_color = Color(0.50, 0.72, 0.88, 0.50)
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(22)
-	style.shadow_color = Color(0, 0, 0, 0.42)
-	style.shadow_size = 18
+	style.set_corner_radius_all(18)
+	style.shadow_color = Color(0.05, 0.30, 0.52, 0.20)
+	style.shadow_size = 12
+	return style
+
+func _stage_style(colour: Color, alpha: float, radius: int, border: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(colour.r, colour.g, colour.b, alpha)
+	style.border_color = colour
+	style.set_border_width_all(border)
+	style.set_corner_radius_all(radius)
+	style.content_margin_left = border
+	style.content_margin_top = border
+	style.content_margin_right = border
+	style.content_margin_bottom = border
+	style.shadow_color = Color(0.05, 0.30, 0.52, 0.22)
+	style.shadow_size = 12
 	return style
 
 func _control_style(colour: Color, alpha: float, radius: int = 12) -> StyleBoxFlat:
@@ -312,11 +463,11 @@ func _button(text: String, handler: Callable, guarded: bool = true) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(0, 50)
-	b.add_theme_font_size_override("font_size", 18)
-	b.add_theme_color_override("font_color", Color("eef8ff"))
-	b.add_theme_stylebox_override("normal", _control_style(Color("33789b"), 0.25))
-	b.add_theme_stylebox_override("hover", _control_style(Color("44a7c7"), 0.38))
-	b.add_theme_stylebox_override("pressed", _control_style(Color("52c2df"), 0.48))
+	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_color_override("font_color", Color("064d92"))
+	b.add_theme_stylebox_override("normal", _control_style(Color("d9f1ff"), 0.96))
+	b.add_theme_stylebox_override("hover", _control_style(Color("86dcf4"), 1.0))
+	b.add_theme_stylebox_override("pressed", _control_style(Color("4ecbdc"), 1.0))
 	var f := Art.font()
 	if f != null:
 		b.add_theme_font_override("font", f)

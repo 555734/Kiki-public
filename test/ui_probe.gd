@@ -34,8 +34,13 @@ func _ready() -> void:
 		"the game's input router stands down while the panel is up")
 
 	if panel != null:
+		var stage_button := _find_button(panel, "1-1")
+		_check(stage_button != null, "the first screen offers stage 1-1")
+		if stage_button != null:
+			await _tap(stage_button.get_global_rect().get_center())
+			await _frames(4)
 		var button := _find_button(panel, "1台")
-		_check(button != null, "the local-play button exists")
+		_check(button != null, "the second screen offers local play")
 		if button != null:
 			await _tap(button.get_global_rect().get_center())
 			_check(not is_instance_valid(panel) or panel.is_queued_for_deletion(),
