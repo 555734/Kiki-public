@@ -282,9 +282,13 @@ Vulkan（Godot mobile）でAstraの3Dステージを使う。Playが端末ごと
 Google Playで最後に使った値より大きいversion codeを指定する。リポジトリには鍵を置かず、
 `google-play` Environmentに次のSecretsを登録する。
 
+ストア用だけはGodot 4.7.2、target API 36、Gradle AABを固定して使う。
+これは2026年8月31日以降のPlay要件と64-bit端末の16 KBページ対応を満たすためで、
+Motorola実機確認済みAPKのGodot 4.4.1系統とは意図的に分離している。
+
 - `ANDROID_UPLOAD_KEYSTORE_BASE64` — Play upload keystoreをBase64化した内容
 - `ANDROID_UPLOAD_KEY_ALIAS` — 鍵のalias
-- `ANDROID_UPLOAD_KEY_PASSWORD` — keystoreと鍵のpassword（Godot 4.4では同じ値）
+- `ANDROID_UPLOAD_KEY_PASSWORD` — keystoreと鍵のpassword（Godotでは同じ値）
 
 この3つが未設定の間は、ストア署名済みAABを作ったことにはならない。
 
