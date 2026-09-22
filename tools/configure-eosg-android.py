@@ -17,6 +17,7 @@ if not client_id:
 
 text = gradle.read_text(encoding="utf-8")
 dependencies = [
+    "coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'",
     "implementation 'androidx.appcompat:appcompat:1.5.1'",
     "implementation 'androidx.constraintlayout:constraintlayout:2.1.4'",
     "implementation 'androidx.security:security-crypto:1.0.0'",
@@ -32,6 +33,16 @@ if missing_dependencies:
     text = text.replace(
         anchor,
         anchor + "\n    // EOS Android SDK dependencies\n    " + "\n    ".join(missing_dependencies),
+        1,
+    )
+
+if "coreLibraryDesugaringEnabled" not in text:
+    anchor = "compileOptions {"
+    if anchor not in text:
+        raise SystemExit("Unknown Godot Android build.gradle: compileOptions block missing")
+    text = text.replace(
+        anchor,
+        anchor + "\n        coreLibraryDesugaringEnabled true",
         1,
     )
 
