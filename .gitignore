@@ -13,6 +13,7 @@ export_presets.cfg.local
 
 # Exported builds
 build/
+android/
 bin/
 *.apk
 *.aab

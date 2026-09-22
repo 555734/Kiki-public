@@ -26,14 +26,18 @@ keytool -genkeypair -v -keystore release.keystore -alias upload \
   -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-Then build with:
+Then build the store AAB with:
 
 ```bash
-KEYSTORE=/secure/path/release.keystore \
-KEYSTORE_USER=upload \
-KEYSTORE_PASSWORD=... \
-  tools/build-android.sh
+GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/secure/path/release.keystore \
+GODOT_ANDROID_KEYSTORE_RELEASE_USER=upload \
+GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=... \
+VERSION_CODE=24 VERSION_NAME=0.2.4 \
+  tools/build-android-play.sh
 ```
+
+The Play artifact is `build/android/side-sky-play.aab`. The Motorola-named APK
+is a sideload test alias of the Vulkan APK and is never submitted separately.
 
 Never commit `.keystore`, `.jks`, `.p8`, `.p12`, `.pem`, provisioning profiles,
 service-account files, `.env` files, or other credentials. `.gitignore` blocks

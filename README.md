@@ -252,7 +252,7 @@ tools/verify.sh /path/to/godot --shots    # ＋スクリーンショット出力
 GODOT=/path/to/godot ANDROID_HOME=/path/to/android-sdk tools/build-android.sh
 ```
 
-ActionsはVulkan版とGLES3版を生成し、Motorola向けにはVulkan版を明示した同一APKも添付する。
+通常のActionsはVulkan版とGLES3版を生成し、Motorola向けにはVulkan版を明示した同一APKも添付する。
 レンダラはproject設定なので、スクリプトが`project.godot`を書き換えて2回書き出す。
 
 | ファイル | レンダラ | 性格 |
@@ -264,9 +264,29 @@ ActionsはVulkan版とGLES3版を生成し、Motorola向けにはVulkan版を明
 Motorola端末では`side-sky-motorola-vulkan.apk`を使用する。GLES3版は同GPU系統の
 ドライバクラッシュを避けられないため、Motorola向け配布物として扱わない。
 
-署名は `ci/debug.keystore`（**リポジトリにコミット済み・秘密ではない**）。
-毎回同じ鍵で署名されるので端末に上書きインストールできる。ストア公開には使えない
-——理由と本番鍵の作り方は [`ci/README.md`](ci/README.md) に。
+通常ActionsのAPKは実行ごとに生成するテスト鍵で署名される。ストア公開には使わない。
+
+#### Google Play提出形式（確定）
+
+Google Playへ提出するのは、`Android Play`プリセットが生成する
+**`side-sky-play.aab` 1本だけ**。Motorola専用アプリを別掲載せず、このAABも
+Vulkan（Godot mobile）でAstraの3Dステージを使う。Playが端末ごとのAPKを生成する。
+
+| 配布先 | 成果物 | 用途 |
+|---|---|---|
+| Google Play | `side-sky-play.aab` | 本番。application IDは`com.sasakiful.sidesky` |
+| GitHub Release | `side-sky-motorola-vulkan.apk` | Motorola実機確認・サイドロード専用 |
+| GitHub Release | `side-sky-gles3.apk` | 比較・診断専用 |
+
+本番AABは公開リポジトリの`Android Play AAB` Actionを手動実行して作る。
+Google Playで最後に使った値より大きいversion codeを指定する。リポジトリには鍵を置かず、
+`google-play` Environmentに次のSecretsを登録する。
+
+- `ANDROID_UPLOAD_KEYSTORE_BASE64` — Play upload keystoreをBase64化した内容
+- `ANDROID_UPLOAD_KEY_ALIAS` — 鍵のalias
+- `ANDROID_UPLOAD_KEY_PASSWORD` — keystoreと鍵のpassword（Godot 4.4では同じ値）
+
+この3つが未設定の間は、ストア署名済みAABを作ったことにはならない。
 
 ### ダウンロード
 

@@ -1,0 +1,93 @@
+name: Android Play AAB
+
+# Store builds are intentionally manual. They use the permanent Play upload key
+# and an operator-supplied version code; ordinary pushes continue to publish
+# throwaway-signed APKs for Motorola and general device testing.
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: "Google Play version code (must exceed the last uploaded build)"
+        required: true
+        default: "24"
+      version_name:
+        description: "Public version name"
+        required: true
+        default: "0.2.4"
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  build-play-bundle:
+    runs-on: ubuntu-latest
+    environment: google-play
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build utilities
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+
+      - name: Cache Godot and export templates
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-stable
+
+      - name: Download Godot and export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          chmod +x ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          curl -sSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q -j /tmp/templates.tpz 'templates/android_*' \
+            -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+
+      - name: Restore Play upload key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          [ -n "$KEYSTORE_BASE64" ] || { echo "ANDROID_UPLOAD_KEYSTORE_BASE64 is not configured" >&2; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/side-sky-upload.jks"
+          chmod 600 "$RUNNER_TEMP/side-sky-upload.jks"
+
+      - name: Configure Godot
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.4.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          EOF
+
+      - name: Build signed Play bundle
+        env:
+          GODOT: /home/runner/godot/Godot_v4.4.1-stable_linux.x86_64
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ runner.temp }}/side-sky-upload.jks
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+          BUILD_STAMP: play-${{ inputs.version_code }}-${{ github.sha }}
+        run: bash tools/build-android-play.sh
+
+      - name: Upload store artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: side-sky-play-${{ inputs.version_code }}
+          path: build/android/side-sky-play.aab
+          if-no-files-found: error
