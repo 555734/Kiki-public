@@ -25,7 +25,15 @@ install_one() {
 		echo "EOSG checksum mismatch for $platform: $actual" >&2
 		exit 1
 	}
-	unzip -q -o "$zip" -d .
+	# Release archives contain a top-level epic-online-services-godot/ folder.
+	# Merge the contents below that folder into the project root so the addon
+	# lands at res://addons/...; extracting directly would create a nested,
+	# invisible project and leave every EOS autoload missing.
+	unpack=$(mktemp -d "${TMPDIR:-/tmp}/side-sky-eosg.XXXXXX")
+	unzip -q -o "$zip" -d "$unpack"
+	test -f "$unpack/epic-online-services-godot/addons/epic-online-services-godot/plugin.cfg"
+	cp -R "$unpack/epic-online-services-godot/." .
+	rm -rf "$unpack"
 }
 
 [ "$#" -gt 0 ] || { echo "usage: $0 <host> <target>" >&2; exit 2; }
