@@ -45,7 +45,7 @@ gradle.write_text(text, encoding="utf-8", newline="\n")
 
 cfg = config.read_text(encoding="utf-8")
 import re
-cfg, count = re.subn(r"minSdk\s*:\s*\d+", "minSdk             : 23", cfg, count=1)
+cfg, count = re.subn(r"minSdk\s*:\s*\d+", "minSdk             : 24", cfg, count=1)
 if count != 1:
     raise SystemExit("Unknown Godot config.gradle: minSdk missing")
 config.write_text(cfg, encoding="utf-8", newline="\n")
