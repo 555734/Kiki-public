@@ -178,7 +178,7 @@ func _test_eos_contracts() -> void:
 		var part = reader.get_data(reader.get_available_bytes())
 		if part[0] == OK:
 			restored.append_array(part[1])
-	check(restored == encoded and restored.sha256_buffer().slice(0, 8) == digest,
+	check(restored == encoded and MigrationState.digest(restored) == digest,
 		"complete migration frame reassembles without corruption")
 	var decoded := MigrationState.decode(restored)
 	check(decoded.get("blob", PackedByteArray()) == blob,

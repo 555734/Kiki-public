@@ -48,7 +48,7 @@ static func capture(main: Node2D) -> PackedByteArray:
 	return var_to_bytes(state)
 
 static func decode(payload: PackedByteArray) -> Dictionary:
-	var value = bytes_to_var(payload, false)
+	var value = bytes_to_var(payload)
 	if typeof(value) != TYPE_DICTIONARY or int(value.get("version", -1)) != VERSION:
 		return {}
 	return value
@@ -73,7 +73,7 @@ static func apply(main: Node2D, state: Dictionary) -> bool:
 static func chunks(payload: PackedByteArray, generation: int, tick: int) -> Array[PackedByteArray]:
 	var out: Array[PackedByteArray] = []
 	var total := ceili(float(payload.size()) / float(CHUNK_BYTES))
-	var digest := payload.sha256_buffer().slice(0, 8)
+	var frame_digest := digest(payload)
 	for index in total:
 		var b := StreamPeerBuffer.new()
 		b.big_endian = false
@@ -83,11 +83,19 @@ static func chunks(payload: PackedByteArray, generation: int, tick: int) -> Arra
 		b.put_u16(index)
 		b.put_u16(total)
 		b.put_u16(payload.size())
-		b.put_data(digest)
+		b.put_data(frame_digest)
 		b.put_data(payload.slice(index * CHUNK_BYTES,
 			mini(payload.size(), (index + 1) * CHUNK_BYTES)))
 		out.append(b.data_array)
 	return out
+
+static func digest(payload: PackedByteArray) -> PackedByteArray:
+	var context := HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256) != OK:
+		return PackedByteArray()
+	if context.update(payload) != OK:
+		return PackedByteArray()
+	return context.finish().slice(0, 8)
 
 static func _node_state(node: Object, fields: Array) -> Dictionary:
 	if node == null or not is_instance_valid(node):

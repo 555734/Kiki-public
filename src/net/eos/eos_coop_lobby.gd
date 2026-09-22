@@ -33,7 +33,7 @@ static func new_code() -> String:
 
 func create_room(stage_id: int) -> bool:
 	desired_role = "host"
-	var lobbies := _lobbies()
+	var lobbies = _lobbies()
 	if lobbies == null:
 		return _fail("EOS Lobbyを利用できません")
 	lobbies.set("presence_enabled", false)
@@ -76,7 +76,7 @@ func join_room(code: String, stage_id: int) -> bool:
 	room_code = code
 	if not valid_code(code):
 		return _fail("ルーム番号は6桁の数字で入力してください")
-	var lobbies := _lobbies()
+	var lobbies = _lobbies()
 	if lobbies == null:
 		return _fail("EOS Lobbyを利用できません")
 	lobbies.set("presence_enabled", false)

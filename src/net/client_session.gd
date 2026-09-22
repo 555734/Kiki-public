@@ -558,7 +558,7 @@ func _absorb_migration_chunk(b: StreamPeerBuffer) -> void:
 		if not frame["parts"].has(part_index):
 			return
 		payload.append_array(frame["parts"][part_index])
-	if payload.size() != payload_size or payload.sha256_buffer().slice(0, 8) != frame["digest"]:
+	if payload.size() != payload_size or MigrationState.digest(payload) != frame["digest"]:
 		_migration_parts.erase(generation)
 		return
 	var decoded := MigrationState.decode(payload)
