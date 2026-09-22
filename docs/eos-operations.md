@@ -37,8 +37,14 @@ secrets.
 Pushes to `main` run `.github/workflows/mobile.yml`, which calls Android and
 iOS builds in parallel with Godot 4.7.2. Android produces the normal Vulkan,
 Motorola Vulkan and GLES3 test APKs. Google Play remains a manual AAB workflow.
-The mobile workflow submits iOS on a normal push when signing secrets exist;
-manual runs can request the unsigned fallback.
+The combined workflow produces the unsigned iOS artifact by default. App Store
+submission is an explicit manual option.
+
+Before the five EOS secrets exist, ordinary test builds use clearly invalid
+`ci-placeholder-*` values so native packaging can still be verified. Those
+artifacts support offline play but cannot create or join online rooms. Android
+Play and App Store submission never allow placeholders and fail before a store
+artifact is produced.
 
 No local build is required for this integration. Script syntax and repository
 checks can run locally, while native Android/iOS compilation belongs to Actions.

@@ -54,6 +54,7 @@ jobs:
           EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
           EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
           EOS_BUILD_VERSION: ${{ github.sha }}
+          EOS_ALLOW_PLACEHOLDER: ${{ inputs.submit_to_app_store_connect && 'false' || 'true' }}
         run: python3 tools/write-eos-credentials.py
 
       - name: Cache Godot and export templates

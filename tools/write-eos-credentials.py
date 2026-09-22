@@ -11,7 +11,15 @@ names = {
 }
 missing = [env for env in names.values() if not os.environ.get(env)]
 if missing:
-    raise SystemExit("Missing EOS build secrets: " + ", ".join(missing))
+    if os.environ.get("EOS_ALLOW_PLACEHOLDER", "").lower() != "true":
+        raise SystemExit("Missing EOS build secrets: " + ", ".join(missing))
+    # Native compile/test builds do not contact EOS. Keep a deliberately
+    # invalid, recognizable credential set so public CI can verify Android and
+    # iOS packaging before an Epic product exists. Store workflows never set
+    # EOS_ALLOW_PLACEHOLDER and therefore remain fail-closed.
+    for env in missing:
+        os.environ[env] = "ci-placeholder-" + env.lower().replace("eos_", "")
+    print("::warning::Using non-production EOS placeholders; online rooms will not work in this artifact")
 
 payload = {key: os.environ[env] for key, env in names.items()}
 payload.update(product_name="SIDE / SKY", product_version=os.environ.get("EOS_BUILD_VERSION", "dev"))

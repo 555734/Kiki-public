@@ -34,6 +34,7 @@ jobs:
           EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
           EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
           EOS_BUILD_VERSION: ${{ github.sha }}
+          EOS_ALLOW_PLACEHOLDER: "true"
         run: python3 tools/write-eos-credentials.py
 
       - name: Install xvfb
