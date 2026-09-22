@@ -31,6 +31,7 @@ var client_session: ClientSession = null
 ## One owner for the question, so the panel, the sessions and the diagnostic
 ## cannot disagree about it. See NetLink.
 var link: NetLink = null
+var eos_room: EosCoopLobby = null
 var _home_active: bool = false
 
 func _ready() -> void:
@@ -189,6 +190,116 @@ func join_online(address: String, port: int) -> String:
 	_become_client(t)
 	return ""
 
+## Internet co-op through EOS Lobby + P2P. These methods are async because EOS
+## login, lobby search and lobby creation are backend operations.
+func host_eos() -> String:
+	if link.busy():
+		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
+	_end_any_session()
+	link.begin("------", "host")
+	if not await EosRuntime.ensure_ready():
+		return _eos_fail(EosRuntime.last_error)
+	eos_room = EosCoopLobby.new()
+	if not await eos_room.create_room(Stage.current()):
+		return _eos_fail(eos_room.last_error)
+	link.room_code = eos_room.room_code
+	link.enter(NetLink.Phase.WAITING_PEER)
+	var t := EosTransport.new()
+	var err := t.open(eos_room)
+	if not err.is_empty():
+		return _eos_fail(err)
+	_watch_eos(t)
+	_become_host(t, "runner")
+	return ""
+
+func join_eos(code: String) -> String:
+	if link.busy():
+		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
+	_end_any_session()
+	link.begin(code, "guest")
+	if not await EosRuntime.ensure_ready():
+		return _eos_fail(EosRuntime.last_error)
+	eos_room = EosCoopLobby.new()
+	if not await eos_room.join_room(code, Stage.current()):
+		return _eos_fail(eos_room.last_error)
+	link.enter(NetLink.Phase.HANDSHAKING)
+	var t := EosTransport.new()
+	var err := t.open(eos_room)
+	if not err.is_empty():
+		return _eos_fail(err)
+	_watch_eos(t)
+	_become_client(t, "guardian")
+	return ""
+
+func _watch_eos(t: EosTransport) -> void:
+	t.peer_connected.connect(func() -> void:
+		link.note("EOS P2Pで相手と接続しました")
+		if link.phase != NetLink.Phase.PLAYING:
+			link.enter(NetLink.Phase.HANDSHAKING))
+	t.peer_disconnected.connect(func() -> void:
+		link.note("EOS P2Pの相手が切断されました"))
+	t.failed.connect(func(reason: String) -> void:
+		link.last_error = reason
+		link.enter(NetLink.Phase.FAILED, reason))
+	t.authority_changed.connect(_on_eos_authority_changed.bind(t))
+
+func _eos_fail(reason: String) -> String:
+	link.last_error = reason
+	link.enter(NetLink.Phase.FAILED, reason)
+	return reason
+
+## EOS owns the election. This callback never runs from a local silence timer,
+## which prevents both phones becoming authoritative during a network split.
+func _on_eos_authority_changed(local_owner: bool, epoch: int,
+		t: EosTransport) -> void:
+	Clock.set_physics_process(false)
+	GameState.running = false
+	link.enter(NetLink.Phase.RECONNECTING, "ホストを切り替えています")
+	if local_owner and client_session != null:
+		var state := client_session.latest_migration_state()
+		if state.is_empty():
+			_end_any_session()
+			_eos_fail("500ms以内の復旧状態がないため、安全にホストを移せません")
+			_offer_reconnect()
+			return
+		_detach_sessions_keep_transport()
+		_restore_authoritative_physics()
+		if not MigrationState.apply(self, state):
+			_end_any_session()
+			_eos_fail("ホスト移譲状態を復元できません")
+			_offer_reconnect()
+			return
+		_start_host_session(t, "guardian")
+		host_session.announce_authority(epoch)
+		Events.notice.emit("ホストを引き継ぎました")
+	elif not local_owner and host_session != null:
+		# The old authority returns as a runner client. Its role does not change.
+		_detach_sessions_keep_transport()
+		_start_client_session(t, "runner")
+		Events.notice.emit("新しいホストに接続し直しています")
+	Clock.set_physics_process(true)
+	GameState.running = true
+
+func _detach_sessions_keep_transport() -> void:
+	for session in [host_session, client_session]:
+		if session == null or not is_instance_valid(session):
+			continue
+		session.set("transport", null)
+		session.set_process(false)
+		session.set_physics_process(false)
+		remove_child(session)
+		session.queue_free()
+	host_session = null
+	client_session = null
+	guardian.command_router = null
+	input_hub.runner_driven_remotely = false
+
+func _restore_authoritative_physics() -> void:
+	runner.set_physics_process(true)
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if node is Node:
+			(node as Node).set_physics_process(true)
+
 ## The same two roles, over the internet. A direct connection needs one side to
 ## have a reachable address; two people in different houses do not have one, so
 ## both dial out to a relay instead. Everything above the transport is unchanged
@@ -271,7 +382,9 @@ func _end_any_session() -> void:
 		ended = true
 	host_session = null
 	client_session = null
+	eos_room = null
 	guardian.command_router = null
+	input_hub.runner_driven_remotely = false
 	# Only when something was actually ended. _become_host and _become_client
 	# call this too, so an attempt that has just been started -- torn down,
 	# then begun, then handed to _become_* -- would otherwise reset its own
@@ -287,30 +400,40 @@ func _end_any_session() -> void:
 		if e is Node:
 			(e as Node).set_physics_process(true)
 
-func _become_host(t: NetTransport) -> void:
+func _become_host(t: NetTransport, role: String = "runner") -> void:
 	_end_any_session()
+	_start_host_session(t, role)
+
+func _start_host_session(t: NetTransport, role: String) -> void:
 	net_mode = Net.HOST
 	host_session = HostSession.new()
 	host_session.name = "HostSession"
 	host_session.main = self
 	host_session.transport = t
+	host_session.local_role = role
 	host_session.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(host_session)
 	# One device, one role: the local player is the runner and owns the whole
 	# screen, rather than the left third of a shared one.
-	input_hub.solo_role = "runner"
+	input_hub.solo_role = role
+	input_hub.runner_driven_remotely = role == "guardian"
 
-func _become_client(t: NetTransport) -> void:
+func _become_client(t: NetTransport, role: String = "guardian") -> void:
 	_end_any_session()
+	_start_client_session(t, role)
+
+func _start_client_session(t: NetTransport, role: String) -> void:
 	net_mode = Net.CLIENT
 	client_session = ClientSession.new()
 	client_session.name = "ClientSession"
 	client_session.main = self
 	client_session.transport = t
+	client_session.local_role = role
 	client_session.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(client_session)
-	input_hub.solo_role = "guardian"
-	guardian.command_router = client_session
+	input_hub.solo_role = role
+	input_hub.runner_driven_remotely = false
+	guardian.command_router = client_session if role == "guardian" else null
 	# Giving up must not be a dead end. Ninety seconds of failed reconnection
 	# used to leave a banner on a frozen world with nothing to press; the
 	# connect screen is where the room code and the diagnostic live, so that is

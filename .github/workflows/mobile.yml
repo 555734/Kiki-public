@@ -1,0 +1,36 @@
+name: Mobile Android + iOS
+
+on:
+  push:
+    branches: [main, recovery/unified]
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "project.godot"
+      - "export_presets.cfg"
+      - "tools/**"
+      - "test/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+    inputs:
+      submit_ios:
+        description: "Sign and upload iOS to App Store Connect"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    uses: ./.github/workflows/android.yml
+    secrets: inherit
+
+  ios:
+    uses: ./.github/workflows/ios.yml
+    with:
+      # Recovery pushes prove the native iOS build but never upload a
+      # development branch to App Store Connect.
+      submit_to_app_store_connect: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.submit_ios }}
+    secrets: inherit

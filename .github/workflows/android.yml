@@ -4,17 +4,7 @@ name: Android
 # The private source branch is recovery/unified; this workflow is intended to
 # run automatically only after that snapshot is synced to Kiki-public/main.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "assets/**"
-      - "project.godot"
-      - "export_presets.cfg"
-      - "tools/**"
-      - "test/**"
-      - ".github/workflows/android.yml"
+  workflow_call:
   workflow_dispatch:
 
 concurrency:
@@ -25,13 +15,26 @@ permissions:
   contents: write
 
 env:
-  GODOT_VERSION: 4.4.1
+  GODOT_VERSION: 4.7.2
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install pinned EOSG for Linux host and Android target
+        run: bash tools/install-eosg.sh linux android
+
+      - name: Write EOS development credentials
+        env:
+          EOS_PRODUCT_ID: ${{ secrets.EOS_PRODUCT_ID }}
+          EOS_SANDBOX_ID: ${{ secrets.EOS_SANDBOX_ID }}
+          EOS_DEPLOYMENT_ID: ${{ secrets.EOS_DEPLOYMENT_ID }}
+          EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
+          EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
+          EOS_BUILD_VERSION: ${{ github.sha }}
+        run: python3 tools/write-eos-credentials.py
 
       - name: Install xvfb
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
@@ -77,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.config/godot
-          cat > ~/.config/godot/editor_settings-4.4.tres <<EOF
+          cat > ~/.config/godot/editor_settings-4.7.tres <<EOF
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
@@ -98,6 +101,7 @@ jobs:
           set -euo pipefail
           export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
           "$GODOT" --headless --path . res://test/check_scripts.tscn
+          "$GODOT" --headless --path . res://test/run_tests.tscn
           "$GODOT" --headless --path . res://test/touch_feel_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/movement_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/workshop_probe.tscn
@@ -105,22 +109,6 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_net_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
           "$GODOT" --headless --path . --quit-after 240
-
-      # This checks the DEPLOYED worker, not only server/signaling/test4.mjs.
-      # Keep the diagnostic APK available even when the worker is outdated.
-      - name: Probe deployed versus relay (expect HTTP 426)
-        run: |
-          set -uo pipefail
-          URL="https://side-sky-signalling.a3506124.workers.dev/room4/ABC234"
-          code=$(curl --silent --show-error --max-time 12 \
-            --output /tmp/versus-route-response.txt \
-            --write-out '%{http_code}' "$URL") || code="000"
-          echo "Deployed relay: GET $URL -> HTTP $code (426 means /room4 exists)"
-          head -c 300 /tmp/versus-route-response.txt 2>/dev/null || true
-          echo
-          if [ "$code" != "426" ]; then
-            echo "::warning::Deployed versus relay returned HTTP $code, expected 426. Room4 may not be deployed or reachable; this APK includes connection diagnostics."
-          fi
 
       - name: Build both APKs
         run: |
@@ -153,7 +141,7 @@ jobs:
           | `side-sky-motorola-vulkan.apk` | **Motorola / PowerVR向け** Vulkan版 |
           | `side-sky-gles3.apk` | GLES3 / Godot compatibility |
 
-          Motorola端末ではGLES3版を使わず、`side-sky-motorola-vulkan.apk`を使用してください。
+          Motorola端末では最初に`side-sky-motorola-vulkan.apk`を使用し、描画互換性の比較時だけGLES3版を使用してください。
 
           These APKs are signed with a throwaway key generated only for this
           workflow run. They are for device testing and are not Google Play

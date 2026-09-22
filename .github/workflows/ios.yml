@@ -4,16 +4,12 @@ name: iOS
 # - normal push: require complete signing credentials and submit to App Store Connect
 # - manual run with submit_to_app_store_connect=false: build the unsigned IPA fallback
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "assets/**"
-      - "project.godot"
-      - "export_presets.cfg"
-      - "tools/**"
-      - ".github/workflows/ios.yml"
+  workflow_call:
+    inputs:
+      submit_to_app_store_connect:
+        required: false
+        default: true
+        type: boolean
   workflow_dispatch:
     inputs:
       submit_to_app_store_connect:
@@ -30,7 +26,7 @@ permissions:
   contents: write
 
 env:
-  GODOT_VERSION: 4.4.1
+  GODOT_VERSION: 4.7.2
   CODEMAGIC_CLI_VERSION: 0.67.0
 
 jobs:
@@ -46,6 +42,19 @@ jobs:
       IOS_CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERTIFICATE_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install pinned EOSG for macOS host and iOS target
+        run: bash tools/install-eosg.sh macos ios
+
+      - name: Write EOS development credentials
+        env:
+          EOS_PRODUCT_ID: ${{ secrets.EOS_PRODUCT_ID }}
+          EOS_SANDBOX_ID: ${{ secrets.EOS_SANDBOX_ID }}
+          EOS_DEPLOYMENT_ID: ${{ secrets.EOS_DEPLOYMENT_ID }}
+          EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
+          EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
+          EOS_BUILD_VERSION: ${{ github.sha }}
+        run: python3 tools/write-eos-credentials.py
 
       - name: Cache Godot and export templates
         id: godot-cache
@@ -75,10 +84,7 @@ jobs:
           MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect }}
         run: |
           set -euo pipefail
-          requested=true
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "${MANUAL_SUBMIT:-true}" != "true" ]; then
-            requested=false
-          fi
+          requested="${MANUAL_SUBMIT:-true}"
 
           if [ "$requested" = false ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"

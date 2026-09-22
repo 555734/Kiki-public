@@ -12,7 +12,6 @@ var main: Node2D = null
 var fresh_run: bool = true
 
 var _status: Label = null
-var _relay: LineEdit = null
 var _code: LineEdit = null
 
 var _root: Control = null
@@ -98,7 +97,6 @@ func _clear_screen() -> void:
 	_stage_1_1 = null
 	_stage_1_2 = null
 	_local = null
-	_relay = null
 	_code = null
 	_phase_label = null
 	_status = null
@@ -168,23 +166,19 @@ func _show_play_screen() -> void:
 	_local.custom_minimum_size.y = 54
 	choices.add_child(_local)
 	choices.add_child(_title("オンラインで離れて遊ぶ", 20, Color("073f89")))
-	_relay = _field("接続先URL")
-	_relay.text = Balance.DEFAULT_RELAY
-	choices.add_child(_relay)
 	_code = _field("ルーム番号（6桁）")
-	_code.max_length = WebSocketTransport.CODE_LENGTH
+	_code.max_length = EosCoopLobby.CODE_LENGTH
 	_code.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
 	choices.add_child(_code)
 	var online_row := HBoxContainer.new()
 	online_row.add_theme_constant_override("separation", 10)
-	var host := _button("＋  部屋を作る", _on_host_relay)
-	var join := _button("→  ルームに入る", _on_join_relay)
+	var host := _button("＋  部屋を作る", _on_host_eos)
+	var join := _button("→  ルームに入る", _on_join_eos)
 	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	join.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	online_row.add_child(host)
 	online_row.add_child(join)
 	choices.add_child(online_row)
-	_load_settings()
 
 	_cancel = _button("接続をやめる", _on_cancel, false)
 	_cancel.visible = false
@@ -199,12 +193,11 @@ func _show_play_screen() -> void:
 	var footer := HBoxContainer.new()
 	footer.add_theme_constant_override("separation", 10)
 	var back := _button("‹  もどる", _show_stage_screen, false)
-	var versus := _button("1対1 コイン対戦／チーム戦", _on_versus, false)
 	var layout := _button("ボタン配置", _on_layout, false)
-	var diagnose := _button("接続診断", _on_diagnose, false)
-	versus.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var diagnose := _button("接続記録", _on_diagnose, false)
 	footer.add_child(back)
-	footer.add_child(versus)
+	# Internet versus still uses the retired Cloudflare relay. Keep its release
+	# entry hidden until the separate EOS versus migration is complete.
 	footer.add_child(layout)
 	footer.add_child(diagnose)
 	box.add_child(footer)
@@ -340,7 +333,7 @@ func _on_phase(phase: int, detail: String) -> void:
 		_phase_label.text += "  （%s）" % detail
 	match phase:
 		NetLink.Phase.DIALLING:
-			_status.text = "中継サーバーにつないでいます…"
+			_status.text = "EOSに接続しています…"
 		NetLink.Phase.WAITING_PEER:
 			if main.link.desired_role == "host":
 				_status.text = "ルーム番号：%s\n相手にこの6桁を伝えてください。" % main.link.room_code
@@ -350,7 +343,7 @@ func _on_phase(phase: int, detail: String) -> void:
 				_failed("このルーム番号の部屋には、まだ誰もいません。\n"
 					+ "・相手が『部屋を作る』を押しているか\n"
 					+ "・6桁の番号が一つも違っていないか\n"
-					+ "を確かめてください（中継サーバー自体は繋がっています）")
+					+ "を確かめてください")
 		NetLink.Phase.HANDSHAKING:
 			_status.text = "相手が来ました。ゲームを始められるか確認しています…"
 		NetLink.Phase.PLAYING:
@@ -486,17 +479,12 @@ func _on_local() -> void:
 ## Hands differ and so do phones. The defaults are a guess; this is where the
 ## guess gets corrected.
 # ------------------------------------------------------------------ たいせん
-func _on_versus() -> void:
-	add_child(preload("res://src/ui/versus_panel.gd").new())
-
 func _on_layout() -> void:
 	add_child(LayoutEditor.new())
 
 func _on_diagnose() -> void:
 	var panel := NetDiagnostics.new()
-	panel.relay = _relay.text.strip_edges()
-	if panel.relay.is_empty():
-		panel.relay = Balance.DEFAULT_RELAY
+	panel.relay = ""
 	add_child(panel)
 
 ## Anything that goes wrong offers the report rather than making the player go
@@ -504,36 +492,23 @@ func _on_diagnose() -> void:
 func _failed(message: String) -> void:
 	_status.text = message + "\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。"
 
-func _on_host_relay() -> void:
-	var relay := _relay.text.strip_edges()
-	if relay.is_empty():
-		_status.text = "中継サーバーのURLを入れてください（server/signaling/README.md に立て方があります）"
-		return
-	# Generated here rather than typed, so two hosts cannot collide on the same
-	# room. If the relay says we joined as the guest, someone already had it.
-	var code := WebSocketTransport.new_code()
-	_code.text = code
-	var err: String = main.host_relay(relay, code)
+func _on_host_eos() -> void:
+	var err: String = await main.host_eos()
 	if err != "":
 		_failed("失敗：" + err)
 		return
-	_save_settings(relay)
+	_code.text = main.link.room_code
 	_wait_for_handshake(main.host_session)
 
-func _on_join_relay() -> void:
-	var relay := _relay.text.strip_edges()
+func _on_join_eos() -> void:
 	var code := _code.text.strip_edges()
-	if relay.is_empty():
-		_status.text = "中継サーバーのURLを入れてください"
-		return
-	if not WebSocketTransport.valid_code(code):
+	if not EosCoopLobby.valid_code(code):
 		_status.text = "ルーム番号は6桁の数字で入力してください"
 		return
-	var err: String = main.join_relay(relay, code)
+	var err: String = await main.join_eos(code)
 	if err != "":
 		_failed("失敗：" + err)
 		return
-	_save_settings(relay)
 	_wait_for_handshake(main.client_session)
 
 ## The joining device closes this screen only once the HOST has answered, not
@@ -556,15 +531,3 @@ func _wait_for_handshake(session: Node) -> void:
 
 ## A saved relay wins over the built-in default, so pointing at a different
 ## deployment survives a restart.
-func _load_settings() -> void:
-	var saved := NetLink.recall("relay")
-	if not saved.is_empty():
-		_relay.text = saved
-
-## Only the relay URL is remembered. The room code is deliberately not: it is a
-## one-session password, and offering a stale one invites joining a dead room.
-## Through NetLink, which owns the file. Writing it here meant writing it from
-## two places, and this one used to replace the whole file with a single key --
-## taking the device's own name down with it.
-func _save_settings(relay: String) -> void:
-	NetLink.remember("relay", relay)

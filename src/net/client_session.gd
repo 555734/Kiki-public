@@ -18,6 +18,7 @@ const BUFFER_MAX: int = 20
 
 var main: Node2D = null
 var transport: NetTransport = null
+var local_role: String = "guardian"
 
 var _buffer: Array[Snapshot] = []
 var _interp_ticks: int = INTERP_MIN
@@ -83,6 +84,11 @@ var _silence: float = 0.0
 var _down_for: float = -1.0
 var _retry_in: float = 0.0
 var _tries: int = 0
+var _runner_input_accumulator: float = 0.0
+var _runner_input_sequence: int = 0
+var _migration_parts: Dictionary = {}
+var _latest_migration: Dictionary = {}
+var _latest_migration_received_ms: int = -1
 
 signal disconnected
 ## The host has answered the handshake. Not the same event as the transport
@@ -107,7 +113,8 @@ func _ready() -> void:
 	# shooting one did nothing: the host was asked to hit a place it had left.
 	Events.level_rebuilt.connect(_take_over_local_world)
 	transport.send(NetTransport.Channel.CONTROL,
-		NetTransport.Reliability.RELIABLE_ORDERED, Protocol.hello(NetLink.client_id(), Stage.current()))
+		NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.hello(NetLink.client_id(), Stage.current(), local_role))
 
 ## Switch off everything the host owns. Leaving these running would not just
 ## waste frames -- a locally simulated runner would visibly disagree with the
@@ -147,7 +154,7 @@ func _process(delta: float) -> void:
 	# and the relay forwards strictly in order: the guardian's own flood was in
 	# front of the snapshots they were waiting for.
 	_aim_accumulator += delta
-	if _down_for < 0.0 and _aim_accumulator >= AIM_EVERY:
+	if local_role == "guardian" and _down_for < 0.0 and _aim_accumulator >= AIM_EVERY:
 		_aim_accumulator = 0.0
 		_send_aim()
 	_ping_accumulator += delta
@@ -158,7 +165,17 @@ func _process(delta: float) -> void:
 			NetTransport.Reliability.RELIABLE_ORDERED, Protocol.ping(_last_ping_ms))
 		if not _welcomed:
 			transport.send(NetTransport.Channel.CONTROL,
-				NetTransport.Reliability.RELIABLE_ORDERED, Protocol.hello(NetLink.client_id(), Stage.current()))
+				NetTransport.Reliability.RELIABLE_ORDERED,
+				Protocol.hello(NetLink.client_id(), Stage.current(), local_role))
+	if local_role == "runner" and _down_for < 0.0:
+		_runner_input_accumulator += delta
+		if _runner_input_accumulator >= 1.0 / 30.0:
+			_runner_input_accumulator = 0.0
+			_runner_input_sequence = (_runner_input_sequence + 1) & 0xFFFF
+			transport.send(NetTransport.Channel.AIM, NetTransport.Reliability.UNRELIABLE,
+				Protocol.runner_input(main.input_hub.move_axis, main.input_hub.move_axis_y,
+					main.input_hub.jump_held, main.input_hub.dash_held,
+					_runner_input_sequence))
 
 ## Is the link up, and if not, keep trying.
 ##
@@ -262,7 +279,15 @@ func _send_hello() -> void:
 	_welcomed = false
 	_restoring = true
 	transport.send(NetTransport.Channel.CONTROL,
-		NetTransport.Reliability.RELIABLE_ORDERED, Protocol.hello(NetLink.client_id(), Stage.current()))
+		NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.hello(NetLink.client_id(), Stage.current(), local_role))
+
+func migration_state_is_fresh() -> bool:
+	return not _latest_migration.is_empty() and _latest_migration_received_ms >= 0 \
+		and Time.get_ticks_msec() - _latest_migration_received_ms <= MigrationState.MAX_AGE_MS
+
+func latest_migration_state() -> Dictionary:
+	return _latest_migration.duplicate(true) if migration_state_is_fresh() else {}
 
 func _recovered() -> void:
 	_down_for = -1.0
@@ -420,6 +445,8 @@ func _handle(packet: Dictionary) -> void:
 	var kind: int = parsed[0]
 	var b: StreamPeerBuffer = parsed[1]
 	match kind:
+		Protocol.Msg.MIGRATION_CHUNK:
+			_absorb_migration_chunk(b)
 		Protocol.Msg.WELCOME:
 			_link().enter(NetLink.Phase.PLAYING)
 			Clock.tick = int(b.get_u32())
@@ -429,8 +456,10 @@ func _handle(packet: Dictionary) -> void:
 			# the two are recorded separately on purpose -- see Party.
 			var host_id := b.get_utf8_string()
 			party.clear()
-			party.seat(NetLink.client_id(), Party.ROLE_GUARDIAN)
-			party.seat(host_id, Party.ROLE_RUNNER)
+			party.seat(NetLink.client_id(), Party.ROLE_RUNNER \
+				if local_role == "runner" else Party.ROLE_GUARDIAN)
+			party.seat(host_id, Party.ROLE_GUARDIAN \
+				if local_role == "runner" else Party.ROLE_RUNNER)
 			var first := not _welcomed
 			_welcomed = true
 			if first:
@@ -495,6 +524,48 @@ func _handle(packet: Dictionary) -> void:
 			# swallowed: a version mismatch that says nothing is indisguishable
 			# from a dead connection.
 			Events.notice.emit(b.get_utf8_string())
+		Protocol.Msg.AUTHORITY_READY:
+			b.get_u32()
+			Clock.follow_target = int(b.get_u32())
+
+func _absorb_migration_chunk(b: StreamPeerBuffer) -> void:
+	var generation := int(b.get_u32())
+	var tick := int(b.get_u32())
+	var index := int(b.get_u16())
+	var total := int(b.get_u16())
+	var payload_size := int(b.get_u16())
+	var digest_result := b.get_data(8)
+	if digest_result[0] != OK or total <= 0 or total > 64 or index >= total:
+		return
+	var data_result := b.get_data(b.get_available_bytes())
+	if data_result[0] != OK:
+		return
+	if not _migration_parts.has(generation):
+		_migration_parts = {generation: {
+			"tick": tick, "total": total, "size": payload_size,
+			"digest": digest_result[1], "parts": {},
+		}}
+	var frame: Dictionary = _migration_parts[generation]
+	if frame["total"] != total or frame["size"] != payload_size \
+			or frame["digest"] != digest_result[1]:
+		_migration_parts.erase(generation)
+		return
+	frame["parts"][index] = data_result[1]
+	if frame["parts"].size() != total:
+		return
+	var payload := PackedByteArray()
+	for part_index in total:
+		if not frame["parts"].has(part_index):
+			return
+		payload.append_array(frame["parts"][part_index])
+	if payload.size() != payload_size or payload.sha256_buffer().slice(0, 8) != frame["digest"]:
+		_migration_parts.erase(generation)
+		return
+	var decoded := MigrationState.decode(payload)
+	if not decoded.is_empty():
+		_latest_migration = decoded
+		_latest_migration_received_ms = Time.get_ticks_msec()
+	_migration_parts.clear()
 
 ## Jump and landing, worked out rather than sent.
 ##

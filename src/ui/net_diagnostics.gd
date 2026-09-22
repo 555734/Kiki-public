@@ -11,8 +11,8 @@ extends CanvasLayer
 ## The text sits in a read-only TextEdit and there is a COPY button, because the
 ## whole point is that it can be pasted into a message.
 ##
-## It talks to the relay ONLY. It does not touch the game state, so running it
-## mid-session is safe.
+## It reads EOS and the live transport only. It does not create a throwaway
+## room or contact the retired Cloudflare relay.
 
 const STEP_TIMEOUT := 12.0
 
@@ -113,9 +113,7 @@ func _run() -> void:
 		_run_button.disabled = true
 	_started_ms = Time.get_ticks_msec()
 	await _describe_device()
-	await _check_relay_reachable()
-	await _check_room_creation()
-	await _check_websocket()
+	_check_eos()
 	_report_live_session()
 	_report_journal()
 	_say("")
@@ -133,7 +131,7 @@ func _describe_device() -> void:
 		Engine.get_version_info().get("string", "?")])
 	_say("モデル %s" % OS.get_model_name())
 	_say("描画 %s" % RenderingServer.get_video_adapter_name())
-	_say("中継URL %s" % relay)
+	_say("EOSG組み込み %s" % ("はい" if EosRuntime.available() else "いいえ"))
 	var addresses: Array[String] = []
 	for a in IP.get_local_addresses():
 		var one := String(a)
@@ -144,6 +142,13 @@ func _describe_device() -> void:
 		addresses.append(one)
 	_say("この端末のIP %s" % (", ".join(addresses) if not addresses.is_empty() else "(なし)"))
 	_say("")
+
+func _check_eos() -> void:
+	_say("[EOS] 状態: %s" % ["未初期化", "初期化中", "準備完了", "失敗"][EosRuntime.state])
+	if not EosRuntime.last_error.is_empty():
+		_say("  最後のエラー: %s" % EosRuntime.last_error)
+	var puid := EosRuntime.product_user_id()
+	_say("  Product User ID: %s" % (puid if not puid.is_empty() else "未取得"))
 
 func _check_relay_reachable() -> void:
 	_say("[1/3] 中継サーバーに届くか  GET %s/health" % relay)
@@ -290,7 +295,7 @@ func _report_live_session() -> void:
 	var link_open: bool = t.has_method("is_link_open") and bool(t.call("is_link_open"))
 	var peer_here: bool = t.has_method("is_connected_to_peer") \
 		and bool(t.call("is_connected_to_peer"))
-	_say("  中継への接続: %s" % ("開いています" if link_open else "閉じています"))
+	_say("  EOS P2Pリンク: %s" % ("開いています" if link_open else "閉じています"))
 	_say("  相手がいるか: %s" % ("はい" if peer_here else "いいえ"))
 	_say("  受信 %d 個 / 送信 %d 個"
 		% [int(t.get("packets_in")), int(t.get("packets_out"))])

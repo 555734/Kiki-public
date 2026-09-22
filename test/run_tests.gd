@@ -81,6 +81,7 @@ func _boot(dismiss_home: bool = true) -> void:
 	main.input_hub.scripted = true
 
 func _run_all() -> void:
+	_test_eos_contracts()
 	await _test_gauge_rules()
 	await _test_platform_limits()
 	await _test_wall_limits()
@@ -138,6 +139,50 @@ func _run_all() -> void:
 	await _test_two_thumbs_do_not_interfere()
 	await _test_auto_dash_is_a_real_choice()
 	await _test_two_taps_make_one_session()
+
+func _test_eos_contracts() -> void:
+	_current = "EOS room and migration contracts"
+	check(EosCoopLobby.valid_code("012345"), "leading-zero room codes are valid")
+	check(not EosCoopLobby.valid_code("12345") and not EosCoopLobby.valid_code("12A456"),
+		"room codes are exactly six decimal digits")
+	var blob := PackedByteArray()
+	blob.resize(2505)
+	for i in blob.size():
+		blob[i] = i & 0xff
+	var encoded := var_to_bytes({
+		"version": MigrationState.VERSION,
+		"captured_ms": Time.get_ticks_msec(),
+		"stage": Stage.current(),
+		"blob": blob,
+	})
+	var chunks := MigrationState.chunks(encoded, 7, 99)
+	check(chunks.size() >= 3, "a large checkpoint is split across EOS-safe packets")
+	var restored := PackedByteArray()
+	var digest := PackedByteArray()
+	for index in chunks.size():
+		check(chunks[index].size() <= EosTransport.PAYLOAD_LIMIT,
+			"migration chunk %d stays under the transport cap" % index)
+		var parsed := Protocol.reader(chunks[index])
+		check(parsed[0] == Protocol.Msg.MIGRATION_CHUNK, "chunk carries its message kind")
+		var reader: StreamPeerBuffer = parsed[1]
+		check(reader.get_u32() == 7 and reader.get_u32() == 99,
+			"chunk carries generation and authority tick")
+		check(reader.get_u16() == index and reader.get_u16() == chunks.size(),
+			"chunk index and total are stable")
+		check(reader.get_u16() == encoded.size(), "chunk carries complete payload size")
+		var got_digest = reader.get_data(8)
+		if digest.is_empty():
+			digest = got_digest[1]
+		check(got_digest[0] == OK and got_digest[1] == digest,
+			"every chunk carries the same digest")
+		var part = reader.get_data(reader.get_available_bytes())
+		if part[0] == OK:
+			restored.append_array(part[1])
+	check(restored == encoded and restored.sha256_buffer().slice(0, 8) == digest,
+		"complete migration frame reassembles without corruption")
+	var decoded := MigrationState.decode(restored)
+	check(decoded.get("blob", PackedByteArray()) == blob,
+		"decoded checkpoint preserves the authoritative bytes")
 	await _test_the_link_records_what_happened()
 	await _test_an_unmeasured_round_trip_says_so()
 	await _test_a_link_that_never_opened_keeps_trying()

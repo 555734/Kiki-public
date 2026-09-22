@@ -52,6 +52,7 @@ sed -i "s/^const BUILD_ID: String = \"dev\"/const BUILD_ID: String = \"$STAMP\"/
 
 echo "== install Android Gradle template =="
 godot_run --headless --path . --install-android-build-template
+python3 tools/configure-eosg-android.py
 echo "== import Vulkan/mobile project =="
 godot_run --headless --editor --import --path . >/dev/null
 echo "== build signed Google Play AAB ($VERSION_NAME / $VERSION_CODE) =="

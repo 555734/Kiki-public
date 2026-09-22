@@ -64,6 +64,7 @@ secrets/
 credentials/
 service-account*.json
 credentials*.json
+eos_credentials.json
 GoogleService-Info.plist
 google-services.json
 .npmrc
@@ -81,6 +82,10 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# EOSG is restored from a versioned, checksummed release by CI. Its native
+# binaries are platform-specific and too large to vendor in this repository.
+addons/epic-online-services-godot/
 
 # Python caches
 __pycache__/

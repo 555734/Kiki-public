@@ -702,7 +702,13 @@ Epic のリレーに乗る。EOS はこれらに**利用者数課金も帯域課
 
 ---
 
-## 12. Godot × EOS の実装の現実（ここが唯一のリスク）
+## 12. Godot × EOS の実装
+
+> 2026-09 実装更新: 協力モードの製品経路は EOSG 2.3.1（revision
+> `56238973e2cd7ac9ac99ca14f88934465f0a8997`）を固定し、Connect Device ID、
+> Lobby、P2P、EOS Relay fallbackまで実装した。Android/iOSへの組み込みは
+> 公開リポジトリの `Mobile Android + iOS` Actionsで検証する。対戦モードは
+> 別プロトコルのため未移行で、製品UIから隠している。
 
 正直に言うべきこと：**EOS に Godot の公式サポートは無い。**
 
@@ -738,9 +744,10 @@ src/net/transport.gd          # インタフェース：send(ch, reliability, by
 2. `LoopbackTransport` と遅延/ロス注入 —— **実施済み**
 3. スナップショットの符号化 / 復号 —— **実施済み**（イベント側はまだ）
 4. 巻き戻し＋掃引捕捉＋「助ける方にしか転ばない」判定 —— **実施済み・テスト有り**
-5. ガーディアン側の補間・予測・照合 —— まだ
-6. `EOSTransport`（Connect → Lobby → P2P）
-7. 実機2台での遅延実測とチューニング
+5. ガーディアン側の補間・予測・照合 —— **実施済み**
+6. `EosTransport`（Connect → Lobby → P2P）—— **実装済み、公開CI/実機検証待ち**
+7. 250ms間隔の移譲チェックポイントとLobby owner確定後のhost migration —— **実装済み、実機検証待ち**
+8. Android/iOS混在の実機2台で遅延・NAT・relay fallbackを実測
 
 ---
 
@@ -782,15 +789,16 @@ src/net/transport.gd          # インタフェース：send(ch, reliability, by
 | `Clock`（tick 権威）＋ 移動床・レーザーの決定化 | **入っている** |
 | `NetTransport` 抽象と `LoopbackTransport`（遅延/ロス注入） | **入っている** |
 | `EnetTransport`（同一 Wi-Fi・直結・中継なし） | **入っている** |
-| **`WebSocketTransport`＋中継（インターネット越し）** | **入っている** |
+| **`EosTransport`＋EOS Lobby/P2P（インターネット越し）** | **協力モードに入っている。公開CI/実機検証待ち** |
+| `WebSocketTransport`＋Cloudflare中継 | 互換コードのみ。製品の協力UIから到達不能 |
 | `Protocol`（イベントの符号化）／ `Snapshot`（実測 13 B） | **入っている** |
 | `Rewind` ＋ `HostAuthority`（バックデート設置・巻き戻し上限） | **入っている** |
 | `HostSession`（権威・コマンド検証・重複排除） | **入っている** |
 | `ClientSession`（補間・予測・照合・ゴースト） | **入っている** |
-| 接続 UI（3択・IP・合言葉） | **入っている** |
-| 再接続 / ホスト移譲 | **まだ** |
+| 接続 UI（EOSの6桁ルーム番号） | **入っている** |
+| 再接続 / ホスト移譲 | **入っている**。EOS Lobby ownerのみ昇格、500ms超の状態は安全停止 |
 | 敵の順繰り補正（4.3） | **まだ**（現状は近傍の敵を毎スナップショットで送っている） |
-| EOS P2P | **まだ**。下の「なぜ今も必要か」を参照 |
+| EOS P2P | **入っている**。EOSG 2.3.1をSHA-256検証してCI導入 |
 
 ### インターネット越しをどう通したか
 

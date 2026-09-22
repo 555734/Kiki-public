@@ -113,6 +113,10 @@ var _has_touch: bool = false
 ## headless capture or a unit test can write the intent fields directly. Nothing
 ## in the shipping game sets this.
 var scripted: bool = false
+## Authority can move to the guardian's device while the runner stays on the
+## other phone. In that state desktop runner bindings must not race the remote
+## input stream; guardian mouse/keyboard controls still remain live.
+var runner_driven_remotely: bool = false
 ## A versus runner always has the stick on the left; global co-op role-swap
 ## signals must never mirror the versus touch map independently of its HUD.
 var force_runner_left: bool = false
@@ -382,15 +386,16 @@ func _process(_delta: float) -> void:
 	_poll_desktop()
 
 func _poll_desktop() -> void:
-	move_axis = Input.get_axis("p1_left", "p1_right")
-	move_axis_y = Input.get_axis("p1_up", "p1_down") if InputMap.has_action("p1_down") else 0.0
-	_jump_from_button = Input.is_action_pressed("p1_jump")
-	_refresh_jump_held()
-	dash_held = Input.is_action_pressed("p1_dash")
-	if Input.is_action_just_pressed("p1_jump"):
-		_latch_jump_press()
-	if Input.is_action_just_pressed("p1_dash"):
-		press_dash()
+	if not runner_driven_remotely:
+		move_axis = Input.get_axis("p1_left", "p1_right")
+		move_axis_y = Input.get_axis("p1_up", "p1_down") if InputMap.has_action("p1_down") else 0.0
+		_jump_from_button = Input.is_action_pressed("p1_jump")
+		_refresh_jump_held()
+		dash_held = Input.is_action_pressed("p1_dash")
+		if Input.is_action_just_pressed("p1_jump"):
+			_latch_jump_press()
+		if Input.is_action_just_pressed("p1_dash"):
+			press_dash()
 
 	var viewport := get_viewport()
 	if viewport != null and owns_guardian_controls():

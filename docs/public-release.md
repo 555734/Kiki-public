@@ -1,9 +1,11 @@
 # Public repository safety
 
 This project is designed so repository visibility is not a security boundary.
-The shipped client must be able to reach the relay, so the relay URL is public
-by nature; hiding it in a private repository would not protect it from someone
-who can inspect the APK or network traffic.
+The shipped co-op client uses EOS Lobby/P2P. EOS product, sandbox, deployment
+and client identifiers are necessarily present in the app; repository privacy
+would not protect values that can be inspected in an APK or network traffic.
+The client policy attached to those credentials must therefore be
+least-privilege. Private signing keys and store credentials remain secrets.
 
 ## Before changing the repository to Public
 
@@ -26,19 +28,26 @@ tools/audit-public.sh
 
 ## Credentials and signing
 
-Real signing material belongs only in GitHub/Codemagic/Apple/Cloudflare secret
+Real signing material belongs only in GitHub/Codemagic/Apple/Epic secret
 stores or local ignored files. `.gitignore` blocks common Apple, Android,
-Google, npm, Python and environment credential formats.
+Google, EOS, npm, Python and environment credential formats.
 
 `ci/debug.keystore` is the one intentional exception. It is a public Android
 debug key documented in `ci/README.md`; it must never be used as a Play Store
 upload/release key.
 
-Team IDs, bundle IDs and the relay hostname are identifiers, not authentication
+Team IDs, bundle IDs, EOS product IDs and EOS client IDs are identifiers, not authentication
 secrets. Private keys, API tokens, App Store Connect `.p8` files, release
 keystores and service-account credentials are secrets.
 
-## Relay abuse protection
+## Retired Cloudflare path
+
+Co-op production traffic no longer uses the Cloudflare Worker. Its transport
+code remains only as a rollback aid, and the separate versus implementation is
+hidden from the release UI until it is migrated to EOS. Do not treat the old
+Worker as a supported production dependency.
+
+## Legacy relay abuse protection
 
 `server/signaling/worker.js` applies a per-IP connection-attempt limit before a
 request reaches a room Durable Object. The default is 30 attempts per minute,

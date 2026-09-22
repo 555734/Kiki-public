@@ -31,6 +31,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pinned EOSG for Linux host and Android target
+        run: bash tools/install-eosg.sh linux android
+
+      - name: Write EOS production credentials
+        env:
+          EOS_PRODUCT_ID: ${{ secrets.EOS_PRODUCT_ID }}
+          EOS_SANDBOX_ID: ${{ secrets.EOS_SANDBOX_ID }}
+          EOS_DEPLOYMENT_ID: ${{ secrets.EOS_DEPLOYMENT_ID }}
+          EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
+          EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
+          EOS_BUILD_VERSION: ${{ inputs.version_name }}
+        run: python3 tools/write-eos-credentials.py
+
       - name: Install build utilities
         run: |
           sudo apt-get update -qq

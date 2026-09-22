@@ -24,6 +24,7 @@ enum Channel {
 	COMMAND = 2,    ## client -> host, reliable ordered: place, fire
 	AIM = 3,        ## client -> host, unreliable: carries its own redundancy
 	CONTROL = 4,    ## both ways, reliable ordered: ping, handshake, resync
+	MIGRATION = 5,  ## authority -> standby, reliable: chunked failover state
 }
 
 enum Reliability { UNRELIABLE, RELIABLE_UNORDERED, RELIABLE_ORDERED }

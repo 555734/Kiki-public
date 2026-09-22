@@ -79,6 +79,10 @@ restore_stamp() {
 trap 'restore; restore_stamp' EXIT
 echo "== build $STAMP =="
 
+echo "== install and configure Android Gradle template for EOSG =="
+godot_run --headless --path . --install-android-build-template
+python3 tools/configure-eosg-android.py
+
 cp project.godot project.godot.bak
 sed -E -i 's#renderer/rendering_method.mobile="(mobile|gl_compatibility)"#renderer/rendering_method.mobile="mobile"#' project.godot
 echo "== Vulkan import =="

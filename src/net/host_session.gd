@@ -15,6 +15,11 @@ const ENEMY_RADIUS: float = 1400.0
 var main: Node2D = null
 var transport: NetTransport = null
 var authority: HostAuthority = null
+## Gameplay role and network authority are independent after EOS host migration.
+var local_role: String = "runner"
+var remote_role: String = "guardian"
+var _migration_generation: int = 0
+var _remote_runner_silence: float = 0.0
 
 ## Who is playing, by the three names that can mean "who". See Party.
 var party := Party.new()
@@ -25,6 +30,7 @@ var _sent_dead: Dictionary = {}
 
 func _ready() -> void:
 	Clock.is_host = true
+	process_physics_priority = -100
 	authority = HostAuthority.new()
 	authority.runner = main.runner
 	authority.guardian = main.guardian
@@ -108,17 +114,34 @@ func _world(kind: int, a: Vector2, b: Vector2, value: int = 0,
 		text: String = "") -> void:
 	_send_event(Protocol.world(kind, a, b, value, text))
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	# See ClientSession: a freed world is a dangling reference, not null.
 	if transport == null or not is_instance_valid(main):
 		return
 	for packet in transport.poll():
 		_handle(packet)
+	if remote_role == "runner":
+		_remote_runner_silence += delta
+		if _remote_runner_silence >= 0.25:
+			# A lost unreliable release packet must never leave the runner walking,
+			# jumping or dashing forever on the new authority.
+			main.input_hub.drive_runner(0.0, 0.0, false, false)
 	if Clock.tick % SNAPSHOT_EVERY == 0:
 		transport.send(NetTransport.Channel.SNAPSHOT,
 			NetTransport.Reliability.UNRELIABLE, _snapshot().encode())
+	if Clock.tick % MigrationState.SEND_EVERY_TICKS == 0:
+		_send_migration_frame()
 	_send_boss()
 	_reap_holograms()
+
+func _send_migration_frame() -> void:
+	if transport == null or not transport.is_connected_to_peer():
+		return
+	_migration_generation += 1
+	var payload := MigrationState.capture(main)
+	for chunk in MigrationState.chunks(payload, _migration_generation, Clock.tick):
+		transport.send(NetTransport.Channel.MIGRATION,
+			NetTransport.Reliability.RELIABLE_ORDERED, chunk)
 
 ## How often the boss repeats itself when nothing has changed, in ticks.
 ##
@@ -234,6 +257,9 @@ func _send_event(payload: PackedByteArray) -> void:
 		transport.send(NetTransport.Channel.EVENT,
 			NetTransport.Reliability.RELIABLE_ORDERED, payload)
 
+func announce_authority(epoch: int) -> void:
+	_send_event(Protocol.authority_ready(epoch, Clock.tick))
+
 ## Constructs that expired on their own need no packet -- both sides know the
 ## death tick. This only catches the ones the cap recycled early.
 func _reap_holograms() -> void:
@@ -273,12 +299,21 @@ func _handle(packet: Dictionary) -> void:
 					"ステージが違います（相手 %s / こちら %s）。同じステージを選んでください"
 						% [_stage_label(their_stage), _stage_label(Stage.current())]))
 				return
+			var role_code := b.get_u8()
+			remote_role = "runner" if role_code == 1 else "guardian"
+			if remote_role == local_role:
+				_send_event(Protocol.notice("同じ役割では接続できません。片方ずつランナーとガーディアンを選んでください"))
+				return
 			var their_id := b.get_utf8_string()
 			party.clear()
-			party.seat(NetLink.client_id(), Party.ROLE_RUNNER)
-			party.seat(their_id, Party.ROLE_GUARDIAN)
+			party.seat(NetLink.client_id(), Party.ROLE_RUNNER \
+				if local_role == "runner" else Party.ROLE_GUARDIAN)
+			party.seat(their_id, Party.ROLE_RUNNER \
+				if remote_role == "runner" else Party.ROLE_GUARDIAN)
 			_send_event(Protocol.welcome(Clock.tick, NetLink.client_id()))
 			_resync()
+			if transport is EosTransport and transport.room != null:
+				transport.room.call_deferred("mark_started")
 			if is_instance_valid(main) and main.get("link") != null:
 				main.link.enter(NetLink.Phase.PLAYING)
 		Protocol.Msg.PING:
@@ -296,6 +331,16 @@ func _handle(packet: Dictionary) -> void:
 			# now a live reading of where they are looking, not the place the
 			# reticle happened to start.
 			main.input_hub.remote_aim = true
+		Protocol.Msg.RUNNER_INPUT:
+			if remote_role != "runner":
+				return
+			_remote_runner_silence = 0.0
+			var axis := float(b.get_8()) / 127.0
+			var axis_y := float(b.get_8()) / 127.0
+			var flags := b.get_u8()
+			b.get_u16() # sequence is carried for tracing/redundancy evolution
+			main.input_hub.drive_runner(axis, axis_y,
+				(flags & 1) != 0, (flags & 2) != 0)
 		Protocol.Msg.SLOT:
 			main.guardian.select_slot(b.get_u8())
 		Protocol.Msg.PLACE:

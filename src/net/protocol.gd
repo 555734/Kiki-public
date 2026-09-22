@@ -50,6 +50,9 @@ enum Msg {
 	## puppets with their physics switched off and this one's whole contribution
 	## is WHICH STATE IT IS IN. See Keeper, and docs/stage-keeper.md section 8.
 	BOSS = 33,
+	MIGRATION_CHUNK = 40, ## authority -> standby: chunked complete checkpoint
+	RUNNER_INPUT = 41,    ## remote runner -> authority after host migration
+	AUTHORITY_READY = 42, ## new authority -> returning peer
 }
 
 ## The things the host does that the guardian's device cannot derive for itself.
@@ -84,7 +87,7 @@ enum World {
 ## each other at the handshake, which is what makes changing this safe -- and
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
-const VERSION: int = 11
+const VERSION: int = 12
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -110,11 +113,27 @@ static func _buf(kind: int) -> StreamPeerBuffer:
 ## the symptom of that mistake is "my partner is describing a place that does
 ## not exist". There is no way to debug that from inside the game, so it is
 ## refused at the door instead.
-static func hello(player_id: String, stage: int) -> PackedByteArray:
+static func hello(player_id: String, stage: int, role: String = "guardian") -> PackedByteArray:
 	var b := _buf(Msg.HELLO)
 	b.put_u8(VERSION)
 	b.put_u8(stage)
+	b.put_u8(1 if role == "runner" else 2)
 	b.put_utf8_string(player_id)
+	return b.data_array
+
+static func runner_input(axis: float, axis_y: float, jump: bool, dash: bool,
+		sequence: int) -> PackedByteArray:
+	var b := _buf(Msg.RUNNER_INPUT)
+	b.put_8(clampi(int(round(axis * 127.0)), -127, 127))
+	b.put_8(clampi(int(round(axis_y * 127.0)), -127, 127))
+	b.put_u8((1 if jump else 0) | ((1 if dash else 0) << 1))
+	b.put_u16(sequence & 0xFFFF)
+	return b.data_array
+
+static func authority_ready(epoch: int, tick: int) -> PackedByteArray:
+	var b := _buf(Msg.AUTHORITY_READY)
+	b.put_u32(epoch)
+	b.put_u32(tick)
 	return b.data_array
 
 static func welcome(tick: int, player_id: String) -> PackedByteArray:

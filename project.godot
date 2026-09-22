@@ -8,7 +8,7 @@ config_version=5
 config/name="SIDE / SKY"
 config/description="Asymmetric co-op 2D action. One player runs, one player rewrites the world."
 run/main_scene="res://src/main.tscn"
-config/features=PackedStringArray("4.4", "Mobile")
+config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.png"
 boot_splash/show_image=false
 
@@ -19,6 +19,20 @@ Clock="*res://src/autoload/clock.gd"
 Audio="*res://src/autoload/audio.gd"
 Events="*res://src/autoload/events.gd"
 GameState="*res://src/autoload/game_state.gd"
+EosRuntime="*res://src/net/eos/eos_runtime.gd"
+
+; These files are installed from the pinned EOSG release before CI imports the
+; project. Keeping the autoloads explicit makes exported builds independent of
+; whether an editor happened to enable the plugin first.
+EOSGRuntime="*res://addons/epic-online-services-godot/runtime.gd"
+HPlatform="*res://addons/epic-online-services-godot/heos/hplatform.gd"
+HAuth="*res://addons/epic-online-services-godot/heos/hauth.gd"
+HLobbies="*res://addons/epic-online-services-godot/heos/hlobbies.gd"
+HP2P="*res://addons/epic-online-services-godot/heos/hp2p.gd"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/epic-online-services-godot/plugin.cfg")
 
 [debug]
 
