@@ -80,10 +80,7 @@ trap 'restore; restore_stamp' EXIT
 echo "== build $STAMP =="
 
 echo "== install and configure Android Gradle template for EOSG =="
-# Godot 4.7 keeps the main loop alive after installing the template when the
-# option is used on its own.  CI has no editor window to close, so quit after
-# the first iteration once the synchronous installation has completed.
-godot_run --headless --path . --install-android-build-template --quit
+bash tools/install-android-template.sh
 python3 tools/configure-eosg-android.py
 
 cp project.godot project.godot.bak
