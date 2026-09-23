@@ -81,24 +81,70 @@ func _three_background(view: Vector2, scroll: float, time: float) -> void:
 ## All motion is derived from the camera and therefore identical on both peers.
 func _skyward_background(view: Vector2, horizontal: float, camera_y: float, time: float) -> void:
 	var climb := clampf((6400.0 - camera_y) / 6100.0, 0.0, 1.0)
-	# Mountains sink below the player while the cloud sea grows closer, then
-	# falls away again near the summit.
-	var mountain_base := view.y * (0.68 + climb * 0.35)
+	# The light source is visible almost from the start, but only blooms strongly
+	# at the summit. This gives the vertical route a persistent destination.
+	var sun_pos := Vector2(view.x*.72, view.y*(.19-.055*climb))
+	draw_circle(sun_pos, view.y*(.075+.025*climb),
+		Color(1.0,.86,.56,.10+.10*climb))
+	draw_circle(sun_pos, view.y*(.032+.012*climb),
+		Color(1.0,.94,.72,.34+.18*climb))
+
+	# Three quiet ridge layers. Their contrast falls with distance so gameplay
+	# silhouettes stay dominant even though the stage itself is highly vertical.
+	var mountain_base := view.y * (0.66 + climb * 0.38)
+	for layer in 3:
+		var ridge := PackedVector2Array([Vector2(-120, view.y)])
+		var step := 78.0 + float(layer)*16.0
+		for i in range(-2, int(view.x / step) + 4):
+			var x := float(i) * step
+			var rate := .028 + float(layer)*.025
+			var wave := sin((x + horizontal * rate) * (.0045+.0007*layer)) *
+				(58.0-float(layer)*11.0)
+			wave += cos((x-horizontal*.02) * (.008+.001*layer))*18.0
+			ridge.append(Vector2(x, mountain_base + float(layer)*54.0 + wave))
+		ridge.append(Vector2(view.x + 150, view.y))
+		var colour := [Color("9fc4c9"),Color("7faeae"),Color("638f8d")][layer]
+		draw_colored_polygon(ridge,colour)
+
+	# Distant suspended ruin fragments establish the same language as the real
+	# platforms without competing with them. They drift at deep parallax speed.
+	var ruin_y := view.y*(.43 + climb*.16)
+	for i in 4:
+		var x := fposmod(float(i)*331.0-horizontal*.018,view.x+360.0)-180.0
+		var y := ruin_y + float((i*47)%3)*34.0
+		var stone := Color(0.35,0.49,0.47,.30)
+		var w := 70.0+float(i%2)*22.0
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(x-w*.55,y),Vector2(x+w*.55,y),Vector2(x+w*.34,y+18),
+			Vector2(x+w*.10,y+58),Vector2(x-w*.18,y+47),Vector2(x-w*.40,y+16)
+		]),stone)
+		# Broken columns, never symmetrical.
+		draw_rect(Rect2(x-w*.28,y-58-float(i%2)*22,10,60+float(i%2)*22),stone)
+		draw_rect(Rect2(x+w*.16,y-38-float((i+1)%2)*17,8,40+float((i+1)%2)*17),stone)
+		if i%2==0:
+			draw_arc(Vector2(x-w*.02,y-42),26,PI,TAU,12,stone,7)
+
+	# Cloud banks cross the route at two different depths. Squashed circles make
+	# a continuous cloud sea instead of isolated cartoon puffs.
+	var cloud_y := lerpf(view.y*.30,view.y*.79,absf(climb-.53)*1.45)
 	for layer in 2:
-		var ridge := PackedVector2Array([Vector2(0, view.y)])
-		for i in range(-1, int(view.x / 90.0) + 3):
-			var x := float(i) * 90.0
-			var wave := sin((x + horizontal * (.04 + layer*.04)) * .006) * 55.0
-			ridge.append(Vector2(x, mountain_base + float(layer)*70.0 + wave))
-		ridge.append(Vector2(view.x + 120, view.y))
-		draw_colored_polygon(ridge, Color("8bbfd0") if layer == 0 else Color("67a5a5"))
-	var cloud_y := lerpf(view.y * .25, view.y * .78, absf(climb - .55) * 1.4)
-	_clouds(view, horizontal * .035 - time * 2.0, cloud_y - view.y * .35)
-	if climb > .72:
-		# A pale summit glow makes the final gate readable without replacing it
-		# with a flat background painting.
-		draw_circle(Vector2(view.x*.5, view.y*.12), view.y*.20,
-			Color(1.0, .91, .58, (climb-.72)*.42))
+		var rate := .022+.025*layer
+		var base := cloud_y+float(layer)*58.0
+		var cloud_col := Color(0.91,0.96,0.97,.72-.18*layer)
+		for i in range(-2,int(view.x/115.0)+4):
+			var x := fposmod(float(i)*121.0-horizontal*rate-time*(1.3+layer),view.x+300.0)-150.0
+			var y := base+sin(float(i)*1.7)*16.0
+			draw_set_transform(Vector2(x,y),0,Vector2(1.0,.48))
+			draw_circle(Vector2.ZERO,66.0+float(i%3)*9.0,cloud_col)
+		draw_set_transform(Vector2.ZERO)
+
+	if climb > .68:
+		# Warm summit haze brightens gradually; it is deliberately broad and faint
+		# so the final stone gate remains the strongest local silhouette.
+		var strength := (climb-.68)/.32
+		draw_circle(Vector2(view.x*.5,view.y*.10),view.y*(.18+.10*strength),
+			Color(1.0,.91,.64,.10+.16*strength))
+
 ## Where the grass line sits in the painted backdrop, as a fraction of its
 ## height. The horizon is pinned to this, so the painted ground meets the real
 ## ground instead of floating above or below it.
