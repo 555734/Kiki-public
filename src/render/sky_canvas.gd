@@ -102,7 +102,7 @@ func _skyward_background(view: Vector2, horizontal: float, camera_y: float, time
 			wave += cos((x-horizontal*.02) * (.008+.001*layer))*18.0
 			ridge.append(Vector2(x, mountain_base + float(layer)*54.0 + wave))
 		ridge.append(Vector2(view.x + 150, view.y))
-		var colour := [Color("9fc4c9"),Color("7faeae"),Color("638f8d")][layer]
+		var colour: Color = [Color("9fc4c9"),Color("7faeae"),Color("638f8d")][layer]
 		draw_colored_polygon(ridge,colour)
 
 	# Distant suspended ruin fragments establish the same language as the real
