@@ -30,8 +30,7 @@ jobs:
   ios:
     uses: ./.github/workflows/ios.yml
     with:
-      # Combined push builds prove iOS packaging without silently shipping an
-      # app that still has CI-only EOS credentials. Store submission is an
-      # explicit manual action and remains fail-closed on missing EOS secrets.
-      submit_to_app_store_connect: ${{ inputs.submit_ios || false }}
+      # One-time explicitly requested App Store Connect submission on this push.
+      # Restore the standard manual-only behavior after this run completes.
+      submit_to_app_store_connect: ${{ inputs.submit_ios || github.event_name == 'push' }}
     secrets: inherit
