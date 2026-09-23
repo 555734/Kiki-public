@@ -25,13 +25,10 @@ var active_models := 0
 var signal_materials: Dictionary = {}
 var build_models: Array[MeshInstance3D] = []
 var builds_hash := -1
-## Painted 2D stages: only the runner is 3D. The 2D world stays visible and
-## this layer sits above it, where the runner's own 2D sprite used to draw.
-var characters_only := false
 
 func _ready() -> void:
 	name="World3D"
-	layer=1 if characters_only else -1
+	layer=-1
 	process_priority=1000 # After Camera2D follow, veil changes, remote interpolation.
 	source=get_parent()
 	viewport3d=SubViewport.new()
@@ -122,7 +119,9 @@ func _hide(item: CanvasItem) -> void:
 
 func _register(node: Node) -> void:
 	if not node is Node2D or node.get_script()==null: return
-	if characters_only and not node is Runner: return
+	# The runner stays the painted 2D LIRA on every stage; this layer is below
+	# the 2D canvas, so she draws in front of the 3D world.
+	if node is Runner and source.get_script().resource_path.ends_with("main.gd"): return
 	var id := node.get_instance_id()
 	if bindings.has(id) or surfaces.has(id): return
 	var path: String=node.get_script().resource_path

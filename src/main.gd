@@ -147,11 +147,10 @@ func _ready() -> void:
 	panel.name = "NetPanel"
 	panel.main = self
 	add_child(panel)
-	if Balance.USE_3D:
-		var view = load("res://src/render/three/world_view.gd").new()
-		# On the painted 2D stages the 3D view carries the runner and nothing else.
-		view.characters_only = not Stage.world_3d()
-		add_child(view)
+	# The runner is always the painted 2D LIRA, so the painted 2D stages need
+	# no 3D view at all.
+	if Stage.world_3d():
+		add_child(load("res://src/render/three/world_view.gd").new())
 
 ## The home screen is not an overlay over a live match. Its CanvasLayer keeps
 ## processing, while this gameplay subtree and the authoritative stage clock

@@ -288,5 +288,9 @@ readable on a phone.
   `src/render/three/sky_sprites.gd` places them in the 3D world and
   `src/render/sky_canvas.gd` layers the background pieces. Re-run the script
   to regenerate them; the crop rectangles are listed in it by name.
+- `entities/flyer.png` (a winged chestnut that read as a Goomba) was removed.
+  The `flyer` key now points at `entities/flyer_bird.png`: the blue sky-fish
+  frame `stage_1_3/sprites/bird_0.png`, mirrored to face left like the rest
+  of the painted set.
 - Other stages' terrain and props remain original deterministic
   vertex-coloured recipes in `src/render/three/`.

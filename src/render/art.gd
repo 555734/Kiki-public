@@ -96,7 +96,7 @@ const MANIFEST := {
 	"sky_beacon": "sky/beacon.png",
 	"sky_flyer": "sky/flyer.png",
 	# synthesised entities
-	"flyer": "entities/flyer.png",
+	"flyer": "entities/flyer_bird.png",
 	"turret": "entities/turret.png",
 	"projectile": "entities/projectile.png",
 	"laser_emitter": "entities/laser_emitter.png",

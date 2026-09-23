@@ -11,6 +11,17 @@ var _lean: float = 0.0
 var _scarf: float = 0.0
 var _squash: float = 0.0
 var _was_airborne: bool = false
+## Whole-body turn in radians: the third jump's somersault and the ground
+## pound's wind-up spin. Runs from 0 to TAU and then rests.
+var _spin: float = 0.0
+var _spin_active: bool = false
+var _was_pounding: bool = false
+var _was_kicking: bool = false
+## Short trail of where the body was, for dash and wall-kick afterimages.
+var _trail: Array = []
+var _trail_left: float = 0.0
+## Dust puffs in world space: [position, age, size].
+var _dust: Array = []
 
 func _ready() -> void:
 	z_index = 10
@@ -37,10 +48,65 @@ func _process(delta: float) -> void:
 	# making the character feel alive.
 	var airborne := not runner.on_ground()
 	if _was_airborne and not airborne:
-		_squash = 1.0
+		# A ground pound lands hardest; a plain drop scales with how fast it fell.
+		_squash = 1.35 if _was_pounding else clampf(0.55 + _last_fall / 1400.0, 0.55, 1.0)
+		_puff(2 if not _was_pounding else 6, 1.0 if not _was_pounding else 1.8)
+		_spin_active = false
+		_spin = 0.0
 	_was_airborne = airborne
+	if airborne:
+		_last_fall = maxf(0.0, runner.velocity.y)
 	_squash = maxf(0.0, _squash - delta * 6.0)
+
+	# The third jump of a chain is a forward somersault, and the ground pound
+	# opens with a quick spin before it drops -- the two moves a player does on
+	# purpose to show off, so they get the biggest movement on screen.
+	var pounding := runner.pounding()
+	var pound_windup := pounding and (runner.movement_flags() >> 1 & 3) == 1
+	if airborne and not _spin_active and _spin == 0.0:
+		if (runner.state == Runner.State.JUMP and runner.jump_chain() == 3) or pound_windup:
+			_spin_active = true
+	if _spin_active:
+		_spin += delta * TAU * (3.2 if pound_windup else 2.0)
+		if _spin >= TAU:
+			_spin = TAU
+			_spin_active = false
+	if not airborne:
+		_spin = 0.0
+	_was_pounding = pounding
+
+	var kicking := runner.wall_kicking()
+	if kicking and not _was_kicking:
+		_puff(3, 1.0)
+		_trail_left = 0.22
+	_was_kicking = kicking
+	if runner.state == Runner.State.DASH:
+		_trail_left = 0.12
+	if _wall_sliding() and fmod(_phase, 0.5) < delta * 2.5:
+		_puff(1, 0.6, Vector2(float(runner.facing) * 14.0, 0.0))
+	_trail_left = maxf(0.0, _trail_left - delta)
+	if _trail_left > 0.0:
+		_trail.push_front(runner.global_position)
+		if _trail.size() > 6:
+			_trail.pop_back()
+	elif not _trail.is_empty():
+		_trail.pop_back()
+	for d in _dust:
+		d[1] += delta
+	_dust = _dust.filter(func(d: Array) -> bool: return d[1] < 0.45)
 	queue_redraw()
+
+var _last_fall: float = 0.0
+
+func _wall_sliding() -> bool:
+	return runner != null and (runner.movement_flags() & 8) != 0
+
+func _puff(count: int, strength: float, offset: Vector2 = Vector2.ZERO) -> void:
+	var feet := runner.global_position + Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5) + offset
+	for i in count:
+		var side := -1.0 if i % 2 == 0 else 1.0
+		_dust.append([feet + Vector2(side * (6.0 + float(i) * 5.0), 0.0), 0.0,
+			(5.0 + float(i % 3) * 2.0) * strength, side])
 
 func _draw() -> void:
 	if runner == null:
@@ -52,6 +118,8 @@ func _draw() -> void:
 		return
 
 	_draw_shadow()
+	_draw_dust()
+	_draw_trail()
 	if _draw_painted():
 		return
 
@@ -95,8 +163,17 @@ func _draw_shadow() -> void:
 ## the thing this game actually needs: the guardian is reading the runner from
 ## the other side of a network connection and has to know what they are doing.
 func _pose_key() -> String:
-	if runner.crouching() or runner.pounding():
+	if runner.pounding():
+		# Tucked while it spins, then the braced landing pose on the way down.
+		return "runner_jump" if _spin_active else "runner_land"
+	if runner.crouching():
 		return "runner_land"
+	if runner.state == Runner.State.HANG:
+		return "runner_reach"
+	if _wall_sliding():
+		return "runner_reach"
+	if runner.wall_kicking():
+		return "runner_dash"
 	# The landing crouch wins over the state. It lasts a fraction of a second
 	# and it is the frame that sells the weight of the drop; without it the
 	# runner snaps from falling straight back to standing.
@@ -143,11 +220,46 @@ func _draw_painted() -> bool:
 	# Flip in the same transform as lean, squash and the feet anchor. Asking
 	# Art.draw_sprite() to flip installs a new canvas transform and used to throw
 	# away this origin, making the left-facing pose float above its shadow.
+	if runner.wall_kicking():
+		# Launched sideways off the wall: long and low for a moment.
+		sx *= 1.12
+		sy *= 0.92
+	var tilt := _lean * float(runner.facing)
+	if _wall_sliding():
+		# Pressed against the wall, leaning into it.
+		tilt = -0.22 * float(runner.facing)
 	var paint_scale := _paint_scale(sx, sy)
-	draw_set_transform(_paint_origin(bob), _lean * float(runner.facing), paint_scale)
-	var ok := Art.draw_sprite(self, key, Vector2.ZERO, h)
+	var ok := false
+	if _spin > 0.0 and _spin < TAU:
+		# Turn about the middle of the body rather than the feet.
+		var centre := Vector2(0.0, 0.0)
+		draw_set_transform(centre, _spin * float(runner.facing), paint_scale)
+		ok = Art.draw_sprite(self, key, Vector2(0.0, h * 0.5), h)
+	else:
+		draw_set_transform(_paint_origin(bob), tilt, paint_scale)
+		ok = Art.draw_sprite(self, key, Vector2.ZERO, h)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	return ok
+
+## Faded copies of the current pose where the body just was: dash and wall
+## kick read as speed instead of as a teleport.
+func _draw_trail() -> void:
+	if _trail.is_empty() or not Balance.USE_TEXTURES:
+		return
+	var key := _pose_key()
+	var h := Balance.RUNNER_SPRITE_H * Balance.RUNNER_POSE_HEADROOM
+	for i in range(_trail.size() - 1, 0, -1):
+		var at: Vector2 = to_local(_trail[i])
+		var a := 0.30 * (1.0 - float(i) / float(_trail.size()))
+		draw_set_transform(at + _paint_origin(0.0), _lean * float(runner.facing), _paint_scale(1.0, 1.0))
+		Art.draw_sprite(self, key, Vector2.ZERO, h, false, Color(0.75, 0.9, 1.0, a))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _draw_dust() -> void:
+	for d in _dust:
+		var t: float = d[1] / 0.45
+		var at: Vector2 = to_local(d[0]) + Vector2(float(d[3]) * t * 16.0, -t * 10.0)
+		draw_circle(at, float(d[2]) * (0.6 + t * 0.8), Color(0.96, 0.93, 0.86, 0.55 * (1.0 - t)))
 
 func _paint_origin(bob: float) -> Vector2:
 	return Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5 + bob)
