@@ -140,6 +140,10 @@ func _run_all() -> void:
 	await _test_auto_dash_is_a_real_choice()
 	await _test_two_taps_make_one_session()
 
+## Stands in for an EOSG HLobby returned by a lobby search.
+class LobbyAttrs extends RefCounted:
+	var attributes: Array = []
+
 func _test_eos_contracts() -> void:
 	_current = "EOS room and migration contracts"
 	check(EosCoopLobby.valid_code("012345"), "leading-zero room codes are valid")
@@ -151,6 +155,18 @@ func _test_eos_contracts() -> void:
 		"EOS stage agreement rejects different visible stage keys")
 	check(EosCoopLobby.stage_identity_matches("", 7, "1-3", 7),
 		"EOS stage agreement accepts legacy integer attributes")
+	var searched := LobbyAttrs.new()
+	searched.attributes = [{"key": "ROOM_CODE", "value": "012345"},
+		{"key": "STAGE_KEY", "value": "1-3"}, {"key": "STAGE", "value": 7},
+		{"key": "STARTED", "value": 1}]
+	check(EosCoopLobby._attribute_string(searched, EosCoopLobby.STAGE_KEY_ATTRIBUTE, "") == "1-3",
+		"a searched room's upper-cased stage key is readable")
+	check(EosCoopLobby._attribute_int(searched, "stage", -1) == 7,
+		"a searched room's upper-cased stage id is readable")
+	check(EosCoopLobby._attribute_int(searched, "started", 0) == 1,
+		"a searched room's upper-cased started flag is readable")
+	check(EosCoopLobby._attribute_int(searched, "build", -1) == -1,
+		"a missing room attribute falls back")
 	var blob := PackedByteArray()
 	blob.resize(2505)
 	for i in blob.size():

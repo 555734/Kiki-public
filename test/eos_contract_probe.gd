@@ -9,6 +9,10 @@ func check(condition: bool, message: String) -> void:
 	if not condition:
 		failures.append(message)
 
+## Stands in for an EOSG HLobby returned by a lobby search.
+class LobbyAttrs extends RefCounted:
+	var attributes: Array = []
+
 func _ready() -> void:
 	check(EosCoopLobby.valid_code("012345"), "leading-zero room code")
 	check(not EosCoopLobby.valid_code("12345"), "short room code rejected")
@@ -19,6 +23,18 @@ func _ready() -> void:
 		"different visible stages are rejected even when enum ordinals match")
 	check(EosCoopLobby.stage_identity_matches("", 7, "1-3", 7),
 		"legacy rooms still fall back to their integer stage id")
+	var searched := LobbyAttrs.new()
+	searched.attributes = [{"key": "ROOM_CODE", "value": "012345"},
+		{"key": "STAGE_KEY", "value": "1-3"}, {"key": "STAGE", "value": 7},
+		{"key": "STARTED", "value": 1}]
+	check(EosCoopLobby._attribute_string(searched, EosCoopLobby.STAGE_KEY_ATTRIBUTE, "") == "1-3",
+		"a searched room's upper-cased stage key is readable")
+	check(EosCoopLobby._attribute_int(searched, "stage", -1) == 7,
+		"a searched room's upper-cased stage id is readable")
+	check(EosCoopLobby._attribute_int(searched, "started", 0) == 1,
+		"a searched room's upper-cased started flag is readable")
+	check(EosCoopLobby._attribute_int(searched, "build", -1) == -1,
+		"a missing room attribute falls back")
 
 	var blob := PackedByteArray()
 	blob.resize(2505)

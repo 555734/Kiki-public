@@ -95,6 +95,8 @@ func join_room(code: String, stage_id: int, stage_key: String = "") -> bool:
 	var local_stage_key := _local_stage_key(stage_key, stage_id)
 	var remote_stage_key := _attribute_string(candidate, STAGE_KEY_ATTRIBUTE, "")
 	var remote_stage_id := _attribute_int(candidate, "stage", -1)
+	if remote_stage_key.is_empty() and remote_stage_id < 0:
+		return _fail("相手のステージ情報を読めません（ルーム情報が不完全です）")
 	if not stage_identity_matches(remote_stage_key, remote_stage_id,
 			local_stage_key, stage_id):
 		var remote_label := remote_stage_key if not remote_stage_key.is_empty() \
@@ -182,14 +184,25 @@ func _search_attrs(code: String) -> Array[Dictionary]:
 		{"key": "protocol", "value": Protocol.VERSION},
 	]
 
-func _attribute_int(from_lobby, key: String, fallback: int) -> int:
-	var value = from_lobby.call("get_attribute", key)
-	return int(value.get("value", fallback)) if typeof(value) == TYPE_DICTIONARY else fallback
+## EOS hands attribute keys back upper-cased ("STAGE_KEY"), while EOSG's
+## get_attribute compares case-sensitively, so look the key up ourselves.
+static func _attribute(from_lobby, key: String):
+	var attrs = from_lobby.get("attributes")
+	if typeof(attrs) != TYPE_ARRAY:
+		return null
+	for attr in attrs:
+		if typeof(attr) == TYPE_DICTIONARY \
+				and String(attr.get("key", "")).nocasecmp_to(key) == 0:
+			return attr.get("value")
+	return null
 
-func _attribute_string(from_lobby, key: String, fallback: String) -> String:
-	var value = from_lobby.call("get_attribute", key)
-	return String(value.get("value", fallback)).strip_edges() \
-		if typeof(value) == TYPE_DICTIONARY else fallback
+static func _attribute_int(from_lobby, key: String, fallback: int) -> int:
+	var value = _attribute(from_lobby, key)
+	return int(value) if value != null else fallback
+
+static func _attribute_string(from_lobby, key: String, fallback: String) -> String:
+	var value = _attribute(from_lobby, key)
+	return String(value).strip_edges() if value != null else fallback
 
 static func _local_stage_key(stage_key: String, stage_id: int) -> String:
 	var clean := stage_key.strip_edges()
