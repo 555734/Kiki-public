@@ -111,7 +111,10 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_menu_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_net_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
-          "$GODOT" --headless --path . --quit-after 240
+          # Boot the actual entry scene without triggering native EOS auth in a
+          # short-lived headless process. EOS contracts are tested above; the
+          # shipped Android/iOS app still initializes EOS on normal launch.
+          "$GODOT" --headless --path . --quit-after 240 -- --ci-skip-eos
 
       - name: Build Play AAB and both APKs
         run: |
