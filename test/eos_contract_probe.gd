@@ -13,6 +13,12 @@ func _ready() -> void:
 	check(EosCoopLobby.valid_code("012345"), "leading-zero room code")
 	check(not EosCoopLobby.valid_code("12345"), "short room code rejected")
 	check(not EosCoopLobby.valid_code("12A456"), "non-decimal room code rejected")
+	check(EosCoopLobby.stage_identity_matches("1-3", 4, "1-3", 7),
+		"stable stage key wins when enum ordinals differ")
+	check(not EosCoopLobby.stage_identity_matches("1-2", 7, "1-3", 7),
+		"different visible stages are rejected even when enum ordinals match")
+	check(EosCoopLobby.stage_identity_matches("", 7, "1-3", 7),
+		"legacy rooms still fall back to their integer stage id")
 
 	var blob := PackedByteArray()
 	blob.resize(2505)

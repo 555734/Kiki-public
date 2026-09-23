@@ -11,6 +11,7 @@ signal failed(reason: String)
 const CODE_LENGTH := 6
 const BUCKET := "side-sky-coop"
 const EOS_PATH := "res://addons/epic-online-services-godot/eos.gd"
+const STAGE_KEY_ATTRIBUTE := "stage_key"
 
 var lobby = null
 var room_code: String = ""
@@ -31,7 +32,7 @@ static func new_code() -> String:
 	rng.randomize()
 	return "%06d" % rng.randi_range(0, 999999)
 
-func create_room(stage_id: int) -> bool:
+func create_room(stage_id: int, stage_key: String = "") -> bool:
 	desired_role = "host"
 	var lobbies = _lobbies()
 	if lobbies == null:
@@ -63,7 +64,11 @@ func create_room(stage_id: int) -> bool:
 		return _fail("EOSルームを作れませんでした")
 	lobby.call("add_attribute", "room_code", room_code)
 	lobby.call("add_attribute", "protocol", Protocol.VERSION)
+	# Keep the old integer for older clients, but do not use an enum ordinal as
+	# the primary identity.  A visible stage such as 1-3 must keep the same
+	# network identity even when enum members are appended or reordered.
 	lobby.call("add_attribute", "stage", stage_id)
+	lobby.call("add_attribute", STAGE_KEY_ATTRIBUTE, _local_stage_key(stage_key, stage_id))
 	lobby.call("add_attribute", "build", Balance.BUILD_ID)
 	lobby.call("add_attribute", "started", 0)
 	if not bool(await lobby.call("update_async")):
@@ -71,7 +76,7 @@ func create_room(stage_id: int) -> bool:
 	_bind_lobby()
 	return true
 
-func join_room(code: String, stage_id: int) -> bool:
+func join_room(code: String, stage_id: int, stage_key: String = "") -> bool:
 	desired_role = "guest"
 	room_code = code
 	if not valid_code(code):
@@ -87,8 +92,15 @@ func join_room(code: String, stage_id: int) -> bool:
 	if matches.size() != 1:
 		return _fail("そのルーム番号は見つかりません")
 	var candidate = matches[0]
-	if _attribute_int(candidate, "stage", -1) != stage_id:
-		return _fail("相手と選択中のステージが違います")
+	var local_stage_key := _local_stage_key(stage_key, stage_id)
+	var remote_stage_key := _attribute_string(candidate, STAGE_KEY_ATTRIBUTE, "")
+	var remote_stage_id := _attribute_int(candidate, "stage", -1)
+	if not stage_identity_matches(remote_stage_key, remote_stage_id,
+			local_stage_key, stage_id):
+		var remote_label := remote_stage_key if not remote_stage_key.is_empty() \
+			else str(remote_stage_id)
+		return _fail("相手と選択中のステージが違います（相手 %s / こちら %s）" \
+			% [remote_label, local_stage_key])
 	if _attribute_int(candidate, "started", 0) != 0:
 		return _fail("このルームはすでにプレイ中です")
 	lobby = await lobbies.call("join_async", candidate)
@@ -173,6 +185,23 @@ func _search_attrs(code: String) -> Array[Dictionary]:
 func _attribute_int(from_lobby, key: String, fallback: int) -> int:
 	var value = from_lobby.call("get_attribute", key)
 	return int(value.get("value", fallback)) if typeof(value) == TYPE_DICTIONARY else fallback
+
+func _attribute_string(from_lobby, key: String, fallback: String) -> String:
+	var value = from_lobby.call("get_attribute", key)
+	return String(value.get("value", fallback)).strip_edges() \
+		if typeof(value) == TYPE_DICTIONARY else fallback
+
+static func _local_stage_key(stage_key: String, stage_id: int) -> String:
+	var clean := stage_key.strip_edges()
+	return clean if not clean.is_empty() else str(stage_id)
+
+## New rooms use the human-stable stage number.  The integer fallback keeps
+## rooms made by the immediately preceding release joinable during rollout.
+static func stage_identity_matches(remote_key: String, remote_id: int,
+		local_key: String, local_id: int) -> bool:
+	if not remote_key.is_empty() and not local_key.is_empty():
+		return remote_key == local_key
+	return remote_id == local_id
 
 func _lobbies():
 	var tree := Engine.get_main_loop() as SceneTree

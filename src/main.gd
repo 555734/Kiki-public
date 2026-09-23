@@ -200,7 +200,7 @@ func host_eos() -> String:
 	if not await EosRuntime.ensure_ready():
 		return _eos_fail(EosRuntime.last_error)
 	eos_room = EosCoopLobby.new()
-	if not await eos_room.create_room(Stage.current()):
+	if not await eos_room.create_room(Stage.current(), Stage.stage_number()):
 		return _eos_fail(eos_room.last_error)
 	link.room_code = eos_room.room_code
 	link.enter(NetLink.Phase.WAITING_PEER)
@@ -220,7 +220,7 @@ func join_eos(code: String) -> String:
 	if not await EosRuntime.ensure_ready():
 		return _eos_fail(EosRuntime.last_error)
 	eos_room = EosCoopLobby.new()
-	if not await eos_room.join_room(code, Stage.current()):
+	if not await eos_room.join_room(code, Stage.current(), Stage.stage_number()):
 		return _eos_fail(eos_room.last_error)
 	link.enter(NetLink.Phase.HANDSHAKING)
 	var t := EosTransport.new()

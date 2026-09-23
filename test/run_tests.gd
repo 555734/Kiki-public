@@ -145,6 +145,12 @@ func _test_eos_contracts() -> void:
 	check(EosCoopLobby.valid_code("012345"), "leading-zero room codes are valid")
 	check(not EosCoopLobby.valid_code("12345") and not EosCoopLobby.valid_code("12A456"),
 		"room codes are exactly six decimal digits")
+	check(EosCoopLobby.stage_identity_matches("1-3", 4, "1-3", 7),
+		"EOS stage agreement uses the stable visible stage key")
+	check(not EosCoopLobby.stage_identity_matches("1-2", 7, "1-3", 7),
+		"EOS stage agreement rejects different visible stage keys")
+	check(EosCoopLobby.stage_identity_matches("", 7, "1-3", 7),
+		"EOS stage agreement accepts legacy integer attributes")
 	var blob := PackedByteArray()
 	blob.resize(2505)
 	for i in blob.size():
