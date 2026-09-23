@@ -43,7 +43,12 @@ func _ready() -> void:
 	ResourceLoader.load_threaded_request(MAIN_SCENE)
 	# Fire and forget: ensure_ready is safe to await again from host_eos, which
 	# simply waits for this attempt instead of starting a second one.
-	EosRuntime.ensure_ready()
+	# The 240-frame CI startup probe only checks scene bootstrapping. Do not
+	# start an asynchronous native EOS login just before this short-lived
+	# headless process exits: EOSG can segfault while its threads shut down.
+	# Normal Android/iOS launches still warm EOS here, without any delay.
+	if not OS.get_cmdline_user_args().has("--ci-skip-eos"):
+		EosRuntime.ensure_ready()
 
 func _process(delta: float) -> void:
 	_elapsed += delta
