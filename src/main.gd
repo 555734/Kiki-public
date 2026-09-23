@@ -80,7 +80,7 @@ func _ready() -> void:
 	# all emissive by design, and without glow they read as flat cyan shapes
 	# rather than as light -- which is most of what separates the painted look
 	# from the vector one.
-	if Balance.ENABLE_BLOOM and not Balance.USE_3D:
+	if Balance.ENABLE_BLOOM and not Stage.world_3d():
 		var env_node := WorldEnvironment.new()
 		env_node.name = "Bloom"
 		var env := Environment.new()
@@ -148,7 +148,10 @@ func _ready() -> void:
 	panel.main = self
 	add_child(panel)
 	if Balance.USE_3D:
-		add_child(load("res://src/render/three/world_view.gd").new())
+		var view = load("res://src/render/three/world_view.gd").new()
+		# On the painted 2D stages the 3D view carries the runner and nothing else.
+		view.characters_only = not Stage.world_3d()
+		add_child(view)
 
 ## The home screen is not an overlay over a live match. Its CanvasLayer keeps
 ## processing, while this gameplay subtree and the authoritative stage clock

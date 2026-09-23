@@ -25,6 +25,13 @@ static func use(which: int) -> void:
 static func current() -> int:
 	return _which
 
+## Whether this stage's world is drawn by the 3D view. 1-1 and 1-2 keep their
+## original painted 2D art -- terrain, props, enemies, pickups and backdrop --
+## and only the runner is a 3D model over it; the low-poly recipes were a worse
+## picture of those two stages than the art they replaced.
+static func world_3d() -> bool:
+	return Balance.USE_3D and _which != Which.GREENFIELD and _which != Which.HORROR
+
 static func is_crossing() -> bool:
 	return _which == Which.CROSSING
 

@@ -12,7 +12,7 @@ func _draw() -> void:
 	var t: float = sky.time()
 
 	draw_texture_rect(sky.gradient(), Rect2(Vector2.ZERO, view), false)
-	if Balance.USE_3D:
+	if Stage.world_3d():
 		_three_background(view,scroll,t)
 		return
 	if _panorama(view, scroll * PANORAMA_RATE):

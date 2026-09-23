@@ -47,7 +47,7 @@ func _ready() -> void:
 		g.set_color(1, Balance.C_SKY_BOTTOM)
 		g.add_point(0.55, Balance.C_SKY_TOP.lerp(Balance.C_SKY_BOTTOM, 0.55))
 	_gradient.gradient = g
-	if Balance.USE_3D:
+	if Stage.world_3d():
 		if Stage.is_horror() or Stage.is_keeper():
 			g.set_color(0,Color("172237"))
 			g.set_color(1,Color("536175"))
