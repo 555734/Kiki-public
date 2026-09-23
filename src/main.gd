@@ -32,6 +32,8 @@ var client_session: ClientSession = null
 ## cannot disagree about it. See NetLink.
 var link: NetLink = null
 var eos_room: EosCoopLobby = null
+## What host_eos/join_eos return when "やめる" overtook them.
+const CANCELLED := "接続をやめました"
 var _home_active: bool = false
 
 func _ready() -> void:
@@ -196,12 +198,23 @@ func host_eos() -> String:
 	if link.busy():
 		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
 	_end_any_session()
-	link.begin("------", "host")
+	# The six digits are ours to choose, so they go on screen now rather than
+	# after EOS login and two lobby round trips.
+	var room := EosCoopLobby.new()
+	eos_room = room
+	room.room_code = EosCoopLobby.new_code()
+	room.room_code_chosen.connect(func(code: String) -> void:
+		if room == eos_room:
+			link.room_code = code)
+	link.begin(room.room_code, "host")
 	if not await EosRuntime.ensure_ready():
-		return _eos_fail(EosRuntime.last_error)
-	eos_room = EosCoopLobby.new()
-	if not await eos_room.create_room(Stage.current(), Stage.stage_number()):
-		return _eos_fail(eos_room.last_error)
+		return _eos_fail(EosRuntime.last_error) if room == eos_room else _eos_abandoned(room)
+	if room != eos_room:
+		return _eos_abandoned(room)
+	if not await room.create_room(Stage.current(), Stage.stage_number()):
+		return _eos_fail(room.last_error) if room == eos_room else _eos_abandoned(room)
+	if room != eos_room:
+		return _eos_abandoned(room)
 	link.room_code = eos_room.room_code
 	link.enter(NetLink.Phase.WAITING_PEER)
 	var t := EosTransport.new()
@@ -217,11 +230,16 @@ func join_eos(code: String) -> String:
 		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
 	_end_any_session()
 	link.begin(code, "guest")
+	var room := EosCoopLobby.new()
+	eos_room = room
 	if not await EosRuntime.ensure_ready():
-		return _eos_fail(EosRuntime.last_error)
-	eos_room = EosCoopLobby.new()
-	if not await eos_room.join_room(code, Stage.current(), Stage.stage_number()):
-		return _eos_fail(eos_room.last_error)
+		return _eos_fail(EosRuntime.last_error) if room == eos_room else _eos_abandoned(room)
+	if room != eos_room:
+		return _eos_abandoned(room)
+	if not await room.join_room(code, Stage.current(), Stage.stage_number()):
+		return _eos_fail(room.last_error) if room == eos_room else _eos_abandoned(room)
+	if room != eos_room:
+		return _eos_abandoned(room)
 	link.enter(NetLink.Phase.HANDSHAKING)
 	var t := EosTransport.new()
 	var err := t.open(eos_room)
@@ -242,6 +260,14 @@ func _watch_eos(t: EosTransport) -> void:
 		link.last_error = reason
 		link.enter(NetLink.Phase.FAILED, reason))
 	t.authority_changed.connect(_on_eos_authority_changed.bind(t))
+
+## "やめる" was pressed while this room was still being made or joined. The lobby may
+## exist by now and must not be left advertising a code nobody is watching.
+func _eos_abandoned(room: EosCoopLobby) -> String:
+	room.leave()
+	if eos_room == null and link.busy():
+		link.finish()
+	return CANCELLED
 
 func _eos_fail(reason: String) -> String:
 	link.last_error = reason

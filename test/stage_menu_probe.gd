@@ -79,6 +79,31 @@ func _ready() -> void:
 				func(button: Button) -> bool: return not button.text.contains("1-2")),
 				"stage cards are not duplicated on the play screen")
 
+			# "部屋を作る" swaps the menu for the stage at once, with the room
+			# code on a strip across it, before any EOS round trip finishes.
+			panel._on_host_eos()
+			await get_tree().process_frame
+			await get_tree().process_frame
+			check(panel.get("_banner") != null, "creating a room shows the room-code strip")
+			check(not panel._root.visible, "the menu gives way to the stage behind the strip")
+			check(EosCoopLobby.valid_code(main.link.room_code),
+				"the room code is known before EOS answers")
+			check(String(panel._banner_code.text).replace(" ", "") == main.link.room_code,
+				"the strip shows the room code")
+			check(main.process_mode == Node.PROCESS_MODE_DISABLED,
+				"the stage stays frozen behind the strip")
+			panel._on_cancel()
+			check(panel.get("_banner") == null and panel._root.visible,
+				"やめる puts the menu back")
+			check(not main.link.busy(), "やめる ends the attempt")
+			check(panel.get("_code") != null, "and it is the play/connect screen again")
+			# Let the abandoned attempt's EOS call return before tearing down.
+			for i in 600:
+				if EosRuntime.state != EosRuntime.State.STARTING:
+					break
+				await get_tree().process_frame
+			await get_tree().process_frame
+
 			# Internet versus still depends on the retired relay and is deliberately
 			# absent from the release menu until its EOS migration is complete.
 			var door := false

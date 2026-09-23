@@ -7,10 +7,13 @@ config_version=5
 
 config/name="SIDE / SKY"
 config/description="Asymmetric co-op 2D action. One player runs, one player rewrites the world."
-run/main_scene="res://src/main.tscn"
+run/main_scene="res://src/boot.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.png"
+; The engine's own first frame is painted in the start screen's sky colour
+; instead of black; src/boot.tscn takes over as soon as scripts can run.
 boot_splash/show_image=false
+boot_splash/bg_color=Color(0.9, 0.97, 1, 1)
 
 [autoload]
 

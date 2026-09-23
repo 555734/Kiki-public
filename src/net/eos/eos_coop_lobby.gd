@@ -7,6 +7,8 @@ signal peer_joined
 signal peer_left
 signal owner_changed(owner_puid: String, local_is_owner: bool)
 signal failed(reason: String)
+## The six digits this host will advertise, known before any EOS round trip.
+signal room_code_chosen(code: String)
 
 const CODE_LENGTH := 6
 const BUCKET := "side-sky-coop"
@@ -38,17 +40,26 @@ func create_room(stage_id: int, stage_key: String = "") -> bool:
 	if lobbies == null:
 		return _fail("EOS Lobbyを利用できません")
 	lobbies.set("presence_enabled", false)
-	for _attempt in 10:
-		var candidate := new_code()
-		var found = await lobbies.call("search_by_attribute_async", _search_attrs(candidate))
-		if found == null:
-			return _fail("ルーム番号の確認に失敗しました")
-		if (found as Array).is_empty():
-			room_code = candidate
-			break
-	if room_code.is_empty():
-		return _fail("空いているルーム番号を作れませんでした")
+	# The code is chosen locally and shown at once; uniqueness is checked after
+	# the room exists instead of costing a search round trip up front. Two live
+	# rooms sharing a random six-digit code is a one-in-a-million event, and
+	# when it happens this room simply moves to a fresh code.
+	for attempt in 5:
+		# A code the caller already put on screen is kept for the first try.
+		if attempt > 0 or not valid_code(room_code):
+			room_code = new_code()
+		room_code_chosen.emit(room_code)
+		if not await _open_lobby(lobbies, stage_id, stage_key):
+			return false
+		var found = await lobbies.call("search_by_attribute_async", _search_attrs(room_code))
+		if found == null or (found as Array).size() <= 1:
+			_bind_lobby()
+			return true
+		await lobby.call("leave_async")
+		lobby = null
+	return _fail("空いているルーム番号を作れませんでした")
 
+func _open_lobby(lobbies, stage_id: int, stage_key: String) -> bool:
 	var eos = load(EOS_PATH)
 	var opts = eos.Lobby.CreateLobbyOptions.new()
 	opts.bucket_id = BUCKET
@@ -73,7 +84,6 @@ func create_room(stage_id: int, stage_key: String = "") -> bool:
 	lobby.call("add_attribute", "started", 0)
 	if not bool(await lobby.call("update_async")):
 		return _fail("EOSルーム情報を保存できませんでした")
-	_bind_lobby()
 	return true
 
 func join_room(code: String, stage_id: int, stage_key: String = "") -> bool:

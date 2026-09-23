@@ -90,6 +90,10 @@ func _ready() -> void:
 
 var _phase_label: Label = null
 var _cancel: Button = null
+## The strip across the live game that shows a host's room code. While it is
+## up, _status/_phase_label/_cancel point at its widgets instead of the menu's.
+var _banner: Control = null
+var _banner_code: Label = null
 
 func _clear_screen() -> void:
 	for child in _screen_host.get_children():
@@ -349,6 +353,9 @@ func _on_phase(phase: int, detail: String) -> void:
 	_phase_label.text = NetLink.LABELS.get(phase, "")
 	if not detail.is_empty():
 		_phase_label.text += "  （%s）" % detail
+	if _banner != null:
+		_on_banner_phase(phase, detail)
+		return
 	match phase:
 		NetLink.Phase.DIALLING:
 			_status.text = "EOSに接続しています…"
@@ -377,7 +384,109 @@ func _on_phase(phase: int, detail: String) -> void:
 
 func _on_cancel() -> void:
 	main._end_any_session()
+	# A room still being made has no session to end yet; the attempt notices
+	# and cleans up its lobby when its EOS call returns.
+	if main.link.busy():
+		main.link.finish()
+	_close_banner()
 	_status.text = "接続をやめました。もう一度選んでください。"
+
+# ---------------------------------------------------------------- room banner
+
+## Shown the instant "部屋を作る" is pressed: the menu gives way to the stage
+## itself, and a strip across the middle carries the room code while EOS
+## finishes making the room behind it.
+func _show_banner() -> void:
+	if _banner != null:
+		return
+	_root.hide()
+	# The world stays suspended; only the 3D view is allowed to run so its
+	# camera lines up with the stage and there is something to look at.
+	var world := main.get_node_or_null("World3D") if main != null else null
+	if world != null:
+		world.process_mode = Node.PROCESS_MODE_ALWAYS
+	_banner = Control.new()
+	_banner.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_banner)
+	var strip := PanelContainer.new()
+	strip.set_anchors_preset(Control.PRESET_HCENTER_WIDE)
+	strip.anchor_top = 0.5
+	strip.anchor_bottom = 0.5
+	strip.offset_top = -110
+	strip.offset_bottom = 110
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.03, 0.20, 0.40, 0.82)
+	style.border_color = Color(0.41, 0.82, 0.95, 0.9)
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	strip.add_theme_stylebox_override("panel", style)
+	_banner.add_child(strip)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 4)
+	strip.add_child(box)
+	box.add_child(_title("ルーム番号", 16, Color("9fe3f7")))
+	_banner_code = _title(_spaced(main.link.room_code), 56, Color.WHITE)
+	box.add_child(_banner_code)
+	_status = _title("準備中…", 15, Color("e8f4fb"))
+	box.add_child(_status)
+	_phase_label = _title("", 12, Color("9fe3f7"))
+	box.add_child(_phase_label)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(row)
+	_cancel = _button("やめる", _on_cancel, false)
+	_cancel.custom_minimum_size = Vector2(180, 44)
+	row.add_child(_cancel)
+	_on_phase(main.link.phase, "")
+
+## Back to the menu, e.g. after "やめる" or a failure. Safe to call twice.
+func _close_banner() -> void:
+	if _banner == null:
+		return
+	_banner.queue_free()
+	_banner = null
+	_banner_code = null
+	var world := main.get_node_or_null("World3D") if main != null else null
+	if world != null:
+		world.process_mode = Node.PROCESS_MODE_INHERIT
+	_root.show()
+	_show_play_screen()
+
+func _on_banner_phase(phase: int, detail: String) -> void:
+	_cancel.visible = true
+	_phase_label.text = NetLink.LABELS.get(phase, "")
+	match phase:
+		NetLink.Phase.DIALLING:
+			_status.text = "準備中…（番号はもう決まっています）"
+		NetLink.Phase.WAITING_PEER:
+			_status.text = "相手にこの6桁を伝えてください。"
+		NetLink.Phase.HANDSHAKING:
+			_status.text = "相手が来ました。ゲームを始められるか確認しています…"
+		NetLink.Phase.PLAYING:
+			queue_free()
+		NetLink.Phase.RECONNECTING:
+			_status.text = "接続が切れました。つなぎ直しています…"
+		NetLink.Phase.FAILED:
+			_close_banner()
+			_failed("接続できませんでした：" + detail)
+
+func _process(_delta: float) -> void:
+	# The code can change once after it is shown (a rare clash with another
+	# live room), so the strip reads it rather than being told.
+	if _banner_code != null and main != null:
+		var shown := _spaced(main.link.room_code)
+		if _banner_code.text != shown:
+			_banner_code.text = shown
+
+static func _spaced(code: String) -> String:
+	if code.is_empty():
+		code = "------"
+	var out := PackedStringArray()
+	for i in code.length():
+		out.append(code[i])
+	return " ".join(out)
 
 func _exit_tree() -> void:
 	if main != null and is_instance_valid(main) and main.input_hub != null:
@@ -511,11 +620,18 @@ func _failed(message: String) -> void:
 	_status.text = message + "\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。"
 
 func _on_host_eos() -> void:
+	# host_eos puts the code on the link before its first EOS call; the strip
+	# reads it from there, so it can go up before anything is awaited.
+	_show_banner()
 	var err: String = await main.host_eos()
+	if err == main.CANCELLED:
+		# _on_cancel has already put the menu back, and a newer attempt may
+		# own the strip by now.
+		return
 	if err != "":
+		_close_banner()
 		_failed("失敗：" + err)
 		return
-	_code.text = main.link.room_code
 	_wait_for_handshake(main.host_session)
 
 func _on_join_eos() -> void:
