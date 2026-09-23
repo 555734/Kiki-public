@@ -11,7 +11,7 @@ func _init(which: String = "walker", size: Vector2 = Vector2(40,40)) -> void:
 	body=Assets.instance(kind,size)
 	add_child(body)
 	if kind in ["turret","black_hole","wisp"]: return
-	var flying := kind in ["flyer","pursuer"]
+	var flying := kind in ["flyer","pursuer","sky_predator"]
 	var count := 4 if kind in ["keeper","thornmite"] else 2
 	for i in count:
 		var side := -1 if i%2==0 else 1
@@ -32,14 +32,14 @@ func animate(delta: float, speed: float, facing: float, state: int = 0) -> void:
 	rotation.y=0
 	scale.x=absf(scale.x)*(-1 if facing<0 else 1)
 	for i in limbs.size():
-		if kind in ["flyer","pursuer"]:
+		if kind in ["flyer","pursuer","sky_predator"]:
 			limbs[i].rotation.x=sin(phase*2)*.65
 			limbs[i].rotation.z=sin(phase*2)*.18*(-1 if i%2==0 else 1)
 		else:
 			limbs[i].rotation.z=sin(phase+float(i%2)*PI)*.3*clampf(absf(speed)/80,0,1)
 	if kind=="keeper":
 		body.rotation.z=.12 if state in [Keeper.State.BRACE,Keeper.State.CHARGE] else (-.18 if state==Keeper.State.STAGGER else 0.0)
-	elif kind=="pursuer":
+	elif kind in ["pursuer","sky_predator"]:
 		body.rotation.z=sin(phase)*.07
 	elif kind=="thornmite":
 		body.rotation.z=-.12 if state==1 else (.08 if state==2 else 0.0)

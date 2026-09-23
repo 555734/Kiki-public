@@ -134,7 +134,7 @@ func _register(node: Node) -> void:
 		kind=path.get_file().get_basename()
 		if node is Walker and node.skin=="walker_spiky": kind="walker_spiky"
 		if node is Flyer and Stage.is_horror(): kind="wisp"
-		if kind=="sky_pursuer": kind="pursuer"
+		if kind=="sky_pursuer": kind="sky_predator" if Stage.is_skyward_ruins() else "pursuer"
 		if kind=="black_hole_chaser": kind="black_hole"
 		size=_body_size(node,size)
 	elif node is MovingPlatform: kind="platform"; size=node.span
@@ -219,6 +219,9 @@ func _process(delta: float) -> void:
 			if node is Keeper: face=node.facing
 			if node is Shieldbearer: face=node.facing_now()
 			model.animate(delta,node.velocity.length(),face,node.state if node is Keeper else (node.mode() if b.kind=="thornmite" else 0))
+			if b.kind=="sky_predator":
+				var pursuit_direction: Vector2 = node.get("chase_direction")
+				model.rotation.z=-pursuit_direction.angle()
 			if node is Turret:
 				model.rotation.y=0
 				model.rotation.z=-node.aim_direction.angle()
@@ -283,7 +286,8 @@ func _sync_surfaces(visible_rect: Rect2) -> void:
 						for k in int(d.get("count",3)):
 							_add_surface(entry,Assets.instance(kind,Vector2(cell,cell)),node.global_position+at+Vector2(k*cell+cell/2,cell),Rect2(at,Vector2(cell,cell)))
 					else:
-						_add_surface(entry,Assets.instance(kind,size),node.global_position+at,Rect2(at-Vector2(100,170),Vector2(maxf(size.x,200),200)))
+						_add_surface(entry,Assets.instance(kind,size),node.global_position+at,
+							Rect2(at-size*.5,Vector2(maxf(size.x,200),maxf(size.y,200))))
 		for part in entry.models:
 			part.model.visible=node.is_visible_in_tree() and visible_rect.intersects(part.bounds)
 

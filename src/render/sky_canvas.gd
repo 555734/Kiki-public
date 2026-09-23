@@ -44,6 +44,9 @@ const PANORAMA_RATE := 0.30
 ## small 3D actors. Night/ruins and the cloud stage keep their own atmosphere.
 func _three_background(view: Vector2, scroll: float, time: float) -> void:
 	var night := Stage.is_horror() or Stage.is_keeper()
+	if Stage.is_skyward_ruins():
+		_skyward_background(view, scroll, sky.vertical(), time)
+		return
 	if Stage.is_sky():
 		_clouds(view,scroll*.05-time*3,view.y*.18)
 		_cloud_sea(view,scroll*.14,view.y*.75,0.0)
@@ -73,6 +76,29 @@ func _three_background(view: Vector2, scroll: float, time: float) -> void:
 			var h := 80.0+float(i%4)*29
 			draw_rect(Rect2(x,view.y*.76-h,18,h),Color("34404b"))
 			draw_colored_polygon(PackedVector2Array([Vector2(x-35,view.y*.76-h*.4),Vector2(x+9,view.y*.76-h-60),Vector2(x+55,view.y*.76-h*.4)]),Color("34404b"))
+
+## Stage 1-3 climbs through the background rather than travelling past it.
+## All motion is derived from the camera and therefore identical on both peers.
+func _skyward_background(view: Vector2, horizontal: float, camera_y: float, time: float) -> void:
+	var climb := clampf((6400.0 - camera_y) / 6100.0, 0.0, 1.0)
+	# Mountains sink below the player while the cloud sea grows closer, then
+	# falls away again near the summit.
+	var mountain_base := view.y * (0.68 + climb * 0.35)
+	for layer in 2:
+		var ridge := PackedVector2Array([Vector2(0, view.y)])
+		for i in range(-1, int(view.x / 90.0) + 3):
+			var x := float(i) * 90.0
+			var wave := sin((x + horizontal * (.04 + layer*.04)) * .006) * 55.0
+			ridge.append(Vector2(x, mountain_base + float(layer)*70.0 + wave))
+		ridge.append(Vector2(view.x + 120, view.y))
+		draw_colored_polygon(ridge, Color("8bbfd0") if layer == 0 else Color("67a5a5"))
+	var cloud_y := lerpf(view.y * .25, view.y * .78, absf(climb - .55) * 1.4)
+	_clouds(view, horizontal * .035 - time * 2.0, cloud_y - view.y * .35)
+	if climb > .72:
+		# A pale summit glow makes the final gate readable without replacing it
+		# with a flat background painting.
+		draw_circle(Vector2(view.x*.5, view.y*.12), view.y*.20,
+			Color(1.0, .91, .58, (climb-.72)*.42))
 ## Where the grass line sits in the painted backdrop, as a fraction of its
 ## height. The horizon is pinned to this, so the painted ground meets the real
 ## ground instead of floating above or below it.

@@ -107,6 +107,8 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/movement_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/workshop_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_menu_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_net_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
           "$GODOT" --headless --path . --quit-after 240

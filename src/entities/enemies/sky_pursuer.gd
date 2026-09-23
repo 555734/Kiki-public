@@ -11,6 +11,7 @@ var runner: Runner = null
 @export var stun_duration: float = 1.35
 @export var kill_distance_x: float = 40.0
 @export var kill_distance_y: float = 58.0
+@export var chase_direction: Vector2 = Vector2.RIGHT
 
 var _wake_left: float = 0.0
 var _stun_left: float = 0.0
@@ -46,15 +47,18 @@ func _physics_process(delta: float) -> void:
 		_stun_left = maxf(0.0, _stun_left - delta)
 		return
 
-	var gap := runner.global_position.x - global_position.x
+	var forward := chase_direction.normalized()
+	if forward.length_squared() < 0.5:
+		forward = Vector2.RIGHT
+	var gap := (runner.global_position - global_position).dot(forward)
 	if gap > 1180.0:
-		global_position = runner.global_position + Vector2(-900.0, -24.0)
+		global_position = runner.global_position - forward * 900.0 + Vector2(0.0, -24.0)
 		gap = 900.0
 
 	# Chase through the runner, not to a point behind them. Its floor speed also
 	# follows the runner's forward speed, so sprinting alone cannot trivialise it.
-	var target := runner.global_position + Vector2(18.0, -8.0)
-	var runner_forward := maxf(0.0, runner.velocity.x)
+	var target := runner.global_position + forward * 18.0
+	var runner_forward := maxf(0.0, runner.velocity.dot(forward))
 	var close_speed := maxf(cruise_speed, runner_forward + 65.0)
 	var catchup := clampf((gap - 100.0) / 700.0, 0.0, 1.0)
 	var speed := lerpf(close_speed, catchup_speed, catchup)
@@ -74,8 +78,10 @@ func take_damage(_amount: int, _by: String = "snipe") -> void:
 		return
 	_stun_left = maxf(_stun_left, stun_duration)
 	_hit_flash = 0.20
-	global_position.x -= 92.0
-	global_position.y -= 12.0
+	# Away from progress is left in 1-2 and down in the vertical stage.
+	global_position -= chase_direction.normalized() * 92.0
+	if absf(chase_direction.x) > 0.5:
+		global_position.y -= 12.0
 
 func phase() -> float:
 	return _phase

@@ -19,6 +19,7 @@ var _screen_host: MarginContainer = null
 var _logo: Label = null
 var _stage_1_1: Button = null
 var _stage_1_2: Button = null
+var _stage_1_3: Button = null
 var _local: Button = null
 ## Everything that starts or changes a connection. Greyed out together while an
 ## attempt is in flight, which is the whole of "do not let a second tap build a
@@ -96,6 +97,7 @@ func _clear_screen() -> void:
 	_actions.clear()
 	_stage_1_1 = null
 	_stage_1_2 = null
+	_stage_1_3 = null
 	_local = null
 	_code = null
 	_phase_label = null
@@ -125,8 +127,12 @@ func _show_stage_screen() -> void:
 	_stage_1_2 = _stage_card(
 		"1-2", "THE HOLLOW OUTSKIRTS", "月明かりの村を駆け抜ける追跡ステージ",
 		preload("res://assets/bg/horror_stage_1_2.svg"), Stage.Which.HORROR, Color("4688ef"))
+	_stage_1_3 = _stage_card(
+		"1-3", "THE SKYWARD RUINS", "二人で足場をつなぎ、天空の頂上を目指す",
+		preload("res://assets/stage_1_3/preview.png"), Stage.Which.SKYWARD_RUINS, Color("8659e8"))
 	row.add_child(_stage_1_1)
 	row.add_child(_stage_1_2)
+	row.add_child(_stage_1_3)
 	_refresh_stage_buttons()
 
 	box.add_child(_title("カードを選ぶと、遊び方の画面へ進みます", 14, Color("416b91")))
@@ -213,7 +219,7 @@ func _stage_card(number: String, stage_name: String, description: String,
 		texture: Texture2D, which: int, accent: Color) -> Button:
 	var button := Button.new()
 	button.text = number
-	button.custom_minimum_size = Vector2(0, 390)
+	button.custom_minimum_size = Vector2(0, 350)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.clip_contents = true
 	button.add_theme_font_size_override("font_size", 1)
@@ -269,17 +275,16 @@ func _selected_stage_preview() -> PanelContainer:
 	preview.custom_minimum_size = Vector2(500, 0)
 	preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preview.clip_contents = true
-	var accent := Color("4688ef") if Stage.current() == Stage.Which.HORROR else Color("15cf8a")
+	var stage_info := _selected_stage_info()
+	var accent: Color = stage_info["accent"]
 	preview.add_theme_stylebox_override("panel", _stage_style(accent, 0.96, 18, 3))
 	var art := TextureRect.new()
-	art.texture = preload("res://assets/bg/horror_stage_1_2.svg") \
-		if Stage.current() == Stage.Which.HORROR else preload("res://assets/bg/parallax.png")
+	art.texture = stage_info["texture"]
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	preview.add_child(art)
-	var label := _title(
-		"選択中  1-2\nTHE HOLLOW OUTSKIRTS" if Stage.current() == Stage.Which.HORROR \
-		else "選択中  1-1\nGREENFIELD PLAINS", 18, Color.WHITE)
+	var label := _title("選択中  %s\n%s" % [stage_info["number"], stage_info["name"]],
+		18, Color.WHITE)
 	label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	label.offset_top = -76
 	label.offset_bottom = -10
@@ -288,6 +293,19 @@ func _selected_stage_preview() -> PanelContainer:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview.add_child(label)
 	return preview
+
+func _selected_stage_info() -> Dictionary:
+	match Stage.current():
+		Stage.Which.HORROR:
+			return {"number": "1-2", "name": "THE HOLLOW OUTSKIRTS",
+				"texture": preload("res://assets/bg/horror_stage_1_2.svg"),
+				"accent": Color("4688ef")}
+		Stage.Which.SKYWARD_RUINS:
+			return {"number": "1-3", "name": "THE SKYWARD RUINS",
+				"texture": preload("res://assets/stage_1_3/preview.png"),
+				"accent": Color("8659e8")}
+	return {"number": "1-1", "name": "GREENFIELD PLAINS",
+		"texture": preload("res://assets/bg/parallax.png"), "accent": Color("15cf8a")}
 
 ## Stage buttons are selection, not launch. Rebuilding by reloading the current
 ## scene guarantees every stage-owned object uses the same Stage value; trying
@@ -306,9 +324,9 @@ func _select_stage(which: int) -> void:
 		_show_play_screen()
 
 func _refresh_stage_buttons() -> void:
-	if _stage_1_1 == null or _stage_1_2 == null:
+	if _stage_1_1 == null or _stage_1_2 == null or _stage_1_3 == null:
 		return
-	for button in [_stage_1_1, _stage_1_2]:
+	for button in [_stage_1_1, _stage_1_2, _stage_1_3]:
 		var selected: bool = int(button.get_meta("which")) == Stage.current()
 		var accent: Color = button.get_meta("accent")
 		var badge: Label = button.get_meta("badge")

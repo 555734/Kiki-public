@@ -6,6 +6,7 @@ static var cache: Dictionary = {}
 
 static func palette() -> Array[Color]:
 	if Stage.is_horror(): return [Color("353044"),Color("756079"),Color("76584a")]
+	if Stage.is_skyward_ruins(): return [Color("d3bf8a"),Color("4fbd55"),Color("eee3c3")]
 	if Stage.is_sky(): return [Color("63688d"),Color("87b8ac"),Color("b0a1ac")]
 	if Stage.is_keeper(): return [Color("514d60"),Color("8d8280"),Color("746776")]
 	if Stage.is_quiet(): return [Color("666b75"),Color("8dabaa"),Color("8c8393")]
@@ -31,6 +32,13 @@ static func terrain(size: Vector2) -> ArrayMesh:
 		m.gem(Vector3(x,y,-2),Vector3(12+i%3*4,7,3),p[2],5)
 	if h>90:
 		m.box(Vector3(w/2,-h*.65,-2),Vector3(w,3,2),p[0].darkened(.12))
+	if Stage.is_skyward_ruins():
+		# Broken pale-rock facets give every rectangular collider a floating
+		# island silhouette without changing its exact walkable top.
+		for i in maxi(1, int(w / 90.0)):
+			var x := minf(w - 24.0, 34.0 + float(i) * 90.0)
+			m.prism([Vector2(x - 30.0, -h + 10.0), Vector2(x + 30.0, -h + 10.0),
+				Vector2(x, -h - minf(80.0, h * .45))], -18, 30, p[2].darkened(.12))
 	return m.mesh()
 
 static func mesh(kind: String, size: Vector2 = Vector2(40,40)) -> ArrayMesh:
@@ -62,7 +70,7 @@ static func mesh(kind: String, size: Vector2 = Vector2(40,40)) -> ArrayMesh:
 		"wisp":
 			m.loft(Vector3(0,-size.y*.5,0),[Vector3(0,1,1),Vector3(size.y*.3,size.x*.34,size.x*.2),Vector3(size.y*.6,size.x*.5,size.x*.27),Vector3(size.y*.87,size.x*.29,size.x*.19),Vector3(size.y,1,1)],Color("b7c5cb"),7)
 			for side in [-1,1]: m.gem(Vector3(side*size.x*.16,size.y*.12,size.x*.25),Vector3(7,10,4),Color("5266a4"),4)
-		"walker", "walker_spiky", "flyer", "shieldbearer", "keeper", "pursuer", "turret", "black_hole":
+		"walker", "walker_spiky", "flyer", "shieldbearer", "keeper", "pursuer", "sky_predator", "turret", "black_hole":
 			_enemy(m,kind,size)
 		"goal":
 			for side in [-1,1]:
@@ -110,6 +118,7 @@ static func _enemy(m: RefCounted, kind: String, size: Vector2) -> void:
 	var shell := Color("ad6239")
 	if kind=="flyer": shell=Color("50758b")
 	if kind in ["pursuer","black_hole"]: shell=Color("49374f")
+	if kind=="sky_predator": shell=Color("4b2473")
 	if kind=="keeper": shell=Color("557777")
 	if kind=="shieldbearer": shell=Color("647158")
 	if kind=="walker_spiky": shell=Color("9c4938")
@@ -122,7 +131,7 @@ static func _enemy(m: RefCounted, kind: String, size: Vector2) -> void:
 		if kind in ["turret","black_hole"]:
 			m.loft(Vector3(side*w*.29,-h*.5,2),[Vector3(0,w*.18,h*.23),Vector3(6,w*.15,h*.20),Vector3(h*.24,w*.09,h*.1)],dark,6)
 		m.prism([Vector2(side*w*.25,h*.28),Vector2(side*w*.48,h*.5),Vector2(side*w*.1,h*.36)],0,8,shell.lightened(.2))
-	if kind in ["pursuer","keeper","black_hole"]:
+	if kind in ["pursuer","sky_predator","keeper","black_hole"]:
 		for i in 5:
 			m.prism([Vector2(-w*.28+i*w*.12,h*.02),Vector2(-w*.22+i*w*.12,-h*.16),Vector2(-w*.16+i*w*.12,h*.02)],h*.3,4,Color("e1d6bc"))
 	if kind=="shieldbearer":
@@ -135,6 +144,15 @@ static func _enemy(m: RefCounted, kind: String, size: Vector2) -> void:
 		m.box(Vector3(w*.6,0,0),Vector3(4,h*.3,h*.4),Color("cf9957"))
 	if kind=="black_hole":
 		m.gem(Vector3(0,0,h*.35),Vector3(w*.7,h*.7,20),Color("100e24"),10)
+	if kind=="sky_predator":
+		# Layered violet vapour and two bright eyes, based on the supplied
+		# shadow-predator sheet but authored as a real vertex-coloured mesh.
+		for i in 5:
+			m.gem(Vector3(-w*.42 + float(i)*w*.20, -h*.18 + float(i%2)*h*.17, -8),
+				Vector3(w*.46, h*.52, 28), Color("5c2c86").lightened(float(i)*.035), 8)
+		for side in [-1, 1]:
+			m.gem(Vector3(w*.25, side*h*.14, h*.48), Vector3(13, 8, 5),
+				Color("e68cff"), 4)
 
 static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 	var wood := Color("775039")
@@ -212,6 +230,24 @@ static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 			for i in 3:
 				m.box(Vector3(i*10,7,-15),Vector3(2,14,2),leaf)
 				m.gem(Vector3(i*10,14,-15),Vector3(10,8,8),Color("f0c658"),5)
+		"waterfall":
+			m.box(Vector3(0, size.y*.5, -24), Vector3(size.x, size.y, 10), Color("65c9ee"))
+			for i in 4:
+				var x := -size.x*.35 + float(i)*size.x*.23
+				m.box(Vector3(x, size.y*.5, -17), Vector3(5, size.y*.94, 3), Color("d9f7ff"))
+			m.gem(Vector3(0, 4, -18), Vector3(size.x*1.15, 22, 12), Color("eefcff"), 8)
+		"ruin_column":
+			m.box(Vector3(0, size.y*.5, -18), Vector3(size.x*.62, size.y, 36), stone)
+			m.box(Vector3(0, 8, -18), Vector3(size.x, 16, 42), stone.lightened(.12))
+			m.box(Vector3(0, size.y-8, -18), Vector3(size.x*.9, 16, 42), stone.darkened(.08))
+			m.prism([Vector2(-size.x*.22,size.y*.32),Vector2(0,size.y*.48),
+				Vector2(size.x*.12,size.y*.29)],3,3,Color("66766b"))
+		"cloud_bank":
+			for i in 9:
+				var x := -size.x*.48 + float(i)*size.x*.12
+				var y := size.y*.30 + float(i%3)*size.y*.10
+				m.gem(Vector3(x,y,-36),Vector3(size.x*.19,size.y*.55,38),
+					Color("eaf8ff").darkened(float(i%2)*.025),8)
 		_:
 			push_warning("No 3D prop recipe: "+kind)
 			m.gem(Vector3(0,8,0),Vector3(20,16,20),stone,5)

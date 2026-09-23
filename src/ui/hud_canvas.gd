@@ -256,12 +256,22 @@ func _look_button(centre: Vector2, radius: float, forward: bool, lit: bool) -> v
 	var d := 1.0 if forward else -1.0
 	var w := radius * 0.42
 	for i in range(2):
-		var x := centre.x + d * (w * 0.30 + float(i) * w * 0.58) - d * w * 0.30
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(x + d * w * 0.55, centre.y),
-			Vector2(x - d * w * 0.20, centre.y - w * 0.62),
-			Vector2(x - d * w * 0.20, centre.y + w * 0.62),
-		]), Color(1, 1, 1, 0.92 if lit else 0.72))
+		if Stage.is_skyward_ruins():
+			# Positive pan is forward; in this stage forward is visually up.
+			var up := -d
+			var y := centre.y + up * (w * 0.30 + float(i) * w * 0.58) - up * w * 0.30
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(centre.x, y + up * w * 0.55),
+				Vector2(centre.x - w * 0.62, y - up * w * 0.20),
+				Vector2(centre.x + w * 0.62, y - up * w * 0.20),
+			]), Color(1, 1, 1, 0.92 if lit else 0.72))
+		else:
+			var x := centre.x + d * (w * 0.30 + float(i) * w * 0.58) - d * w * 0.30
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(x + d * w * 0.55, centre.y),
+				Vector2(x - d * w * 0.20, centre.y - w * 0.62),
+				Vector2(x - d * w * 0.20, centre.y + w * 0.62),
+			]), Color(1, 1, 1, 0.92 if lit else 0.72))
 
 ## One tool. Lit while a thumb is holding it, because holding it is aiming with
 ## it and the player needs to see which one they have.

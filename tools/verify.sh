@@ -93,6 +93,9 @@ step "can two people get across the open sky"
 # from where the runner lands, and this is what said so.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/sky_probe.tscn
 
+step "can two people climb the Skyward Ruins"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins_probe.tscn
+
 step "can two people beat the Keeper"
 # The boss stage. Its claims are arcs too -- how long a jump keeps the runner
 # above the charge, and how long the charge takes to pass under them -- so both

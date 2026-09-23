@@ -209,6 +209,8 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			p.cruise_speed = float(spec.get("speed", 220.0))
 			p.catchup_speed = float(spec.get("catchup", 520.0))
 			p.stun_duration = float(spec.get("stun", 1.35))
+			var direction: Vector2 = spec.get("direction", Stage.progress_direction())
+			p.chase_direction = direction.normalized()
 			return p
 		"thornmite":
 			var tm = ThornmiteScript.new()

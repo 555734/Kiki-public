@@ -32,6 +32,9 @@ func _ready() -> void:
 	check(Stage.stage_number() == "1-S", "the flight stage is selectable as 1-S")
 	check(Stage.stage_name() == "THE OPEN SKY", "and it is the one it says it is")
 	check(Stage.ground().size() > 10, "the open sky has its islands in it")
+	Stage.use(Stage.Which.SKYWARD_RUINS)
+	check(Stage.stage_number() == "1-3", "the vertical stage is selectable as 1-3")
+	check(Stage.stage_name() == "THE SKYWARD RUINS", "and it is the one it says it is")
 	Stage.use(Stage.Which.GREENFIELD)
 	check(Stage.stage_number() == "1-1", "1-1 remains selectable after the others")
 
@@ -56,10 +59,10 @@ func _ready() -> void:
 			var seen := {}
 			for node in panel.find_children("*", "Button", true, false):
 				var text := String((node as Button).text)
-				for label in ["1-1", "1-2", "1-V", "1-B", "1-S"]:
+				for label in ["1-1", "1-2", "1-3", "1-V", "1-B", "1-S"]:
 					if text.contains(label):
 						seen[label] = true
-			for label in ["1-1", "1-2"]:
+			for label in ["1-1", "1-2", "1-3"]:
 				check(seen.has(label), "start screen has a %s stage button" % label)
 			# And the other half of the same claim. Without this, restoring the
 			# two buttons would pass every check in the suite and nobody would

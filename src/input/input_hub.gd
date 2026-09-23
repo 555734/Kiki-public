@@ -552,7 +552,7 @@ func _route_control(index: int, position: Vector2, size: Vector2,
 		"pan_left", "pan_right":
 			_touch_owner[index] = "pan"
 			_pan_fingers[index] = -1.0 if id == "pan_left" else 1.0
-			_pan_drag_from[index] = position.x
+			_pan_drag_from[index] = position.y if Stage.is_skyward_ruins() else position.x
 			_refresh_pan()
 		_:
 			if id.begins_with("slot_"):
@@ -616,9 +616,10 @@ func _touch_move(index: int, position: Vector2) -> void:
 			_aim_from[index] = position.x
 			_aim_from_y[index] = position.y
 		"pan":
-			var from: float = _pan_drag_from.get(index, position.x)
-			_pan_drag += (position.x - from) * -PAN_DRAG_SCALE
-			_pan_drag_from[index] = position.x
+			var coordinate := position.y if Stage.is_skyward_ruins() else position.x
+			var from: float = _pan_drag_from.get(index, coordinate)
+			_pan_drag += (coordinate - from) * -PAN_DRAG_SCALE
+			_pan_drag_from[index] = coordinate
 			_pan_fingers.erase(index)
 			_refresh_pan()
 		"slot":

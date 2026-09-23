@@ -33,7 +33,7 @@ func _ready() -> void:
 	# 1-S is above the clouds at dawn: dark blue overhead going to gold at the
 	# cloud line, which is the reverse of every other stage's pale-at-the-bottom
 	# daylight.
-	if Stage.is_sky():
+	if Stage.is_sky() or Stage.is_skyward_ruins():
 		g.set_color(0, Balance.C_DAWN_TOP)
 		g.set_color(1, Balance.C_DAWN_LOW)
 		g.add_point(0.62, Balance.C_DAWN_MID)
@@ -47,7 +47,7 @@ func _ready() -> void:
 			g.set_color(0,Color("172237"))
 			g.set_color(1,Color("536175"))
 			g.set_color(2,Color("344453"))
-		elif not Stage.is_sky():
+		elif not Stage.is_sky() and not Stage.is_skyward_ruins():
 			g.set_color(0,Color("449ee0"))
 			g.set_color(1,Color("c9e7e2"))
 			g.set_color(2,Color("84cbdc"))

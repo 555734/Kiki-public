@@ -267,3 +267,18 @@ readable on a phone.
 | `horror/thornmite.svg` | low quadruped rock enemy; replaces the rejected round walker silhouette |
 | `horror/wisp.svg` | dark airborne Wisp skin for the existing Flyer behaviour |
 | `horror/ruin_block.svg` | beveled dark masonry used by collidable floating block rows |
+# Stage 1-3: THE SKYWARD RUINS
+
+- `stage_1_3/reference/platforms.png`, `terrain.png`, `enemies.png`, and
+  `backgrounds.png` were supplied by the project owner on 2026-09-23 as visual
+  reference sheets. They are not read as gameplay instructions and are not
+  rendered as a replacement for the 3D world.
+- `stage_1_3/preview.png` was generated for this project with OpenAI's built-in
+  image generation tool on 2026-09-23, using those four owner-supplied sheets
+  as style references. Prompt: "Create a polished 16:9 stage-selection preview
+  of a bright vertical ascent through floating grassy islands and pale stone
+  sky ruins toward a summit gate, with a purple smoky predator rising from
+  below and cyan hologram platforms suggesting two-player cooperation; colorful
+  low-poly 3D game key art; no text, logo, UI, watermark, or black background."
+- Runtime terrain, ruins, waterfall, cloud-bank, and predator meshes remain
+  original deterministic vertex-coloured recipes in `src/render/three/`.

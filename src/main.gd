@@ -485,7 +485,8 @@ var guardian_pan: float = 0.0
 ## by a constant: the runner never leaves the screen, so looking ahead can never
 ## become looking away from the person you are meant to be catching.
 func _pan_limit() -> float:
-	var half := get_viewport().get_visible_rect().size.x * 0.5 / Balance.CAMERA_ZOOM
+	var view := get_viewport().get_visible_rect().size
+	var half := (view.y if Stage.is_skyward_ruins() else view.x) * 0.5 / Balance.CAMERA_ZOOM
 	return clampf(half - Balance.GUARDIAN_PAN_MARGIN, 0.0, Balance.GUARDIAN_PAN_MAX)
 
 ## The view STAYS where it was put.
@@ -511,9 +512,12 @@ func _update_camera(delta: float) -> void:
 	# Lead the camera in the direction of travel so the guardian gets a little
 	# more of the road ahead -- chapter 6 wants them reading one screen further
 	# than the runner, and on a shared display this is the whole of that budget.
-	var lead := clampf(runner.velocity.x / Balance.RUNNER_RUN_SPEED, -1.0, 1.0) \
+	var direction := Stage.progress_direction()
+	var speed_along := runner.velocity.dot(direction)
+	var lead := clampf(speed_along / Balance.RUNNER_RUN_SPEED, -1.0, 1.0) \
 		* Balance.CAMERA_LOOKAHEAD
-	var target := runner.global_position + Vector2(lead + guardian_pan, -40.0)
+	var target := runner.global_position + direction * (lead + guardian_pan)
+	target += Vector2(0.0, -75.0 if Stage.is_skyward_ruins() else -40.0)
 	var t := clampf(delta * Balance.CAMERA_SMOOTH, 0.0, 1.0)
 	camera.global_position = camera.global_position.lerp(target, t)
 

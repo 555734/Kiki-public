@@ -10,8 +10,9 @@ const HorrorDataScript = preload("res://src/levels/level_horror_data.gd")
 const QuietDataScript = preload("res://src/levels/level_quiet_data.gd")
 const KeeperDataScript = preload("res://src/levels/level_keeper_data.gd")
 const SkyDataScript = preload("res://src/levels/level_sky_data.gd")
+const SkywardRuinsDataScript = preload("res://src/levels/level_skyward_ruins_data.gd")
 
-enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY }
+enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS }
 
 ## A fresh launch starts at 1-1. The start panel can switch to 1-2 before play.
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
@@ -48,6 +49,14 @@ static func is_keeper() -> bool:
 static func is_sky() -> bool:
 	return _which == Which.SKY
 
+static func is_skyward_ruins() -> bool:
+	return _which == Which.SKYWARD_RUINS
+
+## Unit vector in the direction the stage asks the team to make progress.
+## It is shared by camera framing and directional pursuit.
+static func progress_direction() -> Vector2:
+	return Vector2.UP if is_skyward_ruins() else Vector2.RIGHT
+
 ## Stages that only work with one player per device. On a shared screen there is
 ## nobody to hide anything from, so the whole design collapses into a walk.
 static func needs_two_devices() -> bool:
@@ -56,6 +65,8 @@ static func needs_two_devices() -> bool:
 # ------------------------------------------------------------------ constants
 
 static func kill_y() -> float:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.kill_y_value()
 	if is_sky():
 		return SkyDataScript.kill_y_value()
 	if is_keeper():
@@ -69,6 +80,8 @@ static func kill_y() -> float:
 	return Level02Data.KILL_Y if is_crossing() else Level01Data.KILL_Y
 
 static func start() -> Vector2:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.start_position()
 	if is_sky():
 		return SkyDataScript.start_position()
 	if is_keeper():
@@ -82,6 +95,8 @@ static func start() -> Vector2:
 	return Level02Data.START if is_crossing() else Level01Data.START
 
 static func stage_name() -> String:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.stage_name_value()
 	if is_sky():
 		return SkyDataScript.stage_name_value()
 	if is_keeper():
@@ -95,6 +110,8 @@ static func stage_name() -> String:
 	return Level02Data.STAGE_NAME if is_crossing() else Level01Data.STAGE_NAME
 
 static func stage_number() -> String:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.stage_number_value()
 	if is_sky():
 		return SkyDataScript.stage_number_value()
 	if is_keeper():
@@ -108,6 +125,8 @@ static func stage_number() -> String:
 	return Level02Data.STAGE_NUMBER if is_crossing() else Level01Data.STAGE_NUMBER
 
 static func objective() -> String:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.objective_value()
 	if is_sky():
 		return SkyDataScript.objective_value()
 	if is_keeper():
@@ -123,6 +142,8 @@ static func objective() -> String:
 # ---------------------------------------------------------------------- data
 
 static func ground() -> Array[Rect2]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.ground()
 	if is_sky():
 		return SkyDataScript.ground()
 	if is_keeper():
@@ -136,6 +157,8 @@ static func ground() -> Array[Rect2]:
 	return Level02Data.ground() if is_crossing() else Level01Data.ground()
 
 static func solid_decor() -> Array[Rect2]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.solid_decor()
 	if is_sky():
 		return SkyDataScript.solid_decor()
 	if is_keeper():
@@ -149,6 +172,8 @@ static func solid_decor() -> Array[Rect2]:
 	return Level02Data.solid_decor() if is_crossing() else Level01Data.solid_decor()
 
 static func decor() -> Array[Dictionary]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.decor()
 	if is_sky():
 		return SkyDataScript.decor()
 	if is_keeper():
@@ -162,6 +187,8 @@ static func decor() -> Array[Dictionary]:
 	return Level02Data.decor() if is_crossing() else Level01Data.decor()
 
 static func hazards() -> Array[Dictionary]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.hazards()
 	if is_sky():
 		return SkyDataScript.hazards()
 	if is_keeper():
@@ -175,6 +202,8 @@ static func hazards() -> Array[Dictionary]:
 	return Level02Data.hazards() if is_crossing() else Level01Data.hazards()
 
 static func enemies() -> Array[Dictionary]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.enemies()
 	if is_sky():
 		return SkyDataScript.enemies()
 	if is_keeper():
@@ -188,6 +217,8 @@ static func enemies() -> Array[Dictionary]:
 	return Level02Data.enemies() if is_crossing() else Level01Data.enemies()
 
 static func gimmicks() -> Array[Dictionary]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.gimmicks()
 	if is_sky():
 		return SkyDataScript.gimmicks()
 	if is_keeper():
@@ -203,6 +234,8 @@ static func gimmicks() -> Array[Dictionary]:
 ## Regions one of the two players cannot see into. Empty for every stage that
 ## shows both players the same world, which is all of them until 1-V.
 static func veils() -> Array[Dictionary]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.veils()
 	if is_sky():
 		return SkyDataScript.veils()
 	if is_keeper():
@@ -216,6 +249,8 @@ static func veils() -> Array[Dictionary]:
 	return Level02Data.veils() if is_crossing() else Level01Data.veils()
 
 static func checkpoints() -> Array[Vector2]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.checkpoints()
 	if is_sky():
 		return SkyDataScript.checkpoints()
 	if is_keeper():
@@ -229,6 +264,8 @@ static func checkpoints() -> Array[Vector2]:
 	return Level02Data.checkpoints() if is_crossing() else Level01Data.checkpoints()
 
 static func goal() -> Vector2:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.goal()
 	if is_sky():
 		return SkyDataScript.goal()
 	if is_keeper():
@@ -242,6 +279,8 @@ static func goal() -> Vector2:
 	return Level02Data.goal() if is_crossing() else Level01Data.goal()
 
 static func coins() -> Array[Vector2]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.coins()
 	if is_sky():
 		return SkyDataScript.coins()
 	if is_keeper():
@@ -255,6 +294,8 @@ static func coins() -> Array[Vector2]:
 	return Level02Data.coins() if is_crossing() else Level01Data.coins()
 
 static func springs() -> Array[Vector2]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.springs()
 	if is_sky():
 		return SkyDataScript.springs()
 	if is_keeper():
@@ -268,6 +309,8 @@ static func springs() -> Array[Vector2]:
 	return Level02Data.springs() if is_crossing() else Level01Data.springs()
 
 static func crystals() -> Array[Vector2]:
+	if is_skyward_ruins():
+		return SkywardRuinsDataScript.crystals()
 	if is_sky():
 		return SkyDataScript.crystals()
 	if is_keeper():
@@ -282,6 +325,8 @@ static func crystals() -> Array[Vector2]:
 
 ## Where the pit sensor goes. Wide enough to catch the whole active stage.
 static func pit_centre_x() -> float:
+	if is_skyward_ruins():
+		return 0.0
 	if is_sky():
 		return 4000.0
 	if is_keeper():
