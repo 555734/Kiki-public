@@ -98,8 +98,7 @@ func _skyward_background(view: Vector2, horizontal: float, camera_y: float, time
 		for i in range(-2, int(view.x / step) + 4):
 			var x := float(i) * step
 			var rate := .028 + float(layer)*.025
-			var wave := sin((x + horizontal * rate) * (.0045+.0007*layer)) *
-				(58.0-float(layer)*11.0)
+			var wave := sin((x + horizontal * rate) * (.0045+.0007*layer)) * (58.0-float(layer)*11.0)
 			wave += cos((x-horizontal*.02) * (.008+.001*layer))*18.0
 			ridge.append(Vector2(x, mountain_base + float(layer)*54.0 + wave))
 		ridge.append(Vector2(view.x + 150, view.y))
