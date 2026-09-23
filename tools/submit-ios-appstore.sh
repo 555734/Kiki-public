@@ -40,12 +40,12 @@ export APP_STORE_CONNECT_ISSUER_ID="$ASC_ISSUER_ID"
 export APP_STORE_CONNECT_PRIVATE_KEY="$ASC_PRIVATE_KEY"
 export CERTIFICATE_PRIVATE_KEY="$IOS_CERTIFICATE_PRIVATE_KEY"
 
-# Keep GitHub CI build numbers above the old Codemagic sequence while remaining
-# a simple App Store-compatible integer. For manual/local invocation, callers can
+# Reserve a higher build-number range than earlier Codemagic/TestFlight uploads
+# (which have already reached 1037). For manual/local invocation callers can
 # still set BUILD_NUMBER explicitly.
 if [ -z "${BUILD_NUMBER:-}" ]; then
 	if [[ "${GITHUB_RUN_NUMBER:-}" =~ ^[0-9]+$ ]]; then
-		BUILD_NUMBER=$((1000 + GITHUB_RUN_NUMBER))
+		BUILD_NUMBER=$((10000 + GITHUB_RUN_NUMBER))
 	else
 		BUILD_NUMBER=1001
 	fi
