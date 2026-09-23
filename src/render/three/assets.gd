@@ -6,7 +6,10 @@ static var cache: Dictionary = {}
 
 static func palette() -> Array[Color]:
 	if Stage.is_horror(): return [Color("353044"),Color("756079"),Color("76584a")]
-	if Stage.is_skyward_ruins(): return [Color("d3bf8a"),Color("4fbd55"),Color("eee3c3")]
+	if Stage.is_skyward_ruins():
+		# Sun-bleached limestone, restrained moss and warm cut stone.  The stage
+		# needs to read as an ancient ruin in open air, not green dirt boxes.
+		return [Color("b7aa82"),Color("4d8255"),Color("e7ddbd")]
 	if Stage.is_sky(): return [Color("63688d"),Color("87b8ac"),Color("b0a1ac")]
 	if Stage.is_keeper(): return [Color("514d60"),Color("8d8280"),Color("746776")]
 	if Stage.is_quiet(): return [Color("666b75"),Color("8dabaa"),Color("8c8393")]
@@ -17,6 +20,47 @@ static func terrain(size: Vector2) -> ArrayMesh:
 	var p := palette()
 	var w := size.x
 	var h := size.y
+	if Stage.is_skyward_ruins():
+		var face := p[0]
+		var moss := p[1]
+		var cut := p[2]
+		var shade := Color("6f6b5c")
+		var crack := Color("56584f")
+		# Exact collision top stays at y=0. Everything below it is presentation.
+		m.box(Vector3(w/2,-h/2,-42),Vector3(w,h,76),face)
+		m.box(Vector3(w/2,-8,-1),Vector3(w,16,82),cut)
+		m.quad(Vector3(0,0,-80),Vector3(0,0,2),Vector3(w,0,2),Vector3(w,0,-80),moss)
+		m.quad(Vector3(0,-5,3),Vector3(w,-5,3),Vector3(w,-16,4),Vector3(0,-16,4),moss.darkened(.08))
+		# Large masonry courses break the collider-sized rectangle into believable
+		# ancient construction instead of a single plastic slab.
+		for row in range(2):
+			var y := -minf(h-16.0,46.0+float(row)*54.0)
+			if y < -18.0:
+				m.box(Vector3(w/2,y,1),Vector3(w,3,4),shade)
+		for i in maxi(1,int(w/92.0)):
+			var x := minf(w-18.0,28.0+float(i)*92.0)
+			m.box(Vector3(x,-minf(h*.55,64.0+float(i%3)*13.0),2),Vector3(3,minf(54.0,h*.42),4),shade.darkened(.08))
+		# Broken under-side: several independent hanging rock/ruin wedges. Their
+		# unequal lengths make the stage silhouette readable while moving upward.
+		var teeth := maxi(2,int(ceil(w/105.0)))
+		for i in teeth:
+			var x0 := w*(float(i)+.08)/float(teeth)
+			var x1 := w*(float(i)+.92)/float(teeth)
+			var cx := (x0+x1)*.5
+			var drop := minf(105.0,h*.62)*(0.62+0.10*float((i*7)%4))
+			m.prism([Vector2(x0,-h+8),Vector2(x1,-h+8),Vector2(cx,-h-drop)],-17,34,
+				face.darkened(.08+float(i%2)*.04))
+		# Sparse moss shelves and chipped highlights; deliberately irregular.
+		for i in maxi(1,int(w/120.0)):
+			var x := 22.0+float(i)*117.0
+			if x < w-16.0:
+				m.prism([Vector2(x,-2),Vector2(minf(w,x+54),-2),Vector2(minf(w,x+46),-12),Vector2(x+7,-10)],3,5,
+					moss.lightened(.04))
+		for i in maxi(1,int(w/150.0)):
+			var x := 45.0+float(i)*143.0
+			if x < w-18.0:
+				m.prism([Vector2(x,-h*.30),Vector2(x+16,-h*.43),Vector2(x+29,-h*.27),Vector2(x+19,-h*.23)],3,3,crack)
+		return m.mesh()
 	m.box(Vector3(w/2,-h/2,-42),Vector3(w,h,76),p[0])
 	m.quad(Vector3(0,0,-80),Vector3(0,0,0),Vector3(w,0,0),Vector3(w,0,-80),p[1])
 	# Grass bevel stays entirely inside the collision rectangle. The bright
@@ -32,13 +76,6 @@ static func terrain(size: Vector2) -> ArrayMesh:
 		m.gem(Vector3(x,y,-2),Vector3(12+i%3*4,7,3),p[2],5)
 	if h>90:
 		m.box(Vector3(w/2,-h*.65,-2),Vector3(w,3,2),p[0].darkened(.12))
-	if Stage.is_skyward_ruins():
-		# Broken pale-rock facets give every rectangular collider a floating
-		# island silhouette without changing its exact walkable top.
-		for i in maxi(1, int(w / 90.0)):
-			var x := minf(w - 24.0, 34.0 + float(i) * 90.0)
-			m.prism([Vector2(x - 30.0, -h + 10.0), Vector2(x + 30.0, -h + 10.0),
-				Vector2(x, -h - minf(80.0, h * .45))], -18, 30, p[2].darkened(.12))
 	return m.mesh()
 
 static func mesh(kind: String, size: Vector2 = Vector2(40,40)) -> ArrayMesh:
@@ -115,23 +152,47 @@ static func _enemy(m: RefCounted, kind: String, size: Vector2) -> void:
 	var w := size.x
 	var h := size.y
 	var dark := Color("233246")
+	if kind=="sky_predator":
+		# Stage 1-3's pursuing enemy gets its own silhouette: a compact black-violet
+		# core, hooked crown and layered vapour plates. It must remain identifiable
+		# even when it is far below the runner in a vertical camera.
+		var core := Color("351743")
+		var violet := Color("6b2f83")
+		var rim := Color("9f5ab4")
+		m.gem(Vector3(0,0,-2),Vector3(w*.70,h*.76,30),core,10)
+		m.gem(Vector3(-w*.18,-h*.05,2),Vector3(w*.56,h*.56,24),violet,8)
+		m.gem(Vector3(w*.19,h*.04,0),Vector3(w*.50,h*.48,22),violet.lightened(.05),8)
+		for side in [-1,1]:
+			m.prism([Vector2(side*w*.18,-h*.22),Vector2(side*w*.50,-h*.48),
+				Vector2(side*w*.35,-h*.05),Vector2(side*w*.50,h*.20),
+				Vector2(side*w*.13,h*.10)],-8,16,core.darkened(.08))
+			m.gem(Vector3(side*w*.17,h*.12,18),Vector3(w*.16,h*.11,5),Color("f0a0ff"),5)
+		m.prism([Vector2(-w*.28,h*.24),Vector2(0,h*.52),Vector2(w*.28,h*.24),Vector2(0,h*.35)],3,8,rim)
+		for i in 4:
+			var x := -w*.25+float(i)*w*.17
+			m.prism([Vector2(x,h*.26),Vector2(x+w*.10,h*.48+float(i%2)*h*.10),
+				Vector2(x+w*.16,h*.25)],-4,7,Color("d9c8dc"))
+		return
 	var shell := Color("ad6239")
 	if kind=="flyer": shell=Color("50758b")
 	if kind in ["pursuer","black_hole"]: shell=Color("49374f")
-	if kind=="sky_predator": shell=Color("4b2473")
 	if kind=="keeper": shell=Color("557777")
 	if kind=="shieldbearer": shell=Color("647158")
 	if kind=="walker_spiky": shell=Color("9c4938")
+	if Stage.is_skyward_ruins() and kind=="flyer":
+		shell=Color("6b786f")
+		dark=Color("343b3d")
 	# Rock-beetle family: angular carapace, segmented plates, forward visor.
 	m.loft(Vector3(0,-h*.35,0),[Vector3(0,w*.32,h*.22),Vector3(h*.24,w*.48,h*.3),
 		Vector3(h*.66,w*.38,h*.25),Vector3(h*.82,w*.14,h*.1)],shell,8)
 	m.box(Vector3(0,h*.10,h*.26),Vector3(w*.65,h*.22,4),dark)
 	for side in [-1,1]:
-		m.gem(Vector3(side*w*.17,h*.13,h*.31),Vector3(w*.15,h*.11,5),Color("f5b541"),4)
+		m.gem(Vector3(side*w*.17,h*.13,h*.31),Vector3(w*.15,h*.11,5),
+			Color("f2c765") if Stage.is_skyward_ruins() and kind=="flyer" else Color("f5b541"),4)
 		if kind in ["turret","black_hole"]:
 			m.loft(Vector3(side*w*.29,-h*.5,2),[Vector3(0,w*.18,h*.23),Vector3(6,w*.15,h*.20),Vector3(h*.24,w*.09,h*.1)],dark,6)
 		m.prism([Vector2(side*w*.25,h*.28),Vector2(side*w*.48,h*.5),Vector2(side*w*.1,h*.36)],0,8,shell.lightened(.2))
-	if kind in ["pursuer","sky_predator","keeper","black_hole"]:
+	if kind in ["pursuer","keeper","black_hole"]:
 		for i in 5:
 			m.prism([Vector2(-w*.28+i*w*.12,h*.02),Vector2(-w*.22+i*w*.12,-h*.16),Vector2(-w*.16+i*w*.12,h*.02)],h*.3,4,Color("e1d6bc"))
 	if kind=="shieldbearer":
@@ -144,15 +205,6 @@ static func _enemy(m: RefCounted, kind: String, size: Vector2) -> void:
 		m.box(Vector3(w*.6,0,0),Vector3(4,h*.3,h*.4),Color("cf9957"))
 	if kind=="black_hole":
 		m.gem(Vector3(0,0,h*.35),Vector3(w*.7,h*.7,20),Color("100e24"),10)
-	if kind=="sky_predator":
-		# Layered violet vapour and two bright eyes, based on the supplied
-		# shadow-predator sheet but authored as a real vertex-coloured mesh.
-		for i in 5:
-			m.gem(Vector3(-w*.42 + float(i)*w*.20, -h*.18 + float(i%2)*h*.17, -8),
-				Vector3(w*.46, h*.52, 28), Color("5c2c86").lightened(float(i)*.035), 8)
-		for side in [-1, 1]:
-			m.gem(Vector3(w*.25, side*h*.14, h*.48), Vector3(13, 8, 5),
-				Color("e68cff"), 4)
 
 static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 	var wood := Color("775039")
@@ -160,8 +212,22 @@ static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 	var stone := palette()[2]
 	match kind:
 		"tree":
-			m.loft(Vector3.ZERO,[Vector3(0,13,12),Vector3(30,10,9),Vector3(110,6,6)],wood,7)
-			for i in 3: m.gem(Vector3(-35+i*33,114+float(i%2)*27,-20),Vector3(84,82,62),leaf.lightened(i*.04),7)
+			if Stage.is_skyward_ruins():
+				# Windswept summit tree: exposed roots, twisted trunk and a canopy
+				# pushed sideways by the same wind that drives the vertical climb.
+				var trunk_h := maxf(90.0,size.y*.56)
+				m.loft(Vector3(-size.x*.12,0,-15),[Vector3(0,15,13),Vector3(trunk_h*.34,12,11),
+					Vector3(trunk_h*.68,9,8),Vector3(trunk_h,5,5)],Color("6f563b"),7)
+				for i in 3:
+					m.prism([Vector2(-size.x*.28+i*9,3),Vector2(-size.x*.05+i*7,18),
+						Vector2(size.x*.18+i*12,5)],-17,10,Color("5c4734"))
+				var crown_y := trunk_h*.76
+				for i in 5:
+					m.gem(Vector3(-size.x*.30+float(i)*size.x*.16,crown_y+float(i%2)*18,-22),
+						Vector3(size.x*.38,size.y*.24,42),Color("487553").lightened(float(i)*.025),7)
+			else:
+				m.loft(Vector3.ZERO,[Vector3(0,13,12),Vector3(30,10,9),Vector3(110,6,6)],wood,7)
+				for i in 3: m.gem(Vector3(-35+i*33,114+float(i%2)*27,-20),Vector3(84,82,62),leaf.lightened(i*.04),7)
 		"fence":
 			for i in range(int(size.x/36)+1):
 				m.loft(Vector3(i*36,0,-18),[Vector3(0,4,4),Vector3(42,4,4),Vector3(49,0,0)],wood,4)
@@ -190,13 +256,37 @@ static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 			m.box(Vector3(0,32,8),Vector3(3,20,2),Color("344650"))
 			m.box(Vector3(0,37,8),Vector3(16,3,2),Color("344650"))
 		"arch":
-			for side in [-1,1]: m.box(Vector3(side*45,50,-20),Vector3(16,100,25),stone)
-			for i in 7:
-				var a := PI*float(i)/6
-				m.gem(Vector3(cos(a)*45,100+sin(a)*28,-20),Vector3(24,24,28),stone,6)
+			if Stage.is_skyward_ruins():
+				var half := maxf(42.0,size.x*.32)
+				var leg_h := maxf(90.0,size.y*.46)
+				var block := maxf(18.0,size.x*.12)
+				for side in [-1,1]:
+					m.box(Vector3(side*half,leg_h*.5,-20),Vector3(block,leg_h,34),stone.darkened(.03))
+					m.box(Vector3(side*half,8,-20),Vector3(block*1.55,16,40),stone.lightened(.06))
+				for i in 9:
+					var a := PI*float(i)/8
+					var jitter := -4.0 if i in [2,7] else 0.0
+					m.gem(Vector3(cos(a)*half,leg_h+sin(a)*half*.72+jitter,-20),
+						Vector3(block*1.45,block*1.25,34),stone.lightened(.02*float(i%3)),6)
+				m.prism([Vector2(-half-block*.2,leg_h*.15),Vector2(-half+block*.5,leg_h*.28),
+					Vector2(-half+block*.25,leg_h*.10)],2,3,Color("6b7464"))
+			else:
+				for side in [-1,1]: m.box(Vector3(side*45,50,-20),Vector3(16,100,25),stone)
+				for i in 7:
+					var a := PI*float(i)/6
+					m.gem(Vector3(cos(a)*45,100+sin(a)*28,-20),Vector3(24,24,28),stone,6)
 		"keel":
-			m.prism([Vector2(-size.x/2,40),Vector2(-size.x*.3,4),Vector2(size.x*.3,4),Vector2(size.x/2,40)],-16,35,wood)
-			for i in 6: m.box(Vector3(-size.x*.35+i*size.x*.14,29,4),Vector3(5,32,4),wood.lightened(.2))
+			if Stage.is_skyward_ruins():
+				# Stone underside, not the wooden hull used by 1-S.
+				m.prism([Vector2(-size.x*.50,0),Vector2(size.x*.50,0),
+					Vector2(size.x*.31,size.y*.38),Vector2(size.x*.08,size.y*.82),
+					Vector2(-size.x*.12,size.y*.70),Vector2(-size.x*.34,size.y*.34)],-18,36,stone.darkened(.08))
+				for i in 4:
+					m.gem(Vector3(-size.x*.28+float(i)*size.x*.19,size.y*.22+float(i%2)*18,-2),
+						Vector3(size.x*.18,size.y*.26,26),stone.darkened(.03*float(i)),6)
+			else:
+				m.prism([Vector2(-size.x/2,40),Vector2(-size.x*.3,4),Vector2(size.x*.3,4),Vector2(size.x/2,40)],-16,35,wood)
+				for i in 6: m.box(Vector3(-size.x*.35+i*size.x*.14,29,4),Vector3(5,32,4),wood.lightened(.2))
 		"cart":
 			m.box(Vector3(0,35,-15),Vector3(90,30,42),wood)
 			m.box(Vector3(0,51,-15),Vector3(100,6,46),wood.lightened(.15))
@@ -231,23 +321,50 @@ static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 				m.box(Vector3(i*10,7,-15),Vector3(2,14,2),leaf)
 				m.gem(Vector3(i*10,14,-15),Vector3(10,8,8),Color("f0c658"),5)
 		"waterfall":
-			m.box(Vector3(0, size.y*.5, -24), Vector3(size.x, size.y, 10), Color("65c9ee"))
+			# Several separated ribbons and foam clusters read as moving water;
+			# the old single cyan rectangle looked like a luminous wall.
+			var water := Color("79cce5")
+			for i in 7:
+				var lane_w := size.x*(.08+.018*float(i%3))
+				var x := -size.x*.40+float(i)*size.x*.13
+				var top := 8.0+float((i*11)%4)*7.0
+				m.prism([Vector2(x-lane_w*.5,top),Vector2(x+lane_w*.5,top+3),
+					Vector2(x+lane_w*.34,size.y),Vector2(x-lane_w*.42,size.y-8)],-22+float(i%2)*5,5,
+					water.lightened(float(i%3)*.07))
+			for i in 5:
+				m.gem(Vector3(-size.x*.42+float(i)*size.x*.21,8+float(i%2)*5,-15),
+					Vector3(size.x*.24,24,18),Color("e8f8fb"),7)
 			for i in 4:
-				var x := -size.x*.35 + float(i)*size.x*.23
-				m.box(Vector3(x, size.y*.5, -17), Vector3(5, size.y*.94, 3), Color("d9f7ff"))
-			m.gem(Vector3(0, 4, -18), Vector3(size.x*1.15, 22, 12), Color("eefcff"), 8)
+				m.gem(Vector3(-size.x*.34+float(i)*size.x*.22,size.y-5,-18),
+					Vector3(size.x*.28,30,20),Color("c9eef5"),7)
 		"ruin_column":
-			m.box(Vector3(0, size.y*.5, -18), Vector3(size.x*.62, size.y, 36), stone)
-			m.box(Vector3(0, 8, -18), Vector3(size.x, 16, 42), stone.lightened(.12))
-			m.box(Vector3(0, size.y-8, -18), Vector3(size.x*.9, 16, 42), stone.darkened(.08))
-			m.prism([Vector2(-size.x*.22,size.y*.32),Vector2(0,size.y*.48),
-				Vector2(size.x*.12,size.y*.29)],3,3,Color("66766b"))
+			var shaft := size.x*.34
+			m.loft(Vector3(0,0,-18),[Vector3(0,shaft*.88,22),Vector3(14,shaft,24),
+				Vector3(size.y*.78,shaft*.78,22),Vector3(size.y-20,shaft*.72,20)],stone,10)
+			m.box(Vector3(0,9,-18),Vector3(size.x*.92,18,46),stone.lightened(.10))
+			m.box(Vector3(0,23,-18),Vector3(size.x*.72,9,41),stone.darkened(.02))
+			# Broken asymmetric capital; avoids the prefab-pillar look.
+			m.prism([Vector2(-size.x*.46,size.y-24),Vector2(size.x*.34,size.y-24),
+				Vector2(size.x*.45,size.y-8),Vector2(size.x*.08,size.y-1),
+				Vector2(-size.x*.40,size.y-10)],-18,42,stone.darkened(.05))
+			for i in 4:
+				var x := -shaft*.58+float(i)*shaft*.39
+				m.box(Vector3(x,size.y*.47,-.5),Vector3(3,size.y*.48,3),stone.darkened(.14))
+			m.prism([Vector2(-size.x*.28,size.y*.24),Vector2(-size.x*.04,size.y*.42),
+				Vector2(size.x*.08,size.y*.22)],3,3,Color("596b59"))
 		"cloud_bank":
-			for i in 9:
-				var x := -size.x*.48 + float(i)*size.x*.12
-				var y := size.y*.30 + float(i%3)*size.y*.10
-				m.gem(Vector3(x,y,-36),Vector3(size.x*.19,size.y*.55,38),
-					Color("eaf8ff").darkened(float(i%2)*.025),8)
+			# Three depth layers produce a long, low sea of cloud rather than nine
+			# identical white rocks. Back layer is cooler and dimmer.
+			for layer in 3:
+				var z := -48.0-float(layer)*24.0
+				var count := 8+layer*2
+				for i in count:
+					var x := -size.x*.52 + size.x*1.04*float(i)/float(maxi(1,count-1))
+					var y := size.y*(.20+.11*float((i+layer)%3)) + float(layer)*18.0
+					var cw := size.x*(.16-.018*float(layer))*(.86+.08*float(i%3))
+					var ch := size.y*(.46-.06*float(layer))
+					m.gem(Vector3(x,y,z),Vector3(cw,ch,42-float(layer)*8),
+						Color("edf7f8").darkened(.035*float(layer)+.018*float(i%2)),9)
 		_:
 			push_warning("No 3D prop recipe: "+kind)
 			m.gem(Vector3(0,8,0),Vector3(20,16,20),stone,5)
