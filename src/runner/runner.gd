@@ -827,6 +827,12 @@ func _check_hologram_landing() -> void:
 func _resolve_contacts() -> void:
 	if state == State.DEAD:
 		return
+	# Right after a respawn the overlap lists still describe where the runner
+	# died -- they are only rebuilt by the next physics step -- so the kill
+	# plane it fell into would kill it a second time on arrival.
+	if _contact_grace > 0:
+		_contact_grace -= 1
+		return
 	for body in _hurtbox.get_overlapping_bodies():
 		_resolve_hazard(body)
 		if state == State.DEAD:
@@ -928,7 +934,11 @@ func launch(velocity_out: Vector2) -> void:
 static func launch_velocity(face: int) -> Vector2:
 	return Vector2(Balance.LAUNCH_FORWARD * float(signi(face)), -Balance.LAUNCH_UP)
 
+## Physics frames after a respawn during which contacts are not resolved.
+var _contact_grace: int = 0
+
 func respawn(at: Vector2) -> void:
+	_contact_grace = 2
 	_end_player_jump()
 	_pound_phase = 0
 	_pound_timer = 0.0

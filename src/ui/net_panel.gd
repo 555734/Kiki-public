@@ -139,7 +139,41 @@ func _show_stage_screen() -> void:
 	row.add_child(_stage_1_3)
 	_refresh_stage_buttons()
 
+	box.add_child(_difficulty_row())
 	box.add_child(_title("カードを選ぶと、遊び方の画面へ進みます", 14, Color("416b91")))
+
+var _difficulty_buttons: Array[Button] = []
+
+## 追跡者の速さ. HARD is the speed the stages were tuned at.
+func _difficulty_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	var label := _title("追跡者の速さ", 16, Color("073f89"))
+	label.custom_minimum_size.x = 150
+	row.add_child(label)
+	_difficulty_buttons.clear()
+	for i in Difficulty.LABELS.size():
+		var b := _button(Difficulty.LABELS[i], _on_difficulty.bind(i), false)
+		b.custom_minimum_size = Vector2(130, 46)
+		row.add_child(b)
+		_difficulty_buttons.append(b)
+	_refresh_difficulty()
+	return row
+
+func _on_difficulty(value: int) -> void:
+	Difficulty.set_level(value)
+	_refresh_difficulty()
+
+func _refresh_difficulty() -> void:
+	for i in _difficulty_buttons.size():
+		var b := _difficulty_buttons[i]
+		if not is_instance_valid(b):
+			continue
+		var on := i == Difficulty.current()
+		b.add_theme_stylebox_override("normal",
+			_control_style(Color("35b7ec") if on else Color("d9f1ff"), 1.0 if on else 0.96))
+		b.add_theme_color_override("font_color", Color.WHITE if on else Color("064d92"))
 
 func _show_play_screen() -> void:
 	_clear_screen()
@@ -179,6 +213,10 @@ func _show_play_screen() -> void:
 	_code = _field("ルーム番号（6桁）")
 	_code.max_length = EosCoopLobby.CODE_LENGTH
 	_code.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	# The iOS number pad has no return key, so a finished code closes the
+	# keyboard by itself instead of trapping the player behind it.
+	_code.text_changed.connect(_on_code_changed)
+	_code.text_submitted.connect(func(_t: String) -> void: _on_join_eos())
 	choices.add_child(_code)
 	var online_row := HBoxContainer.new()
 	online_row.add_theme_constant_override("separation", 10)
@@ -619,7 +657,38 @@ func _on_diagnose() -> void:
 func _failed(message: String) -> void:
 	_status.text = message + "\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。"
 
+func _on_code_changed(text: String) -> void:
+	var digits := ""
+	for i in text.length():
+		if text[i] >= "0" and text[i] <= "9":
+			digits += text[i]
+	digits = digits.substr(0, EosCoopLobby.CODE_LENGTH)
+	if digits != text:
+		_code.text = digits
+		_code.caret_column = digits.length()
+	if digits.length() == EosCoopLobby.CODE_LENGTH:
+		_close_keyboard()
+		if _status != null and not main.link.busy():
+			_status.text = "番号がそろいました。「ルームに入る」を押してください"
+
+func _close_keyboard() -> void:
+	if _code != null and is_instance_valid(_code) and _code.has_focus():
+		_code.release_focus()
+	if DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		DisplayServer.virtual_keyboard_hide()
+
+## A tap anywhere off the field puts the keyboard away. Watched in _input so
+## it works over cards and panels that would swallow the press themselves.
+func _input(event: InputEvent) -> void:
+	if _code == null or not is_instance_valid(_code) or not _code.has_focus():
+		return
+	var pressed: bool = (event is InputEventMouseButton and event.pressed) \
+		or (event is InputEventScreenTouch and event.pressed)
+	if pressed and not _code.get_global_rect().has_point(event.position):
+		_close_keyboard()
+
 func _on_host_eos() -> void:
+	_close_keyboard()
 	# host_eos puts the code on the link before its first EOS call; the strip
 	# reads it from there, so it can go up before anything is awaited.
 	_show_banner()
@@ -635,6 +704,7 @@ func _on_host_eos() -> void:
 	_wait_for_handshake(main.host_session)
 
 func _on_join_eos() -> void:
+	_close_keyboard()
 	var code := _code.text.strip_edges()
 	if not EosCoopLobby.valid_code(code):
 		_status.text = "ルーム番号は6桁の数字で入力してください"

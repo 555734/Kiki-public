@@ -138,6 +138,52 @@ func run() -> void:
 		check(warp.global_position.distance_to(warp.exit) > 300.0,
 			"the warp jumps further than the guest's snap distance")
 
+	# Falling off the world kills once, not again on the respawn frame.
+	var deaths := [0]
+	var causes: Array[String] = []
+	var count_death := func(cause: String) -> void:
+		deaths[0] += 1
+		causes.append(cause)
+	Events.runner_died.connect(count_death)
+	if pursuer != null:
+		pursuer.global_position = Vector2(-3000, 6900)
+	main.runner.global_position = Vector2(main.runner.global_position.x, Stage.kill_y() + 60.0)
+	for _i in 200:
+		await get_tree().physics_frame
+		# The respawn rebuilds the level, pursuer included; keep whichever one
+		# exists out of the way so only the fall is being measured.
+		for e in get_tree().get_nodes_in_group("enemy"):
+			if String(e.get_script().resource_path).ends_with("sky_pursuer.gd"):
+				e.global_position = Vector2(-3000, 6900)
+	Events.runner_died.disconnect(count_death)
+	check(deaths[0] == 1, "a fall kills once; the respawn does not kill again (%s)" % str(causes))
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if String(e.get_script().resource_path).ends_with("sky_pursuer.gd"):
+			pursuer = e
+
+	# Chaser difficulty: the same chase covers less ground on easier settings.
+	check(is_equal_approx(Difficulty.SCALES[Difficulty.Level.HARD], 1.0),
+		"HARD is the speed the stage was tuned at")
+	var saved_level := Difficulty.current()
+	var travelled: Array[float] = []
+	if pursuer != null:
+		for lv in [Difficulty.Level.EASY, Difficulty.Level.NORMAL, Difficulty.Level.HARD]:
+			Difficulty.set_level(lv, false)
+			main.runner.global_position = Vector2(-180, 5000)
+			main.runner.velocity = Vector2.ZERO
+			pursuer.global_position = Vector2(-180, 5700)
+			pursuer.set("_stun_left", 0.0)
+			pursuer.set("_wake_left", 0.0)
+			var from := pursuer.global_position.y
+			for _i in 30:
+				main.runner.set("_invuln", 9.0)
+				main.runner.global_position = Vector2(-180, 5000)
+				await get_tree().physics_frame
+			travelled.append(from - pursuer.global_position.y)
+		check(travelled[0] < travelled[1] and travelled[1] < travelled[2],
+			"chaser speed rises EASY < NORMAL < HARD (%s)" % str(travelled))
+	Difficulty.set_level(saved_level, false)
+
 	var view = main.get_node_or_null("World3D")
 	check(view != null, "Astra 3D world remains enabled")
 	if view != null and pursuer != null:

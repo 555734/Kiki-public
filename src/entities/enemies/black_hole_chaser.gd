@@ -57,7 +57,7 @@ func _physics_process(_delta: float) -> void:
 	if to_runner.length_squared() < 1.0:
 		velocity = Vector2.ZERO
 		return
-	velocity = to_runner.normalized() * chase_speed
+	velocity = to_runner.normalized() * chase_speed * Difficulty.chase_scale()
 	move_and_slide()
 
 func _process(delta: float) -> void:

@@ -82,6 +82,7 @@ func _open_lobby(lobbies, stage_id: int, stage_key: String) -> bool:
 	lobby.call("add_attribute", STAGE_KEY_ATTRIBUTE, _local_stage_key(stage_key, stage_id))
 	lobby.call("add_attribute", "build", Balance.BUILD_ID)
 	lobby.call("add_attribute", "started", 0)
+	lobby.call("add_attribute", "difficulty", Difficulty.current())
 	if not bool(await lobby.call("update_async")):
 		return _fail("EOSルーム情報を保存できませんでした")
 	return true
@@ -115,6 +116,10 @@ func join_room(code: String, stage_id: int, stage_key: String = "") -> bool:
 			% [remote_label, local_stage_key])
 	if _attribute_int(candidate, "started", 0) != 0:
 		return _fail("このルームはすでにプレイ中です")
+	# The host's chaser speed is the one that plays; show the same choice here.
+	var host_difficulty := _attribute_int(candidate, "difficulty", -1)
+	if host_difficulty >= 0:
+		Difficulty.set_level(host_difficulty, false)
 	lobby = await lobbies.call("join_async", candidate)
 	if lobby == null:
 		return _fail("EOSルームに参加できませんでした")

@@ -61,7 +61,9 @@ func _physics_process(delta: float) -> void:
 	var runner_forward := maxf(0.0, runner.velocity.dot(forward))
 	var close_speed := maxf(cruise_speed, runner_forward + 65.0)
 	var catchup := clampf((gap - 100.0) / 700.0, 0.0, 1.0)
-	var speed := lerpf(close_speed, catchup_speed, catchup)
+	# The chosen difficulty scales the whole speed, including the part that
+	# tracks the runner, or EASY would be no easier while the runner is moving.
+	var speed := lerpf(close_speed, catchup_speed, catchup) * Difficulty.chase_scale()
 	var to_target := target - global_position
 	if to_target.length_squared() > 0.01:
 		var step := minf(speed * delta, to_target.length())
