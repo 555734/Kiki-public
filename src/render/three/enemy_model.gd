@@ -12,7 +12,7 @@ func _init(which: String = "walker", size: Vector2 = Vector2(40,40)) -> void:
 	add_child(body)
 	if kind in ["turret","black_hole","wisp"]: return
 	var flying := kind in ["flyer","pursuer","sky_predator"]
-	var count := 4 if kind in ["keeper","thornmite"] else 2
+	var count := 4 if kind in ["keeper","thornmite","sky_predator"] else 2
 	for i in count:
 		var side := -1 if i%2==0 else 1
 		var limb := Node3D.new()
@@ -20,8 +20,26 @@ func _init(which: String = "walker", size: Vector2 = Vector2(40,40)) -> void:
 		limbs.append(limb)
 		var m := Recipe.new()
 		if flying:
-			limb.position=Vector3(side*size.x*.25,0,-8)
-			m.prism([Vector2(0,0),Vector2(side*size.x*.4,size.y*.2),Vector2(side*size.x*.3,size.y*.48),Vector2(0,size.y*.25)],0,4,Color("bac8b0") if kind=="flyer" else Color("75547f"))
+			if kind=="sky_predator":
+				var rear := i>=2
+				var reach := size.x*(.62 if rear else .82)
+				var rise := size.y*(.34 if rear else .50)
+				limb.position=Vector3(side*size.x*.16,(-size.y*.06 if rear else 0),(-18 if rear else -7))
+				m.prism([Vector2(0,0),Vector2(side*reach*.58,rise*.18),
+					Vector2(side*reach,rise*.72),Vector2(side*reach*.64,rise),
+					Vector2(side*reach*.26,rise*.58),Vector2(0,rise*.28)],
+					0,7,Color("4a1f62") if rear else Color("80509a"))
+			elif kind=="flyer" and Stage.is_skyward_ruins():
+				# Thin weathered sentinel wings fit the ruin palette and keep the
+				# hostile silhouette distinct from the purple pursuing monster.
+				limb.position=Vector3(side*size.x*.22,0,-8)
+				m.prism([Vector2(0,0),Vector2(side*size.x*.48,size.y*.10),
+					Vector2(side*size.x*.43,size.y*.40),Vector2(side*size.x*.14,size.y*.28)],
+					0,5,Color("91a68b"))
+				m.box(Vector3(side*size.x*.23,size.y*.18,3),Vector3(size.x*.27,3,4),Color("d0b76a"))
+			else:
+				limb.position=Vector3(side*size.x*.25,0,-8)
+				m.prism([Vector2(0,0),Vector2(side*size.x*.4,size.y*.2),Vector2(side*size.x*.3,size.y*.48),Vector2(0,size.y*.25)],0,4,Color("bac8b0") if kind=="flyer" else Color("75547f"))
 		else:
 			limb.position=Vector3(side*size.x*.29,-size.y*.22,-size.y*.18 if i>1 else size.y*.18)
 			m.loft(Vector3.ZERO,[Vector3(-size.y*.28,size.x*.15,size.y*.19),Vector3(-size.y*.17,size.x*.12,size.y*.16),Vector3(0,size.x*.08,size.y*.09)],Color("29354a"),6)
