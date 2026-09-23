@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds both Android APKs: the Vulkan (mobile renderer) build and the GLES3
-# (compatibility renderer) fallback.
+# Builds the Google Play AAB plus both Android APKs: the Vulkan (mobile
+# renderer) build and the GLES3 (compatibility renderer) fallback.
 #
 #   GODOT=/path/to/godot ANDROID_HOME=/path/to/sdk tools/build-android.sh
 #
@@ -18,8 +18,9 @@ KEYSTORE_USER="${KEYSTORE_USER:-androiddebugkey}"
 KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD:-android}"
 OUT="${OUT:-$PWD/build/android}"
 mkdir -p "$OUT"
-# Never mistake an earlier APK for the result of a failed export.
-rm -f "$OUT/side-sky-vulkan.apk" "$OUT/side-sky-gles3.apk"
+# Never mistake an earlier package for the result of a failed export.
+rm -f "$OUT/side-sky-play.aab" "$OUT/side-sky-vulkan.apk" \
+	"$OUT/side-sky-motorola-vulkan.apk" "$OUT/side-sky-gles3.apk"
 
 # A reusable private key must never live in the repository. For local testing,
 # create one under the current user's home directory and keep using it on that
@@ -93,6 +94,10 @@ godot_run --headless --path . --export-release "Android" "$OUT/side-sky-vulkan.a
 	| tee "$OUT/export.log"
 cp "$OUT/side-sky-vulkan.apk" "$OUT/side-sky-motorola-vulkan.apk"
 
+echo "== Google Play AAB build (mobile renderer) =="
+godot_run --headless --path . --export-release "Android Play" "$OUT/side-sky-play.aab" \
+	| tee -a "$OUT/export.log"
+
 echo "== GLES3 build (compatibility renderer) =="
 sed -E -i 's#renderer/rendering_method.mobile="(mobile|gl_compatibility)"#renderer/rendering_method.mobile="gl_compatibility"#' project.godot
 godot_run --headless --editor --import --path . >/dev/null
@@ -112,5 +117,16 @@ for f in "$OUT"/side-sky-*.apk; do
 	[ "$entries" -gt 0 ] || { echo "NO GAME DATA: $f"; exit 1; }
 	printf '  %-28s %s  signed, %s game files\n' "$(basename "$f")" "$(du -h "$f" | cut -f1)" "$entries"
 done
+
+AAB="$OUT/side-sky-play.aab"
+[ -f "$AAB" ] || { echo "MISSING: $AAB"; exit 1; }
+command -v jarsigner >/dev/null 2>&1 || {
+	echo "jarsigner not found; install a JDK to verify the Play AAB" >&2
+	exit 1
+}
+jarsigner -verify "$AAB" >/dev/null 2>&1 || { echo "UNSIGNED: $AAB"; exit 1; }
+aab_entries=$(unzip -l "$AAB" | grep -c "assets/\.godot" || true)
+[ "$aab_entries" -gt 0 ] || { echo "NO GAME DATA: $AAB"; exit 1; }
+printf '  %-28s %s  signed, %s game files\n' "$(basename "$AAB")" "$(du -h "$AAB" | cut -f1)" "$aab_entries"
 
 exit 0

@@ -113,7 +113,7 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
           "$GODOT" --headless --path . --quit-after 240
 
-      - name: Build both APKs
+      - name: Build Play AAB and both APKs
         run: |
           export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
           export ANDROID_HOME="${ANDROID_SDK_ROOT}"
@@ -126,8 +126,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: side-sky-apks
-          path: build/android/*.apk
+          name: side-sky-android
+          path: |
+            build/android/*.aab
+            build/android/*.apk
 
       - name: Publish release
         env:
@@ -136,23 +138,25 @@ jobs:
           set -euo pipefail
           TAG="${{ steps.name.outputs.tag }}"
           NOTES=$(cat <<'EOF'
-          SIDE / SKY automated Android test build.
+          SIDE / SKY automated Android build.
 
-          | file | renderer |
-          |---|---|
-          | `side-sky-vulkan.apk` | Vulkan / Godot mobile |
-          | `side-sky-motorola-vulkan.apk` | **Motorola / PowerVR向け** Vulkan版 |
-          | `side-sky-gles3.apk` | GLES3 / Godot compatibility |
+          | file | purpose | renderer |
+          |---|---|---|
+          | `side-sky-play.aab` | Google Play upload format | Vulkan / Godot mobile |
+          | `side-sky-vulkan.apk` | direct install | Vulkan / Godot mobile |
+          | `side-sky-motorola-vulkan.apk` | **Motorola / PowerVR向け** direct install | Vulkan / Godot mobile |
+          | `side-sky-gles3.apk` | compatibility fallback | GLES3 / Godot compatibility |
 
           Motorola端末では最初に`side-sky-motorola-vulkan.apk`を使用し、描画互換性の比較時だけGLES3版を使用してください。
 
-          These APKs are signed with a throwaway key generated only for this
-          workflow run. They are for device testing and are not Google Play
-          release artifacts. APKs from different workflow runs may require the
-          previous test build to be uninstalled before installation.
+          These files are signed with a throwaway key generated only for this
+          workflow run. The AAB is the Google Play upload file format, but a
+          production upload must be rebuilt with the app's stable Play upload
+          key. APKs from different workflow runs may require the previous test
+          build to be uninstalled before installation.
           EOF
           )
-          gh release create "$TAG" build/android/*.apk \
+          gh release create "$TAG" build/android/*.aab build/android/*.apk \
             --title "SIDE / SKY $TAG" --notes "$NOTES" || \
-          gh release upload "$TAG" build/android/*.apk --clobber
+          gh release upload "$TAG" build/android/*.aab build/android/*.apk --clobber
           echo "Release: $(gh release view "$TAG" --json url -q .url)"
