@@ -79,8 +79,14 @@ func _three_background(view: Vector2, scroll: float, time: float) -> void:
 
 ## Stage 1-3 climbs through the background rather than travelling past it.
 ## All motion is derived from the camera and therefore identical on both peers.
+##
+## Four painted layers from the owner's sheets, each moving at its own share of
+## the climb: distant mountains that sink away beneath the team, far floating
+## islands and ruins, an aqueduct band halfway up, and near cloud banks that the
+## team climbs out of at the bottom and into at the summit.
 func _skyward_background(view: Vector2, horizontal: float, camera_y: float, time: float) -> void:
-	var climb := clampf((6400.0 - camera_y) / 6100.0, 0.0, 1.0)
+	var climbed := 6400.0 - camera_y
+	var climb := clampf(climbed / 6100.0, 0.0, 1.0)
 	# The light source is visible almost from the start, but only blooms strongly
 	# at the summit. This gives the vertical route a persistent destination.
 	var sun_pos := Vector2(view.x*.72, view.y*(.19-.055*climb))
@@ -89,53 +95,39 @@ func _skyward_background(view: Vector2, horizontal: float, camera_y: float, time
 	draw_circle(sun_pos, view.y*(.032+.012*climb),
 		Color(1.0,.94,.72,.34+.18*climb))
 
-	# Three quiet ridge layers. Their contrast falls with distance so gameplay
-	# silhouettes stay dominant even though the stage itself is highly vertical.
-	var mountain_base := view.y * (0.66 + climb * 0.38)
-	for layer in 3:
-		var ridge := PackedVector2Array([Vector2(-120, view.y)])
-		var step := 78.0 + float(layer)*16.0
-		for i in range(-2, int(view.x / step) + 4):
-			var x := float(i) * step
-			var rate := .028 + float(layer)*.025
-			var wave := sin((x + horizontal * rate) * (.0045+.0007*layer)) * (58.0-float(layer)*11.0)
-			wave += cos((x-horizontal*.02) * (.008+.001*layer))*18.0
-			ridge.append(Vector2(x, mountain_base + float(layer)*54.0 + wave))
-		ridge.append(Vector2(view.x + 150, view.y))
-		var colour: Color = [Color("9fc4c9"),Color("7faeae"),Color("638f8d")][layer]
-		draw_colored_polygon(ridge,colour)
-
-	# Distant suspended ruin fragments establish the same language as the real
-	# platforms without competing with them. They drift at deep parallax speed.
-	var ruin_y := view.y*(.43 + climb*.16)
-	for i in 4:
-		var x := fposmod(float(i)*331.0-horizontal*.018,view.x+360.0)-180.0
-		var y := ruin_y + float((i*47)%3)*34.0
-		var stone := Color(0.35,0.49,0.47,.30)
-		var w := 70.0+float(i%2)*22.0
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(x-w*.55,y),Vector2(x+w*.55,y),Vector2(x+w*.34,y+18),
-			Vector2(x+w*.10,y+58),Vector2(x-w*.18,y+47),Vector2(x-w*.40,y+16)
-		]),stone)
-		# Broken columns, never symmetrical.
-		draw_rect(Rect2(x-w*.28,y-58-float(i%2)*22,10,60+float(i%2)*22),stone)
-		draw_rect(Rect2(x+w*.16,y-38-float((i+1)%2)*17,8,40+float((i+1)%2)*17),stone)
-		if i%2==0:
-			draw_arc(Vector2(x-w*.02,y-42),26,PI,TAU,12,stone,7)
-
-	# Cloud banks cross the route at two different depths. Squashed circles make
-	# a continuous cloud sea instead of isolated cartoon puffs.
-	var cloud_y := lerpf(view.y*.30,view.y*.79,absf(climb-.53)*1.45)
-	for layer in 2:
-		var rate := .022+.025*layer
-		var base := cloud_y+float(layer)*58.0
-		var cloud_col := Color(0.91,0.96,0.97,.72-.18*layer)
-		for i in range(-2,int(view.x/115.0)+4):
-			var x := fposmod(float(i)*121.0-horizontal*rate-time*(1.3+layer),view.x+300.0)-150.0
-			var y := base+sin(float(i)*1.7)*16.0
-			draw_set_transform(Vector2(x,y),0,Vector2(1.0,.48))
-			draw_circle(Vector2.ZERO,66.0+float(i%3)*9.0,cloud_col)
-		draw_set_transform(Vector2.ZERO)
+	# Mountains and hills: a horizon that drops as the team rises.
+	var horizon := view.y * 0.70 + climbed * 0.07
+	_band(["bg_mountains_a", "bg_mountains_b"], horizontal * 0.03, horizon, view.y * 0.34, view,
+		Color(1, 1, 1, 0.95))
+	_band(["bg_hills_a", "bg_hills_b"], horizontal * 0.06, horizon + view.y * 0.22, view.y * 0.26, view)
+	# Far islands on a virtual wall that slides past at a fifth of the climb.
+	var islands := ["bg_island_a", "bg_island_b", "bg_island_c", "bg_island_d",
+		"bg_island_falls", "bg_island_ruins"]
+	var wall_y := camera_y * 0.22
+	for i in 26:
+		var h1 := DrawUtil.hash01(i * 13 + 3)
+		var h2 := DrawUtil.hash01(i * 29 + 7)
+		var name: String = islands[i % islands.size()]
+		var y := 6400.0 * 0.22 - float(i) * 64.0 * 0.9 - wall_y + view.y * 0.25
+		var x := fposmod(h1 * 2400.0 - horizontal * 0.10 - time * (1.5 + h2), view.x + 400.0) - 200.0
+		var height := 90.0 + h2 * 110.0
+		if name == "bg_island_ruins": height *= 1.5
+		_piece(name, Vector2(x, y + h2 * 260.0), height, Color(0.92, 0.96, 1.0, 0.92))
+	# The aqueduct spans the middle of the climb.
+	var aq_y := 3600.0 * 0.35 - camera_y * 0.35 + view.y * 0.55
+	_band(["bg_aqueduct"], horizontal * 0.18, aq_y, view.y * 0.30, view)
+	# Drifting clouds everywhere, cloud banks at the bottom and the top.
+	for i in 7:
+		var h := DrawUtil.hash01(i * 17 + 1)
+		var x := fposmod(h * 1900.0 - horizontal * 0.2 - time * (6.0 + h * 5.0), view.x + 500.0) - 250.0
+		var y := fposmod(h * 900.0 + climbed * 0.3, view.y + 300.0) - 150.0
+		_piece("bg_cloud_s1" if i % 2 == 0 else "bg_cloud_s2", Vector2(x, y), 50.0 + h * 50.0,
+			Color(1, 1, 1, 0.9))
+	var low_y := view.y * 0.80 + climbed * 0.45
+	_band(["bg_cloud_bank_a", "bg_cloud_bank_b"], horizontal * 0.3 + time * 4.0, low_y, view.y * 0.30, view)
+	var high_y := -view.y * 0.10 + (climbed - 5400.0) * 0.45
+	if high_y > -view.y * 0.5:
+		_band(["bg_cloud_long", "bg_cloud_big"], horizontal * 0.3 - time * 4.0, high_y, view.y * 0.36, view)
 
 	if climb > .68:
 		# Warm summit haze brightens gradually; it is deliberately broad and faint
@@ -143,6 +135,36 @@ func _skyward_background(view: Vector2, horizontal: float, camera_y: float, time
 		var strength := (climb-.68)/.32
 		draw_circle(Vector2(view.x*.5,view.y*.10),view.y*(.18+.10*strength),
 			Color(1.0,.91,.64,.10+.16*strength))
+
+## A horizontally repeating strip of painted pieces whose TOP sits at `top`.
+func _band(names: Array, offset: float, top: float, height: float, view: Vector2,
+		tint: Color = Color.WHITE) -> void:
+	if top > view.y or top + height < 0.0:
+		return
+	var widths: Array[float] = []
+	var total := 0.0
+	for n in names:
+		var tex := SkySprites.texture(n)
+		if tex == null:
+			return
+		var w := height * tex.get_width() / maxf(1.0, float(tex.get_height()))
+		widths.append(w)
+		total += w
+	var x := -fposmod(offset, total) - total
+	var i := 0
+	while x < view.x:
+		var k := i % names.size()
+		draw_texture_rect(SkySprites.texture(names[k]), Rect2(x, top, widths[k] + 1.0, height), false, tint)
+		x += widths[k]
+		i += 1
+
+## One painted piece centred on `at`, `height` pixels tall.
+func _piece(name: String, at: Vector2, height: float, tint: Color = Color.WHITE) -> void:
+	var tex := SkySprites.texture(name)
+	if tex == null or at.y < -height or at.y > size.y + height:
+		return
+	var w := height * tex.get_width() / maxf(1.0, float(tex.get_height()))
+	draw_texture_rect(tex, Rect2(at - Vector2(w, height) * 0.5, Vector2(w, height)), false, tint)
 
 ## Where the grass line sits in the painted backdrop, as a fraction of its
 ## height. The horizon is pinned to this, so the painted ground meets the real

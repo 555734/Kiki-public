@@ -370,6 +370,14 @@ static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 			m.gem(Vector3(0,8,0),Vector3(20,16,20),stone,5)
 
 static func instance(kind: String, size: Vector2 = Vector2(40,40)) -> MeshInstance3D:
+	if Stage.is_skyward_ruins():
+		var painted: MeshInstance3D = SkySprites.object(kind,size)
+		if painted!=null:
+			if kind=="checkpoint":
+				painted.set_meta("sprite_off","flag_blue"); painted.set_meta("sprite_on","flag_red")
+			elif kind=="switch":
+				painted.set_meta("sprite_off","switch_blue"); painted.set_meta("sprite_on","switch_red")
+			return painted
 	var node := MeshInstance3D.new()
 	node.mesh=mesh(kind,size)
 	node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

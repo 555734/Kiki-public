@@ -280,5 +280,13 @@ readable on a phone.
   sky ruins toward a summit gate, with a purple smoky predator rising from
   below and cyan hologram platforms suggesting two-player cooperation; colorful
   low-poly 3D game key art; no text, logo, UI, watermark, or black background."
-- Runtime terrain, ruins, waterfall, cloud-bank, and predator meshes remain
-  original deterministic vertex-coloured recipes in `src/render/three/`.
+- Since the 1-3 redesign, the four owner-supplied sheets ARE used at runtime:
+  `tools/extract-stage-1-3.py` cuts them into `stage_1_3/sprites/*.png`
+  (islands, ruins, trees, waterfalls, bridges, platforms, pickups, portals,
+  enemy animation frames and background layers), removes the coloured halo
+  the sheets were exported with and tightens alpha for alpha-scissor quads.
+  `src/render/three/sky_sprites.gd` places them in the 3D world and
+  `src/render/sky_canvas.gd` layers the background pieces. Re-run the script
+  to regenerate them; the crop rectangles are listed in it by name.
+- Other stages' terrain and props remain original deterministic
+  vertex-coloured recipes in `src/render/three/`.

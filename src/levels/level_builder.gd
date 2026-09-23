@@ -252,6 +252,24 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			k.home_max = home.y
 			k.opens_gate = String(spec.get("gate", ""))
 			return k
+		"mine":
+			var mine := SkyMine.new()
+			mine.bob = spec.get("bob", Vector2(0, 40))
+			mine.period = float(spec.get("period", 3.2))
+			mine.phase_offset = float(spec.get("phase", 0.0))
+			return mine
+		"seedling":
+			var sprout := SkySeedling.new()
+			sprout.reach = spec.get("reach", Vector2(150, 60))
+			sprout.period = float(spec.get("period", 5.0))
+			sprout.phase_offset = float(spec.get("phase", 0.0))
+			return sprout
+		"golem":
+			var golem := SkyGolem.new()
+			golem.patrol = float(spec.get("patrol", 120.0))
+			golem.period = float(spec.get("period", 6.0))
+			golem.phase_offset = float(spec.get("phase", 0.0))
+			return golem
 		"turret":
 			var t := Turret.new()
 			t.aim_direction = spec.get("aim", Vector2.LEFT)
@@ -266,7 +284,31 @@ func _make_gimmick(spec: Dictionary) -> Node2D:
 			var m := MovingPlatform.new()
 			m.span = spec.get("span", Vector2(150, 26))
 			m.travel = spec.get("travel", Vector2(220, 0))
+			m.speed = float(spec.get("speed", Balance.MOVING_PLATFORM_SPEED))
+			m.phase_offset = float(spec.get("phase", 0.0))
 			return m
+		"blink":
+			var blink := BlinkBlock.new()
+			blink.span = spec.get("span", Vector2(150, 26))
+			blink.beat = float(spec.get("beat", 1.6))
+			blink.colour = int(spec.get("colour", 0))
+			blink.phase_offset = float(spec.get("phase", 0.0))
+			return blink
+		"conveyor":
+			var belt := Conveyor.new()
+			belt.span = spec.get("span", Vector2(220, 26))
+			belt.speed = float(spec.get("speed", 150.0))
+			belt.flip_every = float(spec.get("flip", 0.0))
+			belt.start_direction = int(spec.get("dir", 1))
+			belt.phase_offset = float(spec.get("phase", 0.0))
+			return belt
+		"warp", "warp_exit":
+			var portal := WarpGate.new()
+			portal.runner = runner
+			portal.is_exit = String(spec.get("type")) == "warp_exit"
+			portal.exit = spec.get("exit", Vector2.ZERO)
+			portal.size = spec.get("size", Vector2(90, 120))
+			return portal
 		"crumble":
 			var c := CrumblingFloor.new()
 			c.span = spec.get("span", Vector2(120, 40))

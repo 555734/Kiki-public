@@ -91,6 +91,53 @@ func run() -> void:
 		check(pursuer.global_position.y > before_stun,
 			"shot pushes the upward pursuer back down")
 
+	# The redesign's pieces are all built, and each behaves the way the layout
+	# relies on.
+	var found := {}
+	for node in main.level.find_children("*", "", true, false):
+		for cls in ["BlinkBlock", "Conveyor", "WarpGate", "SkyMine", "SkySeedling", "SkyGolem",
+				"CrumblingFloor"]:
+			if node.get_script() != null and node.get_script().get_global_name() == cls:
+				found[cls] = int(found.get(cls, 0)) + 1
+	for cls in ["BlinkBlock", "Conveyor", "WarpGate", "SkyMine", "SkySeedling", "SkyGolem",
+			"CrumblingFloor"]:
+		check(found.has(cls), "1-3 builds a %s" % cls)
+	if pursuer != null:
+		pursuer.global_position = Vector2(-3000, 6900)
+	var blink: BlinkBlock = null
+	var belt: Conveyor = null
+	var warp: WarpGate = null
+	for node in main.level.find_children("*", "", true, false):
+		if node is BlinkBlock and blink == null: blink = node
+		if node is Conveyor and belt == null: belt = node
+		if node is WarpGate and not node.is_exit and warp == null: warp = node
+	if blink != null:
+		var t := Clock.tick
+		var half := Clock.ticks_for(blink.beat)
+		check(blink.solid_at(t) != blink.solid_at(t + half),
+			"a blink slab alternates every beat, from the clock alone")
+		check(blink.solid_at(t) == blink.solid_at(t + half * 2),
+			"and repeats exactly each cycle")
+	if belt != null:
+		var top := belt.global_position - Vector2(0, belt.span.y * 0.5 + Balance.RUNNER_SIZE.y * 0.5 + 1)
+		main.runner.global_position = top
+		main.runner.velocity = Vector2.ZERO
+		for _i in 20:
+			main.runner.set("_invuln", 9.0)
+			await get_tree().physics_frame
+		var dir := float(belt.direction_at(Clock.tick))
+		check(signf(main.runner.global_position.x - top.x) == dir,
+			"a conveyor carries the runner standing on it")
+	if warp != null:
+		main.runner.global_position = warp.global_position
+		main.runner.velocity = Vector2.ZERO
+		for _i in 3:
+			await get_tree().physics_frame
+		check(main.runner.global_position.distance_to(warp.exit) < 60.0,
+			"a warp gate delivers the runner to its exit")
+		check(warp.global_position.distance_to(warp.exit) > 300.0,
+			"the warp jumps further than the guest's snap distance")
+
 	var view = main.get_node_or_null("World3D")
 	check(view != null, "Astra 3D world remains enabled")
 	if view != null and pursuer != null:
@@ -98,6 +145,8 @@ func run() -> void:
 		var binding: Dictionary = view.bindings.get(pursuer.get_instance_id(), {})
 		check(String(binding.get("kind", "")) == "sky_predator",
 			"1-3 uses the purple 3D predator model")
+		check(SkySprites.texture("island_float") != null and SkySprites.texture("predator_0") != null,
+			"1-3's painted sprites are imported")
 
 	main.queue_free()
 	await get_tree().process_frame

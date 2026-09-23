@@ -136,6 +136,7 @@ func _register(node: Node) -> void:
 		if node is Flyer and Stage.is_horror(): kind="wisp"
 		if kind=="sky_pursuer": kind="sky_predator" if Stage.is_skyward_ruins() else "pursuer"
 		if kind=="black_hole_chaser": kind="black_hole"
+		if kind.begins_with("sky_") and kind!="sky_predator": kind=kind.trim_prefix("sky_")
 		size=_body_size(node,size)
 	elif node is MovingPlatform: kind="platform"; size=node.span
 	elif node is CrumblingFloor: kind="crumbling"; size=node.span
@@ -152,21 +153,26 @@ func _register(node: Node) -> void:
 	elif node is Spring: kind="spring"; size=Vector2(Spring.WIDTH,Spring.PAD_Y)
 	elif node is Projectile: kind="projectile"; size=Vector2(14,14)
 	elif node is Shockwave: kind="shockwave"; size=Balance.SHOCKWAVE_SIZE
+	elif node is BlinkBlock: kind="blink_blue" if node.colour==0 else "blink_purple"; size=node.span
+	elif node is Conveyor: kind="conveyor"; size=node.span
+	elif node is WarpGate: kind="warp_out" if node.is_exit else "warp_in"; size=node.size
 	# Holograms, lasers, updrafts, telegraphs and aiming remain luminous 2D
 	# overlays. They always draw above the 3D terrain, including placement UI.
 	if kind.is_empty(): return
 	var accent := Lira.CLOTH
 	if kind=="runner" and node.visual!=null and node.visual.modulate!=Color.WHITE:
 		accent=Color("4a9fcc")
-	var model: Node3D = Lira.new(accent) if kind=="runner" else Assets.instance(kind,size)
-	if node is Enemy:
-		model.free()
-		model=EnemyModel.new(kind,size)
+	var model: Node3D
+	if kind=="runner": model=Lira.new(accent)
+	elif node is Enemy: model=EnemyModel.new(kind,size)
+	else: model=Assets.instance(kind,size)
 	world.add_child(model)
 	model.scale=MODEL_SCALE
 	bindings[id]={"source":weakref(node),"model":model,"kind":kind,"size":size}
-	if node is Gate or node is ShootableSwitch or node is CrumblingFloor:
+	if node is Gate or node is ShootableSwitch or node is CrumblingFloor or node is BlinkBlock:
 		node.set_meta("model_3d",true)
+		# It may already have drawn its full 2D body before being registered.
+		node.queue_redraw()
 	else:
 		_hide(node)
 	if node is Runner or node is Enemy:
@@ -216,13 +222,18 @@ func _process(delta: float) -> void:
 			var face: float=signf(node.velocity.x) if absf(node.velocity.x)>1 else 1.0
 			if node is Walker: face=node.direction
 			if node is Flyer or b.kind=="thornmite": face=node.direction
+			if node is SkySeedling or node is SkyGolem: face=node.direction
 			if node is Keeper: face=node.facing
 			if node is Shieldbearer: face=node.facing_now()
-			model.animate(delta,node.velocity.length(),face,node.state if node is Keeper else (node.mode() if b.kind=="thornmite" else 0))
+			var enemy_state: int = 0
+			if node is Keeper: enemy_state=node.state
+			elif b.kind=="thornmite" or node is SkyMine: enemy_state=node.mode()
+			elif node is SkyGolem: enemy_state=1 if node.stomping() else 0
+			model.animate(delta,node.velocity.length(),face,enemy_state)
 			if b.kind=="sky_predator":
 				var pursuit_direction: Vector2 = node.get("chase_direction")
 				model.rotation.z=-pursuit_direction.angle()
-			if node is Turret:
+			if node is Turret and not model.flat:
 				model.rotation.y=0
 				model.rotation.z=-node.aim_direction.angle()
 		elif node is Gate:
@@ -241,10 +252,22 @@ func _process(delta: float) -> void:
 			_signal(model,node.reached)
 		elif node is ShootableSwitch:
 			_signal(model,node.active and not node.locked())
+		elif node is BlinkBlock:
+			model.visible=model.visible and node.solid_at(Clock.tick) \
+				and not (node.warning() and fmod(elapsed*8,1)<.4)
+		elif node is Conveyor:
+			model.scale.x=UNIT*float(node.direction_at(Clock.tick))
+			model.visible=model.visible and not (node.warning() and fmod(elapsed*8,1)<.3)
+		elif node is WarpGate:
+			model.scale.x=UNIT*(1.0+sin(elapsed*3)*.03)
 	_sync_surfaces(visible_rect)
 	_sync_match(delta)
 
 func _signal(model: MeshInstance3D, active: bool) -> void:
+	# Painted 1-3 pieces swap to their lit picture instead of a tinted recipe.
+	if model.has_meta("sprite_on"):
+		model.material_override=SkySprites.material(model.get_meta("sprite_on" if active else "sprite_off"))
+		return
 	if not signal_materials.has(active):
 		var material := StandardMaterial3D.new()
 		material.vertex_color_use_as_albedo=true
@@ -267,7 +290,15 @@ func _sync_surfaces(visible_rect: Rect2) -> void:
 			for part in entry.models: part.model.queue_free()
 			entry.models.clear()
 			entry.hash=signature
-			if is_terrain:
+			if is_terrain and Stage.is_skyward_ruins():
+				# One painted island per slab; the 3-slice keeps it seamless, so
+				# it is not cut into 512px chunks like the recipe terrain.
+				for slab: Rect2 in data:
+					var part := MeshInstance3D.new()
+					part.mesh=SkySprites.terrain(slab.size)
+					_add_surface(entry,part,node.global_position+slab.position,
+						slab.grow_individual(0,0,0,220))
+			elif is_terrain:
 				for slab: Rect2 in data:
 					var x := 0.0
 					while x<slab.size.x:
@@ -286,7 +317,8 @@ func _sync_surfaces(visible_rect: Rect2) -> void:
 						for k in int(d.get("count",3)):
 							_add_surface(entry,Assets.instance(kind,Vector2(cell,cell)),node.global_position+at+Vector2(k*cell+cell/2,cell),Rect2(at,Vector2(cell,cell)))
 					else:
-						_add_surface(entry,Assets.instance(kind,size),node.global_position+at,
+						var painted: MeshInstance3D = SkySprites.decor(kind,size) if Stage.is_skyward_ruins() else null
+						_add_surface(entry,painted if painted!=null else Assets.instance(kind,size),node.global_position+at,
 							Rect2(at-size*.5,Vector2(maxf(size.x,200),maxf(size.y,200))))
 		for part in entry.models:
 			part.model.visible=node.is_visible_in_tree() and visible_rect.intersects(part.bounds)
