@@ -60,7 +60,8 @@ func _draw() -> void:
 func _draw_build(preview: Dictionary) -> void:
 	var rect: Rect2 = preview["rect"]
 	var valid: bool = preview["valid"]
-	var col := Balance.C_HOLO if valid else Color("ff7a55")
+	var col := Balance.C_PLATFORM if valid else Balance.C_PLACE_BAD
+	var rim := Color(Balance.C_PLATFORM_RIM, 0.55)
 
 	var shape: PackedVector2Array = preview.get("path", PackedVector2Array())
 	if shape.size() >= 2:
@@ -70,17 +71,19 @@ func _draw_build(preview: Dictionary) -> void:
 		for p in shape:
 			line.append(centre_at + p)
 		var thick := Balance.PLATFORM_SIZE.y
-		draw_polyline(line, Color(col.r, col.g, col.b, 0.16 if valid else 0.10), thick, true)
+		# A dark underlay, then the colour: readable on sky, grass and cloud.
+		draw_polyline(line, rim, thick + 6.0, true)
+		draw_polyline(line, Color(col.r, col.g, col.b, 0.55 if valid else 0.40), thick, true)
 		for i in range(line.size() - 1):
 			var along := (line[i + 1] - line[i]).normalized()
 			var side := Vector2(-along.y, along.x) * thick * 0.5
-			_dashed_line(line[i] + side, line[i + 1] + side, Color(col.r, col.g, col.b, 0.9), 2.0)
-			_dashed_line(line[i] - side, line[i + 1] - side, Color(col.r, col.g, col.b, 0.9), 2.0)
+			_dashed_line(line[i] + side, line[i + 1] + side, Color(1, 1, 1, 0.95), 2.4)
+			_dashed_line(line[i] - side, line[i + 1] - side, Color(1, 1, 1, 0.95), 2.4)
 	else:
 		# Faint fill so the shape is readable against busy terrain.
-		draw_rect(rect, Color(col.r, col.g, col.b, 0.14 if valid else 0.10))
-		_dashed_rect(rect.grow(6.0), Color(1, 1, 1, 0.75 if valid else 0.35), 1.8)
-		_dashed_rect(rect, Color(col.r, col.g, col.b, 0.9), 2.0)
+		draw_rect(rect.grow(3.0), rim)
+		draw_rect(rect, Color(col.r, col.g, col.b, 0.55 if valid else 0.40))
+		_dashed_rect(rect, Color(1, 1, 1, 0.95), 2.4)
 
 	if not valid:
 		return

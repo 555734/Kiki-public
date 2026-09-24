@@ -260,6 +260,49 @@ func _walls() -> void:
 		_ok(not runner.can_wall_jump(), "old contact cannot immediately provide a second kick")
 		hub.release_jump()
 		await _tick(8)
+	# Mario-style forgiveness. A hair's gap from the wall still kicks...
+	await _reset()
+	runner.position = Vector2(1484 - 12, -500)
+	runner.velocity = Vector2(0, 200)
+	hub.move_axis = 0.0
+	hub.release_jump()
+	await _tick(2)
+	hub.press_jump()
+	await _tick(2)
+	_ok(runner.velocity.x < 0.0 and runner.velocity.y < 0.0,
+		"a kick fires from a small gap without touching the wall")
+	hub.release_jump()
+	await _tick(8)
+	# ...and so does a press made just before reaching it.
+	await _reset()
+	# Airborne long enough that the ground's coyote jump is gone, then placed
+	# 0.13s of running short of the wall's reach: past the ordinary 0.10s
+	# buffer, inside the wall kick's own.
+	runner.position = Vector2(1200, -500)
+	runner.velocity = Vector2(0, 0)
+	hub.move_axis = 0.0
+	hub.release_jump()
+	await _tick(8)
+	runner.position = Vector2(1500.0 - Balance.RUNNER_SIZE.x * 0.5
+		- Balance.WALL_PROBE_DISTANCE - Balance.RUNNER_RUN_SPEED * 0.13, runner.position.y)
+	runner.velocity = Vector2(Balance.RUNNER_RUN_SPEED, 60)
+	hub.move_axis = 1.0
+	await _tick()
+	var gap := 1500.0 - (runner.position.x + Balance.RUNNER_SIZE.x * 0.5)
+	hub.press_jump()
+	var kicked := false
+	var waited := 0
+	for _i in range(14):
+		waited += 1
+		await _tick()
+		if runner.wall_kicking():
+			kicked = true
+			break
+	_ok(kicked, "a jump pressed just before reaching the wall becomes a kick (gap %.0fpx, %d ticks)"
+		% [gap, waited])
+	hub.release_jump()
+	hub.move_axis = 0.0
+	await _tick(8)
 	runner.position = Vector2(-3000, -500)
 	runner.velocity = Vector2.ZERO
 	hub.move_axis = 0.0

@@ -82,7 +82,7 @@ func _ready() -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = preload("res://src/render/shaders/hologram.gdshader")
 	# The painted slab needs no shader; keeping it attached would tint the sprite.
-	if Balance.USE_TEXTURES and Art.tex(_texture_key()) != null:
+	if kind == Kind.PLATFORM or (Balance.USE_TEXTURES and Art.tex(_texture_key()) != null):
 		_material = null
 	if _material != null:
 		_material.set_shader_parameter("rect_size", size)
@@ -128,8 +128,8 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if kind == Kind.PLATFORM and path.size() >= 2 and not _is_standard_path():
-		_draw_path()
+	if kind == Kind.PLATFORM and path.size() >= 2:
+		_draw_platform()
 		return
 	if Balance.USE_TEXTURES:
 		# The painted slab already carries the hex lattice, so the shader is not
@@ -153,37 +153,54 @@ func _draw() -> void:
 			return
 	draw_texture_rect(white_texture(), Rect2(-size * 0.5, size), false)
 
-## A drawn slab: one painted slab per segment, turned to lie along it, and a
-## round cap on each bend so the joins do not show a notch.
-func _draw_path() -> void:
+## A platform, level or drawn: a solid slab in C_PLATFORM with a dark rim,
+## laid along each segment, with a round cap on every bend so the joins do not
+## show a notch. Deliberately not the blue painted slab or the cyan hologram:
+## those vanished against the sky. The last second flashes red.
+func _draw_platform() -> void:
 	var thick := Balance.PLATFORM_SIZE.y
 	var warn := clampf(1.0 - remaining_time(), 0.0, 1.0)
 	var flash := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * lerpf(6.0, 34.0, warn))
-	var tint := Color(1, 1, 1, _fade_in).lerp(
-		Color(1.0, 0.86, 0.35, _fade_in * 0.85), warn * flash * 0.7)
-	var painted := Balance.USE_TEXTURES and Art.tex(_texture_key()) != null
-	var joint := Color(Balance.C_HOLO.r, Balance.C_HOLO.g, Balance.C_HOLO.b, 0.9 * tint.a) \
-		.lerp(Color(1.0, 0.86, 0.35, tint.a), warn * flash * 0.7)
+	var hot := warn * flash * 0.8
+	var fill := Balance.C_PLATFORM.lerp(Balance.C_PLATFORM_WARN, hot)
+	fill.a = _fade_in
+	var rim := Balance.C_PLATFORM_RIM
+	rim.a = _fade_in
+	var shine := fill.lightened(0.45)
+	shine.a = 0.8 * _fade_in
+	var rim_w := 3.0
+	# Rim first, everything at once, so the fill of one segment covers the rim
+	# of the next where they meet.
+	for i in range(path.size()):
+		if i > 0 and i < path.size() - 1:
+			draw_circle(path[i], thick * 0.5 + rim_w, rim)
+	for i in range(path.size() - 1):
+		_slab(path[i], path[i + 1], thick + rim_w * 2.0, rim_w, rim)
 	for i in range(1, path.size() - 1):
-		draw_circle(path[i], thick * 0.5, joint)
+		draw_circle(path[i], thick * 0.5, fill)
+	for i in range(path.size() - 1):
+		_slab(path[i], path[i + 1], thick, 0.0, fill)
+	# A light stripe along the top edge, so it reads as a solid thing to stand
+	# on rather than a flat sticker.
 	for i in range(path.size() - 1):
 		var a := path[i]
 		var b := path[i + 1]
 		var length := a.distance_to(b)
-		if length < 0.5:
+		if length < 1.0:
 			continue
 		draw_set_transform((a + b) * 0.5, (b - a).angle(), Vector2.ONE)
-		var rect := Rect2(Vector2(-length * 0.5, -thick * 0.5), Vector2(length, thick))
-		if painted:
-			Art.draw_stretched(self, _texture_key(), rect.grow_individual(3, 6, 3, 6), tint)
-		else:
-			draw_texture_rect(white_texture(), rect, false, tint)
+		draw_rect(Rect2(-length * 0.5 + 3.0, -thick * 0.5 + 3.0,
+			maxf(length - 6.0, 0.0), 4.0), shine)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-func _is_standard_path() -> bool:
-	return path.size() == 2 and is_equal_approx(path[0].y, path[1].y) \
-		and is_equal_approx(absf(path[1].x - path[0].x), size.x) \
-		and is_zero_approx(path[0].y) and is_zero_approx(path[0].x + path[1].x)
+## One straight slab from a to b, `thick` across, `extend` longer at each end.
+func _slab(a: Vector2, b: Vector2, thick: float, extend: float, col: Color) -> void:
+	var length := a.distance_to(b)
+	if length < 0.5:
+		return
+	draw_set_transform((a + b) * 0.5, (b - a).angle(), Vector2.ONE)
+	draw_rect(Rect2(-length * 0.5 - extend, -thick * 0.5, length + extend * 2.0, thick), col)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 ## The highest point of the slab's centre line, relative to the node.
 func top_point() -> Vector2:

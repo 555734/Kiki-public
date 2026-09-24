@@ -175,6 +175,30 @@ func run() -> void:
 		check(absf(got.angle_to(want)) < 0.08,
 			"in the stroke's slope (%s vs %s)" % [str(got), str(want)])
 
+	# On a shared screen the guardian can draw on the runner's third too, away
+	# from the runner's own controls.
+	hub.solo_role = ""
+	hub.trace_mode = true
+	var screen := hub._screen_size()
+	var mirrored := not hub.runner_on_left
+	var shared := ControlLayout.layout("shared", screen, mirrored)
+	var left_x := screen.x * (0.88 if mirrored else 0.12)
+	hub._touch_down(5, Vector2(left_x, screen.y * 0.18))
+	check(String(hub._touch_owner.get(5, "")) == "aim",
+		"the runner's third of a shared screen takes a drawing finger")
+	hub._touch_up(5, Vector2(left_x, screen.y * 0.18))
+	var stick_at: Vector2 = shared["stick"]["center"]
+	var edge := stick_at + Vector2(0.0, -float(shared["stick"]["radius"]) \
+		* ControlLayout.STICK_CAPTURE * 1.2)
+	hub._touch_down(6, edge)
+	check(String(hub._touch_owner.get(6, "")) != "aim",
+		"but a near miss of the stick is still the runner's")
+	hub._touch_up(6, edge)
+	hub.solo_role = "guardian"
+
+	# Platforms are drawn warm, not in the sky's blue.
+	check(Balance.C_PLATFORM.r > Balance.C_PLATFORM.b + 0.4, "platforms are a warm colour")
+
 	# The clear: no more harm, and the enemies stop.
 	Events.stage_cleared.emit({})
 	await get_tree().process_frame

@@ -211,6 +211,10 @@ func press_slot(slot: int) -> void:
 ## How far a finger may travel and still count as a tap rather than a drag.
 const TAP_SLOP: float = 18.0
 
+## On a shared screen, how far round each of the runner's controls (as a
+## multiple of its reach) a touch still belongs to the runner.
+const RUNNER_CONTROL_MARGIN: float = 1.35
+
 ## A traced platform keeps the stroke's shape, simplified: points closer than
 ## TRACE_SPACING are finger jitter, bends smaller than TRACE_TOLERANCE are
 ## straightened, and at most TRACE_MAX_POINTS corners go over the wire.
@@ -610,11 +614,33 @@ func _touch_down(index: int, position: Vector2) -> void:
 		return
 	if _route_control(index, position, size, mirrored):
 		return
-	if solo_role != "runner" and TouchLayout.hit_rect(
-			position, TouchLayout.AIM_ZONE, size, mirrored):
+	if solo_role != "runner" and (TouchLayout.hit_rect(
+			position, TouchLayout.AIM_ZONE, size, mirrored)
+			or _clear_of_runner_controls(position, size, mirrored)):
 		_touch_owner[index] = "aim"
 		_aim_finger = index
 		_begin_aim(index, position)
+
+## On a shared screen, whether a touch on the runner's side is far enough from
+## the stick and the jump button to be the guardian drawing rather than the
+## runner missing a control.
+##
+## The runner's side used to be the runner's alone: a touch there that missed
+## the stick did nothing. But the world carries on over there, and a platform
+## to the runner's LEFT had to be drawn in exactly that third of the screen --
+## so building behind the runner mostly failed. Now only a margin round the
+## runner's controls stays theirs; the rest of that third is the guardian's.
+func _clear_of_runner_controls(position: Vector2, size: Vector2, mirrored: bool) -> bool:
+	var places := ControlLayout.layout("shared", size, mirrored)
+	for id in ["stick", "jump", "ping"]:
+		if not places.has(id):
+			continue
+		var place: Dictionary = places[id]
+		var reach := float(place["radius"]) \
+			* (ControlLayout.STICK_CAPTURE if place["kind"] == "stick" else 1.0)
+		if position.distance_to(place["center"]) <= reach * RUNNER_CONTROL_MARGIN:
+			return false
+	return true
 
 func _route_control(index: int, position: Vector2, size: Vector2,
 		mirrored: bool) -> bool:

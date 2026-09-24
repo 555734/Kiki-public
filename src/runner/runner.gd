@@ -172,7 +172,9 @@ var _wall_coyote: float = 0.0
 var _wall_normal: float = 0.0
 var _wall_slide_time: float = 0.0
 var _wall_jump_ready: bool = false
-const WALL_PROBE_DISTANCE: float = 8.0
+## A jump pressed in the air, kept a little longer than the ordinary buffer
+## but only for a wall kick, so a press just before reaching the wall kicks.
+var _wall_buffer: float = 0.0
 
 func _probe_wall_normal() -> float:
 	# move_and_slide only reports a wall after collision resolution. For a
@@ -184,8 +186,14 @@ func _probe_wall_normal() -> float:
 	if first == 0.0:
 		first = 1.0
 	for direction in [first, -first]:
-		if test_move(global_transform, Vector2(direction * WALL_PROBE_DISTANCE, 0.0)):
-			return -direction
+		var hit := KinematicCollision2D.new()
+		if test_move(global_transform, Vector2(direction * Balance.WALL_PROBE_DISTANCE, 0.0),
+				hit):
+			# Only something upright is a wall. A slope or the corner of a
+			# ceiling is not something to kick off, and counting it made the
+			# kick fire where the player never saw a wall.
+			if absf(hit.get_normal().x) >= 0.7:
+				return -direction
 	return 0.0
 
 func _track_wall(delta: float) -> void:
@@ -299,6 +307,7 @@ func _normal_vertical_step(delta: float) -> void:
 func _tick_timers(delta: float) -> void:
 	_wall_kick_lock = maxf(0.0, _wall_kick_lock - delta)
 	_wall_kick_visual = maxf(0.0, _wall_kick_visual - delta)
+	_wall_buffer = maxf(0.0, _wall_buffer - delta)
 	_chain_window = maxf(0.0, _chain_window - delta)
 	if is_on_floor() and not _chain_flight and _chain_window <= 0.0:
 		_reset_jump_chain()
@@ -338,6 +347,7 @@ func bounce(speed: float) -> void:
 	velocity.y = -absf(speed)
 	_coyote = 0.0
 	_jump_buffer = 0.0
+	_wall_buffer = 0.0
 	_begin_external_takeoff()
 
 func _read_input(_delta: float) -> void:
@@ -351,8 +361,10 @@ func _read_input(_delta: float) -> void:
 		# into a jump on top of it, and neither must a press that arrives in the
 		# same frame. Later air control and wall kicks are unaffected.
 		_jump_buffer = 0.0
+		_wall_buffer = 0.0
 	elif pressed:
 		_jump_buffer = Balance.RUNNER_JUMP_BUFFER
+		_wall_buffer = Balance.WALL_JUMP_BUFFER if not is_on_floor() else 0.0
 		_buffer_press_release_sequence = input_hub.jump_press_release_sequence
 	_update_jump_release()
 	# Sprint is the same held modifier on the ground and in the air.
@@ -363,6 +375,7 @@ func _read_input(_delta: float) -> void:
 		_pound_phase = 1
 		_pound_timer = Balance.RUNNER_POUND_WINDUP
 		_jump_buffer = 0.0
+		_wall_buffer = 0.0
 		_end_player_jump()
 		_reset_jump_chain()
 	_down_was_held = down
@@ -504,7 +517,11 @@ func _process_normal(delta: float) -> void:
 	_track_wall(delta)
 	var touching_wall := _wall_jump_ready
 	if touching_wall:
-		if axis * _wall_normal < -0.1 and velocity.y > 0.0:
+		# The kick reaches WALL_PROBE_DISTANCE out, but the slide is only for
+		# a runner actually against the wall: sliding in mid-air short of it
+		# looked wrong and held them too slow to catch a ledge.
+		if axis * _wall_normal < -0.1 and velocity.y > 0.0 \
+				and test_move(global_transform, Vector2(-_wall_normal * 2.0, 0.0)):
 			_wall_sliding = true
 			velocity.y = minf(velocity.y, Balance.WALL_SLIDE_SPEED)
 			_end_player_jump()
@@ -512,7 +529,7 @@ func _process_normal(delta: float) -> void:
 		return
 
 	# Wall jump gets priority over coyote jump while in contact.
-	if _jump_buffer > 0.0 and can_wall_jump() \
+	if (_jump_buffer > 0.0 or _wall_buffer > 0.0) and can_wall_jump() \
 			and not _external_takeoff_pending:
 		var press_sequence := _buffer_press_release_sequence
 		velocity = Vector2(_wall_normal * Balance.WALL_JUMP_OUT, Balance.WALL_JUMP_UP)
@@ -524,6 +541,7 @@ func _process_normal(delta: float) -> void:
 		_wall_coyote = 0.0
 		_wall_jump_ready = false
 		_jump_buffer = 0.0
+		_wall_buffer = 0.0
 		_begin_player_jump(press_sequence)
 		Events.runner_wall_jumped.emit(global_position, int(_wall_normal))
 		Events.runner_jumped.emit()
@@ -534,6 +552,7 @@ func _process_normal(delta: float) -> void:
 		var press_sequence := _buffer_press_release_sequence
 		_start_ground_jump()
 		_jump_buffer = 0.0
+		_wall_buffer = 0.0
 		_coyote = 0.0
 		_begin_player_jump(press_sequence)
 		Events.runner_jumped.emit()
@@ -578,6 +597,7 @@ func _process_pound(delta: float) -> void:
 		# A fresh jump during preparation cancels without inventing another jump.
 		if _jump_buffer > 0.0:
 			_jump_buffer = 0.0
+			_wall_buffer = 0.0
 			_pound_phase = 0
 			_process_normal(delta)
 			return
@@ -725,6 +745,7 @@ func _process_hang(delta: float) -> void:
 	if _jump_buffer > 0.0:
 		var press_sequence := _buffer_press_release_sequence
 		_jump_buffer = 0.0
+		_wall_buffer = 0.0
 		velocity = Vector2(float(facing) * Balance.RUNNER_RUN_SPEED * 0.55,
 			Balance.RUNNER_JUMP_VELOCITY)
 		_begin_player_jump(press_sequence)
@@ -893,6 +914,7 @@ func take_damage(amount: int) -> void:
 		return
 	_end_player_jump()
 	_jump_buffer = 0.0
+	_wall_buffer = 0.0
 	_reset_jump_chain()
 	_pound_phase = 0
 	_invuln = Balance.RUNNER_HURT_INVULN
@@ -907,6 +929,7 @@ func die(cause: String) -> void:
 		return
 	_end_player_jump()
 	_jump_buffer = 0.0
+	_wall_buffer = 0.0
 	_reset_jump_chain()
 	_pound_phase = 0
 	_external_takeoff_pending = false
@@ -921,6 +944,7 @@ func launch(velocity_out: Vector2) -> void:
 		return
 	_end_player_jump()
 	_jump_buffer = 0.0
+	_wall_buffer = 0.0
 	_reset_jump_chain()
 	_pound_phase = 0
 	_wall_coyote = 0.0
@@ -959,6 +983,7 @@ func respawn(at: Vector2) -> void:
 	_wall_jump_ready = false
 	_coyote = 0.0
 	_jump_buffer = 0.0
+	_wall_buffer = 0.0
 	_hang_left = 0.0
 	_last_ledge = 0
 	_launched = false
@@ -1002,6 +1027,7 @@ func _notification(what: int) -> void:
 		NOTIFICATION_WM_WINDOW_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]
 	if what in lost:
 		_jump_buffer = 0.0
+		_wall_buffer = 0.0
 		if _player_jump_active:
 			_jump_release_latched = true
 			_apex_finished = true

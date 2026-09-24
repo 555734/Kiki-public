@@ -304,7 +304,12 @@ const WALL_JUMP_UP: float = -sqrt(2.0 * RUNNER_GRAVITY * WALL_JUMP_HEIGHT)
 const WALL_JUMP_OUT: float = 1.42 * RUNNER_RUN_SPEED
 const WALL_KICK_LOCK: float = 0.10
 const WALL_SLIDE_SPEED: float = 100.0
-const WALL_COYOTE_TIME: float = 0.12
+## Mario-style forgiveness: a wall counts from this far away, the kick is
+## still allowed this long after leaving it, and a jump pressed this long
+## before touching it is kept for the kick.
+const WALL_PROBE_DISTANCE: float = 18.0
+const WALL_COYOTE_TIME: float = 0.16
+const WALL_JUMP_BUFFER: float = 0.16
 ## Presentation-only window used to show a distinct kick pose after leaving a wall.
 const WALL_KICK_VISUAL_TIME: float = 0.16
 
@@ -583,6 +588,14 @@ const C_QBLOCK := Color("f2b32c")
 const C_SPIKE := Color("b9c2cc")
 const C_SPIKE_DARK := Color("7b8794")
 const C_HOLO := Color("35d6ff")
+## The guardian's platforms. Warm and solid so they stand out against the blue
+## sky and the green ground alike; a dark rim keeps them readable on pale
+## clouds. They flash toward WARN in their last second.
+const C_PLATFORM := Color("ffc21a")
+const C_PLATFORM_RIM := Color("4a2600")
+const C_PLATFORM_WARN := Color("ff3b30")
+## The placement ghost when it cannot be built there.
+const C_PLACE_BAD := Color("ff3b3b")
 const C_HOLO_DIM := Color("1b7fa8")
 const C_ENEMY_BODY := Color("8b5a2b")
 const C_ENEMY_DARK := Color("5e3a18")
