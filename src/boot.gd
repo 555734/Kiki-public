@@ -40,15 +40,9 @@ func _ready() -> void:
 	_dots.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(_dots)
 
-	ResourceLoader.load_threaded_request(MAIN_SCENE)
-	# Fire and forget: ensure_ready is safe to await again from host_eos, which
-	# simply waits for this attempt instead of starting a second one.
-	# The 240-frame CI startup probe only checks scene bootstrapping. Do not
-	# start an asynchronous native EOS login just before this short-lived
-	# headless process exits: EOSG can segfault while its threads shut down.
-	# Normal Android/iOS launches still warm EOS here, without any delay.
-	if not OS.get_cmdline_user_args().has("--ci-skip-eos"):
-		EosRuntime.ensure_ready()
+	# Sub-threads let the scene's textures and scripts load side by side
+	# instead of one after another.
+	ResourceLoader.load_threaded_request(MAIN_SCENE, "", true)
 
 func _process(delta: float) -> void:
 	_elapsed += delta
@@ -56,9 +50,27 @@ func _process(delta: float) -> void:
 	match ResourceLoader.load_threaded_get_status(MAIN_SCENE):
 		ResourceLoader.THREAD_LOAD_LOADED:
 			set_process(false)
+			print("BOOT: main scene loaded after %d ms" % Time.get_ticks_msec())
 			get_tree().change_scene_to_packed(ResourceLoader.load_threaded_get(MAIN_SCENE))
+			_warm_eos_after_menu()
 		ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
 			# Fall back to the ordinary blocking load rather than stranding the
 			# player on a loading screen.
 			set_process(false)
 			get_tree().change_scene_to_file(MAIN_SCENE)
+
+## EOS login warms up once the start screen is on screen rather than during
+## the load: native platform start-up competes with the loader for the main
+## thread and made the loading screen last longer. It still finishes well
+## before anyone reaches "部屋を作る"; ensure_ready is safe to await again from
+## host_eos, which simply waits for this attempt instead of starting another.
+##
+## The 240-frame CI startup probe passes --ci-skip-eos: a native EOS login
+## started just before that short-lived headless process exits can segfault
+## while its threads shut down.
+func _warm_eos_after_menu() -> void:
+	if OS.get_cmdline_user_args().has("--ci-skip-eos"):
+		return
+	get_tree().create_timer(0.4).timeout.connect(func() -> void:
+		print("BOOT: start screen shown, warming EOS at %d ms" % Time.get_ticks_msec())
+		EosRuntime.ensure_ready())

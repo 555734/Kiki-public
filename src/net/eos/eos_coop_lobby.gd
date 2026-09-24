@@ -180,6 +180,12 @@ func _bind_lobby() -> void:
 	if not lobby.is_connected("kicked_from_lobby", _on_kicked):
 		lobby.connect("kicked_from_lobby", _on_kicked)
 
+## Re-read the member list from the EOS SDK's copy of the lobby. The SDK can
+## already know a new member before EOSG's wrapper has copied it across.
+func refresh() -> void:
+	if lobby != null and lobby.has_method("_copy_lobby_data"):
+		lobby.call("_copy_lobby_data")
+
 func _refresh_members() -> void:
 	if remote_puid().is_empty():
 		peer_left.emit()

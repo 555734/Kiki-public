@@ -6,11 +6,6 @@ extends RefCounted
 ## class directly, so adding a stage cannot accidentally mix geometry from one
 ## map with enemies or checkpoints from another.
 
-const HorrorDataScript = preload("res://src/levels/level_horror_data.gd")
-const QuietDataScript = preload("res://src/levels/level_quiet_data.gd")
-const KeeperDataScript = preload("res://src/levels/level_keeper_data.gd")
-const SkyDataScript = preload("res://src/levels/level_sky_data.gd")
-const SkywardRuinsDataScript = preload("res://src/levels/level_skyward_ruins_data.gd")
 
 enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS }
 
@@ -18,6 +13,16 @@ enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
 ## existing first stage again.
 static var _which: int = Which.GREENFIELD
+
+## Each stage's data script is compiled the first time that stage is asked
+## about, not at launch: five level scripts the start screen never needs were
+## part of the startup compile.
+static var _data_scripts: Dictionary = {}
+
+static func _data(file: String) -> Script:
+	if not _data_scripts.has(file):
+		_data_scripts[file] = load("res://src/levels/%s.gd" % file)
+	return _data_scripts[file]
 
 static func use(which: int) -> void:
 	_which = which
@@ -73,75 +78,75 @@ static func needs_two_devices() -> bool:
 
 static func kill_y() -> float:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.kill_y_value()
+		return _data("level_skyward_ruins_data").kill_y_value()
 	if is_sky():
-		return SkyDataScript.kill_y_value()
+		return _data("level_sky_data").kill_y_value()
 	if is_keeper():
-		return KeeperDataScript.kill_y_value()
+		return _data("level_keeper_data").kill_y_value()
 	if is_quiet():
-		return QuietDataScript.kill_y_value()
+		return _data("level_quiet_data").kill_y_value()
 	if is_horror():
-		return HorrorDataScript.kill_y_value()
+		return _data("level_horror_data").kill_y_value()
 	if is_workshop():
 		return Level03Data.KILL_Y
 	return Level02Data.KILL_Y if is_crossing() else Level01Data.KILL_Y
 
 static func start() -> Vector2:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.start_position()
+		return _data("level_skyward_ruins_data").start_position()
 	if is_sky():
-		return SkyDataScript.start_position()
+		return _data("level_sky_data").start_position()
 	if is_keeper():
-		return KeeperDataScript.start_position()
+		return _data("level_keeper_data").start_position()
 	if is_quiet():
-		return QuietDataScript.start_position()
+		return _data("level_quiet_data").start_position()
 	if is_horror():
-		return HorrorDataScript.start_position()
+		return _data("level_horror_data").start_position()
 	if is_workshop():
 		return Level03Data.START
 	return Level02Data.START if is_crossing() else Level01Data.START
 
 static func stage_name() -> String:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.stage_name_value()
+		return _data("level_skyward_ruins_data").stage_name_value()
 	if is_sky():
-		return SkyDataScript.stage_name_value()
+		return _data("level_sky_data").stage_name_value()
 	if is_keeper():
-		return KeeperDataScript.stage_name_value()
+		return _data("level_keeper_data").stage_name_value()
 	if is_quiet():
-		return QuietDataScript.stage_name_value()
+		return _data("level_quiet_data").stage_name_value()
 	if is_horror():
-		return HorrorDataScript.stage_name_value()
+		return _data("level_horror_data").stage_name_value()
 	if is_workshop():
 		return Level03Data.STAGE_NAME
 	return Level02Data.STAGE_NAME if is_crossing() else Level01Data.STAGE_NAME
 
 static func stage_number() -> String:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.stage_number_value()
+		return _data("level_skyward_ruins_data").stage_number_value()
 	if is_sky():
-		return SkyDataScript.stage_number_value()
+		return _data("level_sky_data").stage_number_value()
 	if is_keeper():
-		return KeeperDataScript.stage_number_value()
+		return _data("level_keeper_data").stage_number_value()
 	if is_quiet():
-		return QuietDataScript.stage_number_value()
+		return _data("level_quiet_data").stage_number_value()
 	if is_horror():
-		return HorrorDataScript.stage_number_value()
+		return _data("level_horror_data").stage_number_value()
 	if is_workshop():
 		return Level03Data.STAGE_NUMBER
 	return Level02Data.STAGE_NUMBER if is_crossing() else Level01Data.STAGE_NUMBER
 
 static func objective() -> String:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.objective_value()
+		return _data("level_skyward_ruins_data").objective_value()
 	if is_sky():
-		return SkyDataScript.objective_value()
+		return _data("level_sky_data").objective_value()
 	if is_keeper():
-		return KeeperDataScript.objective_value()
+		return _data("level_keeper_data").objective_value()
 	if is_quiet():
-		return QuietDataScript.objective_value()
+		return _data("level_quiet_data").objective_value()
 	if is_horror():
-		return HorrorDataScript.objective_value()
+		return _data("level_horror_data").objective_value()
 	if is_workshop():
 		return Level03Data.OBJECTIVE
 	return Level02Data.OBJECTIVE if is_crossing() else Level01Data.OBJECTIVE
@@ -150,90 +155,90 @@ static func objective() -> String:
 
 static func ground() -> Array[Rect2]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.ground()
+		return _data("level_skyward_ruins_data").ground()
 	if is_sky():
-		return SkyDataScript.ground()
+		return _data("level_sky_data").ground()
 	if is_keeper():
-		return KeeperDataScript.ground()
+		return _data("level_keeper_data").ground()
 	if is_quiet():
-		return QuietDataScript.ground()
+		return _data("level_quiet_data").ground()
 	if is_horror():
-		return HorrorDataScript.ground()
+		return _data("level_horror_data").ground()
 	if is_workshop():
 		return Level03Data.ground()
 	return Level02Data.ground() if is_crossing() else Level01Data.ground()
 
 static func solid_decor() -> Array[Rect2]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.solid_decor()
+		return _data("level_skyward_ruins_data").solid_decor()
 	if is_sky():
-		return SkyDataScript.solid_decor()
+		return _data("level_sky_data").solid_decor()
 	if is_keeper():
-		return KeeperDataScript.solid_decor()
+		return _data("level_keeper_data").solid_decor()
 	if is_quiet():
-		return QuietDataScript.solid_decor()
+		return _data("level_quiet_data").solid_decor()
 	if is_horror():
-		return HorrorDataScript.solid_decor()
+		return _data("level_horror_data").solid_decor()
 	if is_workshop():
 		return Level03Data.solid_decor()
 	return Level02Data.solid_decor() if is_crossing() else Level01Data.solid_decor()
 
 static func decor() -> Array[Dictionary]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.decor()
+		return _data("level_skyward_ruins_data").decor()
 	if is_sky():
-		return SkyDataScript.decor()
+		return _data("level_sky_data").decor()
 	if is_keeper():
-		return KeeperDataScript.decor()
+		return _data("level_keeper_data").decor()
 	if is_quiet():
-		return QuietDataScript.decor()
+		return _data("level_quiet_data").decor()
 	if is_horror():
-		return HorrorDataScript.decor()
+		return _data("level_horror_data").decor()
 	if is_workshop():
 		return Level03Data.decor()
 	return Level02Data.decor() if is_crossing() else Level01Data.decor()
 
 static func hazards() -> Array[Dictionary]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.hazards()
+		return _data("level_skyward_ruins_data").hazards()
 	if is_sky():
-		return SkyDataScript.hazards()
+		return _data("level_sky_data").hazards()
 	if is_keeper():
-		return KeeperDataScript.hazards()
+		return _data("level_keeper_data").hazards()
 	if is_quiet():
-		return QuietDataScript.hazards()
+		return _data("level_quiet_data").hazards()
 	if is_horror():
-		return HorrorDataScript.hazards()
+		return _data("level_horror_data").hazards()
 	if is_workshop():
 		return Level03Data.hazards()
 	return Level02Data.hazards() if is_crossing() else Level01Data.hazards()
 
 static func enemies() -> Array[Dictionary]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.enemies()
+		return _data("level_skyward_ruins_data").enemies()
 	if is_sky():
-		return SkyDataScript.enemies()
+		return _data("level_sky_data").enemies()
 	if is_keeper():
-		return KeeperDataScript.enemies()
+		return _data("level_keeper_data").enemies()
 	if is_quiet():
-		return QuietDataScript.enemies()
+		return _data("level_quiet_data").enemies()
 	if is_horror():
-		return HorrorDataScript.enemies()
+		return _data("level_horror_data").enemies()
 	if is_workshop():
 		return Level03Data.enemies()
 	return Level02Data.enemies() if is_crossing() else Level01Data.enemies()
 
 static func gimmicks() -> Array[Dictionary]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.gimmicks()
+		return _data("level_skyward_ruins_data").gimmicks()
 	if is_sky():
-		return SkyDataScript.gimmicks()
+		return _data("level_sky_data").gimmicks()
 	if is_keeper():
-		return KeeperDataScript.gimmicks()
+		return _data("level_keeper_data").gimmicks()
 	if is_quiet():
-		return QuietDataScript.gimmicks()
+		return _data("level_quiet_data").gimmicks()
 	if is_horror():
-		return HorrorDataScript.gimmicks()
+		return _data("level_horror_data").gimmicks()
 	if is_workshop():
 		return Level03Data.gimmicks()
 	return Level02Data.gimmicks() if is_crossing() else Level01Data.gimmicks()
@@ -242,90 +247,90 @@ static func gimmicks() -> Array[Dictionary]:
 ## shows both players the same world, which is all of them until 1-V.
 static func veils() -> Array[Dictionary]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.veils()
+		return _data("level_skyward_ruins_data").veils()
 	if is_sky():
-		return SkyDataScript.veils()
+		return _data("level_sky_data").veils()
 	if is_keeper():
-		return KeeperDataScript.veils()
+		return _data("level_keeper_data").veils()
 	if is_quiet():
-		return QuietDataScript.veils()
+		return _data("level_quiet_data").veils()
 	if is_horror():
-		return HorrorDataScript.veils()
+		return _data("level_horror_data").veils()
 	if is_workshop():
 		return Level03Data.veils()
 	return Level02Data.veils() if is_crossing() else Level01Data.veils()
 
 static func checkpoints() -> Array[Vector2]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.checkpoints()
+		return _data("level_skyward_ruins_data").checkpoints()
 	if is_sky():
-		return SkyDataScript.checkpoints()
+		return _data("level_sky_data").checkpoints()
 	if is_keeper():
-		return KeeperDataScript.checkpoints()
+		return _data("level_keeper_data").checkpoints()
 	if is_quiet():
-		return QuietDataScript.checkpoints()
+		return _data("level_quiet_data").checkpoints()
 	if is_horror():
-		return HorrorDataScript.checkpoints()
+		return _data("level_horror_data").checkpoints()
 	if is_workshop():
 		return Level03Data.checkpoints()
 	return Level02Data.checkpoints() if is_crossing() else Level01Data.checkpoints()
 
 static func goal() -> Vector2:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.goal()
+		return _data("level_skyward_ruins_data").goal()
 	if is_sky():
-		return SkyDataScript.goal()
+		return _data("level_sky_data").goal()
 	if is_keeper():
-		return KeeperDataScript.goal()
+		return _data("level_keeper_data").goal()
 	if is_quiet():
-		return QuietDataScript.goal()
+		return _data("level_quiet_data").goal()
 	if is_horror():
-		return HorrorDataScript.goal()
+		return _data("level_horror_data").goal()
 	if is_workshop():
 		return Level03Data.goal()
 	return Level02Data.goal() if is_crossing() else Level01Data.goal()
 
 static func coins() -> Array[Vector2]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.coins()
+		return _data("level_skyward_ruins_data").coins()
 	if is_sky():
-		return SkyDataScript.coins()
+		return _data("level_sky_data").coins()
 	if is_keeper():
-		return KeeperDataScript.coins()
+		return _data("level_keeper_data").coins()
 	if is_quiet():
-		return QuietDataScript.coins()
+		return _data("level_quiet_data").coins()
 	if is_horror():
-		return HorrorDataScript.coins()
+		return _data("level_horror_data").coins()
 	if is_workshop():
 		return Level03Data.coins()
 	return Level02Data.coins() if is_crossing() else Level01Data.coins()
 
 static func springs() -> Array[Vector2]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.springs()
+		return _data("level_skyward_ruins_data").springs()
 	if is_sky():
-		return SkyDataScript.springs()
+		return _data("level_sky_data").springs()
 	if is_keeper():
-		return KeeperDataScript.springs()
+		return _data("level_keeper_data").springs()
 	if is_quiet():
-		return QuietDataScript.springs()
+		return _data("level_quiet_data").springs()
 	if is_horror():
-		return HorrorDataScript.springs()
+		return _data("level_horror_data").springs()
 	if is_workshop():
 		return Level03Data.springs()
 	return Level02Data.springs() if is_crossing() else Level01Data.springs()
 
 static func crystals() -> Array[Vector2]:
 	if is_skyward_ruins():
-		return SkywardRuinsDataScript.crystals()
+		return _data("level_skyward_ruins_data").crystals()
 	if is_sky():
-		return SkyDataScript.crystals()
+		return _data("level_sky_data").crystals()
 	if is_keeper():
-		return KeeperDataScript.crystals()
+		return _data("level_keeper_data").crystals()
 	if is_quiet():
-		return QuietDataScript.crystals()
+		return _data("level_quiet_data").crystals()
 	if is_horror():
-		return HorrorDataScript.crystals()
+		return _data("level_horror_data").crystals()
 	if is_workshop():
 		return Level03Data.crystals()
 	return Level02Data.crystals() if is_crossing() else Level01Data.crystals()

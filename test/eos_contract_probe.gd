@@ -36,6 +36,21 @@ func _ready() -> void:
 	check(EosCoopLobby._attribute_int(searched, "build", -1) == -1,
 		"a missing room attribute falls back")
 
+	# A HELLO sent while the P2P link is still opening is kept, not dropped,
+	# and goes out the moment the link opens.
+	var t := EosTransport.new()
+	t.room = EosCoopLobby.new()
+	t.set("_peer", OfflineMultiplayerPeer.new())
+	t.send(NetTransport.Channel.CONTROL, NetTransport.Reliability.RELIABLE_ORDERED,
+		PackedByteArray([1, 2, 3]))
+	t.send(NetTransport.Channel.CONTROL, NetTransport.Reliability.UNRELIABLE,
+		PackedByteArray([9]))
+	check(t._early.size() == 1, "reliable packets wait for the link; unreliable ones do not")
+	t._on_peer_connected(1)
+	check(t._early.is_empty() and t.is_connected_to_peer(),
+		"the waiting packets go out when the link opens")
+	t.set("_peer", null)
+
 	var blob := PackedByteArray()
 	blob.resize(2505)
 	for i in blob.size():

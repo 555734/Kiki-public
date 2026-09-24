@@ -18,6 +18,17 @@ var _closed := false
 var _authority_epoch := 0
 var packets_in: int = 0
 var packets_out: int = 0
+## Reliable packets sent before the P2P link finished opening. They used to be
+## dropped -- including the guest's HELLO, the one message that starts the
+## game -- so nothing happened until the seven-second silence timer re-sent
+## it. They go out the moment the link opens instead.
+var _early: Array[PackedByteArray] = []
+const EARLY_MAX := 32
+## Connection requests from a player the lobby has not told us about yet.
+## The request usually beats the lobby update; refusing it made the guest wait
+## for EOS to retry. Held here, and answered as soon as the lobby catches up.
+var _pending_since: Dictionary = {}
+const UNKNOWN_REQUEST_GRACE_MS := 6000
 
 func open(p_room: EosCoopLobby) -> String:
 	room = p_room
@@ -53,6 +64,12 @@ func _create_peer() -> String:
 	return ""
 
 func send(channel: int, reliability: int, payload: PackedByteArray) -> void:
+	if _peer != null and not _connected and reliability != Reliability.UNRELIABLE:
+		if _early.size() < EARLY_MAX:
+			var framed_early := PackedByteArray([channel])
+			framed_early.append_array(payload)
+			_early.append(framed_early)
+		return
 	if _peer == null or not _connected:
 		return
 	if payload.size() + 1 > PAYLOAD_LIMIT:
@@ -77,11 +94,23 @@ func poll() -> Array[Dictionary]:
 	_peer.poll()
 	# Only accept requests from the other current lobby member. Guessed socket
 	# IDs and stale members never reach the game protocol.
-	for puid in _peer.call("get_all_connection_requests"):
-		if room.contains_puid(String(puid)) and String(puid) != room.local_puid():
-			_peer.call("accept_connection_request", String(puid))
+	for request in _peer.call("get_all_connection_requests"):
+		var puid := String(request)
+		if puid == room.local_puid():
+			_peer.call("deny_connection_request", puid)
+		elif room.contains_puid(puid):
+			_pending_since.erase(puid)
+			_peer.call("accept_connection_request", puid)
 		else:
-			_peer.call("deny_connection_request", String(puid))
+			# Not in our copy of the lobby yet: ask EOS for a fresh copy and
+			# wait, refusing only if they never show up.
+			var now := Time.get_ticks_msec()
+			if not _pending_since.has(puid):
+				_pending_since[puid] = now
+				room.refresh()
+			elif now - int(_pending_since[puid]) > UNKNOWN_REQUEST_GRACE_MS:
+				_pending_since.erase(puid)
+				_peer.call("deny_connection_request", puid)
 	while _peer.get_available_packet_count() > 0:
 		var packet := _peer.get_packet()
 		if packet.size() < 1 or packet.size() > PAYLOAD_LIMIT:
@@ -110,6 +139,7 @@ func room_code() -> String:
 func close() -> void:
 	_closed = true
 	_connected = false
+	_early.clear()
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -119,7 +149,18 @@ func close() -> void:
 func _on_peer_connected(_id: int) -> void:
 	if not _connected:
 		_connected = true
+		_flush_early()
 		peer_connected.emit()
+
+func _flush_early() -> void:
+	var queued := _early
+	_early = []
+	for framed in queued:
+		_peer.set_transfer_channel(0)
+		_peer.set_transfer_mode(MultiplayerPeer.TRANSFER_MODE_RELIABLE)
+		_peer.set_target_peer(0 if room.local_is_owner() else 1)
+		if _peer.put_packet(framed) == OK:
+			packets_out += 1
 
 func _on_peer_disconnected(_id: int) -> void:
 	if _connected:

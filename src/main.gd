@@ -179,8 +179,8 @@ func resume_from_home(fresh_local_run: bool) -> void:
 
 ## Starts hosting for a guardian on the same network. Returns "" or a reason.
 func host_online(port: int) -> String:
-	var t := EnetTransport.new()
-	var err := t.listen(port)
+	var t = load("res://src/net/enet_transport.gd").new()
+	var err: String = t.listen(port)
 	if err != "":
 		return err
 	_become_host(t)
@@ -188,8 +188,8 @@ func host_online(port: int) -> String:
 
 ## Joins a runner on the same network as the guardian.
 func join_online(address: String, port: int) -> String:
-	var t := EnetTransport.new()
-	var err := t.connect_to(address, port)
+	var t = load("res://src/net/enet_transport.gd").new()
+	var err: String = t.connect_to(address, port)
 	if err != "":
 		return err
 	_become_client(t)
@@ -348,8 +348,8 @@ func _dial_relay(relay: String, code: String, role: String) -> String:
 		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
 	_end_any_session()
 	link.begin(code, role)
-	var t := WebSocketTransport.new()
-	var err := t.open_room(relay, code, NetLink.client_id(), role)
+	var t = load("res://src/net/websocket_transport.gd").new()
+	var err: String = t.open_room(relay, code, NetLink.client_id(), role)
 	if err != "":
 		link.last_error = err
 		link.enter(NetLink.Phase.FAILED, err)
@@ -362,7 +362,7 @@ func _dial_relay(relay: String, code: String, role: String) -> String:
 	return ""
 
 ## The relay's own reports, written into the one place that owns the answer.
-func _watch_transport(t: WebSocketTransport) -> void:
+func _watch_transport(t) -> void:
 	t.joined.connect(func(role: String) -> void:
 		link.relay_role = role
 		link.note("中継が役割を割り当て: %s" % role)

@@ -645,10 +645,10 @@ func _on_local() -> void:
 ## guess gets corrected.
 # ------------------------------------------------------------------ たいせん
 func _on_layout() -> void:
-	add_child(LayoutEditor.new())
+	add_child(load("res://src/ui/layout_editor.gd").new())
 
 func _on_diagnose() -> void:
-	var panel := NetDiagnostics.new()
+	var panel = load("res://src/ui/net_diagnostics.gd").new()
 	panel.relay = ""
 	add_child(panel)
 
