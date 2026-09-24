@@ -66,10 +66,13 @@ func loaded() -> bool:
 	var deck: Hologram = slab
 	var feet: Vector2 = runner.global_position \
 		+ Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5)
-	if absf(feet.x - deck.global_position.x) > deck.size.x * 0.5 + 6.0:
+	# Standing on the slab means feet resting on its top surface: half its
+	# thickness from the centre line, and above it rather than beside or
+	# under it. This holds for a drawn slab at any slope.
+	var off := deck.surface_distance(feet) - Balance.PLATFORM_SIZE.y * 0.5
+	if absf(off) > Balance.LAUNCH_FOOTING:
 		return false
-	var top: float = deck.global_position.y - deck.size.y * 0.5
-	return absf(feet.y - top) <= Balance.LAUNCH_FOOTING
+	return deck.is_above_surface(feet)
 
 ## Shot. The rifle finds this the same way it finds an enemy, so there is no
 ## second aiming path to keep in step.

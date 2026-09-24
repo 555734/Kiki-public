@@ -34,13 +34,16 @@ func _physics_process(_delta: float) -> void:
 ## `view_tick` is the tick the guardian was rendering when they tapped. Returns
 ## the tick the construct should be stamped with, having already applied any
 ## rescue that the backdating justifies.
-func accept_placement(world_pos: Vector2, size: Vector2, view_tick: int) -> int:
+func accept_placement(world_pos: Vector2, size: Vector2, view_tick: int,
+		can_catch: bool = true) -> int:
 	var now := Clock.tick
 	var back := rewind.allowed_rewind(now, view_tick, measured_one_way, client_interp_buffer)
 	if back <= 0:
 		return now
 
 	var birth := now - back
+	if not can_catch:
+		return birth
 	var rect := Rect2(world_pos - size * 0.5, size)
 	if not rewind.path_crosses(birth, rect):
 		# The runner was never near it. Nothing to compensate for; this is the

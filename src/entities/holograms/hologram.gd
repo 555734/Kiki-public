@@ -14,6 +14,11 @@ static var _white: ImageTexture = null
 
 var kind: Kind = Kind.PLATFORM
 var size: Vector2 = Balance.PLATFORM_SIZE
+## Platforms only: the slab's centre line, relative to the node, exactly as the
+## guardian's finger drew it -- level, sloped, upright or bent. Each segment is
+## a slab PLATFORM_SIZE.y thick. `size` is the bounding box of the whole thing,
+## kept for the code that only needs to know roughly where the slab is.
+var path: PackedVector2Array = PackedVector2Array()
 var lifetime: float = Balance.PLATFORM_LIFETIME
 
 ## Lifetime is measured in ticks, not accumulated delta. Two devices have to
@@ -62,6 +67,10 @@ func _ready() -> void:
 		# would also make the guardian's own placement check refuse to build
 		# anywhere near it.
 		collision_layer = 0
+	elif kind == Kind.PLATFORM and path.size() >= 2:
+		collision_layer = LAYER_HOLOGRAM
+		for shape in path_shapes(path):
+			add_child(shape)
 	else:
 		collision_layer = LAYER_HOLOGRAM
 		var shape := CollisionShape2D.new()
@@ -89,7 +98,8 @@ func _ready() -> void:
 		# design here is fewer tools used more ways.
 		trigger = LaunchTrigger.new()
 		trigger.name = "LaunchTrigger"
-		trigger.position = Vector2(0.0, -size.y * 0.5 - Balance.LAUNCH_TRIGGER_LIFT)
+		trigger.position = top_point() + Vector2(0.0,
+			-Balance.PLATFORM_SIZE.y * 0.5 - Balance.LAUNCH_TRIGGER_LIFT)
 		add_child(trigger)
 
 	Events.hologram_spawned.emit(int(kind), global_position)
@@ -118,6 +128,9 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if kind == Kind.PLATFORM and path.size() >= 2 and not _is_standard_path():
+		_draw_path()
+		return
 	if Balance.USE_TEXTURES:
 		# The painted slab already carries the hex lattice, so the shader is not
 		# needed -- but the expiry warning is, since the runner has to be able to
@@ -140,6 +153,124 @@ func _draw() -> void:
 			return
 	draw_texture_rect(white_texture(), Rect2(-size * 0.5, size), false)
 
+## A drawn slab: one painted slab per segment, turned to lie along it, and a
+## round cap on each bend so the joins do not show a notch.
+func _draw_path() -> void:
+	var thick := Balance.PLATFORM_SIZE.y
+	var warn := clampf(1.0 - remaining_time(), 0.0, 1.0)
+	var flash := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * lerpf(6.0, 34.0, warn))
+	var tint := Color(1, 1, 1, _fade_in).lerp(
+		Color(1.0, 0.86, 0.35, _fade_in * 0.85), warn * flash * 0.7)
+	var painted := Balance.USE_TEXTURES and Art.tex(_texture_key()) != null
+	var joint := Color(Balance.C_HOLO.r, Balance.C_HOLO.g, Balance.C_HOLO.b, 0.9 * tint.a) \
+		.lerp(Color(1.0, 0.86, 0.35, tint.a), warn * flash * 0.7)
+	for i in range(1, path.size() - 1):
+		draw_circle(path[i], thick * 0.5, joint)
+	for i in range(path.size() - 1):
+		var a := path[i]
+		var b := path[i + 1]
+		var length := a.distance_to(b)
+		if length < 0.5:
+			continue
+		draw_set_transform((a + b) * 0.5, (b - a).angle(), Vector2.ONE)
+		var rect := Rect2(Vector2(-length * 0.5, -thick * 0.5), Vector2(length, thick))
+		if painted:
+			Art.draw_stretched(self, _texture_key(), rect.grow_individual(3, 6, 3, 6), tint)
+		else:
+			draw_texture_rect(white_texture(), rect, false, tint)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _is_standard_path() -> bool:
+	return path.size() == 2 and is_equal_approx(path[0].y, path[1].y) \
+		and is_equal_approx(absf(path[1].x - path[0].x), size.x) \
+		and is_zero_approx(path[0].y) and is_zero_approx(path[0].x + path[1].x)
+
+## The highest point of the slab's centre line, relative to the node.
+func top_point() -> Vector2:
+	if kind != Kind.PLATFORM or path.is_empty():
+		return Vector2(0.0, -size.y * 0.5 + Balance.PLATFORM_SIZE.y * 0.5)
+	var best := path[0]
+	for p in path:
+		if p.y < best.y:
+			best = p
+	return best
+
+## How far a world point is from the slab's centre line. A foot resting on
+## the top surface is PLATFORM_SIZE.y / 2 away, whatever the slope.
+func surface_distance(world_point: Vector2) -> float:
+	var local := world_point - global_position
+	if path.size() < 2:
+		return local.length()
+	var best := INF
+	for i in range(path.size() - 1):
+		var near := Geometry2D.get_closest_point_to_segment(local, path[i], path[i + 1])
+		best = minf(best, near.distance_to(local))
+	return best
+
+## Whether a world point sits over the slab rather than beside or under it:
+## the nearest part of the centre line is clearly below it.
+func is_above_surface(world_point: Vector2) -> bool:
+	var local := world_point - global_position
+	if path.size() < 2:
+		return local.y < 0.0
+	var best := INF
+	var nearest := Vector2.ZERO
+	for i in range(path.size() - 1):
+		var near := Geometry2D.get_closest_point_to_segment(local, path[i], path[i + 1])
+		var d := near.distance_to(local)
+		if d < best:
+			best = d
+			nearest = near
+	return local.y < nearest.y - Balance.PLATFORM_SIZE.y * 0.25
+
+## The collision for a drawn slab: a rectangle along each segment, and a
+## circle at each bend so a runner walking over the join is not caught on a
+## corner. Shared with the guardian's placement check, so "would this fit" and
+## "what got built" are the same shapes.
+static func path_shapes(p: PackedVector2Array) -> Array[CollisionShape2D]:
+	var out: Array[CollisionShape2D] = []
+	var thick := Balance.PLATFORM_SIZE.y
+	for i in range(p.size() - 1):
+		var a := p[i]
+		var b := p[i + 1]
+		var length := a.distance_to(b)
+		if length < 0.5:
+			continue
+		var shape := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(length, thick)
+		shape.shape = rect
+		shape.position = (a + b) * 0.5
+		shape.rotation = (b - a).angle()
+		out.append(shape)
+	for i in range(1, p.size() - 1):
+		var shape := CollisionShape2D.new()
+		var circle := CircleShape2D.new()
+		circle.radius = thick * 0.5
+		shape.shape = circle
+		shape.position = p[i]
+		out.append(shape)
+	return out
+
+## The slab a tap places: level and PLATFORM_SIZE.x wide.
+static func standard_path() -> PackedVector2Array:
+	var half := Balance.PLATFORM_SIZE.x * 0.5
+	return PackedVector2Array([Vector2(-half, 0.0), Vector2(half, 0.0)])
+
+## Bounding box of a drawn slab, thickness included. A level slab comes out
+## exactly PLATFORM_SIZE, so everything that reads `size` still sees the same
+## numbers for a tap.
+static func path_size(p: PackedVector2Array) -> Vector2:
+	if p.is_empty():
+		return Balance.PLATFORM_SIZE
+	var lo := p[0]
+	var hi := p[0]
+	for q in p:
+		lo = Vector2(minf(lo.x, q.x), minf(lo.y, q.y))
+		hi = Vector2(maxf(hi.x, q.x), maxf(hi.y, q.y))
+	var thick := Balance.PLATFORM_SIZE.y
+	return Vector2(maxf(hi.x - lo.x, thick), hi.y - lo.y + thick)
+
 func remaining_time() -> float:
 	if death_tick < 0:
 		return lifetime
@@ -158,14 +289,16 @@ static func kind_for_slot(slot: int) -> Kind:
 		2: return Kind.WALL
 		_: return Kind.WARP
 
-static func create(p_kind: Kind, at: Vector2, width: float = 0.0) -> Hologram:
+## `shape` is a drawn platform's centre line relative to `at`; empty means the
+## standard level slab a tap places.
+static func create(p_kind: Kind, at: Vector2,
+		shape: PackedVector2Array = PackedVector2Array()) -> Hologram:
 	var holo := Hologram.new()
 	holo.kind = p_kind
 	match p_kind:
 		Kind.PLATFORM:
-			holo.size = Balance.PLATFORM_SIZE
-			if width > 0.0:
-				holo.size.x = clampf(width, Balance.TRACE_MIN_WIDTH, Balance.TRACE_MAX_WIDTH)
+			holo.path = shape if shape.size() >= 2 else standard_path()
+			holo.size = path_size(holo.path)
 			holo.lifetime = Balance.PLATFORM_LIFETIME
 		Kind.WALL:
 			holo.size = Balance.WALL_SIZE

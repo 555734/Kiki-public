@@ -23,8 +23,16 @@ const PATH := "user://options.cfg"
 ## speed has a longer stopping distance, so the narrow places get harder. Both
 ## halves are checked in test/workshop_probe.gd: with this on, a one-block
 ## perch has to still be somewhere a runner can stop.
+##
+## A phone has no sprint button any more, so there it is always on: turning it
+## off would leave a runner who can only walk.
 static func auto_dash() -> bool:
-	return _read("auto_dash", OS.has_feature("android") or OS.has_feature("ios"))
+	if touch_device():
+		return true
+	return _read("auto_dash", false)
+
+static func touch_device() -> bool:
+	return OS.has_feature("android") or OS.has_feature("ios")
 
 static func set_auto_dash(on: bool) -> void:
 	_write("auto_dash", on)

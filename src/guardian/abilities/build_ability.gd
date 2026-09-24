@@ -30,23 +30,28 @@ func execute(guardian: Node, world_pos: Vector2) -> void:
 		var oldest: Hologram = live.pop_front()
 		if is_instance_valid(oldest):
 			oldest.expire()
-	var holo := Hologram.create(kind, world_pos, _width(guardian))
+	var holo := Hologram.create(kind, world_pos, _path(guardian))
 	guardian.spawn_hologram(holo)
 
-## The platform's width for this placement: the traced stroke's, or standard.
-func _width(guardian: Node) -> float:
+## The platform's shape for this placement, relative to its centre: the traced
+## stroke's, or the standard level slab.
+func _path(guardian: Node) -> PackedVector2Array:
 	if kind != Hologram.Kind.PLATFORM:
-		return size.x
-	var traced := float(guardian.get("place_width")) if guardian.get("place_width") != null else 0.0
-	return traced if traced > 0.0 else size.x
+		return PackedVector2Array()
+	var traced = guardian.get("place_path")
+	if traced is PackedVector2Array and (traced as PackedVector2Array).size() >= 2:
+		return traced
+	return Hologram.standard_path()
 
 func preview(guardian: Node, world_pos: Vector2) -> Dictionary:
-	var drawn := Vector2(_width(guardian), size.y)
-	return {
-		"kind": "build",
-		"rect": Rect2(world_pos - drawn * 0.5, drawn),
-		"valid": check(guardian, world_pos) == "",
-	}
+	var drawn := size
+	var out := {"kind": "build", "valid": check(guardian, world_pos) == ""}
+	if kind == Hologram.Kind.PLATFORM:
+		var shape := _path(guardian)
+		drawn = Hologram.path_size(shape)
+		out["path"] = shape
+	out["rect"] = Rect2(world_pos - drawn * 0.5, drawn)
+	return out
 
 ## A construct may not be spawned inside terrain or inside another construct.
 ##
@@ -65,15 +70,31 @@ func preview(guardian: Node, world_pos: Vector2) -> Dictionary:
 func _blocked(guardian: Node, world_pos: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = guardian.get_world_2d().direct_space_state
 	var query := PhysicsShapeQueryParameters2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(_width(guardian), size.y) - Vector2(4, 4)
-	query.shape = rect
-	query.transform = Transform2D(0.0, world_pos)
 	query.collision_mask = 1 | 8              # terrain | hologram
 	if kind == Hologram.Kind.WALL:
 		query.collision_mask |= 2             # ...and the runner, for a wall
 	query.collide_with_bodies = true
 	query.collide_with_areas = false
+	if kind == Hologram.Kind.PLATFORM:
+		# A drawn slab is tested piece by piece, with the same shapes it will
+		# be built from, each a little smaller so touching is not overlapping.
+		var hit := false
+		for piece in Hologram.path_shapes(_path(guardian)):
+			var shape: Shape2D = piece.shape
+			if shape is RectangleShape2D:
+				(shape as RectangleShape2D).size -= Vector2(4, 4)
+			elif shape is CircleShape2D:
+				(shape as CircleShape2D).radius -= 2.0
+			if not hit:
+				query.shape = shape
+				query.transform = Transform2D(piece.rotation, world_pos + piece.position)
+				hit = not space.intersect_shape(query, 1).is_empty()
+			piece.free()
+		return hit
+	var rect := RectangleShape2D.new()
+	rect.size = size - Vector2(4, 4)
+	query.shape = rect
+	query.transform = Transform2D(0.0, world_pos)
 	return not space.intersect_shape(query, 1).is_empty()
 
 static func platform() -> BuildAbility:

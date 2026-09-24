@@ -87,7 +87,7 @@ enum World {
 ## each other at the handshake, which is what makes changing this safe -- and
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
-const VERSION: int = 13
+const VERSION: int = 14
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -97,6 +97,27 @@ static func put_pos(b: StreamPeerBuffer, p: Vector2) -> void:
 
 static func get_pos(b: StreamPeerBuffer) -> Vector2:
 	return Vector2(Snapshot._u_x(b.get_u16()), Snapshot._u_y(b.get_u16()))
+
+## A drawn platform's shape, relative to its position: a count, then whole-pixel
+## offsets. An empty shape (count 0) is the standard slab a tap places.
+static func put_shape(b: StreamPeerBuffer, path: PackedVector2Array) -> void:
+	var n := mini(path.size(), 255)
+	b.put_u8(n)
+	for i in range(n):
+		b.put_16(clampi(int(round(path[i].x)), -32768, 32767))
+		b.put_16(clampi(int(round(path[i].y)), -32768, 32767))
+
+static func get_shape(b: StreamPeerBuffer) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	if b.get_available_bytes() < 1:
+		return out
+	var n := b.get_u8()
+	for _i in range(n):
+		if b.get_available_bytes() < 4:
+			break
+		var x := float(b.get_16())
+		out.append(Vector2(x, float(b.get_16())))
+	return out
 
 static func _buf(kind: int) -> StreamPeerBuffer:
 	var b := StreamPeerBuffer.new()
@@ -161,15 +182,15 @@ static func aim(now: Vector2, prev: Vector2, prev2: Vector2) -> PackedByteArray:
 		put_pos(b, p)
 	return b.data_array
 
-## `width` is a traced platform's width in whole pixels; 0 is the standard size.
+## `path` is a traced platform's shape relative to `at`; empty is the standard slab.
 static func place(slot: int, at: Vector2, view_tick: int, seq: int,
-		width: float = 0.0) -> PackedByteArray:
+		path: PackedVector2Array = PackedVector2Array()) -> PackedByteArray:
 	var b := _buf(Msg.PLACE)
 	b.put_u8(slot)
 	put_pos(b, at)
 	b.put_u32(view_tick)
 	b.put_u16(seq)
-	b.put_u16(clampi(int(round(width)), 0, 0xFFFF))
+	put_shape(b, path)
 	return b.data_array
 
 ## No particular enemy -- shoot at the point and let the host find what is there.
@@ -195,7 +216,7 @@ static func fire(at: Vector2, view_tick: int, seq: int,
 	return b.data_array
 
 ## The host's whole set of constructs, for a client that has to be put back in
-## step. Sixteen bytes each and never more than a handful alive, so the entire
+## step. Sixteen bytes each plus the shape, and never more than a handful alive, so the entire
 ## world of constructs fits in one packet well inside the relay's frame limit.
 static func holo_list(rows: Array) -> PackedByteArray:
 	var b := _buf(Msg.HOLO_LIST)
@@ -210,7 +231,7 @@ static func holo_list(rows: Array) -> PackedByteArray:
 		# without this reads as ready to fire on the guardian's screen and does
 		# nothing when they shoot it.
 		b.put_u8(1 if bool(row["armed"]) else 0)
-		b.put_u16(clampi(int(round(float(row.get("width", 0.0)))), 0, 0xFFFF))
+		put_shape(b, row.get("path", PackedVector2Array()))
 	return b.data_array
 
 ## How long an enemy's soft spot stays open, decided by the host.
@@ -268,7 +289,7 @@ static func slot(n: int) -> PackedByteArray:
 ## The lifetime travels with the spawn, so nothing has to be sent when it ends:
 ## both devices expire it at the same tick. docs/netcode.md 4.
 static func holo_spawn(id: int, kind: int, at: Vector2, birth: int, death: int,
-		client_seq: int, width: float = 0.0) -> PackedByteArray:
+		client_seq: int, path: PackedVector2Array = PackedVector2Array()) -> PackedByteArray:
 	var b := _buf(Msg.HOLO_SPAWN)
 	b.put_u16(id)
 	b.put_u8(kind)
@@ -276,7 +297,7 @@ static func holo_spawn(id: int, kind: int, at: Vector2, birth: int, death: int,
 	b.put_u32(birth)
 	b.put_u32(death)
 	b.put_u16(client_seq)
-	b.put_u16(clampi(int(round(width)), 0, 0xFFFF))
+	put_shape(b, path)
 	return b.data_array
 
 static func holo_kill(id: int) -> PackedByteArray:

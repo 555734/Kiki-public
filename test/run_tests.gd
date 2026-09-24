@@ -1070,15 +1070,14 @@ func _test_sniper() -> void:
 	# The magazine readout is derived from the gauge, not a second resource.
 	check(SniperAbility.ammo_for(Balance.GAUGE_MAX) == Balance.SNIPE_AMMO_DISPLAY_CAP,
 		"a full gauge shows a full magazine")
-	check(SniperAbility.ammo_for(Balance.COST_SNIPE * 2.0) == 2, "two shots' worth reads as 2")
-	check(SniperAbility.ammo_for(Balance.COST_SNIPE - 1.0) == 0, "under one shot reads as 0")
+	check(SniperAbility.ammo_for(0.0) == Balance.SNIPE_AMMO_DISPLAY_CAP,
+		"shots are unlimited, so the magazine never reads empty")
 
 	g.gauge = Balance.GAUGE_MAX
 	g.select_slot(3)
 	g.use_active(Vector2(500, 300))
 	check_near(g.gauge, Balance.GAUGE_MAX - Balance.COST_SNIPE, 1.0, "a shot costs the gauge")
-	check(sniper.cooldown > 0.0, "firing starts the cooldown")
-	check(sniper.check(g, Vector2(500, 300)) == "cooldown", "no rapid fire")
+	check(sniper.check(g, Vector2(500, 300)) == "", "rapid fire: no cooldown after a shot")
 
 	# A shot lands on the enemy under the reticle.
 	var walker := Walker.new()
@@ -2656,7 +2655,8 @@ func _test_every_control_is_reachable_and_separate() -> void:
 	for view in screens:
 		var shared := ControlLayout.layout("shared", view, false)
 		var divider: float = ControlLayout.DIVIDER * view.x
-		for id in ["stick", "jump", "sprint"]:
+		check(not shared.has("sprint"), "shared %dx%d: no sprint button" % [view.x, view.y])
+		for id in ["stick", "jump"]:
 			var place: Dictionary = shared[id]
 			var reach: float = float(place["radius"]) \
 				* (ControlLayout.STICK_CAPTURE if id == "stick" else 1.0)

@@ -136,7 +136,7 @@ func _draw() -> void:
 	var h := _size().y
 	var font := Art.font()
 	var places := ControlLayout.layout("runner", _size(), false)
-	for id in ["stick", "jump", "sprint"]:
+	for id in ["stick", "jump"]:
 		if not places.has(id):
 			continue
 		var p: Dictionary = places[id]
@@ -144,7 +144,7 @@ func _draw() -> void:
 		var r: float = p["radius"]
 		draw_circle(c, r, Color(0.08, 0.12, 0.21, 0.40))
 		draw_arc(c, r, 0.0, TAU, 40, Color(0.87, 0.91, 0.98, 0.64), 2.0)
-		var label := "移動" if id == "stick" else ("ジャンプ" if id == "jump" else "ダッシュ")
+		var label := "移動" if id == "stick" else "ジャンプ"
 		draw_string(font, c + Vector2(-r, 6.0), label,
 			HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, 17, Color.WHITE)
 	var names := {"attack": "攻撃", "build": "建築", "floor": "足場",

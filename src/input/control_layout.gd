@@ -72,7 +72,6 @@ const GUARDIAN_LAYOUT_VERSION := 2
 ## and are held with the other thumb.
 const RUNNER_SOLO := {
 	"jump":   Vector3(0.22, 0.20, 0.105),
-	"sprint": Vector3(0.47, 0.42, 0.085),
 	"ping":   Vector3(0.44, 0.12, 0.058),
 }
 
@@ -85,7 +84,6 @@ const RUNNER_SOLO := {
 const SHARED_MARGIN := 0.25
 const SHARED_GAP := 0.30
 const JUMP_R := 0.58
-const SPRINT_R := 0.48
 
 ## The stick, as a fraction of the height from the bottom-LEFT corner.
 const STICK := Vector3(0.21, 0.24, 0.150)
@@ -206,13 +204,10 @@ static func _shared_runner(view: Vector2) -> Dictionary:
 		view.y - r * (SHARED_MARGIN + STICK_CAPTURE))
 	var button_x := anchor.x + r * (STICK_CAPTURE + SHARED_GAP + JUMP_R)
 	var jump_y := view.y - r * SHARED_MARGIN - r * JUMP_R
-	var sprint_y := jump_y - r * JUMP_R - r * SPRINT_R - r * SHARED_GAP
 	return {
 		"stick": {"center": anchor, "radius": r, "kind": "stick"},
 		"jump": {"center": Vector2(button_x, jump_y),
 			"radius": r * JUMP_R, "kind": "button"},
-		"sprint": {"center": Vector2(button_x, sprint_y),
-			"radius": r * SPRINT_R, "kind": "button"},
 	}
 
 ## Ordered so the router resolves the small, deliberate targets before the big
@@ -332,7 +327,7 @@ static func stick_deadzone(place: Dictionary) -> float:
 ## A readable name for the layout editor and for failure messages.
 static func label(id: String) -> String:
 	return {
-		"stick": "移動", "jump": "ジャンプ", "sprint": "ダッシュ",
+		"stick": "移動", "jump": "ジャンプ",
 		"slot_1": "足場", "slot_2": "壁", "slot_3": "狙撃", "slot_4": "ワープ",
 		"scope": "スコープ", "pan_left": "◀ 見る", "pan_right": "見る ▶",
 	}.get(id, id)

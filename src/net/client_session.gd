@@ -400,10 +400,11 @@ func request_use(slot: int, at: Vector2, target_id: int = -1) -> void:
 		transport.send(channel, NetTransport.Reliability.RELIABLE_ORDERED,
 			Protocol.fire(at, view_tick(), seq, target_id))
 		return
-	var width: float = main.guardian.place_width if slot == 1 else 0.0
+	var shape: PackedVector2Array = main.guardian.place_path if slot == 1 \
+		else PackedVector2Array()
 	transport.send(channel, NetTransport.Reliability.RELIABLE_ORDERED,
-		Protocol.place(slot, at, view_tick(), seq, width))
-	var ghost := Hologram.create(Hologram.kind_for_slot(slot), at, width)
+		Protocol.place(slot, at, view_tick(), seq, shape))
+	var ghost := Hologram.create(Hologram.kind_for_slot(slot), at, shape)
 	ghost.modulate = Color(1, 1, 1, 0.55)
 	main.add_child(ghost)
 	_pending[seq] = ghost
@@ -706,7 +707,7 @@ func _confirm_hologram(b: StreamPeerBuffer) -> void:
 	var birth := int(b.get_u32())
 	var death := int(b.get_u32())
 	var seq := b.get_u16()
-	var width := float(b.get_u16()) if b.get_available_bytes() >= 2 else 0.0
+	var shape := Protocol.get_shape(b)
 	_drop_ghost(seq)
 	# A construct already carrying this name is this construct. The reliable
 	# channel should not deliver a spawn twice, but "should not" is not a reason
@@ -718,7 +719,7 @@ func _confirm_hologram(b: StreamPeerBuffer) -> void:
 			existing.birth_tick = birth
 			existing.death_tick = death
 			return
-	var holo := Hologram.create(kind as Hologram.Kind, at, width)
+	var holo := Hologram.create(kind as Hologram.Kind, at, shape)
 	holo.net_id = net_id
 	holo.birth_tick = birth
 	holo.death_tick = death
@@ -744,7 +745,7 @@ func _match_the_host(b: StreamPeerBuffer) -> void:
 			"birth": int(b.get_u32()),
 			"death": int(b.get_u32()),
 			"armed": b.get_u8() != 0,
-			"width": float(b.get_u16()),
+			"path": Protocol.get_shape(b),
 		}
 		wanted[row["net_id"]] = row
 
@@ -771,7 +772,7 @@ func _match_the_host(b: StreamPeerBuffer) -> void:
 				holo.trigger.armed = bool(row["armed"])
 			continue
 		var made := Hologram.create(int(row["kind"]) as Hologram.Kind, row["at"],
-			float(row.get("width", 0.0)))
+			row.get("path", PackedVector2Array()))
 		made.net_id = int(id)
 		made.birth_tick = int(row["birth"])
 		made.death_tick = int(row["death"])

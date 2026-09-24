@@ -152,7 +152,7 @@ func _choose(to: String) -> void:
 
 func _refresh() -> void:
 	if _auto_dash != null:
-		_auto_dash.visible = _mode != "guardian"
+		_auto_dash.visible = _mode != "guardian" and not Options.touch_device()
 	for toggle in _touch_options:
 		toggle.visible = _mode != "guardian"
 	if _movement_help != null:

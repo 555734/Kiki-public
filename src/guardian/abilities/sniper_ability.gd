@@ -19,8 +19,7 @@ const HIT_RADIUS := 26.0
 ## applies here: the interesting decision is WHAT to shoot and when, which is
 ## what chapter 4 says the rifle is for. Whether the thumb landed within a
 ## fingertip of a mushroom is not a decision, it is a tax. It stays honest
-## because the rifle still costs gauge, still has a cooldown, and still cannot
-## reach anything that is not already on the reticle's side of the screen.
+## because the rifle still cannot reach anything that is not already on the reticle's side of the screen.
 const ASSIST_RADIUS := 110.0
 
 var cooldown: float = 0.0
@@ -36,8 +35,7 @@ func tick(delta: float) -> void:
 func check(guardian: Node, _world_pos: Vector2) -> String:
 	if guardian.gauge < cost:
 		return "gauge"
-	if cooldown > 0.0:
-		return "cooldown"
+	# No cooldown and no reload: every press of the shot button fires.
 	return ""
 
 func execute(guardian: Node, world_pos: Vector2) -> void:

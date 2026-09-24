@@ -14,29 +14,29 @@ const GAUGE_MAX: float = 100.0
 const GAUGE_REGEN_PER_SEC: float = 8.0
 
 ## Ability costs. The guardian's points economy is retired: shooting is
-## unlimited (still paced by SNIPE_COOLDOWN) and platforms are limited only by
-## PLATFORM_MAX_ALIVE. The gauge itself stays full so older code paths that
+## unlimited with no cooldown or reload, and platforms are limited only by
+## PLATFORM_MAX_ALIVE and their lifetime. The gauge itself stays full so older code paths that
 ## read it keep working. COST_WARP is with the warp block below.
 const COST_SNIPE: float = 0.0
 const COST_PLATFORM: float = 0.0
 const COST_WALL: float = 25.0
 
-## [DOC] "No rapid fire" -- expressed as a per-shot cooldown.
-const SNIPE_COOLDOWN: float = 0.6
+## Per-shot cooldown. Zero: the guardian may fire as fast as they can tap.
+const SNIPE_COOLDOWN: float = 0.0
 ## Shots the current gauge can afford, capped for the HUD readout (mockup 3
 ## shows "3/3"). See docs/design-decisions.md for why ammo is gauge-derived.
 const SNIPE_AMMO_DISPLAY_CAP: int = 3
 const SNIPE_DAMAGE: int = 2
 
-## Platform: max 2 alive. They stay until replaced -- placing a 3rd removes the
-## oldest -- so the guardian keeps two ready rather than racing a timer. The
-## lifetime is only a ceiling (ten minutes).
-const PLATFORM_LIFETIME: float = 600.0
+## Platform: max 2 alive, 6 seconds each; placing a 3rd removes the oldest.
+## The last second flashes so the runner can see it is about to go.
+const PLATFORM_LIFETIME: float = 6.0
 const PLATFORM_MAX_ALIVE: int = 2
 const PLATFORM_SIZE := Vector2(150.0, 26.0)
-## A platform drawn with a finger is as wide as the stroke, within these.
+## A stroke shorter than this is a tap, not a drawn platform.
 const TRACE_MIN_WIDTH: float = 70.0
-const TRACE_MAX_WIDTH: float = 320.0
+## A drawn platform follows the stroke's shape; this is the longest it may run.
+const TRACE_MAX_LENGTH: float = 600.0
 
 ## [DOC] Wall: max 1 alive, 4 seconds. Blocks shots and charges.
 const WALL_LIFETIME: float = 4.0

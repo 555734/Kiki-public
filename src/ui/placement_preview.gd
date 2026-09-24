@@ -62,10 +62,25 @@ func _draw_build(preview: Dictionary) -> void:
 	var valid: bool = preview["valid"]
 	var col := Balance.C_HOLO if valid else Color("ff7a55")
 
-	# Faint fill so the shape is readable against busy terrain.
-	draw_rect(rect, Color(col.r, col.g, col.b, 0.14 if valid else 0.10))
-	_dashed_rect(rect.grow(6.0), Color(1, 1, 1, 0.75 if valid else 0.35), 1.8)
-	_dashed_rect(rect, Color(col.r, col.g, col.b, 0.9), 2.0)
+	var shape: PackedVector2Array = preview.get("path", PackedVector2Array())
+	if shape.size() >= 2:
+		# A drawn slab: its own outline, following the stroke.
+		var centre_at := rect.get_center()
+		var line := PackedVector2Array()
+		for p in shape:
+			line.append(centre_at + p)
+		var thick := Balance.PLATFORM_SIZE.y
+		draw_polyline(line, Color(col.r, col.g, col.b, 0.16 if valid else 0.10), thick, true)
+		for i in range(line.size() - 1):
+			var along := (line[i + 1] - line[i]).normalized()
+			var side := Vector2(-along.y, along.x) * thick * 0.5
+			_dashed_line(line[i] + side, line[i + 1] + side, Color(col.r, col.g, col.b, 0.9), 2.0)
+			_dashed_line(line[i] - side, line[i + 1] - side, Color(col.r, col.g, col.b, 0.9), 2.0)
+	else:
+		# Faint fill so the shape is readable against busy terrain.
+		draw_rect(rect, Color(col.r, col.g, col.b, 0.14 if valid else 0.10))
+		_dashed_rect(rect.grow(6.0), Color(1, 1, 1, 0.75 if valid else 0.35), 1.8)
+		_dashed_rect(rect, Color(col.r, col.g, col.b, 0.9), 2.0)
 
 	if not valid:
 		return

@@ -424,15 +424,11 @@ func _touch_controls(view: Vector2) -> void:
 	if live:
 		draw_circle(knob, knob_r * 0.34, Color(accent.r, accent.g, accent.b, 0.8))
 
-	# Action buttons. SPRINT lights up while held, because it is a modifier and
-	# the player needs to see that it is engaged.
-	var sprinting: bool = hub.dash_held
-	for id in ["jump", "sprint"]:
-		var button: Dictionary = cluster.get(id, {})
-		if button.is_empty():
-			continue
-		_round_button(button["center"], float(button["radius"]),
-			"JUMP" if id == "jump" else "SPRINT", sprinting and id == "sprint")
+	# The one action button. There is no SPRINT button: on a touch screen the
+	# runner always runs at full speed (Options.auto_dash).
+	var button: Dictionary = cluster.get("jump", {})
+	if not button.is_empty():
+		_round_button(button["center"], float(button["radius"]), "JUMP", false)
 	# The runner's one way of saying something. Marks where they are.
 	var say: Dictionary = cluster.get("ping", {})
 	if not say.is_empty():

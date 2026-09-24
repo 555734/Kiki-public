@@ -212,7 +212,6 @@ func _run() -> void:
 	var anchor: Vector2 = cluster["stick"]["center"]
 	var travel: float = ControlLayout.stick_travel(cluster["stick"])
 	main.input_hub._touch_down(0, anchor + Vector2(travel * 0.95, -travel * 0.7))
-	main.input_hub._touch_down(1, cluster["sprint"]["center"])
 	main.input_hub.scripted = true
 	await _place(Vector2(430, 300))
 	await _aim(Vector2(700, 280))

@@ -32,9 +32,10 @@ var _warp_cooldown: float = 0.0
 var _last_refusal: String = ""
 var _refusal_timer: float = 0.0
 var _aim_world: Vector2 = Vector2.ZERO
-## Width of the platform being placed right now (0 = standard). Set around a
-## use so the ability, the network request and the host all see the stroke.
-var place_width: float = 0.0
+## Shape of the platform being placed right now, relative to where it goes
+## (empty = the standard slab). Set around a use so the ability, the network
+## request and the host all see the stroke.
+var place_path: PackedVector2Array = PackedVector2Array()
 
 func _ready() -> void:
 	abilities = {
@@ -93,14 +94,14 @@ func _process(delta: float) -> void:
 	# platform instead of scrolling the view.
 	input_hub.trace_mode = active_slot == 1
 	var at := input_hub.take_place_at()
-	var width := input_hub.take_place_width()
+	var shape := input_hub.take_place_path()
 	if at.x != INF and abilities.has(active_slot):
-		place_width = width if active_slot == 1 else 0.0
+		place_path = shape if active_slot == 1 else PackedVector2Array()
 		if command_router != null:
 			command_router.request_use(active_slot, at, target_id_at(active_slot, at))
 		else:
 			use_active(at)
-		place_width = 0.0
+		place_path = PackedVector2Array()
 
 	# Taking one back, and pointing at things. Both go through the router when
 	# online for the same reason every other command does: the world is the
@@ -236,11 +237,11 @@ func current_preview() -> Dictionary:
 	# While a platform is being drawn, the ghost is the platform the stroke
 	# describes so far.
 	if slot == 1 and input_hub.trace_points.size() >= 2:
-		var made := InputHub.platform_from_stroke(input_hub.trace_points)
+		var made := InputHub.path_from_stroke(input_hub.trace_points)
 		if not made.is_empty():
-			place_width = made[1]
+			place_path = made[1]
 			var shown: Dictionary = abilities[1].preview(self, made[0])
-			place_width = 0.0
+			place_path = PackedVector2Array()
 			return shown
 	return preview_of(slot, true)
 

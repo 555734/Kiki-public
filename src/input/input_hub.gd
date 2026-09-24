@@ -211,6 +211,13 @@ func press_slot(slot: int) -> void:
 ## How far a finger may travel and still count as a tap rather than a drag.
 const TAP_SLOP: float = 18.0
 
+## A traced platform keeps the stroke's shape, simplified: points closer than
+## TRACE_SPACING are finger jitter, bends smaller than TRACE_TOLERANCE are
+## straightened, and at most TRACE_MAX_POINTS corners go over the wire.
+const TRACE_SPACING: float = 8.0
+const TRACE_TOLERANCE: float = 4.0
+const TRACE_MAX_POINTS: int = 16
+
 ## A finger index no touchscreen will produce, for the mouse to borrow.
 const MOUSE_FINGER: int = 90
 
@@ -224,9 +231,9 @@ var _aim_moved: Dictionary = {}
 ## Where the current tool has been asked to go. Cleared when read: it is an
 ## instruction, not a state.
 var _place_latched: Vector2 = Vector2(INF, INF)
-## Width of a traced platform that goes with _place_latched; 0 means "the
-## standard size" (a tap rather than a trace).
-var _place_width: float = 0.0
+## Shape of a traced platform that goes with _place_latched, relative to it;
+## empty means "the standard slab" (a tap rather than a trace).
+var _place_path: PackedVector2Array = PackedVector2Array()
 ## True while the guardian's platform tool is chosen: a finger dragged over the
 ## world then draws where the platform goes instead of scrolling the view.
 var trace_mode: bool = false
@@ -297,30 +304,77 @@ func take_place_at() -> Vector2:
 	_place_latched = Vector2(INF, INF)
 	return value
 
-## The traced width for the placement take_place_at just returned (0 = tap).
-func take_place_width() -> float:
-	var value := _place_width
-	_place_width = 0.0
+## The traced shape for the placement take_place_at just returned (empty = tap).
+func take_place_path() -> PackedVector2Array:
+	var value := _place_path
+	_place_path = PackedVector2Array()
 	return value
 
-## The platform a finished stroke describes: level, centred on the stroke,
-## as wide as it ran from side to side. Returns [centre, width] or [] when
-## the stroke was too short to be anything but a tap.
-static func platform_from_stroke(points: PackedVector2Array) -> Array:
+## The platform a finished stroke describes: the stroke itself -- level,
+## sloped, upright or bent -- smoothed down to a few straight pieces and cut
+## off at TRACE_MAX_LENGTH. Returns [centre, path relative to centre], or []
+## when the stroke was too short to be anything but a tap.
+static func path_from_stroke(points: PackedVector2Array) -> Array:
 	if points.size() < 2:
 		return []
-	var lo := INF
-	var hi := -INF
-	var y := 0.0
-	for p in points:
-		lo = minf(lo, p.x)
-		hi = maxf(hi, p.x)
-		y += p.y
-	y /= float(points.size())
-	if hi - lo < Balance.TRACE_MIN_WIDTH:
+	# Drop the jitter of a finger that is barely moving.
+	var spaced := PackedVector2Array([points[0]])
+	for i in range(1, points.size()):
+		if points[i].distance_to(spaced[spaced.size() - 1]) >= TRACE_SPACING:
+			spaced.append(points[i])
+	if spaced.size() < 2 and points[points.size() - 1] != points[0]:
+		spaced.append(points[points.size() - 1])
+	if spaced.size() < 2:
 		return []
-	var width := clampf(hi - lo, Balance.TRACE_MIN_WIDTH, Balance.TRACE_MAX_WIDTH)
-	return [Vector2((lo + hi) * 0.5, y), width]
+	# Cut at the longest a platform may be.
+	var capped := PackedVector2Array([spaced[0]])
+	var length := 0.0
+	for i in range(1, spaced.size()):
+		var step := spaced[i - 1].distance_to(spaced[i])
+		if length + step >= Balance.TRACE_MAX_LENGTH:
+			var left := Balance.TRACE_MAX_LENGTH - length
+			capped.append(spaced[i - 1] + (spaced[i] - spaced[i - 1]).normalized() * left)
+			length = Balance.TRACE_MAX_LENGTH
+			break
+		capped.append(spaced[i])
+		length += step
+	if length < Balance.TRACE_MIN_WIDTH:
+		return []
+	var tolerance := TRACE_TOLERANCE
+	var simple := _simplify(capped, tolerance)
+	while simple.size() > TRACE_MAX_POINTS:
+		tolerance *= 1.5
+		simple = _simplify(capped, tolerance)
+	var lo := simple[0]
+	var hi := simple[0]
+	for p in simple:
+		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
+		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
+	var centre := ((lo + hi) * 0.5).round()
+	var local := PackedVector2Array()
+	for p in simple:
+		local.append((p - centre).round())
+	return [centre, local]
+
+## Ramer-Douglas-Peucker: the fewest corners that stay within `tolerance`.
+static func _simplify(p: PackedVector2Array, tolerance: float) -> PackedVector2Array:
+	if p.size() <= 2:
+		return p
+	var worst := 0.0
+	var at := 0
+	for i in range(1, p.size() - 1):
+		var near := Geometry2D.get_closest_point_to_segment(p[i], p[0], p[p.size() - 1])
+		var d := near.distance_to(p[i])
+		if d > worst:
+			worst = d
+			at = i
+	if worst <= tolerance:
+		return PackedVector2Array([p[0], p[p.size() - 1]])
+	var left := _simplify(p.slice(0, at + 1), tolerance)
+	var right := _simplify(p.slice(at), tolerance)
+	left.remove_at(left.size() - 1)
+	left.append_array(right)
+	return left
 
 ## Did the press that take_slot just returned involve a drag? A tap means "you
 ## decide"; a drag means "here". Consume this in the same frame as take_slot.
@@ -571,9 +625,6 @@ func _route_control(index: int, position: Vector2, size: Vector2,
 		"jump":
 			_touch_owner[index] = "jump"
 			press_jump()
-		"sprint":
-			_touch_owner[index] = "dash"
-			press_dash()
 		"stick":
 			_touch_owner[index] = "stick"
 			_stick_finger = index
@@ -722,19 +773,19 @@ func _touch_up(index: int, position: Vector2 = Vector2(INF, INF)) -> void:
 			if index == _trace_finger:
 				if position.x != INF:
 					trace_points.append(_screen_to_world(position))
-				var made := platform_from_stroke(trace_points)
+				var made := path_from_stroke(trace_points)
 				if not made.is_empty():
 					_place_latched = made[0]
-					_place_width = made[1]
+					_place_path = made[1]
 				elif float(_aim_moved.get(index, 0.0)) <= TAP_SLOP * 3.0:
 					_place_latched = _world_under(index)
-					_place_width = 0.0
+					_place_path = PackedVector2Array()
 				_trace_finger = -1
 				trace_points = PackedVector2Array()
 			elif not bool(_aim_is_scroll.get(index, false)) \
 					and float(_aim_moved.get(index, 0.0)) <= TAP_SLOP:
 				_place_latched = _world_under(index)
-				_place_width = 0.0
+				_place_path = PackedVector2Array()
 			_aim_finger = -1
 			_aim_from.erase(index)
 			_aim_from_y.erase(index)

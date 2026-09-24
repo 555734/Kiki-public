@@ -239,7 +239,7 @@ func _resync() -> void:
 				"birth": h.birth_tick,
 				"death": h.death_tick,
 				"armed": h.trigger == null or h.trigger.armed,
-				"width": h.size.x if h.kind == Hologram.Kind.PLATFORM else 0.0,
+				"path": h.path if h.kind == Hologram.Kind.PLATFORM else PackedVector2Array(),
 			})
 	_send_event(Protocol.holo_list(rows))
 	# Which crystals are gone. One mask rather than one message each: a guardian
@@ -365,18 +365,18 @@ func _do_place(b: StreamPeerBuffer) -> void:
 	var at := Protocol.get_pos(b)
 	var view_tick := int(b.get_u32())
 	var seq := b.get_u16()
-	var width := float(b.get_u16()) if b.get_available_bytes() >= 2 else 0.0
+	var shape := Protocol.get_shape(b)
 	if _seen_seq.has(seq):
 		return
 	_seen_seq[seq] = true
 
 	var g: Guardian = main.guardian
 	g.select_slot(slot)
-	g.place_width = width if slot == 1 else 0.0
+	g.place_path = shape if slot == 1 else PackedVector2Array()
 	var ability: GuardianAbility = g.abilities[g.active_slot]
 	var reason: String = ability.check(g, at)
 	if reason != "":
-		g.place_width = 0.0
+		g.place_path = PackedVector2Array()
 		_send_event(Protocol.reject(seq, reason))
 		return
 
@@ -391,12 +391,17 @@ func _do_place(b: StreamPeerBuffer) -> void:
 	var birth := Clock.tick
 	if slot != 4:
 		var size: Vector2 = Balance.PLATFORM_SIZE if slot == 1 else Balance.WALL_SIZE
-		if slot == 1 and width > 0.0:
-			size.x = width
-		birth = authority.accept_placement(at, size, view_tick)
+		# The catch puts the runner on a level top surface, so only a level
+		# slab can make one; a sloped or bent one is still backdated.
+		var level := true
+		if slot == 1 and shape.size() >= 2:
+			size = Hologram.path_size(shape)
+			for p in shape:
+				level = level and is_equal_approx(p.y, shape[0].y)
+		birth = authority.accept_placement(at, size, view_tick, level)
 
 	g.use_active(at)
-	g.place_width = 0.0
+	g.place_path = PackedVector2Array()
 	var made: Hologram = _newest(slot)
 	if made == null:
 		_send_event(Protocol.reject(seq, "refused"))
@@ -411,7 +416,7 @@ func _do_place(b: StreamPeerBuffer) -> void:
 	# and they left it exactly as late as this packet arrived.
 	made.placed_tick = Clock.tick
 	_send_event(Protocol.holo_spawn(made.net_id, int(made.kind), at,
-		made.birth_tick, made.death_tick, seq, made.size.x))
+		made.birth_tick, made.death_tick, seq, made.path))
 
 func _do_fire(b: StreamPeerBuffer) -> void:
 	var at := Protocol.get_pos(b)
