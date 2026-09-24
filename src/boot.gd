@@ -40,9 +40,10 @@ func _ready() -> void:
 	_dots.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(_dots)
 
-	# Sub-threads let the scene's textures and scripts load side by side
-	# instead of one after another.
-	ResourceLoader.load_threaded_request(MAIN_SCENE, "", true)
+	# One loader thread, not sub-threads. Sub-threads compile GDScript on
+	# several threads at once, and the Motorola (Vulkan) build crashed on the
+	# loading screen with them; the single background thread had been stable.
+	ResourceLoader.load_threaded_request(MAIN_SCENE)
 
 func _process(delta: float) -> void:
 	_elapsed += delta
@@ -51,8 +52,10 @@ func _process(delta: float) -> void:
 		ResourceLoader.THREAD_LOAD_LOADED:
 			set_process(false)
 			print("BOOT: main scene loaded after %d ms" % Time.get_ticks_msec())
-			get_tree().change_scene_to_packed(ResourceLoader.load_threaded_get(MAIN_SCENE))
+			# Arm the EOS warm-up first: once the scene changes, this node is
+			# out of the tree and get_tree() is null.
 			_warm_eos_after_menu()
+			get_tree().change_scene_to_packed(ResourceLoader.load_threaded_get(MAIN_SCENE))
 		ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
 			# Fall back to the ordinary blocking load rather than stranding the
 			# player on a loading screen.
