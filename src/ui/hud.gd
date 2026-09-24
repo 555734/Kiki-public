@@ -24,6 +24,8 @@ var _notice: String = ""
 var _notice_timer: float = 0.0
 var _countdown: float = 0.0
 var _cleared: Dictionary = {}
+## Seconds since the stage was cleared, for the celebration's timing.
+var clear_age: float = 0.0
 ## Counts down while the GAME OVER plate is up. Driven by the same events on
 ## both devices -- the host raises runner_died locally and sends RUNNER_DIE, and
 ## the client turns that back into the same signal -- so the guardian sees the
@@ -78,6 +80,8 @@ func _ready() -> void:
 		_rescue_flash = 1.3)
 
 func _process(delta: float) -> void:
+	if not _cleared.is_empty():
+		clear_age += delta
 	_time += delta
 	_refusal_flash = maxf(0.0, _refusal_flash - delta)
 	_notice_timer = maxf(0.0, _notice_timer - delta)
@@ -93,32 +97,10 @@ func _process(delta: float) -> void:
 	_ensure_guardian_left_defaults()
 	_root.queue_redraw()
 
-## Put every guardian-only control on the LEFT half of the screen by default.
-## Shared-screen play intentionally keeps its guardian controls on the right,
-## because the runner already owns the left side there.
+## The guardian's two buttons take their places from ControlLayout
+## (platform left, shot right); nothing is forced here any more.
 func _ensure_guardian_left_defaults() -> void:
-	if ControlLayout.has_custom("guardian"):
-		return
-	var view := get_viewport().get_visible_rect().size
-	if view.x <= 1.0 or view.y <= 1.0:
-		return
-	var u := view.y
-	# Pixel positions expressed in screen-height units, then stored in the same
-	# normalized form as user-edited positions. iOS safe-area clamping still
-	# happens afterwards inside ControlLayout.layout(). Every x coefficient stays
-	# below 0.5, so landscape layouts remain on the left half at any aspect ratio.
-	var places := {
-		"slot_3": Vector2(0.17 * u, view.y - 0.24 * u), # FIRE, biggest/nearest thumb
-		"slot_1": Vector2(0.39 * u, view.y - 0.21 * u), # platform
-		"slot_2": Vector2(0.39 * u, view.y - 0.44 * u), # wall
-		"slot_4": Vector2(0.19 * u, view.y - 0.49 * u), # warp
-		"scope":  Vector2(0.10 * u, view.y - 0.70 * u),
-		"ping":   Vector2(0.45 * u, view.y - 0.36 * u),
-		"undo":   Vector2(0.08 * u, view.y - 0.08 * u),
-	}
-	for id in places:
-		var p: Vector2 = places[id]
-		ControlLayout.set_place("guardian", String(id), Vector2(p.x / view.x, p.y / view.y))
+	pass
 
 func _on_refused(_slot: int, reason: String) -> void:
 	_refusal_flash = 0.9

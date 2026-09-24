@@ -239,6 +239,7 @@ func _resync() -> void:
 				"birth": h.birth_tick,
 				"death": h.death_tick,
 				"armed": h.trigger == null or h.trigger.armed,
+				"width": h.size.x if h.kind == Hologram.Kind.PLATFORM else 0.0,
 			})
 	_send_event(Protocol.holo_list(rows))
 	# Which crystals are gone. One mask rather than one message each: a guardian
@@ -364,15 +365,18 @@ func _do_place(b: StreamPeerBuffer) -> void:
 	var at := Protocol.get_pos(b)
 	var view_tick := int(b.get_u32())
 	var seq := b.get_u16()
+	var width := float(b.get_u16()) if b.get_available_bytes() >= 2 else 0.0
 	if _seen_seq.has(seq):
 		return
 	_seen_seq[seq] = true
 
 	var g: Guardian = main.guardian
 	g.select_slot(slot)
+	g.place_width = width if slot == 1 else 0.0
 	var ability: GuardianAbility = g.abilities[g.active_slot]
 	var reason: String = ability.check(g, at)
 	if reason != "":
+		g.place_width = 0.0
 		_send_event(Protocol.reject(seq, reason))
 		return
 
@@ -387,9 +391,12 @@ func _do_place(b: StreamPeerBuffer) -> void:
 	var birth := Clock.tick
 	if slot != 4:
 		var size: Vector2 = Balance.PLATFORM_SIZE if slot == 1 else Balance.WALL_SIZE
+		if slot == 1 and width > 0.0:
+			size.x = width
 		birth = authority.accept_placement(at, size, view_tick)
 
 	g.use_active(at)
+	g.place_width = 0.0
 	var made: Hologram = _newest(slot)
 	if made == null:
 		_send_event(Protocol.reject(seq, "refused"))
@@ -404,7 +411,7 @@ func _do_place(b: StreamPeerBuffer) -> void:
 	# and they left it exactly as late as this packet arrived.
 	made.placed_tick = Clock.tick
 	_send_event(Protocol.holo_spawn(made.net_id, int(made.kind), at,
-		made.birth_tick, made.death_tick, seq))
+		made.birth_tick, made.death_tick, seq, made.size.x))
 
 func _do_fire(b: StreamPeerBuffer) -> void:
 	var at := Protocol.get_pos(b)

@@ -135,6 +135,7 @@ func _ready() -> void:
 		add_child(boss_bar)
 
 	Events.runner_died.connect(_on_runner_died)
+	Events.stage_cleared.connect(_on_stage_cleared)
 	Events.checkpoint_reached.connect(_on_checkpoint)
 	Events.ability_used.connect(_on_ability_used)
 
@@ -560,7 +561,23 @@ func _on_ability_used(slot: int, _pos: Vector2) -> void:
 	if slot == 3:
 		_shake = 0.55
 
+## The goal ends the danger as well as the run: the runner can no longer be
+## hurt, every enemy and chaser stops where it is, and the controls let go so
+## the runner stands and celebrates instead of wandering off a ledge.
+func _on_stage_cleared(_stats: Dictionary) -> void:
+	runner.cleared = true
+	_respawn_timer = -1.0
+	for e in get_tree().get_nodes_in_group("enemy"):
+		(e as Node).process_mode = Node.PROCESS_MODE_DISABLED
+	if input_hub != null:
+		input_hub.move_axis = 0.0
+		input_hub.move_axis_y = 0.0
+		input_hub.set_process_unhandled_input(false)
+		input_hub.set_process(false)
+
 func _on_runner_died(_cause: String) -> void:
+	if runner.cleared:
+		return
 	_shake = 1.0
 	_respawn_timer = Balance.RESPAWN_DELAY
 

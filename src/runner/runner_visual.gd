@@ -163,6 +163,8 @@ func _draw_shadow() -> void:
 ## the thing this game actually needs: the guardian is reading the runner from
 ## the other side of a network connection and has to know what they are doing.
 func _pose_key() -> String:
+	if runner.cleared and runner.on_ground():
+		return "runner_cheer"
 	if runner.pounding():
 		# Tucked while it spins, then the braced landing pose on the way down.
 		return "runner_jump" if _spin_active else "runner_land"
@@ -216,6 +218,9 @@ func _draw_painted() -> bool:
 	var bob := 0.0
 	if runner.state == Runner.State.RUN:
 		bob = absf(sin(_phase * TAU)) * -3.0
+	if runner.cleared and runner.on_ground():
+		# Little victory hops.
+		bob = -absf(sin(_phase * 2.4)) * 14.0
 
 	# Flip in the same transform as lean, squash and the feet anchor. Asking
 	# Art.draw_sprite() to flip installs a new canvas transform and used to throw

@@ -46,28 +46,27 @@ static var _loaded: bool = false
 ## the gesture a finger on a map already makes -- so the two buttons are gone
 ## and the screen is quieter for it. The keyboard keys still exist for desktop.
 const GUARDIAN_ARC := {
-	"slot_1": Vector3(0.26, 0.24, 0.080),
-	"slot_2": Vector3(0.09, 0.40, 0.070),
-	"slot_4": Vector3(0.46, 0.115, 0.070),
-	"slot_3": Vector3(0.225, 0.52, 0.100),
-	"scope":  Vector3(0.09, 0.72, 0.072),
+	"slot_1": Vector3(0.30, 0.22, 0.090),
+	"slot_3": Vector3(0.12, 0.40, 0.100),
 }
 
 ## Alone on a device the guardian has TWO thumbs, so the controls belong under
 ## both of them rather than stacked up one edge. Building goes to the left hand
 ## and looking goes to the right, which also means the hand that scrolls the
 ## view is not the hand holding a tool.
+##
+## Two tools and nothing else: the platform under the left thumb, the shot
+## under the right. The wall, warp, scope, undo and ping buttons are retired
+## from the guardian's screen.
 const GUARDIAN_LEFT := {
-	"slot_1":   Vector3(0.26, 0.24, 0.082),
-	"slot_2":   Vector3(0.145, 0.46, 0.072),
-	"undo":     Vector3(0.40, 0.10, 0.058),
+	"slot_1":   Vector3(0.22, 0.24, 0.105),
 }
 const GUARDIAN_RIGHT := {
-	"slot_3":    Vector3(0.255, 0.235, 0.108),
-	"slot_4":    Vector3(0.145, 0.46, 0.072),
-	"scope":     Vector3(0.30, 0.60, 0.074),
-	"ping":      Vector3(0.42, 0.10, 0.058),
+	"slot_3":    Vector3(0.22, 0.24, 0.110),
 }
+## Saved guardian layouts from before the two-button screen put the shot on
+## the left; they are dropped once so the new defaults take effect.
+const GUARDIAN_LAYOUT_VERSION := 2
 
 ## The runner alone has the whole screen, so their actions go to the far corner
 ## and are held with the other thumb.
@@ -283,12 +282,15 @@ static func save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PATH)
 	for section in cfg.get_sections():
+		if section == "meta":
+			continue
 		for key in cfg.get_section_keys(section):
 			if not _overrides.has("%s/%s" % [section, key]):
 				cfg.erase_section_key(section, key)
 	for key in _overrides.keys():
 		var parts := String(key).split("/")
 		cfg.set_value(parts[0], parts[1], _overrides[key])
+	cfg.set_value("meta", "guardian_layout", GUARDIAN_LAYOUT_VERSION)
 	cfg.save(PATH)
 
 static func _ensure_loaded() -> void:
@@ -298,7 +300,10 @@ static func _ensure_loaded() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:
 		return
+	var stale_guardian := int(cfg.get_value("meta", "guardian_layout", 1)) < GUARDIAN_LAYOUT_VERSION
 	for section in cfg.get_sections():
+		if section == "meta" or (section == "guardian" and stale_guardian):
+			continue
 		for key in cfg.get_section_keys(section):
 			var value = cfg.get_value(section, key)
 			if value is Vector2:

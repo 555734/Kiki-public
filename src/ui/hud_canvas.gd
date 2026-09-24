@@ -86,7 +86,22 @@ func _player_panels() -> void:
 		Color(0.42, 0.82, 1.0))
 	draw_string(font, p2 + Vector2(h + 30, 22), "ORION", HORIZONTAL_ALIGNMENT_LEFT, -1, 17,
 		Color(1, 1, 1, 0.95))
-	_gauge_bar(p2 + Vector2(h + 8, 32.0), w - h - 30.0, 12.0)
+	_platform_pips(p2 + Vector2(h + 10, 32.0))
+
+## The points gauge is gone; what the guardian needs to know instead is how
+## many of their two platforms are still to place before the oldest is taken.
+func _platform_pips(at: Vector2) -> void:
+	var font := Art.font()
+	var alive := 0
+	if hud.guardian != null and is_instance_valid(hud.guardian):
+		alive = hud.guardian.holograms_of(Hologram.Kind.PLATFORM).size()
+	draw_string(font, at + Vector2(0, 11), "足場", HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
+		Color(0.75, 0.9, 1.0, 0.9))
+	for i in Balance.PLATFORM_MAX_ALIVE:
+		var c := at + Vector2(46.0 + float(i) * 26.0, 6.0)
+		var ready := i < Balance.PLATFORM_MAX_ALIVE - alive
+		DrawUtil.rounded_rect(self, Rect2(c - Vector2(10, 5), Vector2(20, 10)), 3.0,
+			Color(0.42, 0.85, 1.0, 0.95) if ready else Color(0.2, 0.3, 0.4, 0.8))
 
 func _portrait(at: Vector2, s: float, is_runner: bool) -> void:
 	var r := Rect2(at, Vector2(s, s))
@@ -210,16 +225,17 @@ func _ability_bar(view: Vector2) -> void:
 	var places := ControlLayout.layout(mode, view, mirrored)
 	var meta := {
 		1: {"name": "足場", "cost": Balance.COST_PLATFORM, "icon": "icon_platform"},
-		2: {"name": "壁", "cost": Balance.COST_WALL, "icon": "icon_wall"},
 		3: {"name": "狙撃", "cost": Balance.COST_SNIPE, "icon": "icon_snipe"},
-		4: {"name": "ワープ", "cost": Balance.COST_WARP, "icon": "icon_warp"},
 	}
 	for slot in meta:
 		var place: Dictionary = places.get("slot_%d" % slot, {})
 		if place.is_empty():
 			continue
 		var item: Dictionary = meta[slot]
-		var held: bool = hub != null and hub.held_slot() == slot
+		# The chosen tool stays lit: it decides what a finger on the world does
+		# (draw a platform, or shoot).
+		var held: bool = (hub != null and hub.held_slot() == slot) \
+			or (hud.guardian != null and is_instance_valid(hud.guardian) and hud.guardian.active_slot == slot)
 		_ability_button(place["center"], float(place["radius"]), slot,
 			String(item["name"]), float(item["cost"]), String(item["icon"]), held)
 
@@ -316,8 +332,9 @@ func _ability_button(centre: Vector2, radius: float, slot: int, label: String,
 
 	# The cost, inside the ring along the bottom. It is the constraint the whole
 	# design rests on, so it stays on screen even when the name does not.
-	var text := int(clampf(radius * 0.44, 11.0, 20.0))
-	draw_string(font, centre + Vector2(-radius, radius * 0.72), "%d" % int(cost),
+	var text := int(clampf(radius * 0.40, 11.0, 18.0))
+	draw_string(font, centre + Vector2(-radius, radius * 0.74),
+		"%d" % int(cost) if cost > 0.0 else label,
 		HORIZONTAL_ALIGNMENT_CENTER, radius * 2.0, text,
 		Color(accent.r, accent.g, accent.b, 0.95 if affordable else 0.45))
 
@@ -563,32 +580,85 @@ func _game_over_panel(view: Vector2) -> void:
 		"retrying from %s" % where, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 15,
 		Color(1, 0.78, 0.78, 0.85 * fade))
 
+## The goal: a celebration rather than a scoresheet. Light rays turn behind a
+## title that bounces in, confetti falls, and stars burst out once. All of it
+## is driven by hud.clear_age, so it is the same on both screens.
 func _clear_panel(view: Vector2) -> void:
 	var font := Art.font()
-	var stats: Dictionary = hud.cleared()
-	var box := Rect2(view.x * 0.5 - 220.0, view.y * 0.5 - 140.0, 440.0, 280.0)
-	DrawUtil.rounded_rect(self, box, 14.0, Color(0.03, 0.08, 0.14, 0.93))
-	draw_rect(box, Color(0.31, 0.85, 1.0, 0.7), false, 2.0)
-	draw_string(font, box.position + Vector2(0, 46.0), "STAGE CLEAR",
-		HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 30, Color(1, 1, 1))
-	# Chapter 7: one team result, never a per-player score.
-	draw_string(font, box.position + Vector2(0, 74.0), "TEAM RESULT",
-		HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 14, Color(0.55, 0.78, 0.9))
-	var rows := [
-		["TIME", "%d:%02d" % [int(stats.get("time", 0.0)) / 60, int(stats.get("time", 0.0)) % 60]],
-		["MID-AIR RESCUES", str(stats.get("rescues", 0))],
-		["BEST CATCH", String(stats.get("best_catch", "-"))],
-		["SNIPED", str(stats.get("sniped", 0))],
-		["STOMPED", str(stats.get("stomped", 0))],
-		["SHOTS BLOCKED", str(stats.get("blocked", 0))],
-		["RETRIES", str(stats.get("deaths", 0))],
-	]
-	for i in rows.size():
-		var y := box.position.y + 112.0 + float(i) * 24.0
-		draw_string(font, Vector2(box.position.x + 40.0, y), String(rows[i][0]),
-			HORIZONTAL_ALIGNMENT_LEFT, 260, 15, Color(0.75, 0.85, 0.95))
-		draw_string(font, Vector2(box.position.x + 200.0, y), String(rows[i][1]),
-			HORIZONTAL_ALIGNMENT_RIGHT, 200, 15, Color(1, 1, 1))
-	draw_string(font, box.position + Vector2(0, box.size.y - 16.0), "R  to play again",
-		HORIZONTAL_ALIGNMENT_CENTER, box.size.x, 14, Color(0.55, 0.78, 0.9))
+	var t: float = hud.clear_age
+	var c := Vector2(view.x * 0.5, view.y * 0.36)
+
+	# A white flash on the frame of the clear, fading fast.
+	if t < 0.35:
+		draw_rect(Rect2(Vector2.ZERO, view), Color(1, 1, 1, 0.55 * (1.0 - t / 0.35)))
+	# Soft golden wash so the celebration reads over any stage.
+	draw_rect(Rect2(Vector2.ZERO, view), Color(1.0, 0.86, 0.45, minf(0.18, t * 0.4)))
+
+	# Rotating light rays.
+	var rays := 14
+	var reach := view.length() * 0.6
+	for i in rays:
+		var a := t * 0.35 + TAU * float(i) / float(rays)
+		var w := 0.11
+		draw_colored_polygon(PackedVector2Array([
+			c, c + Vector2(cos(a - w), sin(a - w)) * reach,
+			c + Vector2(cos(a + w), sin(a + w)) * reach]),
+			Color(1.0, 0.93, 0.6, 0.10 * minf(1.0, t * 2.0)))
+
+	# Star burst, once.
+	if t < 1.6:
+		var k := t / 1.6
+		for i in 12:
+			var a := TAU * float(i) / 12.0 + 0.2
+			var p := c + Vector2(cos(a), sin(a)) * (60.0 + k * 360.0)
+			_star(p, 14.0 * (1.0 - k) + 4.0, Color(1.0, 0.9, 0.35, 1.0 - k))
+
+	# Confetti, falling and swaying.
+	var colours := [Color("ff5d73"), Color("ffd23f"), Color("3bceac"), Color("5fa8ff"),
+		Color("b784ff"), Color("ffffff")]
+	for i in 90:
+		var h1 := DrawUtil.hash01(i * 7 + 3)
+		var h2 := DrawUtil.hash01(i * 13 + 11)
+		var speed := 110.0 + h2 * 140.0
+		var y := fposmod(-40.0 - h1 * view.y + t * speed, view.y + 60.0) - 30.0
+		var x := h1 * view.x + sin(t * (1.5 + h2 * 2.0) + float(i)) * 26.0
+		var spin := t * (3.0 + h2 * 5.0) + float(i)
+		draw_set_transform(Vector2(x, y), spin, Vector2(1.0, absf(cos(spin * 1.3)) * 0.8 + 0.2))
+		draw_rect(Rect2(-5, -3, 10, 6), colours[i % colours.size()])
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	# The title bounces in with a little overshoot, then breathes.
+	var pop := 0.0
+	if t < 0.5:
+		pop = _ease_out_back(t / 0.5)
+	else:
+		pop = 1.0 + sin((t - 0.5) * 3.0) * 0.03
+	var text := "STAGE CLEAR!"
+	var size := 64
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	draw_set_transform(c, sin(t * 2.0) * 0.02, Vector2(pop, pop))
+	for off in [Vector2(4, 5), Vector2(0, 0)]:
+		var col := Color(0.12, 0.10, 0.30, 0.6) if off != Vector2.ZERO else Color("ffe45c")
+		draw_string_outline(font, Vector2(-width * 0.5, 22) + off, text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, size, 12, Color(0.55, 0.22, 0.05, 0.95 if off == Vector2.ZERO else 0.0))
+		draw_string(font, Vector2(-width * 0.5, 22) + off, text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if t > 0.6:
+		var a := clampf((t - 0.6) * 2.0, 0.0, 1.0)
+		draw_string(font, Vector2(0, c.y + 70.0), "やったね！ ふたりでゴール！",
+			HORIZONTAL_ALIGNMENT_CENTER, view.x, 24, Color(1, 1, 1, a))
+
+func _ease_out_back(x: float) -> float:
+	var c1 := 1.70158
+	var c3 := c1 + 1.0
+	return 1.0 + c3 * pow(x - 1.0, 3.0) + c1 * pow(x - 1.0, 2.0)
+
+func _star(at: Vector2, r: float, colour: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 10:
+		var rr := r if i % 2 == 0 else r * 0.45
+		var a := -PI * 0.5 + TAU * float(i) / 10.0
+		pts.append(at + Vector2(cos(a), sin(a)) * rr)
+	draw_colored_polygon(pts, colour)
 

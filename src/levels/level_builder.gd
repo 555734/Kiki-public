@@ -131,8 +131,10 @@ func rebuild_dynamic() -> void:
 		_dynamic.add_child(coin)
 		_veil(coin, Veil.PICKUPS)
 
+	# Crystals only ever refilled the guardian's gauge, and the gauge is gone,
+	# so they are no longer placed. The data stays for the tuning notes.
 	var crystal_id := 0
-	for c in Stage.crystals():
+	for c in (Stage.crystals() if Balance.COST_PLATFORM > 0.0 else []):
 		if not GameState.crystals_taken.has(crystal_id):
 			var crystal := Crystal.new()
 			crystal.runner = runner

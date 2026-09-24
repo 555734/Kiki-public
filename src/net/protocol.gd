@@ -87,7 +87,7 @@ enum World {
 ## each other at the handshake, which is what makes changing this safe -- and
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
-const VERSION: int = 12
+const VERSION: int = 13
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -161,12 +161,15 @@ static func aim(now: Vector2, prev: Vector2, prev2: Vector2) -> PackedByteArray:
 		put_pos(b, p)
 	return b.data_array
 
-static func place(slot: int, at: Vector2, view_tick: int, seq: int) -> PackedByteArray:
+## `width` is a traced platform's width in whole pixels; 0 is the standard size.
+static func place(slot: int, at: Vector2, view_tick: int, seq: int,
+		width: float = 0.0) -> PackedByteArray:
 	var b := _buf(Msg.PLACE)
 	b.put_u8(slot)
 	put_pos(b, at)
 	b.put_u32(view_tick)
 	b.put_u16(seq)
+	b.put_u16(clampi(int(round(width)), 0, 0xFFFF))
 	return b.data_array
 
 ## No particular enemy -- shoot at the point and let the host find what is there.
@@ -207,6 +210,7 @@ static func holo_list(rows: Array) -> PackedByteArray:
 		# without this reads as ready to fire on the guardian's screen and does
 		# nothing when they shoot it.
 		b.put_u8(1 if bool(row["armed"]) else 0)
+		b.put_u16(clampi(int(round(float(row.get("width", 0.0)))), 0, 0xFFFF))
 	return b.data_array
 
 ## How long an enemy's soft spot stays open, decided by the host.
@@ -264,7 +268,7 @@ static func slot(n: int) -> PackedByteArray:
 ## The lifetime travels with the spawn, so nothing has to be sent when it ends:
 ## both devices expire it at the same tick. docs/netcode.md 4.
 static func holo_spawn(id: int, kind: int, at: Vector2, birth: int, death: int,
-		client_seq: int) -> PackedByteArray:
+		client_seq: int, width: float = 0.0) -> PackedByteArray:
 	var b := _buf(Msg.HOLO_SPAWN)
 	b.put_u16(id)
 	b.put_u8(kind)
@@ -272,6 +276,7 @@ static func holo_spawn(id: int, kind: int, at: Vector2, birth: int, death: int,
 	b.put_u32(birth)
 	b.put_u32(death)
 	b.put_u16(client_seq)
+	b.put_u16(clampi(int(round(width)), 0, 0xFFFF))
 	return b.data_array
 
 static func holo_kill(id: int) -> PackedByteArray:

@@ -18,6 +18,9 @@ signal state_changed(state: State)
 var state: State = State.IDLE
 var facing: int = 1
 var hp: int = Balance.RUNNER_MAX_HP
+## Set once the goal is reached: nothing can hurt or kill the runner any more,
+## and the painted figure celebrates.
+var cleared: bool = false
 
 var _coyote: float = 0.0
 var _jump_buffer: float = 0.0
@@ -879,6 +882,8 @@ func _resolve_hazard(node: Node) -> void:
 		node.on_hit_runner(self)
 
 func take_damage(amount: int) -> void:
+	if cleared:
+		return
 	if _invuln > 0.0 or state == State.DEAD:
 		return
 	hp = maxi(0, hp - amount)
@@ -896,6 +901,8 @@ func take_damage(amount: int) -> void:
 	_set_state(State.HURT)
 
 func die(cause: String) -> void:
+	if cleared:
+		return
 	if state == State.DEAD:
 		return
 	_end_player_jump()

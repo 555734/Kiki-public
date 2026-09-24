@@ -224,6 +224,15 @@ var _aim_moved: Dictionary = {}
 ## Where the current tool has been asked to go. Cleared when read: it is an
 ## instruction, not a state.
 var _place_latched: Vector2 = Vector2(INF, INF)
+## Width of a traced platform that goes with _place_latched; 0 means "the
+## standard size" (a tap rather than a trace).
+var _place_width: float = 0.0
+## True while the guardian's platform tool is chosen: a finger dragged over the
+## world then draws where the platform goes instead of scrolling the view.
+var trace_mode: bool = false
+## World points of the stroke being drawn right now, for the preview.
+var trace_points: PackedVector2Array = PackedVector2Array()
+var _trace_finger: int = -1
 
 func held_slot() -> int:
 	return _slot_held
@@ -287,6 +296,31 @@ func take_place_at() -> Vector2:
 	var value := _place_latched
 	_place_latched = Vector2(INF, INF)
 	return value
+
+## The traced width for the placement take_place_at just returned (0 = tap).
+func take_place_width() -> float:
+	var value := _place_width
+	_place_width = 0.0
+	return value
+
+## The platform a finished stroke describes: level, centred on the stroke,
+## as wide as it ran from side to side. Returns [centre, width] or [] when
+## the stroke was too short to be anything but a tap.
+static func platform_from_stroke(points: PackedVector2Array) -> Array:
+	if points.size() < 2:
+		return []
+	var lo := INF
+	var hi := -INF
+	var y := 0.0
+	for p in points:
+		lo = minf(lo, p.x)
+		hi = maxf(hi, p.x)
+		y += p.y
+	y /= float(points.size())
+	if hi - lo < Balance.TRACE_MIN_WIDTH:
+		return []
+	var width := clampf(hi - lo, Balance.TRACE_MIN_WIDTH, Balance.TRACE_MAX_WIDTH)
+	return [Vector2((lo + hi) * 0.5, y), width]
 
 ## Did the press that take_slot just returned involve a drag? A tap means "you
 ## decide"; a drag means "here". Consume this in the same frame as take_slot.
@@ -453,6 +487,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_touch_move(MOUSE_FINGER, event.position)
 		get_viewport().set_input_as_handled()
 
+func _screen_to_world(position: Vector2) -> Vector2:
+	var viewport := get_viewport()
+	return viewport.get_canvas_transform().affine_inverse() * position if viewport != null else position
+
 func _world_under(index: int) -> Vector2:
 	var at: Vector2 = _last_position.get(index, Vector2(INF, INF))
 	var viewport := get_viewport()
@@ -582,6 +620,9 @@ func _route_guardian_only(index: int, position: Vector2, size: Vector2,
 	_begin_aim(index, position)
 
 func _begin_aim(index: int, position: Vector2) -> void:
+	if trace_mode:
+		_trace_finger = index
+		trace_points = PackedVector2Array([_screen_to_world(position)])
 	_aim_from[index] = position.x
 	_aim_from_y[index] = position.y
 	_aim_is_scroll[index] = false
@@ -606,7 +647,9 @@ func _touch_move(index: int, position: Vector2) -> void:
 			var lift: float = absf(position.y - float(_aim_from_y.get(index, position.y)))
 			_aim_moved[index] = float(_aim_moved.get(index, 0.0)) \
 				+ Vector2(travel, position.y - float(_aim_from_y.get(index, position.y))).length()
-			if not _aim_is_scroll.get(index, false) \
+			if index == _trace_finger:
+				trace_points.append(_screen_to_world(position))
+			elif not _aim_is_scroll.get(index, false) \
 					and absf(travel) > SCROLL_WAKES_UP and absf(travel) > lift * 1.4:
 				_aim_is_scroll[index] = true
 			if _aim_is_scroll.get(index, false):
@@ -676,9 +719,22 @@ func _touch_up(index: int, position: Vector2 = Vector2(INF, INF)) -> void:
 			_jump_from_stick = false
 			_refresh_jump_held()
 		"aim":
-			if not bool(_aim_is_scroll.get(index, false)) \
+			if index == _trace_finger:
+				if position.x != INF:
+					trace_points.append(_screen_to_world(position))
+				var made := platform_from_stroke(trace_points)
+				if not made.is_empty():
+					_place_latched = made[0]
+					_place_width = made[1]
+				elif float(_aim_moved.get(index, 0.0)) <= TAP_SLOP * 3.0:
+					_place_latched = _world_under(index)
+					_place_width = 0.0
+				_trace_finger = -1
+				trace_points = PackedVector2Array()
+			elif not bool(_aim_is_scroll.get(index, false)) \
 					and float(_aim_moved.get(index, 0.0)) <= TAP_SLOP:
 				_place_latched = _world_under(index)
+				_place_width = 0.0
 			_aim_finger = -1
 			_aim_from.erase(index)
 			_aim_from_y.erase(index)

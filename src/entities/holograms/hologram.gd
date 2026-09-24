@@ -158,12 +158,14 @@ static func kind_for_slot(slot: int) -> Kind:
 		2: return Kind.WALL
 		_: return Kind.WARP
 
-static func create(p_kind: Kind, at: Vector2) -> Hologram:
+static func create(p_kind: Kind, at: Vector2, width: float = 0.0) -> Hologram:
 	var holo := Hologram.new()
 	holo.kind = p_kind
 	match p_kind:
 		Kind.PLATFORM:
 			holo.size = Balance.PLATFORM_SIZE
+			if width > 0.0:
+				holo.size.x = clampf(width, Balance.TRACE_MIN_WIDTH, Balance.TRACE_MAX_WIDTH)
 			holo.lifetime = Balance.PLATFORM_LIFETIME
 		Kind.WALL:
 			holo.size = Balance.WALL_SIZE

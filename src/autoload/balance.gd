@@ -13,9 +13,12 @@ extends Node
 const GAUGE_MAX: float = 100.0
 const GAUGE_REGEN_PER_SEC: float = 8.0
 
-## [DOC] Ability costs. COST_WARP is with the rest of the warp block below.
-const COST_SNIPE: float = 20.0
-const COST_PLATFORM: float = 30.0
+## Ability costs. The guardian's points economy is retired: shooting is
+## unlimited (still paced by SNIPE_COOLDOWN) and platforms are limited only by
+## PLATFORM_MAX_ALIVE. The gauge itself stays full so older code paths that
+## read it keep working. COST_WARP is with the warp block below.
+const COST_SNIPE: float = 0.0
+const COST_PLATFORM: float = 0.0
 const COST_WALL: float = 25.0
 
 ## [DOC] "No rapid fire" -- expressed as a per-shot cooldown.
@@ -25,10 +28,15 @@ const SNIPE_COOLDOWN: float = 0.6
 const SNIPE_AMMO_DISPLAY_CAP: int = 3
 const SNIPE_DAMAGE: int = 2
 
-## [DOC] Platform: max 2 alive, 5 seconds each. Placing a 3rd removes the oldest.
-const PLATFORM_LIFETIME: float = 5.0
+## Platform: max 2 alive. They stay until replaced -- placing a 3rd removes the
+## oldest -- so the guardian keeps two ready rather than racing a timer. The
+## lifetime is only a ceiling (ten minutes).
+const PLATFORM_LIFETIME: float = 600.0
 const PLATFORM_MAX_ALIVE: int = 2
 const PLATFORM_SIZE := Vector2(150.0, 26.0)
+## A platform drawn with a finger is as wide as the stroke, within these.
+const TRACE_MIN_WIDTH: float = 70.0
+const TRACE_MAX_WIDTH: float = 320.0
 
 ## [DOC] Wall: max 1 alive, 4 seconds. Blocks shots and charges.
 const WALL_LIFETIME: float = 4.0

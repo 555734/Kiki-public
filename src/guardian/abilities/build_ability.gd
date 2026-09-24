@@ -30,13 +30,21 @@ func execute(guardian: Node, world_pos: Vector2) -> void:
 		var oldest: Hologram = live.pop_front()
 		if is_instance_valid(oldest):
 			oldest.expire()
-	var holo := Hologram.create(kind, world_pos)
+	var holo := Hologram.create(kind, world_pos, _width(guardian))
 	guardian.spawn_hologram(holo)
 
+## The platform's width for this placement: the traced stroke's, or standard.
+func _width(guardian: Node) -> float:
+	if kind != Hologram.Kind.PLATFORM:
+		return size.x
+	var traced := float(guardian.get("place_width")) if guardian.get("place_width") != null else 0.0
+	return traced if traced > 0.0 else size.x
+
 func preview(guardian: Node, world_pos: Vector2) -> Dictionary:
+	var drawn := Vector2(_width(guardian), size.y)
 	return {
 		"kind": "build",
-		"rect": Rect2(world_pos - size * 0.5, size),
+		"rect": Rect2(world_pos - drawn * 0.5, drawn),
 		"valid": check(guardian, world_pos) == "",
 	}
 
@@ -58,7 +66,7 @@ func _blocked(guardian: Node, world_pos: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = guardian.get_world_2d().direct_space_state
 	var query := PhysicsShapeQueryParameters2D.new()
 	var rect := RectangleShape2D.new()
-	rect.size = size - Vector2(4, 4)
+	rect.size = Vector2(_width(guardian), size.y) - Vector2(4, 4)
 	query.shape = rect
 	query.transform = Transform2D(0.0, world_pos)
 	query.collision_mask = 1 | 8              # terrain | hologram

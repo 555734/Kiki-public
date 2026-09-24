@@ -116,4 +116,6 @@ func preview(guardian: Node, world_pos: Vector2) -> Dictionary:
 ## magazine; rather than bolt a second resource onto the design, the readout is
 ## derived from the one gauge the design document specifies.
 static func ammo_for(gauge: float) -> int:
+	if Balance.COST_SNIPE <= 0.0:
+		return Balance.SNIPE_AMMO_DISPLAY_CAP   # unlimited
 	return mini(int(floor(gauge / Balance.COST_SNIPE)), Balance.SNIPE_AMMO_DISPLAY_CAP)

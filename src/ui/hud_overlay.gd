@@ -35,13 +35,10 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if not is_instance_valid(hud):
 		return
-	_draw_readable_gauge()
 	if not hud.cleared().is_empty():
 		# Cover the old keyboard-only hint. The real button above is usable on
 		# touch, mouse and controller-emulated pointer input.
-		var c := size * 0.5
-		DrawUtil.rounded_rect(self, Rect2(c.x - 150.0, c.y + 82.0, 300.0, 62.0),
-			10.0, Color(0.03, 0.08, 0.14, 0.98))
+		pass
 
 ## Ten blocks plus an explicit number. The previous 12px continuous line made
 ## 35 and 55 gauge look almost identical on a phone; this makes both the amount
