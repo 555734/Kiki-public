@@ -41,6 +41,13 @@ func _arch_points(half_width: float, rise: float, base_y: float) -> PackedVector
 
 func _draw() -> void:
 	var glow := 0.5 + 0.5 * sin(_pulse * 2.0)
+	if Stage.is_sea() and Balance.USE_TEXTURES and Art.tex("goal") != null:
+		# 1-4's goal is the pack's red flag, planted on the ground (the goal
+		# sits 55px above the ledge), with a soft beacon glow over it.
+		draw_circle(Vector2(0, -60.0), 34.0 + glow * 12.0,
+			Color(1.0, 0.86, 0.45, 0.14 + glow * 0.10))
+		Art.draw_sprite(self, "goal", Vector2(8.0, 57.0), 210.0)
+		return
 	if Balance.USE_TEXTURES and Art.tex("goal") != null:
 		Art.draw_sprite(self, "goal", Vector2(0.0, 96.0), 246.0)
 		draw_circle(Vector2(0, -40.0), 26.0 + glow * 10.0,

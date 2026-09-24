@@ -95,6 +95,24 @@ const MANIFEST := {
 	"sky_arch": "sky/arch.png",
 	"sky_beacon": "sky/beacon.png",
 	"sky_flyer": "sky/flyer.png",
+	# stage 1-4, the sea. From the 1-4 sea art pack via
+	# tools/extract-stage-1-4.py.
+	"sea_panorama": "stage_1_4/distant_sea.jpg",
+	"sea_sand_tile": "stage_1_4/sand_tile.png",
+	"sea_grass_cap": "stage_1_4/grass_cap.png",
+	"sea_crab": "stage_1_4/crab.png",
+	"sea_seabird": "stage_1_4/seabird.png",
+	"sea_chaser": "stage_1_4/chaser.png",
+	"sea_flag": "stage_1_4/flag.png",
+	"sea_rock": "stage_1_4/rock.png",
+	"sea_pier": "stage_1_4/pier.png",
+	"sea_bridge": "stage_1_4/bridge.png",
+	"sea_raft": "stage_1_4/raft.png",
+	"sea_palm": "stage_1_4/palm_large.png",
+	"sea_palm_small": "stage_1_4/palm_small.png",
+	"sea_grass": "stage_1_4/grass_flower.png",
+	"sea_boulder": "stage_1_4/boulder.png",
+	"sea_seaweed": "stage_1_4/seaweed.png",
 	# synthesised entities
 	"flyer": "entities/flyer_bird.png",
 	"turret": "entities/turret.png",
@@ -179,6 +197,19 @@ static func _prefer(keys: Array) -> String:
 	return chosen
 
 static func _resolved_key(key: String) -> String:
+	# 1-4 wears its own pack wholesale: sand and grass for the ground, the
+	# crab, gull and purple chaser for the three enemy roles, and the flag as
+	# the goal. Keys it does not name fall through to the originals.
+	if Stage.is_sea():
+		match key:
+			"parallax": return "sea_panorama"
+			"dirt_tile": return "sea_sand_tile"
+			"grass_tile": return "sea_grass_cap"
+			"flyer": return "sea_seabird"
+			"horror_pursuer": return "sea_chaser"
+			"goal": return "sea_flag"
+			"moving_platform": return "sea_raft"
+			_: return key
 	# 1-S has no other stage to borrow from -- it is the first daylight stage
 	# since 1-1 and it is nowhere near the ground -- so unlike 1-B these fall
 	# through to the ORIGINAL keys rather than to another skin. That is the

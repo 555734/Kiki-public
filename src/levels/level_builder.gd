@@ -45,6 +45,8 @@ func build() -> void:
 	_decor = preload("res://src/render/decor.gd").new()
 	_decor.items = Stage.decor()
 	_static_root.add_child(_decor)
+	if Stage.water_y() != INF:
+		_build_sea()
 
 	_build_checkpoints()
 	_build_goal()
@@ -66,6 +68,21 @@ func _build_ground_bodies() -> void:
 		shape.position = rect.position + rect.size * 0.5
 		body.add_child(shape)
 	_static_root.add_child(body)
+
+## The open sea of 1-4: drawn after the decor so the rocks and pier posts
+## stand in it, with foam wherever a beach or a footing meets the water.
+func _build_sea() -> void:
+	var sea := preload("res://src/render/sea_water.gd").new()
+	sea.name = "Sea"
+	sea.water_y = Stage.water_y()
+	var shore := PackedFloat32Array()
+	var solids: Array[Rect2] = Stage.ground()
+	solids.append_array(Stage.solid_decor())
+	for r in solids:
+		shore.append(r.position.x)
+		shore.append(r.end.x)
+	sea.shore_x = shore
+	_static_root.add_child(sea)
 
 func _build_checkpoints() -> void:
 	var points := Stage.checkpoints()

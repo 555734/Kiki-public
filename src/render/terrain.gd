@@ -102,11 +102,19 @@ func _draw_slab(rect: Rect2, seed_index: int) -> void:
 		draw_arc(Vector2(cx, rect.position.y + 2.0), step * 0.56, PI * 1.15, PI * 1.85, 8,
 			Color(1, 1, 1, 0.22), 3.0, true)
 
+## 1-4's sand and grass are painted larger than 1-1's turf: its pebbles and
+## blades would be specks at the 1-1 tile size.
+func _dirt_h() -> float:
+	return 128.0 if Stage.is_sea() else Balance.DIRT_TILE_H
+
+func _grass_h() -> float:
+	return 58.0 if Stage.is_sea() else Balance.GRASS_TILE_H
+
 ## Painted terrain: seamless dirt over the slab, the grass lip tiled along its
 ## top edge, and a little contact shading down the sides so neighbouring slabs
 ## do not read as one continuous wall.
 func _draw_painted_slab(rect: Rect2) -> bool:
-	if not Art.draw_tiled(self, "dirt_tile", rect, Balance.DIRT_TILE_H):
+	if not Art.draw_tiled(self, "dirt_tile", rect, _dirt_h()):
 		return false
 	# Ambient occlusion into the ground: darkens with depth, so tall slabs get
 	# heavier toward the bottom of the screen the way the mockups do.
@@ -133,7 +141,7 @@ func _draw_painted_slab(rect: Rect2) -> bool:
 	# growing it instead would make draw_tiled repeat vertically and put a second
 	# row of blade tips halfway down the slab.
 	Art.draw_tiled(self, "grass_tile",
-		Rect2(rect.position.x, rect.position.y - Balance.GRASS_LIP,
-			rect.size.x, Balance.GRASS_TILE_H),
-		Balance.GRASS_TILE_H)
+		Rect2(rect.position.x, rect.position.y - _grass_h() * 0.25,
+			rect.size.x, _grass_h()),
+		_grass_h())
 	return true

@@ -96,6 +96,9 @@ run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/sky_probe.tsc
 step "can two people climb the Skyward Ruins"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins_probe.tscn
 
+step "can two people cross the Sunlit Coast"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/sea_stage_probe.tscn
+
 step "can two people beat the Keeper"
 # The boss stage. Its claims are arcs too -- how long a jump keeps the runner
 # above the charge, and how long the charge takes to pass under them -- so both

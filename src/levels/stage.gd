@@ -7,7 +7,8 @@ extends RefCounted
 ## map with enemies or checkpoints from another.
 
 
-enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS }
+## New stages go on the END: the value is what travels in the handshake.
+enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA }
 
 ## A fresh launch starts at 1-1. The start panel can switch to 1-2 before play.
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
@@ -35,7 +36,8 @@ static func current() -> int:
 ## and only the runner is a 3D model over it; the low-poly recipes were a worse
 ## picture of those two stages than the art they replaced.
 static func world_3d() -> bool:
-	return Balance.USE_3D and _which != Which.GREENFIELD and _which != Which.HORROR
+	return Balance.USE_3D and _which != Which.GREENFIELD and _which != Which.HORROR \
+		and _which != Which.SEA
 
 static func is_crossing() -> bool:
 	return _which == Which.CROSSING
@@ -64,6 +66,17 @@ static func is_sky() -> bool:
 static func is_skyward_ruins() -> bool:
 	return _which == Which.SKYWARD_RUINS
 
+## The first sea stage: beaches, rocks and piers over open water. Painted 2D,
+## like 1-1 and 1-2 -- see world_3d().
+static func is_sea() -> bool:
+	return _which == Which.SEA
+
+## The sea's surface on a stage that has one (1-4), or INF.
+static func water_y() -> float:
+	if is_sea():
+		return _data("level_sea_data").water_y_value()
+	return INF
+
 ## Unit vector in the direction the stage asks the team to make progress.
 ## It is shared by camera framing and directional pursuit.
 static func progress_direction() -> Vector2:
@@ -77,6 +90,8 @@ static func needs_two_devices() -> bool:
 # ------------------------------------------------------------------ constants
 
 static func kill_y() -> float:
+	if is_sea():
+		return _data("level_sea_data").kill_y_value()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").kill_y_value()
 	if is_sky():
@@ -92,6 +107,8 @@ static func kill_y() -> float:
 	return Level02Data.KILL_Y if is_crossing() else Level01Data.KILL_Y
 
 static func start() -> Vector2:
+	if is_sea():
+		return _data("level_sea_data").start_position()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").start_position()
 	if is_sky():
@@ -107,6 +124,8 @@ static func start() -> Vector2:
 	return Level02Data.START if is_crossing() else Level01Data.START
 
 static func stage_name() -> String:
+	if is_sea():
+		return _data("level_sea_data").stage_name_value()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").stage_name_value()
 	if is_sky():
@@ -122,6 +141,8 @@ static func stage_name() -> String:
 	return Level02Data.STAGE_NAME if is_crossing() else Level01Data.STAGE_NAME
 
 static func stage_number() -> String:
+	if is_sea():
+		return _data("level_sea_data").stage_number_value()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").stage_number_value()
 	if is_sky():
@@ -137,6 +158,8 @@ static func stage_number() -> String:
 	return Level02Data.STAGE_NUMBER if is_crossing() else Level01Data.STAGE_NUMBER
 
 static func objective() -> String:
+	if is_sea():
+		return _data("level_sea_data").objective_value()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").objective_value()
 	if is_sky():
@@ -154,6 +177,8 @@ static func objective() -> String:
 # ---------------------------------------------------------------------- data
 
 static func ground() -> Array[Rect2]:
+	if is_sea():
+		return _data("level_sea_data").ground()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").ground()
 	if is_sky():
@@ -169,6 +194,8 @@ static func ground() -> Array[Rect2]:
 	return Level02Data.ground() if is_crossing() else Level01Data.ground()
 
 static func solid_decor() -> Array[Rect2]:
+	if is_sea():
+		return _data("level_sea_data").solid_decor()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").solid_decor()
 	if is_sky():
@@ -184,6 +211,8 @@ static func solid_decor() -> Array[Rect2]:
 	return Level02Data.solid_decor() if is_crossing() else Level01Data.solid_decor()
 
 static func decor() -> Array[Dictionary]:
+	if is_sea():
+		return _data("level_sea_data").decor()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").decor()
 	if is_sky():
@@ -199,6 +228,8 @@ static func decor() -> Array[Dictionary]:
 	return Level02Data.decor() if is_crossing() else Level01Data.decor()
 
 static func hazards() -> Array[Dictionary]:
+	if is_sea():
+		return _data("level_sea_data").hazards()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").hazards()
 	if is_sky():
@@ -214,6 +245,8 @@ static func hazards() -> Array[Dictionary]:
 	return Level02Data.hazards() if is_crossing() else Level01Data.hazards()
 
 static func enemies() -> Array[Dictionary]:
+	if is_sea():
+		return _data("level_sea_data").enemies()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").enemies()
 	if is_sky():
@@ -229,6 +262,8 @@ static func enemies() -> Array[Dictionary]:
 	return Level02Data.enemies() if is_crossing() else Level01Data.enemies()
 
 static func gimmicks() -> Array[Dictionary]:
+	if is_sea():
+		return _data("level_sea_data").gimmicks()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").gimmicks()
 	if is_sky():
@@ -246,6 +281,8 @@ static func gimmicks() -> Array[Dictionary]:
 ## Regions one of the two players cannot see into. Empty for every stage that
 ## shows both players the same world, which is all of them until 1-V.
 static func veils() -> Array[Dictionary]:
+	if is_sea():
+		return _data("level_sea_data").veils()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").veils()
 	if is_sky():
@@ -261,6 +298,8 @@ static func veils() -> Array[Dictionary]:
 	return Level02Data.veils() if is_crossing() else Level01Data.veils()
 
 static func checkpoints() -> Array[Vector2]:
+	if is_sea():
+		return _data("level_sea_data").checkpoints()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").checkpoints()
 	if is_sky():
@@ -276,6 +315,8 @@ static func checkpoints() -> Array[Vector2]:
 	return Level02Data.checkpoints() if is_crossing() else Level01Data.checkpoints()
 
 static func goal() -> Vector2:
+	if is_sea():
+		return _data("level_sea_data").goal()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").goal()
 	if is_sky():
@@ -291,6 +332,8 @@ static func goal() -> Vector2:
 	return Level02Data.goal() if is_crossing() else Level01Data.goal()
 
 static func coins() -> Array[Vector2]:
+	if is_sea():
+		return _data("level_sea_data").coins()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").coins()
 	if is_sky():
@@ -306,6 +349,8 @@ static func coins() -> Array[Vector2]:
 	return Level02Data.coins() if is_crossing() else Level01Data.coins()
 
 static func springs() -> Array[Vector2]:
+	if is_sea():
+		return _data("level_sea_data").springs()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").springs()
 	if is_sky():
@@ -321,6 +366,8 @@ static func springs() -> Array[Vector2]:
 	return Level02Data.springs() if is_crossing() else Level01Data.springs()
 
 static func crystals() -> Array[Vector2]:
+	if is_sea():
+		return _data("level_sea_data").crystals()
 	if is_skyward_ruins():
 		return _data("level_skyward_ruins_data").crystals()
 	if is_sky():
@@ -337,6 +384,8 @@ static func crystals() -> Array[Vector2]:
 
 ## Where the pit sensor goes. Wide enough to catch the whole active stage.
 static func pit_centre_x() -> float:
+	if is_sea():
+		return 4700.0
 	if is_skyward_ruins():
 		return 0.0
 	if is_sky():

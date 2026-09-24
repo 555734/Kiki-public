@@ -294,3 +294,17 @@ readable on a phone.
   of the painted set.
 - Other stages' terrain and props remain original deterministic
   vertex-coloured recipes in `src/render/three/`.
+
+## Stage 1-4 "THE SUNLIT COAST" (`stage_1_4/`)
+
+- Owner-supplied art pack `Kiki_1-4_Sea_Assets.zip` (first bright ocean
+  concept, generated images). `tools/extract-stage-1-4.py` prepares it: it
+  removes the slivers of neighbouring sprites the pack's cut-outs carry, trims
+  each sprite, mirrors the seabird to face left like the rest of the painted
+  set, stores the backdrop as JPEG, cuts a repeating sand tile and grass cap
+  from the painted blocks, cuts the raft from the pier deck, and composes the
+  start-menu `preview.jpg` from the pieces.
+- Not used: `surf_foam.png` and `sand_right_edge.png` are empty files in the
+  pack (the foam is drawn by `src/render/sea_water.gd`), `rope_fence.png` holds
+  only two post tops, the three runner poses (the runner stays LIRA), and the
+  concept board, which the pack says is not for in-game use.

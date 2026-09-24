@@ -20,6 +20,7 @@ var _logo: Label = null
 var _stage_1_1: Button = null
 var _stage_1_2: Button = null
 var _stage_1_3: Button = null
+var _stage_1_4: Button = null
 var _local: Button = null
 ## Everything that starts or changes a connection. Greyed out together while an
 ## attempt is in flight, which is the whole of "do not let a second tap build a
@@ -102,6 +103,7 @@ func _clear_screen() -> void:
 	_stage_1_1 = null
 	_stage_1_2 = null
 	_stage_1_3 = null
+	_stage_1_4 = null
 	_local = null
 	_code = null
 	_phase_label = null
@@ -134,9 +136,13 @@ func _show_stage_screen() -> void:
 	_stage_1_3 = _stage_card(
 		"1-3", "THE SKYWARD RUINS", "二人で足場をつなぎ、天空の頂上を目指す",
 		preload("res://assets/stage_1_3/preview.png"), Stage.Which.SKYWARD_RUINS, Color("8659e8"))
+	_stage_1_4 = _stage_card(
+		"1-4", "THE SUNLIT COAST", "岩と桟橋をつないで、海の向こうの旗へ",
+		preload("res://assets/stage_1_4/preview.jpg"), Stage.Which.SEA, Color("1fa7d8"))
 	row.add_child(_stage_1_1)
 	row.add_child(_stage_1_2)
 	row.add_child(_stage_1_3)
+	row.add_child(_stage_1_4)
 	_refresh_stage_buttons()
 
 	box.add_child(_difficulty_row())
@@ -342,6 +348,10 @@ func _selected_stage_info() -> Dictionary:
 			return {"number": "1-2", "name": "THE HOLLOW OUTSKIRTS",
 				"texture": preload("res://assets/bg/horror_stage_1_2.svg"),
 				"accent": Color("4688ef")}
+		Stage.Which.SEA:
+			return {"number": "1-4", "name": "THE SUNLIT COAST",
+				"texture": preload("res://assets/stage_1_4/preview.jpg"),
+				"accent": Color("1fa7d8")}
 		Stage.Which.SKYWARD_RUINS:
 			return {"number": "1-3", "name": "THE SKYWARD RUINS",
 				"texture": preload("res://assets/stage_1_3/preview.png"),
@@ -366,9 +376,10 @@ func _select_stage(which: int) -> void:
 		_show_play_screen()
 
 func _refresh_stage_buttons() -> void:
-	if _stage_1_1 == null or _stage_1_2 == null or _stage_1_3 == null:
+	if _stage_1_1 == null or _stage_1_2 == null or _stage_1_3 == null \
+			or _stage_1_4 == null:
 		return
-	for button in [_stage_1_1, _stage_1_2, _stage_1_3]:
+	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4]:
 		var selected: bool = int(button.get_meta("which")) == Stage.current()
 		var accent: Color = button.get_meta("accent")
 		var badge: Label = button.get_meta("badge")

@@ -32,6 +32,21 @@ func _draw() -> void:
 			"keel": _keel(item["pos"], float(item.get("width", 240.0)))
 			"streamer": _streamer(item["pos"], float(item.get("scale", 1.0)))
 			"arch": _arch(item["pos"], float(item.get("scale", 1.0)))
+			# 1-4, the sea.
+			"sea_palm", "sea_palm_small":
+				Art.draw_sprite(self, String(item["type"]), item["pos"] + Vector2(0, 6.0),
+					float(item.get("height", 260.0)), bool(item.get("flip", false)))
+			"sea_grass":
+				Art.draw_sprite_w(self, "sea_grass", item["pos"] + Vector2(0, 8.0),
+					float(item.get("width", 130.0)), bool(item.get("flip", false)))
+			"sea_boulder":
+				Art.draw_sprite_w(self, "sea_boulder", item["pos"] + Vector2(0, 10.0),
+					float(item.get("width", 140.0)), bool(item.get("flip", false)))
+			"sea_seaweed":
+				Art.draw_sprite_w(self, "sea_seaweed", item["pos"] + Vector2(0, 8.0),
+					float(item.get("width", 120.0)), bool(item.get("flip", false)))
+			"sea_rock", "sea_pier", "sea_bridge":
+				_sea_footing(String(item["type"]), item["rect"])
 
 func _pipe(base: Vector2, size: Vector2) -> void:
 	var rect := Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y)
@@ -451,3 +466,23 @@ func _arch(base: Vector2, scale: float) -> void:
 	draw_line(Vector2(base.x + w * 0.5 - pier * 0.5, base.y - h * 0.74),
 		Vector2(base.x + w * 0.5 - pier * 0.2, base.y - h * 0.58),
 		Color(dark, 0.8), 2.5)
+
+## A rock, pier or bridge fitted to the slab the runner stands on. The painting
+## is widened a little past the collision so its rounded edge does not look like
+## something to slip off, and is stretched down to below the waterline so it
+## stands IN the sea rather than hovering over it.
+func _sea_footing(key: String, rect: Rect2) -> void:
+	var water := Stage.water_y()
+	var bottom := maxf(rect.position.y + rect.size.y, water + 34.0)
+	match key:
+		"sea_rock":
+			var r := Rect2(rect.position.x - rect.size.x * 0.10, rect.position.y - 12.0,
+				rect.size.x * 1.20, bottom - rect.position.y + 12.0)
+			Art.draw_stretched(self, key, r)
+		"sea_pier":
+			# Deck on top, its own legs stretched down into the water.
+			Art.draw_stretched(self, key, Rect2(rect.position.x - 8.0, rect.position.y - 5.0,
+				rect.size.x + 16.0, bottom - rect.position.y + 5.0))
+		"sea_bridge":
+			Art.draw_stretched(self, key, Rect2(rect.position.x - 10.0, rect.position.y - 6.0,
+				rect.size.x + 20.0, bottom - rect.position.y + 6.0))
