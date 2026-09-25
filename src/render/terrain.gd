@@ -45,6 +45,9 @@ func _palette() -> Dictionary:
 	}
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
+	if Stage.is_swamp():
+		_draw_swamp_slab(rect, seed_index)
+		return
 	if Balance.USE_TEXTURES and _draw_painted_slab(rect):
 		return
 	var pal := _palette()
@@ -101,6 +104,52 @@ func _draw_slab(rect: Rect2, seed_index: int) -> void:
 		var cx := rect.position.x + step * (float(s) + 0.5)
 		draw_arc(Vector2(cx, rect.position.y + 2.0), step * 0.56, PI * 1.15, PI * 1.85, 8,
 			Color(1, 1, 1, 0.22), 3.0, true)
+
+## The swamp has chunky moss and layered stone/peat, aligned to the same safe
+## collision ledge. The details repeat in world coordinates so wide banks never
+## stretch a single painted block across several screens.
+func _draw_swamp_slab(rect: Rect2, seed_index: int) -> void:
+	draw_rect(rect, Color("604b3d"))
+	if Balance.USE_TEXTURES and Art.draw_tiled(self, "sky_island_tile", rect,
+			180.0, Color("b39770")):
+		draw_rect(rect, Color(0.30, 0.19, 0.10, 0.24))
+	else:
+		draw_rect(Rect2(rect.position.x, rect.position.y + 34.0,
+			rect.size.x, rect.size.y - 34.0), Color("514136"))
+	# Sparse dark fractures keep the rock legible where it disappears under
+	# the poison, without stretching one facet across an entire bank.
+	var left := int(floorf(rect.position.x / 76.0))
+	var right := int(ceilf(rect.end.x / 76.0))
+	for n in range(left, right):
+		var x := float(n) * 76.0 + DrawUtil.hash01(n * 17 + seed_index) * 18.0
+		var y := rect.position.y + 72.0 + float(posmod(n, 3)) * 60.0
+		if y + 28.0 < rect.end.y:
+			draw_line(Vector2(x, y), Vector2(x + 28.0, y + 8.0),
+				Color(0.19, 0.16, 0.13, 0.30), 2.0)
+	# Raised, rounded moss cap; short hanging strands mark the safe top edge.
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 32.0), Color("54852a"))
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 13.0), Color("a6d941"))
+	for n in range(int(floorf(rect.position.x / 30.0)),
+			int(ceilf(rect.end.x / 30.0))):
+		var x := float(n) * 30.0 + 15.0
+		if x < rect.position.x or x > rect.end.x:
+			continue
+		var h := 18.0 + DrawUtil.hash01(n * 19 + 7) * 18.0
+		draw_circle(Vector2(x, rect.position.y + 20.0), 17.0, Color("6eab28"))
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(x - 8.0, rect.position.y + 23.0),
+			Vector2(x + 9.0, rect.position.y + 23.0),
+			Vector2(x + 2.0, rect.position.y + 23.0 + h)]), Color("559326"))
+		draw_line(Vector2(x - 9.0, rect.position.y + 3.0),
+			Vector2(x + 5.0, rect.position.y + 3.0), Color("c6ee60"), 2.0)
+	if Balance.USE_TEXTURES:
+		Art.draw_tiled(self, "sky_island_cap", Rect2(rect.position.x,
+			rect.position.y - 16.0, rect.size.x, 46.0), 46.0,
+			Color("a0ec61"))
+	draw_rect(Rect2(rect.position.x, rect.position.y, 7.0, rect.size.y),
+		Color(0, 0, 0, 0.12))
+	draw_rect(Rect2(rect.end.x - 7.0, rect.position.y, 7.0, rect.size.y),
+		Color(0, 0, 0, 0.12))
 
 ## 1-4's sand and grass are painted larger than 1-1's turf: its pebbles and
 ## blades would be specks at the 1-1 tile size.

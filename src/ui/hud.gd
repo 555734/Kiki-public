@@ -1,14 +1,8 @@
 class_name Hud
 extends CanvasLayer
-## Screen furniture, laid out from the mockups: the two angled player panels top
-## left, the stage plate and objective top right, and the P2 ability controls.
-##
-## The guardian cannot die, so P2's panel carries the support gauge instead of
-## hearts. Tool buttons show their costs, and the overlay adds a segmented,
-## numeric gauge so the remaining budget is readable on a phone at a glance.
+## Screen furniture: stage information, ability controls, and run messages.
+## The upper-left player and life panels are intentionally hidden.
 
-const PANEL_W := 292.0
-const PANEL_H := 54.0
 const SKEW := 16.0
 
 var guardian: Guardian = null

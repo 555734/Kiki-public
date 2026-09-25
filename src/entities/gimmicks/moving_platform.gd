@@ -43,6 +43,21 @@ func position_at(at_tick: int) -> Vector2:
 
 func _draw() -> void:
 	var r := Rect2(-span * 0.5, span)
+	if Stage.is_swamp():
+		# A raft of short lashed logs; its top is exactly the collision top.
+		for i in range(maxi(1, int(ceilf(span.x / 30.0)))):
+			var x := r.position.x + float(i) * 30.0
+			var width := minf(28.0, r.end.x - x)
+			if width <= 0.0:
+				continue
+			draw_rect(Rect2(x, r.position.y, width, r.size.y), Color("966136"))
+			draw_rect(Rect2(x + 2.0, r.position.y + 2.0, width - 4.0, 5.0),
+				Color("c58d4b"))
+			draw_line(Vector2(x + 5.0, r.position.y + 12.0),
+				Vector2(x + width - 5.0, r.position.y + 12.0), Color("70482b"), 2.0)
+		draw_line(Vector2(r.position.x, r.end.y - 3.0),
+			Vector2(r.end.x, r.end.y - 3.0), Color("4d3527"), 5.0)
+		return
 	if Balance.USE_TEXTURES and Art.draw_stretched(self, "moving_platform", r):
 		draw_rect(Rect2(r.position.x, r.position.y + r.size.y - 4.0, r.size.x, 4.0),
 			Color(0.10, 0.09, 0.08, 0.35))

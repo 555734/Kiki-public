@@ -308,3 +308,19 @@ readable on a phone.
   pack (the foam is drawn by `src/render/sea_water.gd`), `rope_fence.png` holds
   only two post tops, the three runner poses (the runner stays LIRA), and the
   concept board, which the pack says is not for in-game use.
+
+## Stage 1-5 "THE POISON MARSH" (`stage_1_5/`)
+
+- `concept_board.png`, `concept_board_v2.png`, and `concept_board_v3.png` were
+  generated with OpenAI's built-in image generation tool in this task. The
+  owner-provided platform-game screenshot served only as a texture/style
+  reference for v2; v3 adds moderate material depth. The boards are design
+  references, and v3 supplies the stage-selection preview's scene area.
+- `distant_swamp.png` is a separately generated distant background, with no
+  gameplay geometry. `props_atlas.png` is a separately generated transparent
+  2x2 sheet of a willow, mushrooms, reeds, and a boulder. Both were generated
+  with the same built-in tool from the approved v3 direction.
+- Walkable ground and stones reuse the existing `sky/island_tile.png` and
+  `sky/island_cap.png` textures with swamp tinting; the poisonous water, bridge,
+  raft, and falling floor are drawn at runtime. No image from the owner's
+  screenshot is copied into the game.

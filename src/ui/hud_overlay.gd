@@ -2,8 +2,7 @@ extends Control
 ## Small interactive/readability layer above the painted HUD.
 ##
 ## hud_canvas.gd stays the single big painter for the game HUD. This layer only
-## owns the two things that need either a real Control node (the post-clear
-## button) or a deliberately stronger readout (the support gauge).
+## owns the post-clear button, which needs a real Control node.
 
 var hud: Node = null
 var _return_button: Button = null
@@ -39,37 +38,6 @@ func _draw() -> void:
 		# Cover the old keyboard-only hint. The real button above is usable on
 		# touch, mouse and controller-emulated pointer input.
 		pass
-
-## Ten blocks plus an explicit number. The previous 12px continuous line made
-## 35 and 55 gauge look almost identical on a phone; this makes both the amount
-## and the rough number of remaining actions readable without measuring pixels.
-func _draw_readable_gauge() -> void:
-	var level: float = clampf(float(hud.gauge()), 0.0, Balance.GAUGE_MAX)
-	var frac := level / maxf(Balance.GAUGE_MAX, 0.001)
-	# Same P2 panel as hud_canvas.gd: origin (30, 76), lower-right readout area.
-	var box := Rect2(92.0, 103.0, 212.0, 24.0)
-	DrawUtil.rounded_rect(self, box, 7.0, Color(0.025, 0.065, 0.11, 0.98))
-	draw_rect(box, Color(0.31, 0.85, 1.0, 0.72), false, 1.5)
-
-	var inside := Rect2(box.position + Vector2(4.0, 4.0), box.size - Vector2(8.0, 8.0))
-	var gap := 2.0
-	var seg_w := (inside.size.x - gap * 9.0) / 10.0
-	var lit := frac * 10.0
-	var active_col := Balance.C_ACCENT if frac > 0.30 else Color("ff9b4a")
-	for i in 10:
-		var r := Rect2(inside.position.x + float(i) * (seg_w + gap), inside.position.y,
-			seg_w, inside.size.y)
-		var amount := clampf(lit - float(i), 0.0, 1.0)
-		draw_rect(r, Color(0.11, 0.18, 0.25, 0.95))
-		if amount > 0.0:
-			draw_rect(Rect2(r.position, Vector2(r.size.x * amount, r.size.y)), active_col)
-
-	# A dark strip behind the number keeps it legible over both filled and empty blocks.
-	var number_box := Rect2(box.position.x + 63.0, box.position.y + 3.0, 86.0, 18.0)
-	DrawUtil.rounded_rect(self, number_box, 6.0, Color(0.02, 0.04, 0.07, 0.82))
-	var text := "%d / %d" % [int(round(level)), int(round(Balance.GAUGE_MAX))]
-	draw_string(Art.font(), number_box.position + Vector2(0.0, 14.0), text,
-		HORIZONTAL_ALIGNMENT_CENTER, number_box.size.x, 13, Color(1, 1, 1, 0.98))
 
 func _return_to_start() -> void:
 	if not is_instance_valid(hud):

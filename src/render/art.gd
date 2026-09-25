@@ -113,6 +113,10 @@ const MANIFEST := {
 	"sea_grass": "stage_1_4/grass_flower.png",
 	"sea_boulder": "stage_1_4/boulder.png",
 	"sea_seaweed": "stage_1_4/seaweed.png",
+	# Stage 1-5: the panorama and four transparent props follow the approved
+	# mid-detail swamp concept board. Ground and poison are drawn in world space.
+	"swamp_panorama": "stage_1_5/distant_swamp.png",
+	"swamp_props_atlas": "stage_1_5/props_atlas.png",
 	# synthesised entities
 	"flyer": "entities/flyer_bird.png",
 	"turret": "entities/turret.png",
@@ -197,6 +201,10 @@ static func _prefer(keys: Array) -> String:
 	return chosen
 
 static func _resolved_key(key: String) -> String:
+	if Stage.is_swamp():
+		match key:
+			"parallax": return "swamp_panorama"
+			_: return key
 	# 1-4 wears its own pack wholesale: sand and grass for the ground, the
 	# crab, gull and purple chaser for the three enemy roles, and the flag as
 	# the goal. Keys it does not name fall through to the originals.

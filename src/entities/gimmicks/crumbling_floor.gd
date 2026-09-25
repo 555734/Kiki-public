@@ -80,6 +80,15 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		_draw_cracks(r)
 		return
+	if Stage.is_swamp():
+		draw_rect(r, Color("745238"))
+		draw_rect(Rect2(r.position, Vector2(r.size.x, 9.0)), Color("a4d74a"))
+		draw_rect(Rect2(r.position.x, r.position.y + 9.0,
+			r.size.x, 7.0), Color("5d962d"))
+		if _shake > 0.0:
+			draw_rect(r, Color(0.85, 0.35, 0.12, _shake * 0.28))
+		_draw_cracks(r)
+		return
 	if not _draw_painted(r):
 		_draw_flat(r)
 	_draw_cracks(r)

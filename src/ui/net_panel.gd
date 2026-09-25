@@ -21,6 +21,7 @@ var _stage_1_1: Button = null
 var _stage_1_2: Button = null
 var _stage_1_3: Button = null
 var _stage_1_4: Button = null
+var _stage_1_5: Button = null
 var _local: Button = null
 ## Everything that starts or changes a connection. Greyed out together while an
 ## attempt is in flight, which is the whole of "do not let a second tap build a
@@ -104,6 +105,7 @@ func _clear_screen() -> void:
 	_stage_1_2 = null
 	_stage_1_3 = null
 	_stage_1_4 = null
+	_stage_1_5 = null
 	_local = null
 	_code = null
 	_phase_label = null
@@ -139,10 +141,15 @@ func _show_stage_screen() -> void:
 	_stage_1_4 = _stage_card(
 		"1-4", "THE SUNLIT COAST", "岩と桟橋をつないで、海の向こうの旗へ",
 		preload("res://assets/stage_1_4/preview.jpg"), Stage.Which.SEA, Color("1fa7d8"))
+	_stage_1_5 = _stage_card(
+		"1-5", "THE POISON MARSH", "毒沼の足場を渡り、岸の門へ",
+		_swamp_preview(),
+		Stage.Which.SWAMP, Color("75b72b"))
 	row.add_child(_stage_1_1)
 	row.add_child(_stage_1_2)
 	row.add_child(_stage_1_3)
 	row.add_child(_stage_1_4)
+	row.add_child(_stage_1_5)
 	_refresh_stage_buttons()
 
 	box.add_child(_difficulty_row())
@@ -298,10 +305,11 @@ func _stage_card(number: String, stage_name: String, description: String,
 	shade.color = Color(0.015, 0.09, 0.18, 0.76)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(shade)
-	var caption := _title("%s   %s\n%s" % [number, stage_name, description], 16, Color.WHITE)
+	var caption := _title("%s  %s\n%s" % [number, stage_name, description], 13, Color.WHITE)
 	caption.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	caption.offset_top = -94
-	caption.offset_bottom = -8
+	caption.offset_top = -102
+	caption.offset_bottom = -5
+	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(caption)
@@ -352,12 +360,23 @@ func _selected_stage_info() -> Dictionary:
 			return {"number": "1-4", "name": "THE SUNLIT COAST",
 				"texture": preload("res://assets/stage_1_4/preview.jpg"),
 				"accent": Color("1fa7d8")}
+		Stage.Which.SWAMP:
+			return {"number": "1-5", "name": "THE POISON MARSH",
+				"texture": _swamp_preview(),
+				"accent": Color("75b72b")}
 		Stage.Which.SKYWARD_RUINS:
 			return {"number": "1-3", "name": "THE SKYWARD RUINS",
 				"texture": preload("res://assets/stage_1_3/preview.png"),
 				"accent": Color("8659e8")}
 	return {"number": "1-1", "name": "GREENFIELD PLAINS",
 		"texture": preload("res://assets/bg/parallax.png"), "accent": Color("15cf8a")}
+
+func _swamp_preview() -> Texture2D:
+	var cropped := AtlasTexture.new()
+	cropped.atlas = preload("res://assets/stage_1_5/concept_board_v3.png")
+	# The lower third is the artist's prop studies; the card shows the scene.
+	cropped.region = Rect2(0, 0, 1536, 660)
+	return cropped
 
 ## Stage buttons are selection, not launch. Rebuilding by reloading the current
 ## scene guarantees every stage-owned object uses the same Stage value; trying
@@ -377,9 +396,9 @@ func _select_stage(which: int) -> void:
 
 func _refresh_stage_buttons() -> void:
 	if _stage_1_1 == null or _stage_1_2 == null or _stage_1_3 == null \
-			or _stage_1_4 == null:
+			or _stage_1_4 == null or _stage_1_5 == null:
 		return
-	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4]:
+	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4, _stage_1_5]:
 		var selected: bool = int(button.get_meta("which")) == Stage.current()
 		var accent: Color = button.get_meta("accent")
 		var badge: Label = button.get_meta("badge")

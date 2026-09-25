@@ -46,7 +46,7 @@ func build() -> void:
 	_decor.items = Stage.decor()
 	_static_root.add_child(_decor)
 	if Stage.water_y() != INF:
-		_build_sea()
+		_build_water()
 
 	_build_checkpoints()
 	_build_goal()
@@ -71,9 +71,10 @@ func _build_ground_bodies() -> void:
 
 ## The open sea of 1-4: drawn after the decor so the rocks and pier posts
 ## stand in it, with foam wherever a beach or a footing meets the water.
-func _build_sea() -> void:
+func _build_water() -> void:
 	var sea := preload("res://src/render/sea_water.gd").new()
-	sea.name = "Sea"
+	sea.name = "PoisonWater" if Stage.is_swamp() else "Sea"
+	sea.poison = Stage.is_swamp()
 	sea.water_y = Stage.water_y()
 	var shore := PackedFloat32Array()
 	var solids: Array[Rect2] = Stage.ground()
@@ -120,6 +121,7 @@ func rebuild_dynamic() -> void:
 	for h in Stage.hazards():
 		var hazard := Hazard.new()
 		hazard.span = h["size"]
+		hazard.draw_spikes = bool(h.get("draw_spikes", true))
 		hazard.global_position = h["pos"]
 		_dynamic.add_child(hazard)
 		_veil(hazard, Veil.HAZARDS)

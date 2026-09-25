@@ -8,7 +8,6 @@ extends Control
 var hud: Node = null
 
 const NAVY := Color(0.05, 0.10, 0.16, 0.82)
-const NAVY_EDGE := Color(0.31, 0.85, 1.0, 0.85)
 
 ## How long the stage banner stays at full strength, and how long it takes to
 ## settle back. See _stage_plate.
@@ -22,11 +21,9 @@ func _draw() -> void:
 		return
 	var view := size
 	var hub: InputHub = hud.input_hub if is_instance_valid(hud.input_hub) else null
-	_player_panels()
 	_stage_plate(view)
 	# The ability bar is the guardian's control, not a readout: on the runner's
-	# device none of it responds, so it is not drawn there. The shared gauge the
-	# runner does need is already on the P2 panel above.
+	# device none of it responds, so it is not drawn there.
 	if hub == null or hub.owns_guardian_controls():
 		_ability_bar(view)
 	if hub != null and hub.stick_visual().get("touch_mode", false):
@@ -42,110 +39,6 @@ func _draw() -> void:
 		_game_over_panel(view)
 	if not hud.cleared().is_empty():
 		_clear_panel(view)
-
-# ------------------------------------------------------------------- panels
-
-## The angled plate from the mockups: a parallelogram with a portrait inset.
-func _plate(origin: Vector2, w: float, h: float, accent: bool) -> PackedVector2Array:
-	var skew := Hud.SKEW
-	var pts := PackedVector2Array([
-		origin,
-		origin + Vector2(w, 0),
-		origin + Vector2(w - skew, h),
-		origin + Vector2(0, h),
-	])
-	draw_colored_polygon(pts, NAVY)
-	var closed := PackedVector2Array(pts)
-	closed.append(pts[0])
-	draw_polyline(closed, NAVY_EDGE if accent else Color(0.55, 0.68, 0.8, 0.5),
-		2.0 if accent else 1.4)
-	return pts
-
-func _player_panels() -> void:
-	var font := Art.font()
-	var w := Hud.PANEL_W
-	var h := Hud.PANEL_H
-
-	# --- P1: LIRA, hearts ---
-	var p1 := Vector2(16, 14)
-	_plate(p1, w, h, false)
-	_portrait(p1 + Vector2(5, 5), h - 10.0, true)
-	draw_string(font, p1 + Vector2(h + 6, 22), "P1", HORIZONTAL_ALIGNMENT_LEFT, -1, 15,
-		Color(0.42, 0.82, 1.0))
-	draw_string(font, p1 + Vector2(h + 30, 22), "LIRA", HORIZONTAL_ALIGNMENT_LEFT, -1, 17,
-		Color(1, 1, 1, 0.95))
-	for i in range(Balance.RUNNER_MAX_HP):
-		var current_hp: int = hud.hp()
-		_heart(p1 + Vector2(h + 10.0 + float(i) * 26.0, 38.0), 9.0, i < current_hp)
-
-	# --- P2: ORION, support gauge (see the class comment for why not hearts) ---
-	var p2 := Vector2(30, 14 + h + 8.0)
-	_plate(p2, w, h, true)
-	_portrait(p2 + Vector2(5, 5), h - 10.0, false)
-	draw_string(font, p2 + Vector2(h + 6, 22), "P2", HORIZONTAL_ALIGNMENT_LEFT, -1, 15,
-		Color(0.42, 0.82, 1.0))
-	draw_string(font, p2 + Vector2(h + 30, 22), "ORION", HORIZONTAL_ALIGNMENT_LEFT, -1, 17,
-		Color(1, 1, 1, 0.95))
-	_platform_pips(p2 + Vector2(h + 10, 32.0))
-
-## The points gauge is gone; what the guardian needs to know instead is how
-## many of their two platforms are still to place before the oldest is taken.
-func _platform_pips(at: Vector2) -> void:
-	var font := Art.font()
-	var alive := 0
-	if hud.guardian != null and is_instance_valid(hud.guardian):
-		alive = hud.guardian.holograms_of(Hologram.Kind.PLATFORM).size()
-	draw_string(font, at + Vector2(0, 11), "足場", HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
-		Color(0.75, 0.9, 1.0, 0.9))
-	for i in Balance.PLATFORM_MAX_ALIVE:
-		var c := at + Vector2(46.0 + float(i) * 26.0, 6.0)
-		var ready := i < Balance.PLATFORM_MAX_ALIVE - alive
-		DrawUtil.rounded_rect(self, Rect2(c - Vector2(10, 5), Vector2(20, 10)), 3.0,
-			Color(0.42, 0.85, 1.0, 0.95) if ready else Color(0.2, 0.3, 0.4, 0.8))
-
-func _portrait(at: Vector2, s: float, is_runner: bool) -> void:
-	var r := Rect2(at, Vector2(s, s))
-	DrawUtil.rounded_rect(self, r, 6.0, Color(0.09, 0.16, 0.24, 0.95))
-	if Art.draw_stretched(self, "portrait_lira" if is_runner else "portrait_orion", r):
-		draw_rect(r, Color(0.31, 0.85, 1.0, 0.5), false, 1.5)
-		return
-	var c := r.get_center()
-	if is_runner:
-		draw_circle(c + Vector2(0, 2), s * 0.30, Balance.C_SKIN)
-		draw_circle(c + Vector2(0, -3), s * 0.30, Balance.C_HAIR)
-		draw_rect(Rect2(c.x - s * 0.30, c.y - 4.0, s * 0.60, 4.0), Balance.C_HAIR)
-		draw_circle(c + Vector2(-s * 0.10, s * 0.04), 2.0, Color("2a1f18"))
-		draw_circle(c + Vector2(s * 0.10, s * 0.04), 2.0, Color("2a1f18"))
-		draw_colored_polygon(PackedVector2Array([
-			c + Vector2(-s * 0.34, s * 0.20), c + Vector2(s * 0.34, s * 0.20),
-			c + Vector2(s * 0.30, s * 0.42), c + Vector2(-s * 0.30, s * 0.42),
-		]), Balance.C_SCARF)
-	else:
-		# ORION: a hood with two cold points of light, as in the mockups.
-		draw_colored_polygon(PackedVector2Array([
-			c + Vector2(0, -s * 0.38), c + Vector2(s * 0.34, s * 0.06),
-			c + Vector2(s * 0.26, s * 0.42), c + Vector2(-s * 0.26, s * 0.42),
-			c + Vector2(-s * 0.34, s * 0.06),
-		]), Color("2c3a63"))
-		draw_circle(c + Vector2(0, s * 0.04), s * 0.22, Color("101828"))
-		draw_circle(c + Vector2(-s * 0.09, s * 0.02), 2.6, Balance.C_ACCENT)
-		draw_circle(c + Vector2(s * 0.09, s * 0.02), 2.6, Balance.C_ACCENT)
-	draw_rect(r, Color(0.31, 0.85, 1.0, 0.5), false, 1.5)
-
-func _heart(at: Vector2, r: float, filled: bool) -> void:
-	if Art.tex("heart") != null:
-		var tint := Color(1, 1, 1, 1) if filled else Color(0.30, 0.33, 0.40, 0.85)
-		if Art.draw_sprite(self, "heart", at + Vector2(0.0, r * 1.15), r * 2.4, false, tint):
-			return
-	var col := Balance.C_HEART if filled else Color(0.25, 0.28, 0.34, 0.75)
-	draw_circle(at + Vector2(-r * 0.42, -r * 0.22), r * 0.58, col)
-	draw_circle(at + Vector2(r * 0.42, -r * 0.22), r * 0.58, col)
-	draw_colored_polygon(PackedVector2Array([
-		at + Vector2(-r * 0.96, -r * 0.02), at + Vector2(r * 0.96, -r * 0.02),
-		at + Vector2(0, r * 1.05),
-	]), col)
-	if filled:
-		draw_circle(at + Vector2(-r * 0.45, -r * 0.38), r * 0.20, Color(1, 1, 1, 0.55))
 
 func _gauge_bar(at: Vector2, w: float, h: float) -> void:
 	var level: float = hud.gauge()

@@ -6,6 +6,7 @@ var items: Array[Dictionary] = []
 
 func _ready() -> void:
 	z_index = 1
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 
 func _draw() -> void:
 	for item in items:
@@ -47,6 +48,17 @@ func _draw() -> void:
 					float(item.get("width", 120.0)), bool(item.get("flip", false)))
 			"sea_rock", "sea_pier", "sea_bridge":
 				_sea_footing(String(item["type"]), item["rect"])
+			"swamp_tree":
+				_swamp_prop(Rect2(0, 0, 768, 512), item["pos"],
+					float(item.get("height", 260.0)), bool(item.get("flip", false)))
+			"swamp_mushroom":
+				_swamp_prop(Rect2(768, 0, 768, 512), item["pos"], 120.0)
+			"swamp_reeds":
+				_swamp_prop(Rect2(0, 512, 768, 512), item["pos"], 115.0)
+			"swamp_boulder":
+				_swamp_prop(Rect2(768, 512, 768, 512), item["pos"], 130.0)
+			"swamp_stone", "swamp_bridge":
+				_swamp_footing(String(item["type"]), item["rect"])
 
 func _pipe(base: Vector2, size: Vector2) -> void:
 	var rect := Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y)
@@ -486,3 +498,53 @@ func _sea_footing(key: String, rect: Rect2) -> void:
 		"sea_bridge":
 			Art.draw_stretched(self, key, Rect2(rect.position.x - 10.0, rect.position.y - 6.0,
 				rect.size.x + 20.0, bottom - rect.position.y + 6.0))
+
+func _swamp_prop(region: Rect2, bottom_centre: Vector2, height: float,
+		flip_h: bool = false) -> void:
+	var atlas := Art.tex("swamp_props_atlas")
+	if atlas == null:
+		return
+	var width := height * region.size.x / region.size.y
+	var dest := Rect2(bottom_centre - Vector2(width * 0.5, height),
+		Vector2(width, height))
+	if flip_h:
+		draw_set_transform(Vector2(bottom_centre.x * 2.0, 0.0), 0.0,
+			Vector2(-1.0, 1.0))
+	draw_texture_rect_region(atlas, dest, region)
+	if flip_h:
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _swamp_footing(key: String, rect: Rect2) -> void:
+	if key == "swamp_stone":
+		var bottom := Stage.water_y() + 25.0
+		var face := Rect2(rect.position.x - 8.0, rect.position.y + 13.0,
+			rect.size.x + 16.0, bottom - rect.position.y - 13.0)
+		if not Art.draw_tiled(self, "sky_island_tile", face, 145.0,
+				Color("b1a382")):
+			draw_rect(face, Color("625c50"))
+		draw_rect(face, Color(0.17, 0.14, 0.10, 0.10))
+		draw_rect(Rect2(rect.position.x - 9.0, rect.position.y - 8.0,
+			rect.size.x + 18.0, 27.0), Color("68a52f"))
+		draw_rect(Rect2(rect.position.x - 8.0, rect.position.y - 8.0,
+			rect.size.x + 16.0, 8.0), Color("b4dd4f"))
+		for n in range(maxi(1, int(rect.size.x / 32.0))):
+			var x := rect.position.x + float(n) * 32.0 + 20.0
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(x - 8.0, rect.position.y + 16.0),
+				Vector2(x + 8.0, rect.position.y + 16.0),
+				Vector2(x, rect.position.y + 31.0 + float(n % 3) * 5.0)]),
+				Color("5f972a"))
+		Art.draw_tiled(self, "sky_island_cap", Rect2(rect.position.x - 9.0,
+			rect.position.y - 12.0, rect.size.x + 18.0, 35.0), 35.0,
+			Color("a0ec61"))
+		return
+	# The walkable bridge deck follows the collision rectangle exactly.
+	for n in range(maxi(1, int(ceilf(rect.size.x / 32.0)))):
+		var x := rect.position.x + float(n) * 32.0
+		var width := minf(30.0, rect.end.x - x)
+		if width > 0.0:
+			draw_rect(Rect2(x, rect.position.y, width, rect.size.y), Color("915a31"))
+			draw_rect(Rect2(x + 2.0, rect.position.y + 2.0,
+				maxf(0.0, width - 4.0), 5.0), Color("c58a4a"))
+	draw_line(Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y),
+		Color("523b29"), 6.0)
