@@ -88,7 +88,8 @@ enum World {
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
 ## 15: sky crows add enemies after each stage's own, and the goal needs a key.
-const VERSION: int = 15
+## 16: 1-4 rebuilt (new enemies and layout).
+const VERSION: int = 16
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

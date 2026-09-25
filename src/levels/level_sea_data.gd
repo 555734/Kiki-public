@@ -1,27 +1,35 @@
 extends RefCounted
-## Stage 1-4 "THE SUNLIT COAST" -- the first sea stage.
+## Stage 1-4 "THE SUNLIT COAST" -- the sea stage, rebuilt as a hard one.
 ##
-## A bright shoreline run, left to right, drawn from the 1-4 sea art pack.
-## Between the beaches is open water: falling in is a fall, so every crossing
-## is a question of footing. Six beats:
+## A shoreline run, left to right, drawn from the 1-4 sea art pack. The coast
+## is all relief now: sea stacks, cliffs and drops of up to 560px, with open
+## water under everything, so a miss is a fall. Nine beats:
 ##
-##   A  beach start       -- read the crab, the purple chaser wakes behind.
-##   B  stepping rocks    -- three mossy rocks, jumps anyone can make.
-##   C  the old pier      -- 540px of missing planks NEEDS one guardian slab.
-##   D  cliff island      -- a rock step, then 750px of open water: one slab
-##                           placed well, or two placed safely.
-##   E  drifting raft     -- a moving platform ferries the runner across.
-##   F  rope bridge       -- a bridge and a plank that gives way.
-##   G  last crossing     -- 650px of water with the chaser closing: guardian.
-##   H  lighthouse point  -- the goal flag.
+##   A  beach start       -- two crabs, the purple chaser wakes early.
+##   A2 dune steps        -- two 110px step-ups to warm the jump up.
+##   B  stepping rocks    -- rocks that rise and fall, then a cliff with a
+##                           turret firing down at the climb.
+##   C  crumbling pier    -- three planks that give way, then 560px of open
+##                           water that NEEDS a guardian slab.
+##   D  sea stacks        -- three pillars climbing 120px each, then a long
+##                           drop to a beach guarded by a turret.
+##   E  the lift raft     -- a raft rising 300px up the face of a cliff.
+##   F  blinking steps    -- three blink platforms over 700px of sea, out of
+##                           phase, so the crossing is a rhythm.
+##   G  the sea wall      -- a spring over a 280px wall, then 620px of water
+##                           with seabirds over it: guardian.
+##   H  falling bridge    -- three crumbling planks, the chaser closing.
+##   I  last climb        -- two steps up and 650px of water: guardian, then
+##                           the lighthouse point and the flag.
 ##
-## Jumps are sized against the measured runner: a sprint jump carries ~301px
-## across and ~193px up, so the rock and bridge gaps (80..180px) are free and
-## the three water gaps (540, 650, 750px) are not.
+## Jumps are sized against the measured runner (B = 48): a jump rises 154px
+## (184 at a sprint), a sprint jump carries ~300px, a spring ~307px. So every
+## unassisted gap is <= 200px, every unassisted step-up <= 120px, and the three
+## guardian crossings are 560..650px -- nothing sits in the unfair middle.
 ##
 ## Enemy vocabulary: crabs walk the sand (the walker, reskinned), seabirds own
-## the air (the flyer, reskinned), and the purple chaser is the unkillable
-## pressure from behind (the pursuer, reskinned). Art resolves the skins.
+## the air (the flyer, reskinned), turrets hold the cliff tops, and the purple
+## chaser is the unkillable pressure from behind (the pursuer, reskinned).
 
 const GROUND_BASE := 900.0
 ## The sea's surface. Everything below it is water, drawn by SeaWater.
@@ -40,17 +48,26 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
-## [x0, x1, top] for every beach and cliff. Drawn down to GROUND_BASE, which
-## is under the water, so a beach reads as sand running into the sea.
+## [x0, x1, top] for every beach, cliff and sea stack. Drawn down to
+## GROUND_BASE, under the water, so each one reads as rock rising out of the sea.
 const SLABS := [
-	[-1600.0, 880.0, 400.0],   # A beach start
-	[1900.0, 2500.0, 380.0],   # B after the rocks
-	[3700.0, 4300.0, 340.0],   # C after the pier
-	[4700.0, 5300.0, 290.0],   # D cliff island
-	[6050.0, 6500.0, 340.0],   # E raft landing
-	[7250.0, 7900.0, 310.0],   # F bridge head
-	[8450.0, 9050.0, 270.0],   # G last beach before the crossing
-	[9700.0, 10950.0, 250.0],  # H lighthouse point
+	[-1600.0, 600.0, 400.0],    # A beach start
+	[600.0, 900.0, 300.0],      # A2 dune step
+	[900.0, 1200.0, 190.0],     # A2 dune top
+	[2120.0, 2500.0, 120.0],    # B cliff (turret)
+	[3600.0, 4000.0, 200.0],    # C landing after the guardian crossing
+	[4150.0, 4300.0, 80.0],     # D sea stack 1
+	[4450.0, 4600.0, -40.0],    # D sea stack 2
+	[4750.0, 4900.0, -160.0],   # D sea stack 3, the high point
+	[5100.0, 5600.0, 300.0],    # D beach below (turret)
+	[5900.0, 6300.0, 0.0],      # E cliff the raft climbs to
+	[7000.0, 7400.0, 180.0],    # F landing after the blink steps
+	[7400.0, 8000.0, -100.0],   # G sea wall top (spring below)
+	[8620.0, 9100.0, 120.0],    # G beach after the guardian crossing
+	[9700.0, 10100.0, 60.0],    # H landing after the falling bridge
+	[10100.0, 10350.0, -40.0],  # I step
+	[10350.0, 10600.0, -140.0], # I step (turret)
+	[11250.0, 12400.0, 100.0],  # I lighthouse point
 ]
 
 static func ground() -> Array[Rect2]:
@@ -59,22 +76,17 @@ static func ground() -> Array[Rect2]:
 		g.append(Rect2(s[0], s[2], s[1] - s[0], GROUND_BASE - s[2]))
 	return g
 
-## Everything you can stand on that is not a beach: rocks, piers and a bridge.
+## Everything you can stand on that is not a beach: rocks and pier ends.
 ## The rect is the walkable slab; the painting is fitted to it by Decor, and
 ## reaches down into the water.
 static func _footing() -> Array[Dictionary]:
 	return [
-		# B -- stepping rocks.
-		{"type": "sea_rock", "rect": Rect2(1040, 405, 150, 40)},
-		{"type": "sea_rock", "rect": Rect2(1370, 380, 150, 40)},
-		{"type": "sea_rock", "rect": Rect2(1690, 365, 130, 40)},
-		# C -- the old pier, with its middle gone.
-		{"type": "sea_pier", "rect": Rect2(2600, 360, 360, 30)},
-		{"type": "sea_bridge", "rect": Rect2(3500, 350, 200, 30)},
-		# D -- one rock between the pier beach and the cliff.
-		{"type": "sea_rock", "rect": Rect2(4440, 350, 130, 40)},
-		# F -- the rope bridge's fixed half.
-		{"type": "sea_pier", "rect": Rect2(7990, 305, 170, 26)},
+		# B -- stepping rocks that go down, down, then up to the cliff.
+		{"type": "sea_rock", "rect": Rect2(1330, 260, 120, 40)},
+		{"type": "sea_rock", "rect": Rect2(1600, 330, 110, 40)},
+		{"type": "sea_rock", "rect": Rect2(1860, 230, 110, 40)},
+		# C -- the last sound piece of the pier, where the planks run out.
+		{"type": "sea_pier", "rect": Rect2(2980, 150, 60, 30)},
 	]
 
 static func solid_decor() -> Array[Rect2]:
@@ -88,109 +100,135 @@ static func hazards() -> Array[Dictionary]:
 
 static func enemies() -> Array[Dictionary]:
 	return [
-		# The purple chaser: permanent pressure from behind, a little gentler
-		# than 1-2's because the water gaps already ask for the guardian.
+		# The purple chaser: faster than it used to be, and awake sooner.
 		{
 			"type": "sky_pursuer",
 			"pos": Vector2(-1900, 335),
-			"delay": 3.0,
-			"speed": 200.0,
-			"catchup": 480.0,
-			"stun": 1.5,
+			"delay": 2.5,
+			"speed": 240.0,
+			"catchup": 540.0,
+			"stun": 1.3,
 		},
 		# Crabs walk the sand (walker, sea skin). y = ledge top - 21.
 		{"type": "walker", "pos": Vector2(-300, 379), "patrol": 160.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(2200, 359), "patrol": 150.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(4000, 319), "patrol": 140.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(5000, 269), "patrol": 150.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(7600, 289), "patrol": 150.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(8750, 249), "patrol": 150.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(10250, 229), "patrol": 200.0, "skin": "sea_crab"},
-		# Seabirds own the air over the water (flyer, sea skin).
-		{"type": "flyer", "pos": Vector2(1300, 230), "patrol": 160.0},
-		{"type": "flyer", "pos": Vector2(3230, 210), "patrol": 200.0},
-		{"type": "flyer", "pos": Vector2(5680, 170), "patrol": 180.0},
-		{"type": "flyer", "pos": Vector2(6880, 160), "patrol": 160.0},
-		{"type": "flyer", "pos": Vector2(9380, 130), "patrol": 170.0},
+		{"type": "walker", "pos": Vector2(320, 379), "patrol": 140.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(2260, 99), "patrol": 90.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(3820, 179), "patrol": 120.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(5300, 279), "patrol": 150.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(7720, -121), "patrol": 180.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(8860, 99), "patrol": 150.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(11700, 79), "patrol": 220.0, "skin": "sea_crab"},
+		# Turrets hold the cliff tops, firing back down the climb. y = top - 26.
+		{"type": "turret", "pos": Vector2(2440, 94), "aim": Vector2.LEFT, "burst": 2},
+		{"type": "turret", "pos": Vector2(5560, 274), "aim": Vector2.LEFT, "burst": 3},
+		{"type": "turret", "pos": Vector2(10560, -166), "aim": Vector2.LEFT, "burst": 3},
+		# Seabirds own the air over the water and the stacks (flyer, sea skin).
+		{"type": "flyer", "pos": Vector2(1560, 120), "patrol": 170.0},
+		{"type": "flyer", "pos": Vector2(3300, 20), "patrol": 220.0},
+		{"type": "flyer", "pos": Vector2(4600, -230), "patrol": 160.0},
+		{"type": "flyer", "pos": Vector2(6620, -120), "patrol": 200.0},
+		{"type": "flyer", "pos": Vector2(8300, -200), "patrol": 200.0},
+		{"type": "flyer", "pos": Vector2(9400, -40), "patrol": 170.0},
+		{"type": "flyer", "pos": Vector2(10920, -150), "patrol": 220.0},
 	]
 
 static func gimmicks() -> Array[Dictionary]:
 	return [
-		# E -- a raft that ferries the runner over the channel.
-		{"type": "moving_platform", "pos": Vector2(6680, 300),
-			"span": Vector2(140, 26), "travel": Vector2(380, 0)},
-		# F -- the rope bridge's loose plank.
-		{"type": "crumble", "pos": Vector2(8300, 305), "span": Vector2(110, 30)},
+		# C -- the pier's planks, each gone a moment after it is stood on.
+		{"type": "crumble", "pos": Vector2(2600, 165), "span": Vector2(110, 30)},
+		{"type": "crumble", "pos": Vector2(2760, 165), "span": Vector2(110, 30)},
+		{"type": "crumble", "pos": Vector2(2920, 165), "span": Vector2(110, 30)},
+		# E -- a raft that rises up the cliff face and sinks back to the beach.
+		{"type": "moving_platform", "pos": Vector2(5750, 250),
+			"span": Vector2(140, 26), "travel": Vector2(0, -300)},
+		# F -- three blink platforms, out of step with each other.
+		{"type": "blink", "pos": Vector2(6420, 40), "span": Vector2(120, 26),
+			"beat": 1.6, "colour": 0, "phase": 0.0},
+		{"type": "blink", "pos": Vector2(6600, 80), "span": Vector2(120, 26),
+			"beat": 1.6, "colour": 1, "phase": 0.55},
+		{"type": "blink", "pos": Vector2(6780, 120), "span": Vector2(120, 26),
+			"beat": 1.6, "colour": 0, "phase": 1.1},
+		# H -- the falling bridge.
+		{"type": "crumble", "pos": Vector2(9220, 125), "span": Vector2(110, 30)},
+		{"type": "crumble", "pos": Vector2(9380, 125), "span": Vector2(110, 30)},
+		{"type": "crumble", "pos": Vector2(9540, 125), "span": Vector2(110, 30)},
 	]
 
 static func checkpoints() -> Array[Vector2]:
 	return [
-		Vector2(1960, 330),
-		Vector2(3760, 290),
-		Vector2(4760, 240),
-		Vector2(6110, 290),
-		Vector2(7310, 260),
-		Vector2(8510, 220),
-		Vector2(9780, 200),
+		Vector2(960, 140),
+		Vector2(2160, 70),
+		Vector2(3660, 150),
+		Vector2(5160, 250),
+		Vector2(5960, -50),
+		Vector2(7060, 130),
+		Vector2(8680, 70),
+		Vector2(9760, 10),
+		Vector2(11320, 50),
 	]
 
 static func goal() -> Vector2:
-	return Vector2(10700, 195)
+	return Vector2(12200, 45)
 
 static func crystals() -> Array[Vector2]:
 	return []
 
+## G -- the spring at the foot of the sea wall. y is the ledge top.
 static func springs() -> Array[Vector2]:
-	return []
+	return [Vector2(7330, 180)]
 
 ## Arcs over the jumps and the water, pointing at the intended landing.
 static func coins() -> Array[Vector2]:
 	return [
 		Vector2(-700, 350), Vector2(-620, 330), Vector2(-540, 350),
-		Vector2(960, 330), Vector2(1115, 340), Vector2(1280, 310),
-		Vector2(1445, 315), Vector2(1600, 300), Vector2(1755, 300),
-		Vector2(2560, 310), Vector2(2780, 300),
-		Vector2(3080, 250), Vector2(3230, 230), Vector2(3380, 250),
-		Vector2(4370, 290), Vector2(4505, 300), Vector2(4640, 260),
-		Vector2(5460, 200), Vector2(5680, 175), Vector2(5900, 200),
-		Vector2(6600, 250), Vector2(6800, 240), Vector2(7000, 240), Vector2(7180, 260),
-		Vector2(7950, 250), Vector2(8200, 245), Vector2(8400, 235),
-		Vector2(9200, 180), Vector2(9375, 160), Vector2(9550, 180),
-		Vector2(10100, 200), Vector2(10180, 180), Vector2(10260, 200),
+		Vector2(620, 240), Vector2(920, 130),
+		Vector2(1265, 200), Vector2(1390, 210), Vector2(1655, 270), Vector2(1915, 170),
+		Vector2(2040, 100), Vector2(2600, 110), Vector2(2760, 110), Vector2(2920, 110),
+		Vector2(3200, 90), Vector2(3350, 70), Vector2(3500, 110),
+		Vector2(4225, 20), Vector2(4525, -100), Vector2(4825, -220),
+		Vector2(5000, -60), Vector2(5750, 150), Vector2(5750, 0),
+		Vector2(6420, -20), Vector2(6600, 20), Vector2(6780, 60),
+		Vector2(7330, 40), Vector2(7400, -160),
+		Vector2(8150, -150), Vector2(8310, -170), Vector2(8470, -120),
+		Vector2(9220, 70), Vector2(9380, 70), Vector2(9540, 70),
+		Vector2(10225, -100), Vector2(10475, -200),
+		Vector2(10800, -180), Vector2(10950, -170), Vector2(11100, -110),
+		Vector2(11900, 50), Vector2(11980, 30), Vector2(12060, 50),
 	]
 
 static func decor() -> Array[Dictionary]:
 	var out: Array[Dictionary] = [
-		# A -- beach start.
+		# A -- beach start and dunes.
 		{"type": "sea_palm", "pos": Vector2(-1420, 400), "height": 300.0},
 		{"type": "sea_grass", "pos": Vector2(-1180, 400)},
 		{"type": "sea_boulder", "pos": Vector2(-820, 400), "width": 150.0},
 		{"type": "sea_palm_small", "pos": Vector2(-120, 400), "height": 190.0},
-		{"type": "sea_grass", "pos": Vector2(300, 400)},
-		{"type": "sea_seaweed", "pos": Vector2(780, 400)},
+		{"type": "sea_grass", "pos": Vector2(760, 300)},
+		{"type": "sea_seaweed", "pos": Vector2(1120, 190)},
 		# B
-		{"type": "sea_grass", "pos": Vector2(1980, 380)},
-		{"type": "sea_palm", "pos": Vector2(2380, 380), "height": 280.0, "flip": true},
+		{"type": "sea_palm", "pos": Vector2(2180, 120), "height": 260.0, "flip": true},
 		# C
-		{"type": "sea_seaweed", "pos": Vector2(3760, 340)},
-		{"type": "sea_boulder", "pos": Vector2(4190, 340), "width": 130.0},
-		# D -- cliff island.
-		{"type": "sea_palm", "pos": Vector2(4820, 290), "height": 290.0},
-		{"type": "sea_grass", "pos": Vector2(5200, 290)},
+		{"type": "sea_seaweed", "pos": Vector2(3660, 200)},
+		{"type": "sea_boulder", "pos": Vector2(3930, 200), "width": 110.0},
+		# D -- stacks and the beach below.
+		{"type": "sea_grass", "pos": Vector2(4820, -160)},
+		{"type": "sea_palm_small", "pos": Vector2(5180, 300), "height": 180.0},
+		{"type": "sea_seaweed", "pos": Vector2(5450, 300)},
 		# E
-		{"type": "sea_palm_small", "pos": Vector2(6150, 340), "height": 180.0, "flip": true},
-		{"type": "sea_seaweed", "pos": Vector2(6420, 340)},
+		{"type": "sea_palm", "pos": Vector2(6200, 0), "height": 280.0, "flip": true},
 		# F
-		{"type": "sea_grass", "pos": Vector2(7300, 310)},
-		{"type": "sea_boulder", "pos": Vector2(7820, 310), "width": 120.0},
-		# G
-		{"type": "sea_palm", "pos": Vector2(8560, 270), "height": 280.0, "flip": true},
-		{"type": "sea_seaweed", "pos": Vector2(8980, 270)},
-		# H -- lighthouse point.
-		{"type": "sea_grass", "pos": Vector2(9780, 250)},
-		{"type": "sea_palm_small", "pos": Vector2(10000, 250), "height": 200.0},
-		{"type": "sea_boulder", "pos": Vector2(10450, 250), "width": 140.0},
-		{"type": "sea_palm", "pos": Vector2(10880, 250), "height": 310.0, "flip": true},
+		{"type": "sea_grass", "pos": Vector2(7080, 180)},
+		# G -- the sea wall.
+		{"type": "sea_boulder", "pos": Vector2(7560, -100), "width": 120.0},
+		{"type": "sea_palm_small", "pos": Vector2(7900, -100), "height": 190.0, "flip": true},
+		{"type": "sea_seaweed", "pos": Vector2(9020, 120)},
+		# H
+		{"type": "sea_grass", "pos": Vector2(9800, 60)},
+		# I -- lighthouse point.
+		{"type": "sea_grass", "pos": Vector2(11320, 100)},
+		{"type": "sea_palm_small", "pos": Vector2(11500, 100), "height": 200.0},
+		{"type": "sea_boulder", "pos": Vector2(11950, 100), "width": 140.0},
+		{"type": "sea_palm", "pos": Vector2(12330, 100), "height": 310.0, "flip": true},
 	]
 	out.append_array(_footing())
 	return out

@@ -37,7 +37,9 @@ func run() -> void:
 		check(crows.size() >= 3, "%s has crows over it (%d)" % [label, crows.size()])
 		var high := true
 		for c in crows:
-			high = high and c.y < k.y - 200.0
+			for rect in Stage.ground():
+				if rect.end.x > c.x - 350.0 and rect.position.x < c.x + 350.0:
+					high = high and c.y <= rect.position.y - 300.0
 		check(high, "%s crows fly well above the ground" % label)
 		Difficulty.set_level(0, false)
 		var easy := Stage.sky_crows().size()
