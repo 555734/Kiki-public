@@ -5,7 +5,7 @@ config_version=5
 
 [application]
 
-config/name="SIDE / SKY"
+config/name="走れメロス"
 config/description="Asymmetric co-op 2D action. One player runs, one player rewrites the world."
 run/main_scene="res://src/boot.tscn"
 config/features=PackedStringArray("4.7", "Mobile")

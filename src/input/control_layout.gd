@@ -55,18 +55,19 @@ const GUARDIAN_ARC := {
 ## and looking goes to the right, which also means the hand that scrolls the
 ## view is not the hand holding a tool.
 ##
-## Two tools and nothing else: the platform under the left thumb, the shot
-## under the right. The wall, warp, scope, undo and ping buttons are retired
-## from the guardian's screen.
+## Two tools and nothing else, both on the left. The wall, warp, scope, undo
+## and ping buttons are retired from the guardian's screen.
 const GUARDIAN_LEFT := {
-	"slot_1":   Vector3(0.22, 0.24, 0.105),
+	# Both tools under the left thumb: the platform nearest the corner, the
+	# shot just above it. The right half of the screen is left clear for
+	# drawing platforms and aiming.
+	"slot_1":   Vector3(0.20, 0.20, 0.100),
+	"slot_3":   Vector3(0.20, 0.47, 0.100),
 }
-const GUARDIAN_RIGHT := {
-	"slot_3":    Vector3(0.22, 0.24, 0.110),
-}
-## Saved guardian layouts from before the two-button screen put the shot on
-## the left; they are dropped once so the new defaults take effect.
-const GUARDIAN_LAYOUT_VERSION := 2
+const GUARDIAN_RIGHT := {}
+## Saved guardian layouts from earlier versions are dropped once so the new
+## defaults take effect (v2: two buttons; v3: both on the left).
+const GUARDIAN_LAYOUT_VERSION := 3
 
 ## The runner alone has the whole screen, so their actions go to the far corner
 ## and are held with the other thumb.

@@ -68,7 +68,7 @@ func _ready() -> void:
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(veil)
 
-	_logo = _title("SIDE / SKY   ✦", 34, Color("0751a5"))
+	_logo = _title("走れメロス   ✦", 34, Color("0751a5"))
 	_logo.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_logo.position = Vector2(54, 20)
 	_logo.size = Vector2(310, 96)

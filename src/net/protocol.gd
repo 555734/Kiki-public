@@ -87,7 +87,8 @@ enum World {
 ## each other at the handshake, which is what makes changing this safe -- and
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
-const VERSION: int = 14
+## 15: sky crows add enemies after each stage's own, and the goal needs a key.
+const VERSION: int = 15
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
