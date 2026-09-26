@@ -251,7 +251,14 @@ function Export-Android([string]$Preset, [string]$OutputPath) {
 }
 
 try {
-    Write-Host "== SIDE / SKY Android 0.2.3 (versionCode 23) =="
+    # Read rather than repeat: this banner said 0.2.3 / 23 long after the
+    # presets had moved on, which is the same drift tools/release-check.sh
+    # exists to stop.
+    $bannerVersion = (Select-String -Path (Join-Path $PSScriptRoot "..\project.godot") `
+        -Pattern '^config/version="(.*)"$').Matches[0].Groups[1].Value
+    $bannerCode = (Select-String -Path (Join-Path $PSScriptRoot "..\export_presets.cfg") `
+        -Pattern '^version/code=(\d+)$').Matches[0].Groups[1].Value
+    Write-Host "== メロスゲーム Android $bannerVersion (versionCode $bannerCode) =="
     Write-Host "Godot: $Godot"
     Write-Host "SDK:   $AndroidSdk"
     Write-Host "JDK:   $JavaHome"

@@ -69,7 +69,7 @@ func _company_logo() -> Control:
 	rule.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(rule)
 	var title := Label.new()
-	title.text = "走れメロス"
+	title.text = "メロスゲーム"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color("37638d"))

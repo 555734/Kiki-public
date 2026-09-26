@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cut game sprites out of the three supplied concept mockups.
 
-The mockups ARE the art direction for SIDE / SKY, so lifting the artwork out of
+The mockups ARE the art direction for メロスゲーム, so lifting the artwork out of
 them is the closest match available -- every sprite ends up with the same paint,
 the same light direction and the same palette as the concept.
 
@@ -41,7 +41,7 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
 # scripts predate that art and would happily overwrite it with the older
 # cut-outs of the same subject, so they leave them alone.
 SUPPLIED = {
-    "props/brick.png", "props/pipe.png", "props/qblock.png", "props/spikes.png",
+    "props/spikes.png",
     "characters/walker.png",
     "characters/runner_run.png", "characters/runner_jump.png",
     "terrain/dirt_tile.png", "terrain/grass_tile.png",
@@ -150,7 +150,7 @@ def cutout(
 
 # Channel expressions for subjects whose colour sits too close to the
 # background for the distance matte above -- a white cloud on pale blue sky, a
-# cream castle on the same sky, a red heart on dark navy. Each returns a scalar
+# cream masonry on the same sky, a red heart on dark navy. Each returns a scalar
 # field that is high on the subject and low on the background.
 KEYS = {
     "not_sky":  lambda r, g, b: r - b,            # anything less blue than sky
@@ -237,9 +237,6 @@ ASSETS: list[tuple] = [
     ("platform",       "holograms",  "m1", (662, 424, 968, 502), "cut", dict(tol=26), "solid slab, face-on"),
     ("wall",           "holograms",  "m1", (0, 0, 0, 0), "derive", {}, "platform rotated 90deg"),
     # ---- props ------------------------------------------------------------
-    ("pipe",           "props",      "m3", (470, 430, 604, 524), "cut", dict(tol=32), "zoomed, highest res"),
-    ("qblock",         "props",      "m3", (332, 332, 448, 402), "cut", dict(tol=32), "zoomed"),
-    ("brick",          "props",      "m1", (192, 318, 290, 420), "cut", dict(tol=32), "single brick block, sky margin"),
     ("spikes",         "props",      "m3", (606, 626, 916, 694), "cut", dict(tol=40, keep_largest=False), "zoomed spike row"),
     ("fence",          "props",      "m1", (218, 484, 316, 550), "key", dict(channel="warm", lo=2, hi=34, min_area=40), "wooden rail on grass"),
     ("flowers",        "props",      "m1", (134, 474, 216, 536), "cut", dict(tol=26, keep_largest=False), "daisies"),
@@ -251,7 +248,6 @@ ASSETS: list[tuple] = [
     ("cloud_a",        "bg",         "m1", (440, 18, 668, 122), "key", dict(channel="not_sky", lo=-72, hi=-26), ""),
     ("cloud_b",        "bg",         "m1", (1080, 146, 1312, 244), "key", dict(channel="not_sky", lo=-72, hi=-26), ""),
     ("cloud_c",        "bg",         "m1", (176, 206, 352, 294), "key", dict(channel="not_sky", lo=-72, hi=-26), ""),
-    ("castle",         "bg",         "m2", (1410, 120, 1624, 306), "key", dict(channel="not_sky", lo=-76, hi=-22, min_area=120), "distant skyline"),
     # ---- ui ---------------------------------------------------------------
     ("panel_p1",       "ui",         "m3", (0, 4, 316, 96), "rect", {}, "P1 plate with hearts"),
     ("panel_p2",       "ui",         "m3", (4, 104, 330, 196), "rect", {}, "P2 plate"),

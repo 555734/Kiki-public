@@ -256,6 +256,21 @@ func _resync() -> void:
 			_world(Protocol.World.SWITCH, Vector2.ZERO, Vector2.ZERO, 0,
 				String(node.get("switch_id")))
 
+## The mirror of ClientSession._take_entitlement: the host can be the free
+## player of the pair just as easily as the guest can, so the pass travels both
+## ways and is checked the same way in both directions.
+func _take_entitlement(token: String) -> void:
+	var who := transport.peer_identity() if transport != null \
+		else {"puid": "", "room_kind": ""}
+	if token.is_empty():
+		Entitlement.revoke_guest()
+		return
+	Entitlement.grant_guest(token, String(who.get("puid", "")),
+		String(who.get("room_kind", "")))
+
+func _exit_tree() -> void:
+	Entitlement.revoke_guest()
+
 func _send_event(payload: PackedByteArray) -> void:
 	if transport != null:
 		transport.send(NetTransport.Channel.EVENT,
@@ -309,12 +324,14 @@ func _handle(packet: Dictionary) -> void:
 				_send_event(Protocol.notice("同じ役割では接続できません。片方ずつランナーとガーディアンを選んでください"))
 				return
 			var their_id := b.get_utf8_string()
+			_take_entitlement(Protocol.opt_string(b))
 			party.clear()
 			party.seat(NetLink.client_id(), Party.ROLE_RUNNER \
 				if local_role == "runner" else Party.ROLE_GUARDIAN)
 			party.seat(their_id, Party.ROLE_RUNNER \
 				if remote_role == "runner" else Party.ROLE_GUARDIAN)
-			_send_event(Protocol.welcome(Clock.tick, NetLink.client_id()))
+			_send_event(Protocol.welcome(Clock.tick, NetLink.client_id(),
+				Entitlement.local_token()))
 			_resync()
 			if transport is EosTransport and transport.room != null:
 				transport.room.call_deferred("mark_started")

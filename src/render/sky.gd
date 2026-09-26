@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## Parallax background: gradient sky, drifting clouds, rounded hills, a distant
-## castle and a near bush line -- the mockups' backdrop.
+## broken tower and a near bush line.
 ##
 ## This is drawn in screen space with the camera offset applied by hand rather
 ## than with ParallaxBackground, because every layer is procedural: at any
@@ -15,7 +15,7 @@ const REFERENCE_GROUND := 0.63
 const LAYERS := [
 	{"rate": 0.06, "kind": "clouds"},
 	{"rate": 0.16, "kind": "hills_far"},
-	{"rate": 0.24, "kind": "castle"},
+	{"rate": 0.24, "kind": "ruin_tower"},
 	{"rate": 0.38, "kind": "hills_near"},
 	{"rate": 0.55, "kind": "bushes"},
 ]

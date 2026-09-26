@@ -27,13 +27,13 @@ const STAGE_NAME := "GREENFIELD PLAINS"
 const STAGE_NUMBER := "1-1"
 const OBJECTIVE := "Find the Ancient Gate"
 
-## Solid decor -- pipes and block rows -- as world-space rects. Used both by the
+## Solid decor -- conduits and block rows -- as world-space rects. Used both by the
 ## renderer and by the collider builder, so the picture and the physics agree.
 static func solid_decor() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for d in decor():
 		match String(d.get("type", "")):
-			"pipe":
+			"conduit":
 				var size: Vector2 = d.get("size", Vector2(90, 76))
 				var base: Vector2 = d["pos"]
 				out.append(Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y))
@@ -247,24 +247,25 @@ static func coins() -> Array[Vector2]:
 ## trees, flowers) stays decoration with no collision: they sit at ankle height
 ## and would only trip the runner on obstacles they cannot see the point of.
 ##
-## Every pipe is shorter than the runner's 100px jump apex, so all of them can
-## be cleared from flat ground. _test_solid_decor() enforces that.
+## Every conduit is shorter than the runner's 100px jump apex, so all of them
+## can be cleared from flat ground. _test_solid_decor() enforces that.
 ##
-## Pipe sizes are 0.70 wide-to-tall because that is the painted pipe's own
-## aspect: the rect here is both the collider and the sprite's rect, so a
-## mismatch would squash the artwork rather than crop it.
+## The sizes are left exactly as they were when these were pipes: the rect is
+## the collider, every one of them has been jumped over in a playtest at this
+## size, and swapping what a thing looks like is not a reason to move the
+## surfaces underneath it.
 static func decor() -> Array[Dictionary]:
 	return [
 		# -- A --
 		{"type": "tree", "pos": Vector2(-260, 400)},
 		{"type": "signpost", "pos": Vector2(-60, 400)},
 		{"type": "flowers", "pos": Vector2(180, 400)},
-		{"type": "pipe", "pos": Vector2(470, 400), "size": Vector2(62, 88)},
+		{"type": "conduit", "pos": Vector2(470, 400), "size": Vector2(62, 88)},
 		{"type": "blocks", "pos": Vector2(250, 258), "count": 3, "cell": 46.0},
 		{"type": "fence", "pos": Vector2(1000, 400), "width": 190.0},
 		{"type": "flowers", "pos": Vector2(1560, 340)},
 		{"type": "blocks", "pos": Vector2(1620, 196), "count": 2, "cell": 46.0},
-		{"type": "pipe", "pos": Vector2(2760, 340), "size": Vector2(58, 82)},
+		{"type": "conduit", "pos": Vector2(2760, 340), "size": Vector2(58, 82)},
 		{"type": "tree", "pos": Vector2(2620, 340)},
 		# -- B --
 		{"type": "signpost", "pos": Vector2(3300, 340)},
@@ -275,7 +276,7 @@ static func decor() -> Array[Dictionary]:
 		{"type": "flowers", "pos": Vector2(6180, 220)},
 		# -- C --
 		{"type": "signpost", "pos": Vector2(6470, 220)},
-		{"type": "pipe", "pos": Vector2(6600, 220), "size": Vector2(62, 88)},
+		{"type": "conduit", "pos": Vector2(6600, 220), "size": Vector2(62, 88)},
 		{"type": "fence", "pos": Vector2(8060, 260), "width": 220.0},
 		{"type": "flowers", "pos": Vector2(8300, 260)},
 		# -- D --
@@ -284,14 +285,14 @@ static func decor() -> Array[Dictionary]:
 		{"type": "flowers", "pos": Vector2(10480, 260)},
 		# -- E --
 		{"type": "signpost", "pos": Vector2(10780, 260)},
-		{"type": "pipe", "pos": Vector2(10900, 260), "size": Vector2(58, 82)},
+		{"type": "conduit", "pos": Vector2(10900, 260), "size": Vector2(58, 82)},
 		{"type": "flowers", "pos": Vector2(11450, 180)},
 		{"type": "blocks", "pos": Vector2(12200, -104), "count": 2, "cell": 46.0},
 		{"type": "tree", "pos": Vector2(12420, 40)},
 		# -- F --
 		{"type": "fence", "pos": Vector2(12900, 40), "width": 200.0},
 		{"type": "flowers", "pos": Vector2(13500, 180)},
-		{"type": "pipe", "pos": Vector2(14700, 180), "size": Vector2(62, 88)},
+		{"type": "conduit", "pos": Vector2(14700, 180), "size": Vector2(62, 88)},
 		{"type": "tree", "pos": Vector2(16000, 180)},
 		{"type": "flowers", "pos": Vector2(16260, 180)},
 		{"type": "fence", "pos": Vector2(15800, 180), "width": 180.0},

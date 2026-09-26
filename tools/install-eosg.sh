@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restore the exact EOSG binaries used by SIDE / SKY. The addon is deliberately
+# Restore the exact EOSG binaries used by メロスゲーム. The addon is deliberately
 # not checked into git: Android+iOS binaries are roughly 75 MB compressed.
 set -euo pipefail
 cd "$(dirname "$0")/.."

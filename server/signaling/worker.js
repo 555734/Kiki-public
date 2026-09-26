@@ -7,6 +7,8 @@
  * connection-attempt limit before a request reaches a room Durable Object.
  */
 
+import { handleEntitlement, Entitlements } from "./entitlement.js";
+
 const DEFAULT_ROOM_IDLE_MS = 10 * 60 * 1000;
 const MAX_PEERS = 2;
 // The versus mode's rooms, reached at /room4/<code>. A separate route and a
@@ -80,6 +82,15 @@ export default {
     }
 
     if (url.pathname === "/health") return json({ ok: true });
+
+    // Purchase verification. Rate limited with everything else: it is a POST
+    // that can reach Google and Apple, so it is the one route here worth
+    // hammering, and it costs us money nowhere but in store API quota.
+    if (url.pathname.startsWith("/entitlement/")) {
+      const limited = await rateLimitResponse(request, env);
+      if (limited) return limited;
+      return handleEntitlement(request, env, url);
+    }
 
     // Any endpoint that can allocate or attach to a room is rate limited. The
     // check happens before touching ROOMS, so rejected abuse does not create a
@@ -283,3 +294,5 @@ export class Room {
     }
   }
 }
+
+export { Entitlements };
