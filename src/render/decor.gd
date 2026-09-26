@@ -72,51 +72,36 @@ func _conduit(base: Vector2, size: Vector2) -> void:
 	var rect := Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y)
 	var stone := Balance.C_CONDUIT
 	var dark := Balance.C_CONDUIT_DARK
-	var collar_h: float = minf(22.0, size.y * 0.28)
+	var collar_h: float = minf(20.0, size.y * 0.26)
 	var inset: float = size.x * 0.10
 
-	# The shaft narrows slightly towards the collar, so the silhouette reads as
-	# masonry standing up rather than a tube lying in the ground.
-	var shaft := PackedVector2Array([
-		Vector2(rect.position.x, rect.position.y + rect.size.y),
-		Vector2(rect.position.x + inset, rect.position.y + collar_h),
-		Vector2(rect.end.x - inset, rect.position.y + collar_h),
-		Vector2(rect.end.x, rect.position.y + rect.size.y),
-	])
-	draw_colored_polygon(shaft, stone)
-	# One lit face and one shaded one. Two flat planes are enough to sit a
-	# square object in the same light as the ground blocks beside it.
+	# Five primitives, and it has to stay five. The painted pipe this replaced
+	# was ONE textured quad, and the first version of this function drew twelve
+	# -- across 1-1's conduits and block rows that took the stage from 142 draw
+	# calls to 225 and put a 48ms spike into a frame that had none. This desktop
+	# never showed it, because vsync hid it and the median never moved; the
+	# phone it shipped to stuttered. tools/perf_probe.gd is what found it.
+	#
+	# The silhouette does the work: a shaft narrowing to a flat collar, one
+	# shaded face, one dark mouth. No courses, no rounded corners, no highlight
+	# -- each was its own primitive, for detail nobody sees at this size.
+	var top := rect.position.y + collar_h
 	draw_colored_polygon(PackedVector2Array([
-		shaft[0], shaft[1],
-		Vector2(rect.position.x + inset + size.x * 0.22, rect.position.y + collar_h),
-		Vector2(rect.position.x + size.x * 0.24, rect.position.y + rect.size.y),
-	]), Color(1, 1, 1, 0.13))
+		Vector2(rect.position.x, rect.end.y),
+		Vector2(rect.position.x + inset, top),
+		Vector2(rect.end.x - inset, top),
+		Vector2(rect.end.x, rect.end.y),
+	]), stone)
 	draw_colored_polygon(PackedVector2Array([
-		Vector2(rect.end.x - inset - size.x * 0.20, rect.position.y + collar_h),
-		shaft[2], shaft[3],
-		Vector2(rect.end.x - size.x * 0.22, rect.position.y + rect.size.y),
+		Vector2(rect.end.x - inset - size.x * 0.20, top),
+		Vector2(rect.end.x - inset, top),
+		Vector2(rect.end.x, rect.end.y),
+		Vector2(rect.end.x - size.x * 0.22, rect.end.y),
 	]), dark)
-
-	# Courses, so the height is legible at a glance from across the screen.
-	var course := maxf(14.0, size.y * 0.22)
-	var y := rect.position.y + collar_h + course
-	while y < rect.end.y - 4.0:
-		var t := (y - rect.position.y) / rect.size.y
-		var half := lerpf(size.x * 0.5 - inset, size.x * 0.5, t)
-		draw_line(Vector2(base.x - half + 2.0, y), Vector2(base.x + half - 2.0, y),
-			Color(dark, 0.55), 2.0)
-		y += course
-
-	# The collar: a flat stone band the width of the shaft plus a little, and
-	# the dark mouth cut into it. No overhang, nothing to mistake for a ledge.
-	var collar := Rect2(rect.position.x - 4.0, rect.position.y, size.x + 8.0, collar_h)
-	DrawUtil.rounded_rect(self, collar, 3.0, stone)
-	draw_rect(Rect2(collar.position.x, collar.end.y - 4.0, collar.size.x, 4.0), dark)
-	var mouth := Rect2(base.x - size.x * 0.32, rect.position.y + 4.0,
-		size.x * 0.64, collar_h * 0.5)
-	DrawUtil.rounded_rect(self, mouth, 3.0, Color("241f1a"))
-	draw_rect(Rect2(mouth.position.x, mouth.end.y - 2.0, mouth.size.x, 2.0),
-		Color(1, 1, 1, 0.10))
+	draw_rect(Rect2(rect.position.x - 4.0, rect.position.y, size.x + 8.0, collar_h), stone)
+	draw_rect(Rect2(rect.position.x - 4.0, top - 4.0, size.x + 8.0, 4.0), dark)
+	draw_rect(Rect2(base.x - size.x * 0.32, rect.position.y + 4.0,
+		size.x * 0.64, collar_h * 0.45), Color("241f1a"))
 
 ## A short run of solid masonry with one marked stone in the middle of it.
 ##
@@ -164,49 +149,31 @@ func _ruin_blocks(at: Vector2, count: int, cell: float) -> void:
 func _masonry_block(r: Rect2) -> void:
 	var stone := Balance.C_MASONRY
 	var dark := Balance.C_MASONRY_DARK
+	# Four primitives: the stone, its shaded right side, one course line and
+	# the lit top edge. See the note in _conduit about why the count matters.
 	draw_rect(r, stone)
-	draw_rect(r, dark, false, 2.0)
-	var rows := 3
-	var h := r.size.y / float(rows)
-	for row in range(rows):
-		var y := r.position.y + float(row) * h
-		if row > 0:
-			draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(dark, 0.6), 2.0)
-		# Two stones a course, shifted half a stone every other row.
-		var joint := r.position.x + r.size.x * (0.5 if row % 2 == 0 else 0.28)
-		draw_line(Vector2(joint, y + 2.0), Vector2(joint, y + h - 2.0), Color(dark, 0.6), 2.0)
-	draw_rect(Rect2(r.position.x + 2.0, r.position.y + 2.0, r.size.x - 4.0, 4.0),
-		Color(1, 1, 1, 0.16))
-	draw_rect(Rect2(r.position.x + 2.0, r.end.y - 5.0, r.size.x - 4.0, 3.0),
-		Color(dark, 0.45))
+	draw_rect(Rect2(r.end.x - r.size.x * 0.22, r.position.y, r.size.x * 0.22, r.size.y),
+		Color(dark, 0.55))
+	var y := r.position.y + r.size.y * 0.5
+	draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(dark, 0.7), 2.0)
+	draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 4.0), Color(1, 1, 1, 0.16))
 
-## The marked stone: the same masonry with a chiselled spiral cut into it and
-## a little gold left in the groove. It reads as "someone made this one on
-## purpose" without reading as a container to hit.
+## The marked stone: the same masonry with a lozenge cut into it and a little
+## gold left in the cut. Two polygons, because it is a landmark read from
+## across a screen -- the spiral that was here first was a 35-point polyline
+## drawn twice, which is 68 segments per block, every frame.
 func _sigil_block(r: Rect2) -> void:
 	_masonry_block(r)
 	var c := r.position + r.size * 0.5
-	var gold := Balance.C_SIGIL
-	var groove := Color(0.18, 0.15, 0.11, 0.85)
-	# The spiral is drawn twice: once dark and one pixel down for the cut, once
-	# in gold for what is still in it.
-	for pass_i in 2:
-		var colour: Color = groove if pass_i == 0 else gold
-		var drop := 1.5 if pass_i == 0 else 0.0
-		var points := PackedVector2Array()
-		var turns := 2.25
-		var steps := 34
-		for i in range(steps + 1):
-			var t := float(i) / float(steps)
-			var angle := t * TAU * turns
-			var radius := lerpf(r.size.x * 0.06, r.size.x * 0.30, t)
-			points.append(c + Vector2(cos(angle), sin(angle)) * radius + Vector2(0.0, drop))
-		draw_polyline(points, colour, 2.6 if pass_i == 0 else 2.0)
-	# Four chisel marks at the corners, where the old art had rivets.
-	for i in range(4):
-		var cx := r.position.x + (5.0 if i % 2 == 0 else r.size.x - 5.0)
-		var cy := r.position.y + (5.0 if i < 2 else r.size.y - 5.0)
-		draw_line(Vector2(cx - 2.5, cy - 2.5), Vector2(cx + 2.5, cy + 2.5), groove, 1.8)
+	var w := r.size.x * 0.26
+	var h := r.size.y * 0.30
+	draw_colored_polygon(PackedVector2Array([
+		c + Vector2(0.0, -h), c + Vector2(w, 0.0), c + Vector2(0.0, h), c + Vector2(-w, 0.0),
+	]), Color(0.18, 0.15, 0.11, 0.85))
+	draw_colored_polygon(PackedVector2Array([
+		c + Vector2(0.0, -h * 0.52), c + Vector2(w * 0.52, 0.0),
+		c + Vector2(0.0, h * 0.52), c + Vector2(-w * 0.52, 0.0),
+	]), Balance.C_SIGIL)
 
 func _signpost(base: Vector2, flip: bool) -> void:
 	if Art.draw_sprite(self, "signpost", base + Vector2(0, 4.0), 92.0, flip):
