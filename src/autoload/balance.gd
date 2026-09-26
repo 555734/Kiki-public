@@ -549,6 +549,20 @@ const GUARDIAN_PAN_RETURN: float = 2.6
 
 # --------------------------------------------------------------------- art
 const ENABLE_BLOOM: bool = true
+
+## Whether to actually build the glow pass on THIS device.
+##
+## Glow is a full-screen downsample, blur and composite, every frame, on top
+## of the whole picture. Measured at a phone's 2340x1080 on a desktop GPU it
+## costs 1.2ms of a 6.2ms frame -- a quarter of it -- and a phone's fill rate
+## is a fraction of a desktop's, which is where that quarter turns into the
+## difference between 60fps and half of it. It is also worth least there: the
+## screen is small and the holograms are already bright.
+##
+## ENABLE_BLOOM stays the master switch, so turning this back on for a phone
+## is one word. tools/perf_probe.gd measures the difference.
+static func bloom_enabled() -> bool:
+	return ENABLE_BLOOM and not OS.has_feature("mobile")
 ## Astra's complete 2.5D presentation: terrain, actors, enemies and props.
 const USE_3D: bool = true
 const USE_3D_RUNNER: bool = false
