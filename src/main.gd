@@ -80,7 +80,7 @@ func _ready() -> void:
 	# all emissive by design, and without glow they read as flat cyan shapes
 	# rather than as light -- which is most of what separates the painted look
 	# from the vector one.
-	if Balance.ENABLE_BLOOM and not Stage.world_3d():
+	if Balance.bloom_enabled() and not Stage.world_3d():
 		var env_node := WorldEnvironment.new()
 		env_node.name = "Bloom"
 		var env := Environment.new()
