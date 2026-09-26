@@ -30,7 +30,19 @@ run_checked() {
 	fi
 }
 
+# First, and without Godot: the things that decide whether this tree may be
+# uploaded at all. A suite that proves the physics and lets a placeholder
+# signing key through has checked the wrong thing thoroughly.
+step "release readiness (no engine needed)"
+bash tools/release-check.sh || fail=1
+
 step "import pass (registers class_name globals)"
+# --editor --quit quits on the first frame, which is BEFORE the filesystem
+# scan finishes ("Scan thread aborted"), so on a fresh clone it leaves some
+# images unimported -- and a preload of an unimported image is a parse error,
+# which is how net_panel.gd came to fail the script check on a clean checkout.
+# --import blocks until every asset is in, so it goes first.
+"$GODOT" --headless --path . --import >/dev/null 2>&1
 if command -v xvfb-run >/dev/null 2>&1; then
 	xvfb-run -a "$GODOT" --headless --editor --quit --path . >/dev/null 2>&1
 else
@@ -44,6 +56,9 @@ run_checked "$GODOT" --headless --path . res://test/check_scripts.tscn
 
 step "2.5D scene integration and camera alignment (not a visual-quality test)"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/three_view_probe.tscn
+
+step "who may play which stage, and what a friend pass is worth"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/entitlement_probe.tscn
 
 step "logic tests"
 run_checked "$GODOT" --headless --path . res://test/run_tests.tscn

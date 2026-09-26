@@ -17,15 +17,8 @@ func _ready() -> void:
 	add_child(shape)
 	body_entered.connect(_on_body_entered)
 
-var _told_locked: bool = false
-
 func _on_body_entered(body: Node2D) -> void:
 	if _cleared or not (body is Runner):
-		return
-	if Stage.needs_key() and not GameState.has_key:
-		if not _told_locked:
-			_told_locked = true
-			Events.notice.emit("鍵がかかっている！ 地上のどこかにある鍵を探そう")
 		return
 	_cleared = true
 	GameState.running = false
@@ -34,14 +27,6 @@ func _on_body_entered(body: Node2D) -> void:
 func _process(delta: float) -> void:
 	_pulse += delta
 	queue_redraw()
-	# The key can arrive while the runner is already standing in the gate.
-	if not _cleared and Stage.needs_key() and GameState.has_key:
-		for body in get_overlapping_bodies():
-			if body is Runner:
-				_on_body_entered(body)
-				break
-	if not (Stage.needs_key() and not GameState.has_key):
-		_told_locked = false
 
 ## Half-round arch closed into a solid: arc from +x over the top to -x, then
 ## straight down the left side and back along the base.
@@ -55,24 +40,6 @@ func _arch_points(half_width: float, rise: float, base_y: float) -> PackedVector
 	return pts
 
 func _draw() -> void:
-	_draw_gate()
-	if Stage.needs_key() and not GameState.has_key:
-		_draw_lock()
-
-## A padlock hung across the gate while the key is still out on the course.
-func _draw_lock() -> void:
-	var c := Vector2(0, -10)
-	var shake := sin(_pulse * 3.0) * 1.5
-	c.x += shake
-	draw_circle(c + Vector2(0, 6), 40.0, Color(0, 0, 0, 0.18))
-	draw_arc(c + Vector2(0, -14), 15.0, PI, TAU, 16, Color("5a4a2a"), 9.0, true)
-	draw_arc(c + Vector2(0, -14), 15.0, PI, TAU, 16, Color("c9a23a"), 5.0, true)
-	draw_rect(Rect2(c + Vector2(-22, -14), Vector2(44, 36)), Color("5a4a2a"))
-	draw_rect(Rect2(c + Vector2(-19, -11), Vector2(38, 30)), Color("f3c334"))
-	draw_circle(c + Vector2(0, 0), 5.0, Color("3a2a10"))
-	draw_rect(Rect2(c + Vector2(-2, 2), Vector2(4, 10)), Color("3a2a10"))
-
-func _draw_gate() -> void:
 	var glow := 0.5 + 0.5 * sin(_pulse * 2.0)
 	if Stage.is_sea() and Balance.USE_TEXTURES and Art.tex("goal") != null:
 		# 1-4's goal is the pack's red flag, planted on the ground (the goal

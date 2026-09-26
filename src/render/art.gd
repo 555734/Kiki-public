@@ -24,9 +24,11 @@ const MANIFEST := {
 	"wall": "holograms/wall.png",
 	"warp_gate": "holograms/warp_gate.png",
 	# props
-	"pipe": "props/pipe.png",
-	"qblock": "props/qblock.png",
-	"brick": "props/brick.png",
+	# No "pipe", "brick", "qblock" or "castle" key: those four paintings were
+	# cut from the concept mockups and were Nintendo's furniture. The objects
+	# survive as the conduit, the masonry row, the marked stone and the broken
+	# tower, all drawn in code -- see Decor and SkyCanvas. Registering a key
+	# again would make the audit demand a file for it.
 	"spikes": "props/spikes.png",
 	"fence": "props/fence.png",
 	"flowers": "props/flowers.png",
@@ -44,7 +46,6 @@ const MANIFEST := {
 	"cloud_a": "bg/cloud_a.png",
 	"cloud_b": "bg/cloud_b.png",
 	"cloud_c": "bg/cloud_c.png",
-	"castle": "bg/castle.png",
 	"parallax": "bg/parallax.png",
 	# stage 1-2 horror art. The painted pieces replaced the first vector pass;
 	# the three still on .svg are the ones nothing was painted for yet.

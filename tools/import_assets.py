@@ -37,7 +37,6 @@ ASSETS = os.path.join(ROOT, "assets")
 # Target widths are about twice the largest size the sprite is drawn at, which
 # keeps it crisp when the camera is close without paying for a 1250px texture.
 PLAN = {
-    "brick":         ("2176c470", "props/brick.png",              128, 6),
     "ground_block":  ("89400dc8", "terrain/ground_block.png",     384, 4),
     "parallax":      ("85f19b95", "bg/parallax.png",             1280, 0),
     "laser_beam":    ("15da6fb4", "entities/laser_beam.png",      512, 10),
@@ -46,11 +45,9 @@ PLAN = {
     "hit_burst":     ("fafbbf7a", "entities/hit_burst.png",       256, 14),
     "platform":      ("2a737003", "holograms/platform.png",       384, 12),
     "signpost":      ("bbc094cd", "props/signpost.png",           168, 4),
-    "qblock":        ("35e28323", "props/qblock.png",             128, 4),
     "coin":          ("7e0dbf28", "props/coin.png",               112, 4),
     "wall":          ("a0a6f736", "holograms/wall.png",            96, 12),
     "warp_gate":     ("7a41f5ee", "holograms/warp_gate.png",      232, 12),
-    "pipe":          ("72c74b70", "props/pipe.png",               160, 4),
     "spring":        ("85a99aa9", "entities/spring.png",          152, 4),
     "spikes":        ("170795d6", "props/spikes.png",             384, 4),
     "walker":        ("d7a8d6c9", "characters/walker.png",         128, 4),
@@ -460,8 +457,6 @@ ONE_ONE_PLAN = {
     "flowers":  ("03_decorations", (1160, 252, 1404, 442), "props/flowers.png", "fit", 160, 6),
 
     # --- blocks, pickups, the guardian's slab ------------------------------
-    "qblock": ("06_items_blocks_platform", (74, 204, 447, 563), "props/qblock.png", "fit", 128, 6),
-    "brick":  ("06_items_blocks_platform", (557, 207, 916, 564), "props/brick.png", "fit", 128, 6),
     "coin":   ("06_items_blocks_platform", (1052, 205, 1364, 568), "props/coin.png", "fit", 112, 6),
     "moving_platform": ("06_items_blocks_platform", (311, 721, 1136, 951),
                         "entities/moving_platform.png", "fit", 288, 6),

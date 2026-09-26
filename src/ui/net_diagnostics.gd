@@ -63,6 +63,8 @@ func _ready() -> void:
 	_log.add_theme_font_size_override("font_size", 13)
 	box.add_child(_log)
 
+	box.add_child(_entitlement_row())
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	box.add_child(row)
@@ -74,6 +76,64 @@ func _ready() -> void:
 	_http = HTTPRequest.new()
 	add_child(_http)
 	_run()
+
+## The current entitlement, and the field a developer types their phrase into.
+##
+## Deliberately an ordinary, visible text box on an ordinary, reachable screen.
+## The alternative -- a hidden gesture, a debug build, a secret build flag --
+## is a hidden unlock that ships to everybody who finds it. This is visible and
+## useless: the phrase it checks lives in the entitlement server's secrets, is
+## bound to at most two devices, and is deleted with one command the day it is
+## no longer wanted. Anyone can type into this box; almost nobody can get
+## anything out of it. See docs/monetization.md.
+func _entitlement_row() -> VBoxContainer:
+	var section := VBoxContainer.new()
+	section.add_theme_constant_override("separation", 4)
+	var state := Label.new()
+	state.add_theme_font_size_override("font_size", 13)
+	state.text = "権限：%s" % _entitlement_label()
+	var f := Art.font()
+	if f != null:
+		state.add_theme_font_override("font", f)
+	section.add_child(state)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var field := LineEdit.new()
+	field.placeholder_text = "開発者コード"
+	field.secret = true
+	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(field)
+	row.add_child(_button("登録", func() -> void:
+		await _enrol(field.text.strip_edges(), state)))
+	section.add_child(row)
+	return section
+
+func _enrol(phrase: String, state: Label) -> void:
+	if phrase.is_empty():
+		return
+	var puid := EosRuntime.product_user_id()
+	if puid.is_empty():
+		_say("開発者登録: EOSの準備ができていません")
+		return
+	_say("開発者登録: 問い合わせ中…")
+	var answer: Dictionary = await EntitlementClient.enrol_developer(phrase, puid)
+	if answer.has("error"):
+		_say("開発者登録: " + String(answer["error"]))
+		return
+	var token := String(answer.get("token", ""))
+	if token.is_empty() or not Entitlement.install_token(token, puid):
+		_say("開発者登録: 受け付けられませんでした")
+		return
+	state.text = "権限：%s" % _entitlement_label()
+	_say("開発者登録: 完了")
+
+func _entitlement_label() -> String:
+	match Entitlement.level():
+		Entitlement.Level.FULL: return "完全版"
+		Entitlement.Level.DEV: return "開発者"
+		Entitlement.Level.GUEST: return "フレンドパス（この部屋のあいだだけ）"
+	return "無料"
 
 func _button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
@@ -124,7 +184,7 @@ func _run() -> void:
 # ------------------------------------------------------------------- steps
 
 func _describe_device() -> void:
-	_say("SIDE / SKY 接続診断")
+	_say("走れメロス 接続診断")
 	_say("時刻 %s" % Time.get_datetime_string_from_system(true))
 	_say("ビルド %s / 通信プロトコル v%d" % [Balance.BUILD_ID, Protocol.VERSION])
 	_say("端末 %s %s / Godot %s" % [OS.get_name(), OS.get_version(),

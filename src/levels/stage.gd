@@ -151,6 +151,22 @@ static func stage_name() -> String:
 		return Level03Data.STAGE_NAME
 	return Level02Data.STAGE_NAME if is_crossing() else Level01Data.STAGE_NAME
 
+## The stages a player who has not bought the full game can start on their own.
+##
+## Deliberately a property OF the stage list and not a gate INSIDE use(): every
+## probe in test/ calls Stage.use() directly to inspect a stage's geometry, and
+## a stage that refused to load without an entitlement would take the whole
+## suite down with it. Locking happens where a player starts a game -- the menu
+## and the room-creation path -- not where the data is read.
+##
+## 1-1 teaches running and jumping; 1-2 is the first stage that cannot be
+## finished without the guardian, which is the thing being sold. Someone who
+## has played both has seen what the full game is.
+const FREE_STAGES: Array[int] = [Which.GREENFIELD, Which.HORROR]
+
+static func is_free(which: int = -1) -> bool:
+	return FREE_STAGES.has(_which if which < 0 else which)
+
 static func stage_number() -> String:
 	if is_swamp():
 		return _data("level_swamp_data").stage_number_value()
@@ -363,69 +379,6 @@ static func goal() -> Vector2:
 	if is_workshop():
 		return Level03Data.goal()
 	return Level02Data.goal() if is_crossing() else Level01Data.goal()
-
-## The side-scrolling stages lock their goal until the runner has picked up
-## the key, which sits on the ground part-way along. It is what stops a team
-## from reaching the goal on guardian platforms without ever landing.
-static func needs_key() -> bool:
-	return _which == Which.GREENFIELD or _which == Which.HORROR \
-		or _which == Which.SEA or _which == Which.SWAMP
-
-## Where the key rests: on the lowest ground under a point ~60% of the way from
-## start to goal, nudged along until it is on a floor with no hazard on it.
-static func key_position() -> Vector2:
-	var s := start()
-	var g := goal()
-	var base_x := lerpf(s.x, g.x, 0.6)
-	var rects := ground()
-	var bad := hazards()
-	for step in range(0, 40):
-		for sgn in [1.0, -1.0]:
-			var x: float = base_x + sgn * float(step) * 60.0
-			var best := Rect2()
-			var found := false
-			for r in rects:
-				if r.size.x < 120.0 or x < r.position.x + 40.0 or x > r.end.x - 40.0:
-					continue
-				if not found or r.position.y > best.position.y:
-					best = r
-					found = true
-			if not found:
-				continue
-			var p := Vector2(x, best.position.y - 4.0)
-			var clear := true
-			for h in bad:
-				var hr := Rect2(Vector2(h["pos"]) - Vector2(h["size"]) * 0.5 - Vector2(60, 60),
-					Vector2(h["size"]) + Vector2(120, 120))
-				if hr.has_point(p):
-					clear = false
-					break
-			for cp in checkpoints():
-				if absf(cp.x - p.x) < 110.0:
-					clear = false
-			if clear:
-				return p
-	return Vector2(base_x, s.y)
-
-## Crows patrolling high above the course, for a team trying to fly the whole
-## stage on platforms. A fixed set per stage -- it does not depend on the
-## chosen difficulty, so both devices number the enemies the same way; the
-## difficulty sets how fast they sweep instead.
-static func sky_crows() -> Array[Vector2]:
-	var out: Array[Vector2] = []
-	if progress_direction() != Vector2.RIGHT or not needs_key():
-		return out
-	var rects := ground()
-	var x := start().x + 600.0
-	var end_x := goal().x - 200.0
-	while x < end_x:
-		var top := start().y
-		for r in rects:
-			if r.end.x > x - 350.0 and r.position.x < x + 350.0:
-				top = minf(top, r.position.y)
-		out.append(Vector2(x, top - 330.0))
-		x += 900.0
-	return out
 
 static func coins() -> Array[Vector2]:
 	if is_swamp():

@@ -27,7 +27,17 @@ var _local: Button = null
 ## attempt is in flight, which is the whole of "do not let a second tap build a
 ## second session".
 var _actions: Array[Button] = []
+## Buttons that are disabled for a reason of their own, not because a
+## connection is in flight. _on_phase re-enables everything in _actions when an
+## attempt ends, and without this it would cheerfully hand a free player the
+## "make a room" button back.
+var _locked_actions: Array[Button] = []
 static var _open_play_after_reload: bool = false
+## Set by "購入済みの友達と遊ぶ": the player picked a stage they have not bought
+## in order to JOIN somebody who has. They may dial a room; they may not make
+## one, and they may not start it alone. Static because choosing the stage
+## reloads the scene, and this has to survive that the way the stage does.
+static var _join_only: bool = false
 
 func _ready() -> void:
 	layer = 20
@@ -101,6 +111,8 @@ func _clear_screen() -> void:
 	for child in _screen_host.get_children():
 		child.queue_free()
 	_actions.clear()
+	_locked_actions.clear()
+	_difficulty_buttons.clear()
 	_stage_1_1 = null
 	_stage_1_2 = null
 	_stage_1_3 = null
@@ -112,7 +124,42 @@ func _clear_screen() -> void:
 	_status = null
 	_cancel = null
 
+## The five stages the menu offers, in order, with the art each card shows.
+##
+## The pictures are rendered from the stages themselves by
+## `tools/capture_stage_cards.gd` -- through a portrait window, because a card
+## is twice as tall as it is wide and a centre crop of a 16:9 screenshot is a
+## column of sky. That is what these used to be: 1-1 showed the bare parallax
+## backdrop with no ground in it at all.
+func _cards() -> Array[Dictionary]:
+	return [
+		{"number": "1-1", "name": "GREENFIELD PLAINS",
+			"blurb": "走る・跳ぶ・助け合う最初の一歩",
+			"which": Stage.Which.GREENFIELD, "accent": Color("15cf8a"),
+			"art": preload("res://assets/menu/card_1_1.png")},
+		{"number": "1-2", "name": "THE HOLLOW OUTSKIRTS",
+			"blurb": "月明かりの村を駆け抜ける",
+			"which": Stage.Which.HORROR, "accent": Color("4688ef"),
+			"art": preload("res://assets/menu/card_1_2.png")},
+		{"number": "1-3", "name": "THE SKYWARD RUINS",
+			"blurb": "足場をつないで天空の頂へ",
+			"which": Stage.Which.SKYWARD_RUINS, "accent": Color("8659e8"),
+			"art": preload("res://assets/menu/card_1_3.png")},
+		{"number": "1-4", "name": "THE SUNLIT COAST",
+			"blurb": "岩と桟橋をつないで海の旗へ",
+			"which": Stage.Which.SEA, "accent": Color("1fa7d8"),
+			"art": preload("res://assets/menu/card_1_4.png")},
+		{"number": "1-5", "name": "THE POISON MARSH",
+			"blurb": "毒沼の足場を渡り岸の門へ",
+			"which": Stage.Which.SWAMP, "accent": Color("75b72b"),
+			"art": preload("res://assets/menu/card_1_5.png")},
+	]
+
 func _show_stage_screen() -> void:
+	# Coming back to the list ends the "I am going to join a friend" errand.
+	# Leaving it set would quietly let a free player carry a paid stage into a
+	# room of their own the next time they picked one.
+	_join_only = false
 	_clear_screen()
 	_logo.show()
 	var box := VBoxContainer.new()
@@ -129,50 +176,48 @@ func _show_stage_screen() -> void:
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 22)
 	box.add_child(row)
-	_stage_1_1 = _stage_card(
-		"1-1", "GREENFIELD PLAINS", "走る・跳ぶ・助け合う最初のステージ",
-		preload("res://assets/bg/parallax.png"), Stage.Which.GREENFIELD, Color("15cf8a"))
-	_stage_1_2 = _stage_card(
-		"1-2", "THE HOLLOW OUTSKIRTS", "月明かりの村を駆け抜ける追跡ステージ",
-		preload("res://assets/bg/horror_stage_1_2.svg"), Stage.Which.HORROR, Color("4688ef"))
-	_stage_1_3 = _stage_card(
-		"1-3", "THE SKYWARD RUINS", "二人で足場をつなぎ、天空の頂上を目指す",
-		preload("res://assets/stage_1_3/preview.png"), Stage.Which.SKYWARD_RUINS, Color("8659e8"))
-	_stage_1_4 = _stage_card(
-		"1-4", "THE SUNLIT COAST", "岩と桟橋をつないで、海の向こうの旗へ",
-		preload("res://assets/stage_1_4/preview.jpg"), Stage.Which.SEA, Color("1fa7d8"))
-	_stage_1_5 = _stage_card(
-		"1-5", "THE POISON MARSH", "毒沼の足場を渡り、岸の門へ",
-		_swamp_preview(),
-		Stage.Which.SWAMP, Color("75b72b"))
-	row.add_child(_stage_1_1)
-	row.add_child(_stage_1_2)
-	row.add_child(_stage_1_3)
-	row.add_child(_stage_1_4)
-	row.add_child(_stage_1_5)
+	for info in _cards():
+		var card := _stage_card(info)
+		row.add_child(card)
+		match int(info["which"]):
+			Stage.Which.GREENFIELD: _stage_1_1 = card
+			Stage.Which.HORROR: _stage_1_2 = card
+			Stage.Which.SKYWARD_RUINS: _stage_1_3 = card
+			Stage.Which.SEA: _stage_1_4 = card
+			Stage.Which.SWAMP: _stage_1_5 = card
 	_refresh_stage_buttons()
 
-	box.add_child(_difficulty_row())
-	box.add_child(_title("カードを選ぶと、遊び方の画面へ進みます", 14, Color("416b91")))
+	box.add_child(_spacer(4))
+	box.add_child(_title("カードを選ぶと、遊び方と難易度の画面へ進みます", 14, Color("416b91")))
 
 var _difficulty_buttons: Array[Button] = []
 
 ## 追跡者の速さ. HARD is the speed the stages were tuned at.
-func _difficulty_row() -> HBoxContainer:
+##
+## This lives on the play screen rather than the stage screen because the
+## question it answers is "how hard is THIS stage going to be", and there is
+## no this-stage until one is chosen. It also reads live -- the chasers ask
+## `Difficulty.chase_scale()` every frame, and the host's value is the one put
+## on the room -- so setting it here, after the stage is picked and before the
+## room is made, is the last moment at which it can be set at all.
+func _difficulty_panel() -> VBoxContainer:
+	var panel := VBoxContainer.new()
+	panel.add_theme_constant_override("separation", 4)
+	panel.add_child(_title("追跡者の速さ", 17, Color("073f89")))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 10)
-	var label := _title("追跡者の速さ", 16, Color("073f89"))
-	label.custom_minimum_size.x = 150
-	row.add_child(label)
+	row.add_theme_constant_override("separation", 8)
 	_difficulty_buttons.clear()
 	for i in Difficulty.LABELS.size():
 		var b := _button(Difficulty.LABELS[i], _on_difficulty.bind(i), false)
-		b.custom_minimum_size = Vector2(130, 46)
+		b.custom_minimum_size = Vector2(0, 46)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(b)
 		_difficulty_buttons.append(b)
+	panel.add_child(row)
+	panel.add_child(_title("追いかけてくる敵だけが速くなります", 12, Color("416b91")))
 	_refresh_difficulty()
-	return row
+	return panel
 
 func _on_difficulty(value: int) -> void:
 	Difficulty.set_level(value)
@@ -203,7 +248,15 @@ func _show_play_screen() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 18)
 	box.add_child(body)
-	body.add_child(_selected_stage_preview())
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(430, 0)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", 8)
+	var preview := _selected_stage_preview()
+	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(preview)
+	left.add_child(_difficulty_panel())
+	body.add_child(left)
 
 	var play_card := PanelContainer.new()
 	play_card.custom_minimum_size = Vector2(570, 0)
@@ -241,6 +294,19 @@ func _show_play_screen() -> void:
 	online_row.add_child(join)
 	choices.add_child(online_row)
 
+	# A free player who came here through "購入済みの友達と遊ぶ" may dial a room
+	# and may not make one. Both halves are disabled rather than hidden: the
+	# player needs to see that the buttons exist and why they are not theirs to
+	# press yet, or the screen just looks broken.
+	if not Entitlement.can_host(Stage.current()):
+		_locked_actions.append(_local)
+		_locked_actions.append(host)
+		_local.disabled = true
+		host.disabled = true
+		choices.add_child(_title(
+			"このステージは完全版です。完全版を持っている友達に部屋を作ってもらい、\n"
+			+ "その6桁を入れて「ルームに入る」を押してください。", 13, Color("416b91")))
+
 	_cancel = _button("接続をやめる", _on_cancel, false)
 	_cancel.visible = false
 	choices.add_child(_cancel)
@@ -270,8 +336,10 @@ func _show_play_screen() -> void:
 			main.link.phase_changed.connect(_on_phase)
 		_on_phase(main.link.phase, "")
 
-func _stage_card(number: String, stage_name: String, description: String,
-		texture: Texture2D, which: int, accent: Color) -> Button:
+func _stage_card(info: Dictionary) -> Button:
+	var number: String = info["number"]
+	var accent: Color = info["accent"]
+	var which: int = int(info["which"])
 	var button := Button.new()
 	button.text = number
 	button.custom_minimum_size = Vector2(0, 350)
@@ -287,7 +355,7 @@ func _stage_card(number: String, stage_name: String, description: String,
 
 	var art := TextureRect.new()
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	art.texture = texture
+	art.texture = info["art"]
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -298,91 +366,150 @@ func _stage_card(number: String, stage_name: String, description: String,
 	art.offset_bottom = -5
 	button.add_child(art)
 
-	var shade := ColorRect.new()
-	shade.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	shade.offset_top = -106
-	shade.offset_bottom = 0
-	shade.color = Color(0.015, 0.09, 0.18, 0.76)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(shade)
-	var caption := _title("%s  %s\n%s" % [number, stage_name, description], 13, Color.WHITE)
+	# A ramp rather than a bar. The flat panel that used to sit here cut the
+	# picture in half along a hard horizontal line, which read as two images
+	# stacked rather than as one card with writing on it.
+	button.add_child(_scrim(152, false))
+	button.add_child(_scrim(72, true))
+
+	var caption := VBoxContainer.new()
 	caption.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	caption.offset_top = -102
-	caption.offset_bottom = -5
-	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.offset_left = 12
+	caption.offset_right = -12
+	caption.offset_top = -116
+	caption.offset_bottom = -12
+	caption.alignment = BoxContainer.ALIGNMENT_END
+	caption.add_theme_constant_override("separation", 2)
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var heading := _title(number, 22, accent)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	heading.add_theme_color_override("font_outline_color", Color(0, 0.06, 0.12, 0.9))
+	heading.add_theme_constant_override("outline_size", 6)
+	caption.add_child(heading)
+	var stage_title := _title(String(info["name"]), 13, Color.WHITE)
+	stage_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	stage_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	caption.add_child(stage_title)
+	var blurb := _title(String(info["blurb"]), 11, Color("c8dced"))
+	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	caption.add_child(blurb)
 	button.add_child(caption)
+
 	var badge := _title("✓", 32, accent)
-	badge.position = Vector2(18, 14)
+	badge.position = Vector2(18, 10)
 	badge.size = Vector2(100, 50)
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	badge.add_theme_color_override("font_outline_color", Color.WHITE)
 	badge.add_theme_constant_override("outline_size", 7)
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(badge)
+	# The lock is built for every card and shown only where it belongs, so
+	# _refresh_stage_buttons can turn it on and off after a purchase without
+	# rebuilding the screen.
+	var lock_shade := ColorRect.new()
+	lock_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lock_shade.offset_left = 5
+	lock_shade.offset_top = 5
+	lock_shade.offset_right = -5
+	lock_shade.offset_bottom = -5
+	lock_shade.color = Color(0.04, 0.12, 0.22, 0.52)
+	lock_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(lock_shade)
+	var lock := _title("🔒", 30, Color(1, 1, 1, 0.94))
+	lock.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	lock.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	lock.offset_top = 92
+	lock.offset_bottom = 148
+	lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(lock)
+
 	button.set_meta("which", which)
 	button.set_meta("accent", accent)
 	button.set_meta("badge", badge)
+	button.set_meta("lock", [lock_shade, lock])
 	return button
+
+## A soft vertical fade, used to sit writing on top of artwork without
+## putting a hard edge across it. `top` flips it to darken the top instead,
+## which is what keeps the ✓ readable over a bright sky.
+func _scrim(height: int, top: bool) -> TextureRect:
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.012, 0.055, 0.115, 0.0))
+	gradient.set_color(1, Color(0.012, 0.055, 0.115, 0.90 if not top else 0.42))
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 4
+	texture.height = 64
+	texture.fill_from = Vector2(0, 0) if not top else Vector2(0, 1)
+	texture.fill_to = Vector2(0, 1) if not top else Vector2(0, 0)
+	var rect := TextureRect.new()
+	rect.texture = texture
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if top:
+		rect.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		rect.offset_top = 5
+		rect.offset_bottom = float(height)
+	else:
+		rect.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		rect.offset_top = -float(height)
+		rect.offset_bottom = -5
+	rect.offset_left = 5
+	rect.offset_right = -5
+	return rect
 
 func _selected_stage_preview() -> PanelContainer:
 	var preview := PanelContainer.new()
-	preview.custom_minimum_size = Vector2(500, 0)
+	preview.custom_minimum_size = Vector2(0, 240)
 	preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	preview.clip_contents = true
 	var stage_info := _selected_stage_info()
 	var accent: Color = stage_info["accent"]
 	preview.add_theme_stylebox_override("panel", _stage_style(accent, 0.96, 18, 3))
+	# A PanelContainer stretches its children to fill, which throws away any
+	# anchors they set -- that is why the caption used to sit in the middle of
+	# the picture. One filling Control, and everything anchors inside that.
+	var layer := Control.new()
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview.add_child(layer)
 	var art := TextureRect.new()
-	art.texture = stage_info["texture"]
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.texture = stage_info["art"]
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	preview.add_child(art)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(art)
+	layer.add_child(_scrim(108, false))
 	var label := _title("選択中  %s\n%s" % [stage_info["number"], stage_info["name"]],
 		18, Color.WHITE)
 	label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	label.offset_top = -76
+	label.offset_top = -74
 	label.offset_bottom = -10
 	label.add_theme_color_override("font_outline_color", Color("07325f"))
 	label.add_theme_constant_override("outline_size", 8)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview.add_child(label)
+	layer.add_child(label)
 	return preview
 
 func _selected_stage_info() -> Dictionary:
-	match Stage.current():
-		Stage.Which.HORROR:
-			return {"number": "1-2", "name": "THE HOLLOW OUTSKIRTS",
-				"texture": preload("res://assets/bg/horror_stage_1_2.svg"),
-				"accent": Color("4688ef")}
-		Stage.Which.SEA:
-			return {"number": "1-4", "name": "THE SUNLIT COAST",
-				"texture": preload("res://assets/stage_1_4/preview.jpg"),
-				"accent": Color("1fa7d8")}
-		Stage.Which.SWAMP:
-			return {"number": "1-5", "name": "THE POISON MARSH",
-				"texture": _swamp_preview(),
-				"accent": Color("75b72b")}
-		Stage.Which.SKYWARD_RUINS:
-			return {"number": "1-3", "name": "THE SKYWARD RUINS",
-				"texture": preload("res://assets/stage_1_3/preview.png"),
-				"accent": Color("8659e8")}
-	return {"number": "1-1", "name": "GREENFIELD PLAINS",
-		"texture": preload("res://assets/bg/parallax.png"), "accent": Color("15cf8a")}
-
-func _swamp_preview() -> Texture2D:
-	var cropped := AtlasTexture.new()
-	cropped.atlas = preload("res://assets/stage_1_5/concept_board_v3.png")
-	# The lower third is the artist's prop studies; the card shows the scene.
-	cropped.region = Rect2(0, 0, 1536, 660)
-	return cropped
+	var all := _cards()
+	for info in all:
+		if int(info["which"]) == Stage.current():
+			return info
+	return all[0]
 
 ## Stage buttons are selection, not launch. Rebuilding by reloading the current
 ## scene guarantees every stage-owned object uses the same Stage value; trying
 ## to swap only terrain in place is how scenery, enemies and checkpoints drift.
 func _select_stage(which: int) -> void:
 	if main != null and main.link != null and main.link.busy():
+		return
+	# A stage this player has not bought does not open the play screen; it
+	# opens the three doors. _join_only is what the middle door sets, and it is
+	# the one way a free player gets past this line onto a paid stage.
+	if not Entitlement.can_play(which) and not _join_only:
+		_show_purchase(which)
 		return
 	if Stage.current() == which:
 		_show_play_screen()
@@ -394,20 +521,99 @@ func _select_stage(which: int) -> void:
 	else:
 		_show_play_screen()
 
+var _purchase: PurchasePanel = null
+
+func _show_purchase(which: int) -> void:
+	if _purchase != null and is_instance_valid(_purchase):
+		return
+	var info := _card_for(which)
+	_purchase = PurchasePanel.new()
+	_purchase.stage_number = String(info.get("number", ""))
+	_purchase.stage_name = String(info.get("name", ""))
+	_purchase.price_text = Iap.price_text()
+	_purchase.closed.connect(func() -> void: _purchase = null)
+	_purchase.buy_requested.connect(_on_buy)
+	_purchase.restore_requested.connect(_on_restore)
+	_purchase.join_requested.connect(func() -> void: _on_join_as_guest(which))
+	_root.add_child(_purchase)
+	if not Iap.available():
+		_purchase.say("このビルドではストアに接続できません。"
+			+ "購入済みの友達の部屋には、このままでも入れます。")
+
+## The middle door. It does not unlock anything -- it lets the player carry a
+## stage they cannot host as far as the room-code field, where the unlock will
+## arrive from the person who did buy it. If nobody answers, they have taken
+## nothing they should not have.
+func _on_join_as_guest(which: int) -> void:
+	_join_only = true
+	if _purchase != null and is_instance_valid(_purchase):
+		_purchase.queue_free()
+		_purchase = null
+	_select_stage(which)
+
+func _on_buy() -> void:
+	if _purchase == null or not is_instance_valid(_purchase):
+		return
+	if not Iap.available():
+		_purchase.say("このビルドではストアに接続できません。")
+		return
+	_purchase.set_busy(true)
+	_purchase.say("ストアに接続しています…")
+	var result: String = await Iap.purchase()
+	_after_store(result)
+
+func _on_restore() -> void:
+	if _purchase == null or not is_instance_valid(_purchase):
+		return
+	if not Iap.available():
+		_purchase.say("このビルドではストアに接続できません。")
+		return
+	_purchase.set_busy(true)
+	_purchase.say("購入履歴を確認しています…")
+	var result: String = await Iap.restore()
+	_after_store(result)
+
+func _after_store(error: String) -> void:
+	if _purchase == null or not is_instance_valid(_purchase):
+		return
+	_purchase.set_busy(false)
+	if error.is_empty() and Entitlement.unlocked():
+		_purchase.queue_free()
+		_purchase = null
+		_join_only = false
+		_refresh_stage_buttons()
+		return
+	_purchase.say(error if not error.is_empty()
+		else "購入が見つかりませんでした。別のアカウントで購入した場合は、"
+			+ "そのアカウントでストアにログインしてからもう一度お試しください。")
+
+func _card_for(which: int) -> Dictionary:
+	for info in _cards():
+		if int(info["which"]) == which:
+			return info
+	return {}
+
 func _refresh_stage_buttons() -> void:
 	if _stage_1_1 == null or _stage_1_2 == null or _stage_1_3 == null \
 			or _stage_1_4 == null or _stage_1_5 == null:
 		return
 	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4, _stage_1_5]:
-		var selected: bool = int(button.get_meta("which")) == Stage.current()
+		var which: int = int(button.get_meta("which"))
+		var selected: bool = which == Stage.current()
 		var accent: Color = button.get_meta("accent")
 		var badge: Label = button.get_meta("badge")
 		badge.visible = selected
+		# A locked card is still a button: tapping it is how the player finds
+		# out what it would take to play, which is the whole point of putting
+		# the three doors behind it rather than greying it out and saying no.
+		var locked: bool = not Entitlement.can_play(which)
+		for node in (button.get_meta("lock") as Array):
+			(node as CanvasItem).visible = locked
 		button.add_theme_stylebox_override("normal",
 			_stage_style(accent if selected else Color.WHITE, 0.30 if selected else 0.94,
 				18, 5 if selected else 2))
 	if _local != null:
-		_local.disabled = false
+		_local.disabled = _locked_actions.has(_local)
 
 ## Everything the player sees about the connection comes through here.
 func _on_phase(phase: int, detail: String) -> void:
@@ -416,7 +622,7 @@ func _on_phase(phase: int, detail: String) -> void:
 	var busy: bool = main.link.busy()
 	for b in _actions:
 		if is_instance_valid(b):
-			b.disabled = busy
+			b.disabled = busy or _locked_actions.has(b)
 	_cancel.visible = busy
 	_phase_label.text = NetLink.LABELS.get(phase, "")
 	if not detail.is_empty():
@@ -566,6 +772,13 @@ func _exit_tree() -> void:
 			main.resume_from_home(local_start)
 
 func _title(text: String, size: int, colour: Color) -> Label:
+	return heading(text, size, colour)
+
+## The same label, callable from another screen. PurchasePanel is a separate
+## file precisely so the store lives in one place, and it has to be able to
+## look like it belongs to this one -- a purchase screen in a different visual
+## language reads as bolted on.
+static func heading(text: String, size: int, colour: Color) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -600,6 +813,9 @@ func _section_title(kicker: String, text: String) -> VBoxContainer:
 	return section
 
 func _panel_style() -> StyleBoxFlat:
+	return panel_style()
+
+static func panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1.0, 1.0, 1.0, 0.90)
 	style.border_color = Color(0.50, 0.72, 0.88, 0.50)
@@ -624,6 +840,9 @@ func _stage_style(colour: Color, alpha: float, radius: int, border: int) -> Styl
 	return style
 
 func _control_style(colour: Color, alpha: float, radius: int = 12) -> StyleBoxFlat:
+	return control_style(colour, alpha, radius)
+
+static func control_style(colour: Color, alpha: float, radius: int = 12) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(colour.r, colour.g, colour.b, alpha)
 	style.border_color = Color(colour.r, colour.g, colour.b, minf(1.0, alpha + 0.35))
@@ -648,20 +867,25 @@ func _stage_button(text: String, handler: Callable, colour: Color) -> Button:
 ## `guarded` buttons are the ones that start a connection or switch a stage.
 ## They are disabled for as long as one connection attempt is running.
 func _button(text: String, handler: Callable, guarded: bool = true) -> Button:
+	var b := action_button(text, handler)
+	if guarded:
+		_actions.append(b)
+	return b
+
+## Without the guarded list, which is this panel's own bookkeeping.
+static func action_button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(0, 50)
 	b.add_theme_font_size_override("font_size", 16)
 	b.add_theme_color_override("font_color", Color("064d92"))
-	b.add_theme_stylebox_override("normal", _control_style(Color("d9f1ff"), 0.96))
-	b.add_theme_stylebox_override("hover", _control_style(Color("86dcf4"), 1.0))
-	b.add_theme_stylebox_override("pressed", _control_style(Color("4ecbdc"), 1.0))
+	b.add_theme_stylebox_override("normal", control_style(Color("d9f1ff"), 0.96))
+	b.add_theme_stylebox_override("hover", control_style(Color("86dcf4"), 1.0))
+	b.add_theme_stylebox_override("pressed", control_style(Color("4ecbdc"), 1.0))
 	var f := Art.font()
 	if f != null:
 		b.add_theme_font_override("font", f)
 	b.pressed.connect(handler)
-	if guarded:
-		_actions.append(b)
 	return b
 
 func _on_local() -> void:
@@ -719,6 +943,12 @@ func _input(event: InputEvent) -> void:
 
 func _on_host_eos() -> void:
 	_close_keyboard()
+	# The button is already disabled when this is true; this is the second
+	# lock, on the path rather than on the widget, so a UI that gets rebuilt
+	# in some order nobody thought of cannot put a paid room on the wire.
+	if not Entitlement.can_host(Stage.current()):
+		_failed("このステージの部屋を作るには完全版が必要です。")
+		return
 	# host_eos puts the code on the link before its first EOS call; the strip
 	# reads it from there, so it can go up before anything is awaited.
 	_show_banner()

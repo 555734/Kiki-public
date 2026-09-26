@@ -581,10 +581,17 @@ const C_GRASS_DARK := Color("3f9420")
 const C_DIRT := Color("b5702f")
 const C_DIRT_DARK := Color("8e5321")
 const C_DIRT_LIGHT := Color("c98a4a")
-const C_PIPE := Color("2fa82f")
-const C_PIPE_DARK := Color("1b7a24")
-const C_BRICK := Color("b5651d")
-const C_QBLOCK := Color("f2b32c")
+## The stone set. These were a bright green pipe, an orange brick and a yellow
+## question block -- the furniture of somebody else's game, cut out of the
+## concept mockups and shipped by accident. They are masonry now: the conduit
+## and the block rows are the same objects in the same places with the same
+## colliders, wearing stone. See docs/design-decisions.md.
+const C_CONDUIT := Color("8d8577")
+const C_CONDUIT_DARK := Color("5e5951")
+const C_MASONRY := Color("9a9084")
+const C_MASONRY_DARK := Color("655d53")
+## What is left in the groove of the marked stone.
+const C_SIGIL := Color("d9ab55")
 const C_SPIKE := Color("b9c2cc")
 const C_SPIKE_DARK := Color("7b8794")
 const C_HOLO := Color("35d6ff")
@@ -609,7 +616,7 @@ const C_ACCENT := Color("4fd8ff")
 # ------------------------------------------------------- the dawn palette
 # Stage 1-S. Its own colours, because the vector fallback for a stage set on
 # floating rock above a cloud sea cannot be the 1-1 set: those are meadow green
-# and warm dirt with a mushroom castle on the skyline, and a sky stage wearing
+# and warm dirt with a broken tower on the skyline, and a sky stage wearing
 # them is not "art pending", it is wrong -- the same argument that gave 1-B the
 # night set to fall back to. 1-S has no other stage to borrow from, so the
 # fallback is these.

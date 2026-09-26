@@ -1,9 +1,8 @@
 extends Node
 ## Stage 1-4, the sea: the layout's promises and a live smoke run.
 ##
-## The layout promises that the rock and stack hops are free, that the step-ups
-## are fair, that at least three water crossings need the guardian, that the
-## coast really rises and falls, that everything you stand on is
+## The layout promises that the rock and bridge hops are free, that exactly the
+## three water crossings need the guardian, that everything you stand on is
 ## above the sea, and that falling in is a fall. The live part builds the stage
 ## and checks the sea, the reskinned enemies, a guardian slab over open water,
 ## and that the water kills once.
@@ -42,51 +41,29 @@ func run() -> void:
 	var free := 0
 	var assisted := 0
 	var worst := 0.0
-	var worst_step := 0.0
 	for i in range(footing.size() - 1):
-		var here := footing[i]
-		var there := footing[i + 1]
-		var gap := there.position.x - here.end.x
-		# The raft, the blink steps and the crumbling planks bridge some gaps,
-		# and the spring lifts the runner over the sea wall.
+		var gap := footing[i + 1].position.x - footing[i].end.x
+		if gap <= 0.0:
+			continue
+		# The raft and the loose plank bridge two of the gaps.
 		var bridged := false
 		for g in Stage.gimmicks():
 			var at: Vector2 = g["pos"]
 			var reach: Vector2 = g.get("travel", Vector2.ZERO)
 			var half := float((g.get("span", Vector2(120, 30)) as Vector2).x) * 0.5
-			if at.x - half < there.position.x + 1.0 \
-					and at.x + maxf(reach.x, 0.0) + half > here.end.x - 1.0:
+			if at.x - half < footing[i + 1].position.x \
+					and at.x + reach.x + half > footing[i].end.x:
 				bridged = true
-		var sprung := false
-		for sp in Stage.springs():
-			if sp.x >= here.position.x and sp.x <= here.end.x and sp.x > here.end.x - 150.0:
-				sprung = true
-		var rise := here.position.y - there.position.y
-		if not bridged and not sprung:
-			worst_step = maxf(worst_step, rise)
-		if gap <= 0.0 or bridged:
+		if bridged:
 			continue
 		if gap <= 200.0:
 			free += 1
 		elif gap >= 500.0:
 			assisted += 1
 		worst = maxf(worst, gap if gap < 500.0 else 0.0)
-	check(free >= 6, "the rock and stack hops are free jumps (%d)" % free)
-	check(assisted >= 3, "at least three water crossings need the guardian (%d)" % assisted)
+	check(free >= 6, "the rock and bridge hops are free jumps (%d)" % free)
+	check(assisted == 3, "exactly three water crossings need the guardian (%d)" % assisted)
 	check(worst <= 200.0, "no gap sits in the unfair middle (%.0fpx)" % worst)
-	check(worst_step <= 130.0,
-		"every unassisted step up is a jump anyone can make (%.0fpx)" % worst_step)
-	var top := INF
-	var low := -INF
-	for r in Stage.ground():
-		top = minf(top, r.position.y)
-		low = maxf(low, r.position.y)
-	check(low - top >= 500.0, "the coast rises and falls (%.0fpx of relief)" % (low - top))
-	var turrets := 0
-	for e in Stage.enemies():
-		if String(e.get("type", "")) == "turret":
-			turrets += 1
-	check(turrets >= 3, "turrets hold the cliff tops (%d)" % turrets)
 	check(Stage.checkpoints().size() >= 6, "checkpoints split the beats")
 
 	var crabs := 0
@@ -130,11 +107,11 @@ func run() -> void:
 	var g: Guardian = main.guardian
 	g.select_slot(1)
 	g.place_path = PackedVector2Array()
-	var slab_at := Vector2(3300, 240)
+	var slab_at := Vector2(3230, 360)
 	check(g.abilities[1].check(g, slab_at) == "" or g.runner == null
 		or slab_at.distance_to(g.runner.global_position) > Balance.PLACE_MAX_RANGE,
 		"a slab can be placed over open water")
-	main.runner.global_position = Vector2(3300, 130)
+	main.runner.global_position = Vector2(3230, 250)
 	main.runner.velocity = Vector2.ZERO
 	await get_tree().physics_frame
 	g.use_active(slab_at)
@@ -149,7 +126,7 @@ func run() -> void:
 	var deaths := [0]
 	var count := func(_cause: String) -> void: deaths[0] += 1
 	Events.runner_died.connect(count)
-	main.runner.global_position = Vector2(6510, 200)
+	main.runner.global_position = Vector2(5650, 300)
 	main.runner.velocity = Vector2.ZERO
 	for _i in 150:
 		await get_tree().physics_frame

@@ -72,11 +72,7 @@ func apply_crystal_mask(mask: int) -> void:
 		if mask & (1 << id):
 			crystals_taken[id] = true
 
-## Whether the runner holds this stage's goal key (side-scrolling stages).
-var has_key: bool = false
-
 func reset_run(start_position: Vector2) -> void:
-	has_key = false
 	checkpoint_index = 0
 	stage_start_position = start_position
 	checkpoint_position = start_position
