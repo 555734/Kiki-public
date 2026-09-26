@@ -13,6 +13,8 @@ var _dots: Label = null
 var _elapsed: float = 0.0
 
 func _ready() -> void:
+	# Once, at the top of the boot screen, before anything is drawn.
+	Engine.max_fps = Balance.target_fps()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var backdrop := TextureRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)

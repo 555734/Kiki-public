@@ -16,11 +16,27 @@ var _origin: Vector2 = Vector2.ZERO
 var direction: int = 1
 var _flap: float = 0.0
 
+## Crows are placed every 900px along the whole course, so 1-1 alone carries
+## about seventeen of them and only one or two are ever on screen. The rest
+## used to rebuild their drawing sixty times a second regardless, which cost
+## 1.35ms of every frame in 1-1 without adding a single draw call -- invisible
+## to a frame-time median on a desktop, and a third of a phone's budget.
+##
+## The flight itself still runs every tick: the position is a pure function of
+## Clock.tick and both devices must agree on it. Only the REDRAW is gated.
+var _seen: VisibleOnScreenNotifier2D = null
+
 func _ready() -> void:
 	hp = 1
 	super._ready()
 	collision_mask = 0
 	_origin = global_position
+	_seen = VisibleOnScreenNotifier2D.new()
+	# Wider than the bird, and wider than its patrol, so it is already drawing
+	# by the time it slides into view.
+	_seen.rect = Rect2(-patrol - 60.0, -70.0, patrol * 2.0 + 120.0, 140.0)
+	add_child(_seen)
+	_seen.screen_entered.connect(queue_redraw)
 
 func _build_body() -> void:
 	_add_box(SIZE)
@@ -31,7 +47,8 @@ func _physics_process(_delta: float) -> void:
 	global_position = _origin + Vector2(sin(a) * patrol, sin(a * 2.0) * 26.0)
 	direction = 1 if cos(a) >= 0.0 else -1
 	_flap = Clock.seconds_at(Clock.tick, phase_offset) * 9.0
-	queue_redraw()
+	if _seen != null and _seen.is_on_screen():
+		queue_redraw()
 
 func _draw() -> void:
 	var d := float(direction)

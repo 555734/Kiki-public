@@ -100,6 +100,23 @@ func _stage_plate(view: Vector2) -> void:
 		_key_chip(Vector2(view.x - 16.0 - 150.0, 88.0))
 
 ## Whether the gate's key has been found yet, under the objective plate.
+##
+## The HUD redraws every rendered frame (Hud._process calls queue_redraw), so
+## everything in here is paid for at the display's rate. Two things were worth
+## fixing: draw_string re-shapes its text on every single call, and an
+## antialiased draw_arc builds a feathered ring's worth of geometry for a
+## fourteen-segment circle. The two labels never change, so they are shaped
+## once and kept; the ring is not antialiased, at this size against a rounded
+## plate nobody can tell.
+static var _key_text: Dictionary = {}
+
+static func _key_line(have: bool) -> TextLine:
+	if not _key_text.has(have):
+		var line := TextLine.new()
+		line.add_string("鍵 あり" if have else "鍵 さがせ", Art.font(), 15)
+		_key_text[have] = line
+	return _key_text[have]
+
 func _key_chip(at: Vector2) -> void:
 	var have := GameState.has_key
 	var box := Rect2(at, Vector2(150, 28))
@@ -107,14 +124,12 @@ func _key_chip(at: Vector2) -> void:
 		Color(0.36, 0.26, 0.04, 0.85) if have else Color(0.05, 0.10, 0.16, 0.7))
 	var c := at + Vector2(22, 14)
 	var gold := Color("f3c334") if have else Color(0.6, 0.64, 0.7, 0.8)
-	draw_arc(c + Vector2(-4, 0), 5.5, 0.0, TAU, 14, gold, 3.0, true)
+	draw_arc(c + Vector2(-4, 0), 5.5, 0.0, TAU, 14, gold, 3.0, false)
 	draw_rect(Rect2(c + Vector2(1, -1.5), Vector2(13, 3)), gold)
 	draw_rect(Rect2(c + Vector2(9, 1.5), Vector2(2.5, 4)), gold)
-	draw_string(Art.font(), at + Vector2(44, 20), "鍵 あり" if have else "鍵 さがせ",
-		HORIZONTAL_ALIGNMENT_LEFT, 100, 15,
+	_key_line(have).draw(get_canvas_item(), at + Vector2(44, 6),
 		Color(1.0, 0.93, 0.6) if have else Color(0.88, 0.94, 1.0))
 
-## Scales a colour's alpha only, so a panel fades without shifting hue.
 func _dim(c: Color, f: float) -> Color:
 	return Color(c.r, c.g, c.b, c.a * f)
 
