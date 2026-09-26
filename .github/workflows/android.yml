@@ -122,6 +122,7 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/sea_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/start_screen_probe.tscn -- --ci-skip-eos
           "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_menu_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/entitlement_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/guardian_clear_probe.tscn

@@ -23,6 +23,14 @@ var _stage_1_3: Button = null
 var _stage_1_4: Button = null
 var _stage_1_5: Button = null
 var _local: Button = null
+const STAGES_PER_PAGE := 3
+var _stage_page: int = 0
+var _stage_view: Control = null
+var _swipe_active: bool = false
+var _swipe_touch: bool = false
+var _swipe_index: int = -1
+var _swipe_start: Vector2 = Vector2.ZERO
+var _swipe_consumed: bool = false
 ## Everything that starts or changes a connection. Greyed out together while an
 ## attempt is in flight, which is the whole of "do not let a second tap build a
 ## second session".
@@ -93,6 +101,8 @@ func _ready() -> void:
 	_screen_host.add_theme_constant_override("margin_right", 54)
 	_screen_host.add_theme_constant_override("margin_bottom", 24)
 	_root.add_child(_screen_host)
+	if Stage.current() == Stage.Which.SEA or Stage.current() == Stage.Which.SWAMP:
+		_stage_page = 1
 
 	if _open_play_after_reload:
 		_open_play_after_reload = false
@@ -118,6 +128,8 @@ func _clear_screen() -> void:
 	_stage_1_3 = null
 	_stage_1_4 = null
 	_stage_1_5 = null
+	_stage_view = null
+	_swipe_active = false
 	_local = null
 	_code = null
 	_phase_label = null
@@ -169,14 +181,19 @@ func _show_stage_screen() -> void:
 	_screen_host.add_child(box)
 
 	box.add_child(_title("—  ステージを選択  —", 30, Color("073f89")))
-	box.add_child(_title("遊ぶステージをタップしてください", 15, Color("37638d")))
+	box.add_child(_title("遊ぶステージをタップ。左右にスワイプして切り替え。", 15, Color("37638d")))
 	box.add_child(_spacer(8))
 
 	var row := HBoxContainer.new()
+	_stage_view = row
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 22)
 	box.add_child(row)
-	for info in _cards():
+	var cards := _cards()
+	var first := _stage_page * STAGES_PER_PAGE
+	for i in range(first, mini(first + STAGES_PER_PAGE, cards.size())):
+		var info := cards[i]
 		var card := _stage_card(info)
 		row.add_child(card)
 		match int(info["which"]):
@@ -185,10 +202,74 @@ func _show_stage_screen() -> void:
 			Stage.Which.SKYWARD_RUINS: _stage_1_3 = card
 			Stage.Which.SEA: _stage_1_4 = card
 			Stage.Which.SWAMP: _stage_1_5 = card
+	for i in range(STAGES_PER_PAGE - row.get_child_count()):
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(spacer)
 	_refresh_stage_buttons()
 
-	box.add_child(_spacer(4))
+	var navigation := HBoxContainer.new()
+	navigation.alignment = BoxContainer.ALIGNMENT_CENTER
+	navigation.add_theme_constant_override("separation", 18)
+	box.add_child(navigation)
+	var previous := _button("‹  前のステージ", func() -> void: _change_stage_page(-1), false)
+	previous.disabled = _stage_page == 0
+	previous.custom_minimum_size = Vector2(200, 42)
+	navigation.add_child(previous)
+	var page_label := _title("%d–%d / %d" % [first + 1,
+		mini(first + STAGES_PER_PAGE, cards.size()), cards.size()], 16, Color("073f89"))
+	page_label.custom_minimum_size.x = 120
+	navigation.add_child(page_label)
+	var next := _button("次のステージ  ›", func() -> void: _change_stage_page(1), false)
+	next.disabled = first + STAGES_PER_PAGE >= cards.size()
+	next.custom_minimum_size = Vector2(200, 42)
+	navigation.add_child(next)
+
 	box.add_child(_title("カードを選ぶと、遊び方と難易度の画面へ進みます", 14, Color("416b91")))
+
+func _change_stage_page(direction: int) -> void:
+	var pages := ceili(float(_cards().size()) / STAGES_PER_PAGE)
+	var destination := clampi(_stage_page + direction, 0, pages - 1)
+	if destination == _stage_page:
+		return
+	_stage_page = destination
+	_show_stage_screen()
+
+func _input(event: InputEvent) -> void:
+	if _stage_view == null or not _root.visible:
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_begin_stage_swipe(event.position, true, event.index)
+		elif _swipe_touch and event.index == _swipe_index:
+			_swipe_active = false
+	elif event is InputEventScreenDrag:
+		if _swipe_active and _swipe_touch and event.index == _swipe_index:
+			_track_stage_swipe(event.position)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and not _swipe_active:
+			_begin_stage_swipe(event.position, false, -1)
+		elif not event.pressed and not _swipe_touch:
+			_swipe_active = false
+	elif event is InputEventMouseMotion and _swipe_active and not _swipe_touch:
+		_track_stage_swipe(event.position)
+
+func _begin_stage_swipe(position: Vector2, touch: bool, index: int) -> void:
+	if not _stage_view.get_global_rect().has_point(position):
+		return
+	_swipe_active = true
+	_swipe_touch = touch
+	_swipe_index = index
+	_swipe_start = position
+	_swipe_consumed = false
+
+func _track_stage_swipe(position: Vector2) -> void:
+	var distance := position.x - _swipe_start.x
+	if absf(distance) < 90.0 or absf(distance) < absf(position.y - _swipe_start.y) * 1.4:
+		return
+	_swipe_consumed = true
+	_swipe_active = false
+	_change_stage_page(1 if distance < 0.0 else -1)
 
 var _difficulty_buttons: Array[Button] = []
 
@@ -321,12 +402,12 @@ func _show_play_screen() -> void:
 	footer.add_theme_constant_override("separation", 10)
 	var back := _button("‹  もどる", _show_stage_screen, false)
 	var layout := _button("ボタン配置", _on_layout, false)
-	var diagnose := _button("接続記録", _on_diagnose, false)
 	footer.add_child(back)
 	# Internet versus still uses the retired Cloudflare relay. Keep its release
 	# entry hidden until the separate EOS versus migration is complete.
 	footer.add_child(layout)
-	footer.add_child(diagnose)
+	if OS.has_feature("editor"):
+		footer.add_child(_button("接続記録", _on_diagnose, false))
 	box.add_child(footer)
 
 	# The panel renders the connection owner's state; it does not invent a
@@ -350,7 +431,9 @@ func _stage_card(info: Dictionary) -> Button:
 	button.add_theme_stylebox_override("normal", _stage_style(Color.WHITE, 0.94, 18, 2))
 	button.add_theme_stylebox_override("hover", _stage_style(accent, 0.28, 18, 4))
 	button.add_theme_stylebox_override("pressed", _stage_style(accent, 0.42, 18, 4))
-	button.pressed.connect(func() -> void: _select_stage(which))
+	button.pressed.connect(func() -> void:
+		if not _swipe_consumed:
+			_select_stage(which))
 	_actions.append(button)
 
 	var art := TextureRect.new()
@@ -594,10 +677,9 @@ func _card_for(which: int) -> Dictionary:
 	return {}
 
 func _refresh_stage_buttons() -> void:
-	if _stage_1_1 == null or _stage_1_2 == null or _stage_1_3 == null \
-			or _stage_1_4 == null or _stage_1_5 == null:
-		return
 	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4, _stage_1_5]:
+		if button == null:
+			continue
 		var which: int = int(button.get_meta("which"))
 		var selected: bool = which == Stage.current()
 		var accent: Color = button.get_meta("accent")
@@ -909,7 +991,11 @@ func _on_diagnose() -> void:
 ## Anything that goes wrong offers the report rather than making the player go
 ## and find it.
 func _failed(message: String) -> void:
-	_status.text = tr(message) + tr("\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。")
+	_status.text = tr(message)
+	if OS.has_feature("editor"):
+		_status.text += tr("\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。")
+	else:
+		_status.text += tr("\n\n通信を確認して、もう一度お試しください。")
 
 func _on_code_changed(text: String) -> void:
 	var digits := ""

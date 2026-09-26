@@ -13,6 +13,24 @@ msgstr "Melos Game   ✦"
 msgid "読み込み中"
 msgstr "Loading"
 
+msgid "冒険の準備をしています…"
+msgstr "Preparing your adventure…"
+
+msgid "走る人と、世界を描く人。ふたりで越える冒険。"
+msgstr "One runs. One shapes the world. An adventure for two."
+
+msgid "ゲームを始める"
+msgstr "START GAME"
+
+msgid "タップして始める"
+msgstr "Tap Start to play"
+
+msgid "もう一度試す"
+msgstr "Try again"
+
+msgid "読み込みに失敗しました"
+msgstr "Could not load the game"
+
 msgid "走る・跳ぶ・助け合う最初の一歩"
 msgstr "Run, jump, and help each other"
 
@@ -33,6 +51,18 @@ msgstr "—  SELECT A STAGE  —"
 
 msgid "遊ぶステージをタップしてください"
 msgstr "Tap a stage to play"
+
+msgid "遊ぶステージをタップ。左右にスワイプして切り替え。"
+msgstr "Tap a stage to play. Swipe left or right to see more."
+
+msgid "‹  前のステージ"
+msgstr "‹  Previous stages"
+
+msgid "次のステージ  ›"
+msgstr "Next stages  ›"
+
+msgid "\n\n通信を確認して、もう一度お試しください。"
+msgstr "\n\nCheck your connection and try again."
 
 msgid "カードを選ぶと、遊び方と難易度の画面へ進みます"
 msgstr "Choose a stage to set up your game"

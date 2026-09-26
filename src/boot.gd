@@ -1,16 +1,18 @@
 extends Control
-## The first thing the app draws, so launch is never a black screen.
+## The title screen is ready immediately while the playable scene loads behind it.
 ##
 ## Compiling main.tscn's scripts and building the stage takes a noticeable
 ## moment on a phone, and nothing can be drawn while it happens on the main
-## thread. This scene is deliberately tiny: it paints the same backdrop as the
-## start screen straight away, loads main.tscn on a worker thread, and starts
-## EOS in the background so "部屋を作る" does not pay for login later.
+## thread. Keep this scene small, let the player see the game title, and enable
+## Start only once the next scene is ready.
 
 const MAIN_SCENE := "res://src/main.tscn"
 
 var _dots: Label = null
 var _elapsed: float = 0.0
+var _start: Button = null
+var _main_scene: PackedScene = null
+var _load_failed: bool = false
 
 func _ready() -> void:
 	# Japanese remains the source language. All other device locales use the
@@ -31,14 +33,14 @@ func _ready() -> void:
 	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	veil.color = Color(0.90, 0.97, 1.0, 0.72)
 	add_child(veil)
-	add_child(_company_logo())
+	add_child(_title_content())
 	_dots = Label.new()
-	_dots.text = tr("読み込み中")
+	_dots.text = tr("冒険の準備をしています…")
 	_dots.add_theme_font_size_override("font_size", 18)
 	_dots.add_theme_color_override("font_color", Color("37638d"))
 	_dots.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_dots.offset_top = -64.0
-	_dots.offset_bottom = -36.0
+	_dots.offset_top = -54.0
+	_dots.offset_bottom = -26.0
 	_dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dots.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(_dots)
@@ -48,56 +50,83 @@ func _ready() -> void:
 	# loading screen with them; the single background thread had been stable.
 	ResourceLoader.load_threaded_request(MAIN_SCENE)
 
-## The "PRESENT SOFT" company mark, centred: a bold wordmark with a drop
-## shadow, a gold rule under it, and the game's title beneath. Built from
-## Labels and ColorRects only, so it costs nothing to show on the first frame.
-func _company_logo() -> Control:
+## A real first screen rather than a publisher splash. It stays until Start is
+## tapped, giving the background load time to finish without a scene change.
+func _title_content() -> Control:
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_CENTER)
 	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	box.grow_vertical = Control.GROW_DIRECTION_BOTH
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 10)
-	var mark := Label.new()
-	mark.text = "PRESENT SOFT"
-	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mark.add_theme_font_size_override("font_size", 52)
-	mark.add_theme_color_override("font_color", Color("0b2f63"))
-	mark.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.9))
-	mark.add_theme_constant_override("shadow_offset_x", 3)
-	mark.add_theme_constant_override("shadow_offset_y", 3)
-	mark.add_theme_color_override("font_outline_color", Color("f3c334"))
-	mark.add_theme_constant_override("outline_size", 4)
-	box.add_child(mark)
+	box.add_theme_constant_override("separation", 18)
 	var rule := ColorRect.new()
 	rule.color = Color("f3c334")
-	rule.custom_minimum_size = Vector2(320, 4)
+	rule.custom_minimum_size = Vector2(280, 5)
 	rule.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(rule)
 	var title := Label.new()
 	title.text = tr("メロスゲーム")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color("37638d"))
+	title.add_theme_font_size_override("font_size", 58)
+	title.add_theme_color_override("font_color", Color("0751a5"))
 	box.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = tr("走る人と、世界を描く人。ふたりで越える冒険。")
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 20)
+	subtitle.add_theme_color_override("font_color", Color("37638d"))
+	box.add_child(subtitle)
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 24
+	box.add_child(gap)
+	_start = Button.new()
+	_start.text = tr("ゲームを始める")
+	_start.disabled = true
+	_start.custom_minimum_size = Vector2(320, 64)
+	_start.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_start.add_theme_font_size_override("font_size", 24)
+	_start.pressed.connect(_on_start_pressed)
+	box.add_child(_start)
 	return box
 
 func _process(delta: float) -> void:
+	if _main_scene != null or _load_failed:
+		return
 	_elapsed += delta
-	_dots.text = tr("読み込み中") + ".".repeat(int(_elapsed * 3.0) % 4)
+	_dots.text = tr("冒険の準備をしています…") + ".".repeat(int(_elapsed * 3.0) % 4)
 	match ResourceLoader.load_threaded_get_status(MAIN_SCENE):
 		ResourceLoader.THREAD_LOAD_LOADED:
-			set_process(false)
+			_main_scene = ResourceLoader.load_threaded_get(MAIN_SCENE) as PackedScene
 			print("BOOT: main scene loaded after %d ms" % Time.get_ticks_msec())
-			# Arm the EOS warm-up first: once the scene changes, this node is
-			# out of the tree and get_tree() is null.
-			_warm_eos_after_menu()
-			get_tree().change_scene_to_packed(ResourceLoader.load_threaded_get(MAIN_SCENE))
+			if _main_scene != null:
+				_start.disabled = false
+				_dots.text = tr("タップして始める")
+				set_process(false)
+			else:
+				_show_load_failure()
 		ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-			# Fall back to the ordinary blocking load rather than stranding the
-			# player on a loading screen.
-			set_process(false)
-			get_tree().change_scene_to_file(MAIN_SCENE)
+			_show_load_failure()
+
+func _show_load_failure() -> void:
+	_load_failed = true
+	_start.text = tr("もう一度試す")
+	_start.disabled = false
+	_dots.text = tr("読み込みに失敗しました")
+	set_process(false)
+
+func _on_start_pressed() -> void:
+	if _load_failed:
+		_start.disabled = true
+		_dots.text = tr("冒険の準備をしています…")
+		_main_scene = load(MAIN_SCENE) as PackedScene
+		if _main_scene == null:
+			_show_load_failure()
+			return
+	if _main_scene == null:
+		return
+	_start.disabled = true
+	_warm_eos_after_menu()
+	get_tree().change_scene_to_packed(_main_scene)
 
 ## EOS login warms up once the start screen is on screen rather than during
 ## the load: native platform start-up competes with the loader for the main

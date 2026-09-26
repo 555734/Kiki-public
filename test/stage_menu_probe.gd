@@ -62,17 +62,37 @@ func _ready() -> void:
 			check(main.runner.global_position == frozen_position,
 				"runner cannot move behind the home screen")
 			check(not GameState.running, "run timer has not started on the home screen")
-			var seen := {}
-			for node in panel.find_children("*", "Button", true, false):
-				var text := String((node as Button).text)
-				for label in ["1-1", "1-2", "1-3", "1-4", "1-5", "1-V", "1-B", "1-S"]:
-					if text.contains(label):
-						seen[label] = true
-			for label in ["1-1", "1-2", "1-3", "1-4", "1-5"]:
-				check(seen.has(label), "start screen has a %s stage button" % label)
-			# And the other half of the same claim. Without this, restoring the
-			# two buttons would pass every check in the suite and nobody would
-			# find out until they were on a screenshot.
+			var seen := _visible_stages(panel)
+			for label in ["1-1", "1-2", "1-3"]:
+				check(seen.has(label), "first page has a %s stage button" % label)
+			for label in ["1-4", "1-5"]:
+				check(not seen.has(label), "first page does not show %s" % label)
+			check(panel._stage_view.get_child_count() == 3,
+				"first page fits exactly three stage slots")
+			panel._change_stage_page(1)
+			await get_tree().process_frame
+			seen = _visible_stages(panel)
+			for label in ["1-4", "1-5"]:
+				check(seen.has(label), "second page has a %s stage button" % label)
+			for label in ["1-1", "1-2", "1-3"]:
+				check(not seen.has(label), "second page does not show %s" % label)
+			check(panel._stage_view.get_child_count() == 3,
+				"last page keeps the three-column layout")
+			var centre: Vector2 = panel._stage_view.get_global_rect().get_center()
+			var touch := InputEventScreenTouch.new()
+			touch.index = 0
+			touch.pressed = true
+			touch.position = centre
+			panel._input(touch)
+			var drag := InputEventScreenDrag.new()
+			drag.index = 0
+			drag.position = centre + Vector2(180, 0)
+			panel._input(drag)
+			check(panel._stage_page == 0, "swipe right returns to the first page")
+			await get_tree().process_frame
+			seen = _visible_stages(panel)
+			check(seen.has("1-1") and seen.has("1-2") and seen.has("1-3"),
+				"swipe restores the first three stage cards")
 			for label in ["1-V", "1-B", "1-S"]:
 				check(not seen.has(label),
 					"start screen does NOT offer %s (hidden on purpose)" % label)
@@ -159,3 +179,10 @@ func _speeds(panel: Node) -> Array:
 				found.append(node)
 				break
 	return found
+
+func _visible_stages(panel: Node) -> Dictionary:
+	var result := {}
+	for node in panel._stage_view.get_children():
+		if node is Button:
+			result[String((node as Button).text)] = true
+	return result
