@@ -216,14 +216,22 @@ No ads. No subscription. No stamina.
 | Play スマートフォン（必須・2〜8枚） | 短辺1080px以上、16:9 横 |
 | Play フィーチャーグラフィック（必須） | 1024×500 |
 
-撮り方:
+**撮影済み（2026-09-26）。** 実物は `../store-assets/` にある
+（リポジトリ外。PNGが20枚以上あり、コミットすると数十MB増えるため）。
+必要サイズごとにフォルダが分かれていて、どのフォームに入れるかは
+`store-assets/README.md` に書いてある。
+
+撮り直すとき:
 
 ```bash
-tools/verify.sh --shots
+godot --path . --rendering-method gl_compatibility --rendering-driver opengl3     --resolution 1280x720 --fixed-fps 60 tools/capture_store_shots.tscn     -- --ci-skip-eos --shot-size 2868x1320
 ```
 
-`test/capture_shots.tscn` がステージを描画して user data に書き出す。
-**要 xvfb（Linux）**。端末実機で撮るほうが早い場合もある。
+`--shot-size` がそのまま出力サイズになる。**`--resolution` ではない** ——
+ウィンドウはディスプレイより大きくできず、2868 を頼むと黙って 1924 が出てきて、
+どちらのストアもそのサイズを受け取らない。だから SubViewport に描いている。
+
+フィーチャーグラフィックは `--no-hud` で撮った素材から合成してある。
 
 ---
 
@@ -269,7 +277,7 @@ tools/verify.sh --shots
 - [ ] App Store Connect: `full_unlock` を作り、審査用スクショとレビューメモを付けた
 - [ ] App Store Connect: **Paid Applications 契約**を完了した（これが未完だと課金は動かない）
 - [ ] App Store Connect: App Store Server API の `.p8` を Worker に入れた
-- [ ] スクリーンショット5枚とフィーチャーグラフィックを用意した
+- [x] スクリーンショットとフィーチャーグラフィックを用意した（`store-assets/`）
 - [ ] 内部テスト / TestFlight で**実際に1回購入した**
 - [ ] 機種変更を想定し、**別端末で「購入を復元する」が通った**
 
