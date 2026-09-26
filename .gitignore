@@ -87,6 +87,12 @@ Thumbs.db
 # binaries are platform-specific and too large to vendor in this repository.
 addons/epic-online-services-godot/
 
+# Fetched by tools/install-iap-plugins.sh at build time, like EOSG above.
+# The Android addon is a pinned release archive; the iOS one is compiled from a
+# pinned commit on a macOS runner. Neither belongs in the history.
+addons/GodotGooglePlayBilling/
+ios/plugins/
+
 # Python caches
 __pycache__/
 *.py[cod]

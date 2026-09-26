@@ -35,17 +35,13 @@ jobs:
     env:
       APPLE_TEAM_ID: "6TGM565HX8"
       BUNDLE_ID: "com.sasakiful.sidesky"
-      APP_VERSION: "0.2.3"
+      APP_VERSION: "0.9.0"
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
       IOS_CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERTIFICATE_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install the in-app purchase plugin
-        if: vars.IAP_PLUGINS == '1'
-        run: bash tools/install-iap-plugins.sh ios
 
       - name: Install pinned EOSG for macOS host and iOS target
         run: bash tools/install-eosg.sh macos ios
@@ -110,6 +106,22 @@ jobs:
 
           echo "ready=true" >> "$GITHUB_OUTPUT"
           echo "Signing credentials found: fetching/creating the App Store certificate and provisioning profile, then signing locally and uploading."
+
+      # Built from source, not downloaded: there has never been a prebuilt
+      # Godot 4 release of this plugin. See tools/build-ios-iap-plugin.sh.
+      # Only the submitting build needs it -- the unsigned fallback is a
+      # packaging proof, and StoreKit costs several minutes of a macOS runner.
+      - name: Build and install the StoreKit plugin
+        if: steps.asc.outputs.ready == 'true'
+        env:
+          IOS_GODOT_TAG: ${{ env.GODOT_VERSION }}-stable
+        run: |
+          set -euo pipefail
+          # scons is not on the macOS image; the plugin's build system is it.
+          python3 -m pip install --user --quiet --disable-pip-version-check scons
+          echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+          export PATH="$(python3 -m site --user-base)/bin:$PATH"
+          bash tools/install-iap-plugins.sh ios
 
       - name: Install Codemagic CLI signing tools
         if: steps.asc.outputs.ready == 'true'

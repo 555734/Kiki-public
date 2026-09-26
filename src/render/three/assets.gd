@@ -233,10 +233,13 @@ static func _prop(m: RefCounted, kind: String, size: Vector2) -> void:
 				m.loft(Vector3(i*36,0,-18),[Vector3(0,4,4),Vector3(42,4,4),Vector3(49,0,0)],wood,4)
 			m.box(Vector3(size.x/2,20,-18),Vector3(size.x,6,6),wood.lightened(.18))
 			m.box(Vector3(size.x/2,35,-18),Vector3(size.x,6,6),wood.lightened(.18))
-		"pipe":
+		"conduit":
+			# Stone, and squarer than the round section this replaced: the 2D
+			# stages draw the same object as masonry, and a stage that shows
+			# both must not show two different things.
 			var radius := size.x*.5/cos(PI/10)
-			m.loft(Vector3.ZERO,[Vector3(0,radius*.85,26),Vector3(size.y-14,radius*.85,26),Vector3(size.y-14,radius,30),Vector3(size.y,radius,30)],Color("418879"),10)
-			m.loft(Vector3(0,size.y-.2,0),[Vector3(0,size.x*.42,23),Vector3(.1,size.x*.42,23)],Color("254e4c"),10)
+			m.loft(Vector3.ZERO,[Vector3(0,radius,28),Vector3(size.y-18,radius,28),Vector3(size.y-18,radius*1.06,30),Vector3(size.y,radius*1.06,30)],Balance.C_CONDUIT,8)
+			m.loft(Vector3(0,size.y-.2,0),[Vector3(0,size.x*.32,20),Vector3(.1,size.x*.32,20)],Color("241f1a"),8)
 		"ruin_blocks":
 			m.box(Vector3(0,size.y*.5,-16),Vector3(size.x,size.y,32),Color("303a47"))
 			m.box(Vector3(0,size.y-3,1),Vector3(size.x,6,4),Color("526171"))

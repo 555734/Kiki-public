@@ -23,7 +23,7 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
 	-out "$tmp/private.pem" 2>/dev/null
 openssl rsa -in "$tmp/private.pem" -pubout -out "$tmp/public.pem" 2>/dev/null
 
-python3 - "$tmp/public.pem" <<'PY'
+"${PYTHON:-python3}" - "$tmp/public.pem" <<'PY'
 import json, sys, pathlib
 pem = pathlib.Path(sys.argv[1]).read_text()
 path = pathlib.Path("entitlement_key.json")

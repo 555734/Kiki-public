@@ -245,6 +245,19 @@ wrangler secret delete DEV_ENROL_SECRET
 
 ### Cloudflare
 
+**鍵は 2026-09-26 に生成済み。** `entitlement_key.json` に入っている公開鍵の
+指紋は次のとおりで、Worker に入れた秘密鍵と対になっていることをこれで照合できる。
+
+```
+openssl rsa -pubin -in <秘密鍵から作った公開鍵> -outform DER | sha256sum
+abf1b1790bbf6af2b8ea8e38e4699e87aed265598484f6025ed18ea36a382e8c
+```
+
+`tools/release-check.sh` が、公開鍵が PLACEHOLDER のまま出荷されることを
+**拒否する**（`entitlement.gd` が昔からそう書いていた検査が、いま実在する）。
+
+作り直すとき:
+
 ```bash
 # 署名鍵を作る（秘密鍵はこの1回しか表示されない）
 tools/make-entitlement-key.sh
@@ -260,26 +273,64 @@ wrangler secret put DEV_ENROL_SECRET          # 開発者の合言葉
 wrangler deploy
 ```
 
-### 課金プラグインのピン留め
+### 課金プラグインのピン留め（2026-09-26 完了）
 
-`tools/install-iap-plugins.sh` の `ANDROID_SHA256` / `IOS_SHA256` は
-**わざと空のまま**にしてある。ファイルを見たことのない人間が書いた
-チェックサムは、検証されて、通って、何も意味しない —— 無いよりも悪い。
+**Android は release アーカイブのピン留め。** チェックサムは実測して
+`tools/install-iap-plugins.sh` に入っている。
 
-```bash
-curl -LO <スクリプトが表示するURL>
-shasum -a 256 <落ちてきたファイル>   # → スクリプトに貼る
+```
+3.3.0 / godot-google-play-billing.zip
+sha256 20d75623d6f337f08d8283c83098b73678d5f575e39247af5a8eb80588b18568
 ```
 
-貼ったら CI を有効にする:
+> **URLが2か所間違っていた。** タグは `v3.3.0` ではなく `3.3.0`、アセット名は
+> `GodotGooglePlayBilling-3.3.0.zip` ではなく `godot-google-play-billing.zip`。
+> さらにアーカイブの最上位は `addons/` ではなく `GodotGooglePlayBilling/` なので、
+> 展開先は `addons/` を指定しないと入らない。3つとも直してある。
+>
+> なお同じリポジトリの **1.4.0（3.3.0より新しい日付）は Godot 3 系の保守版**で、
+> このプロジェクトには**間違ったほう**である。使うのは 3.x 系。
 
-- `android.yml` の `env.IAP_PLUGINS` を `"1"` に
-- `android-play.yml` / `ios.yml` は **リポジトリ変数** `IAP_PLUGINS` を `1` に
-  （Settings → Secrets and variables → Actions → Variables）
+**iOS はピン留めできるアーカイブが存在しない。** `godot-ios-plugins` の
+バイナリリリースは **3.5-stable（2022年）で止まっていて、Godot 4 用は一度も
+配布されていない。** `docs/` に書いてあった「落としてチェックサムを貼る」手順は、
+そもそも落とすものが無いので実行できない。
 
-有効にするまで、ビルドは**課金プラグインを含まない**。そのビルドでは
-`Iap.available()` が false になり、ゲームは普通に遊べて、ストアだけが存在しない。
-中途半端に動くことはない。
+代わりに**ソースをピン留めしてビルドする**。`tools/build-ios-iap-plugin.sh` が
+macOS ランナー上で:
+
+1. プラグインを **commit `caafb2c7`** で取得（shallow）
+2. エンジンのヘッダを **`4.7.2-stable`** で取得
+3. `inappstore` を arm64 端末 / 両シミュレータ向けに release と debug でビルド
+4. `ios/plugins/` に `.gdip` と2つの `.xcframework` を置く
+
+固定するものが zip から (commit, engine tag) の2つに変わっただけで、約束は同じ:
+**同じ入力からは同じプラグインが出る。**
+
+iOS プラグインは**エクスポートされたアプリに静的リンクされる**ので、
+**そのアプリをビルドするエンジンと同じバージョンのヘッダで**コンパイルしなければ
+ならない。4.0 のヘッダでビルドして 4.7 で出すと、リンクエラーか、
+CIでは起きず実機でだけ起きるクラッシュになる。
+
+**CIの状態（いま）**
+
+- `android.yml` … `env.IAP_PLUGINS: "1"`（常に入る）
+- `android-play.yml` … **無条件**。ストアに出す .aab が課金を持たないことは
+  ありえないので、入らなければビルドを落とす
+- `ios.yml` … App Store 提出モードのときだけビルドする。未署名フォールバックは
+  パッケージングの確認なので StoreKit を要らない（macOSランナーで数分かかる）
+
+### 取引を閉じる（iOS）
+
+`Iap._redeem()` は、**サーバがトークンを返したあとで** バックエンドの
+`finish()` を呼ぶ。順序は意図的で、先に identifier がサーバに渡っているので、
+その間にクラッシュしても復元できないものは無い。
+
+これは 2026-09-26 に入れた。それまで `iap_ios.gd` は `_finish` を receipt に
+入れて返していたが、**誰もそれを読んでいなかった** —— StoreKit は閉じられて
+いない取引を毎回配信し直すので、課金は1回なのに購入画面が起動のたびに出続ける。
+Apple のリジェクト事由でもある。プラグインが入っていないビルドでは
+`Iap.available()` が false なので、**配線するまで発現しないバグ**だった。
 
 ### GitHub Secrets
 
@@ -298,7 +349,7 @@ shasum -a 256 <落ちてきたファイル>   # → スクリプトに貼る
   （廃止された 1.x のシングルトンAPIではない）
 - **iOS**: `godot-sdk-integrations/godot-ios-plugins` の **inappstore**。
   **StoreKit 1 ベース**で、Godot 4.4 以降での過去購入の復元が不安定だという
-  報告がある
+  報告がある。**プリビルドは無い**（上記）ので commit 固定でソースビルドする
 
 iOS の弱さは設計で吸収してある: **復元の正はサーバ側のキャッシュ**であり、
 プラグインは transaction id を取り出す役でしかない。同じストアアカウントなら

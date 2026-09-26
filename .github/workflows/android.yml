@@ -16,8 +16,10 @@ permissions:
 
 env:
   GODOT_VERSION: 4.7.2
-  # Set to "1" once tools/install-iap-plugins.sh has its checksums pinned.
-  IAP_PLUGINS: "0"
+  # Pinned since 0.9.0, so the test APKs carry the same billing code the store
+  # build does. A test APK that cannot reach Play is a test APK that cannot
+  # test the one thing most likely to be broken.
+  IAP_PLUGINS: "1"
 
 jobs:
   build:
@@ -28,10 +30,11 @@ jobs:
       - name: Install pinned EOSG for Linux host and Android target
         run: bash tools/install-eosg.sh linux android
 
-      # Opt-in until the plugin release is pinned in the script. Off, the build
-      # is exactly the build it was; on, it also carries Google Play Billing.
       # Without it Iap.available() is false and the game plays with no store,
       # which is the correct behaviour for a build that has no billing in it.
+      # These APKs are signed with a throwaway key, so Play will not actually
+      # sell to them; what they prove is that the plugin loads and the game
+      # still boots with it in.
       - name: Install the in-app purchase plugin
         if: env.IAP_PLUGINS == '1'
         run: bash tools/install-iap-plugins.sh android

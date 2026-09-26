@@ -255,8 +255,8 @@ static func decor() -> Array[Dictionary]:
 		{"type": "pillar", "pos": Vector2(700, 1370), "size": Vector2(70, 180)},
 		{"type": "waterfall", "pos": Vector2(600, 1440), "size": Vector2(110, 380)},
 		{"type": "ruin_pile", "pos": Vector2(-60, 970), "size": Vector2(120, 90)},
-		# summit: the ruined castle behind the gate
-		{"type": "castle", "pos": Vector2(320, 520), "size": Vector2(400, 380)},
+		# summit: the broken tower behind the gate
+		{"type": "ruin_tower", "pos": Vector2(320, 520), "size": Vector2(400, 380)},
 		{"type": "ruin_column", "pos": Vector2(-570, 520), "size": Vector2(70, 190)},
 		{"type": "ruin_column", "pos": Vector2(570, 520), "size": Vector2(70, 190)},
 		{"type": "tree", "pos": Vector2(-470, 520), "size": Vector2(200, 230)},

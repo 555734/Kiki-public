@@ -18,7 +18,7 @@ extends RefCounted
 ## Nothing here is drawn faintly or in outline. A veiled layer is absent.
 
 ## The layers a veil can hide. Strings rather than an enum so a veil row reads
-## like the rest of the level data ({"type": "walker"}, {"kind": "pipe"}).
+## like the rest of the level data ({"type": "walker"}, {"kind": "conduit"}).
 const TERRAIN := "terrain"
 const ENEMIES := "enemies"
 const HAZARDS := "hazards"

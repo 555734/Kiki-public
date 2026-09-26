@@ -30,6 +30,12 @@ run_checked() {
 	fi
 }
 
+# First, and without Godot: the things that decide whether this tree may be
+# uploaded at all. A suite that proves the physics and lets a placeholder
+# signing key through has checked the wrong thing thoroughly.
+step "release readiness (no engine needed)"
+bash tools/release-check.sh || fail=1
+
 step "import pass (registers class_name globals)"
 # --editor --quit quits on the first frame, which is BEFORE the filesystem
 # scan finishes ("Scan thread aborted"), so on a fresh clone it leaves some

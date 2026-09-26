@@ -5,31 +5,38 @@
 #   tools/install-iap-plugins.sh android
 #   tools/install-iap-plugins.sh ios
 #
-# UNPINNED ON PURPOSE. The two SHA256 lines below are empty because nobody has
-# chosen a release yet, and a checksum invented by somebody who never saw the
-# file is worse than none: it would be checked, it would pass, and it would
-# mean nothing. Filling them in is the last step before the first store build,
-# and docs/monetization.md has the two commands.
+# Android is a pinned release archive. iOS is not: godot-sdk-integrations'
+# last BINARY release is 3.5-stable from 2022 and there has never been a
+# prebuilt Godot 4 one, so the iOS half is built from a pinned commit on a
+# macOS runner. That is the only way to get this plugin for Godot 4, and
+# finding it out cost a round trip -- hence this note rather than a URL that
+# looks plausible and 404s.
 #
-# Until they are filled in this script refuses to run, and the CI step that
-# calls it is opt-in (IAP_PLUGINS=1). A build without these plugins is a build
-# where Iap.available() is false: the game plays, the store does not exist, and
-# nothing silently half-works.
+# A build without these plugins is a build where Iap.available() is false: the
+# game plays, the store does not exist, and nothing silently half-works.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# ---- pin these two ---------------------------------------------------------
+# ---- Android: pinned release ----------------------------------------------
+# The 3.x line is the Godot 4.2+ one (the 1.x line is Godot 3 maintenance --
+# 1.4.0 is NEWER than 3.3.0 by date and is the wrong plugin for this project).
+# The tag has no "v" and the asset is not named after the version; both were
+# guessed wrong once already.
 ANDROID_VERSION="3.3.0"
-ANDROID_URL="https://github.com/godot-sdk-integrations/godot-google-play-billing/releases/download/v${ANDROID_VERSION}/GodotGooglePlayBilling-${ANDROID_VERSION}.zip"
-ANDROID_SHA256=""
+ANDROID_URL="https://github.com/godot-sdk-integrations/godot-google-play-billing/releases/download/${ANDROID_VERSION}/godot-google-play-billing.zip"
+ANDROID_SHA256="20d75623d6f337f08d8283c83098b73678d5f575e39247af5a8eb80588b18568"
 
-IOS_VERSION=""
-IOS_URL=""
-IOS_SHA256=""
+# ---- iOS: pinned source ----------------------------------------------------
+# master @ 2026-07-10. Built against the engine's own headers at the version
+# this project ships, because an iOS plugin is a static library linked into
+# the exported app and its symbols have to be the engine's.
+IOS_PLUGIN_REPO="https://github.com/godot-sdk-integrations/godot-ios-plugins"
+IOS_PLUGIN_COMMIT="caafb2c7fbfb5c72a64f163c76449274fa49abaa"
+IOS_GODOT_TAG="${IOS_GODOT_TAG:-4.7.2-stable}"
 # ----------------------------------------------------------------------------
 
 fetch() {
-	name="$1"; url="$2"; expected="$3"; marker="$4"
+	name="$1"; url="$2"; expected="$3"; marker="$4"; into="$5"
 	if [ -z "$expected" ]; then
 		echo "install-iap-plugins: $name is not pinned yet." >&2
 		echo "  1. download: $url" >&2
@@ -44,18 +51,8 @@ fetch() {
 		echo "$name checksum mismatch: $actual" >&2
 		exit 1
 	fi
-	unpack=$(mktemp -d "${TMPDIR:-/tmp}/side-sky-iap.XXXXXX")
-	unzip -q -o "$zip" -d "$unpack"
-	# Release archives wrap the addon in one top-level folder, the same shape
-	# EOSG uses; merging its contents puts the addon at res://addons/.
-	if [ -d "$unpack/addons" ]; then
-		cp -R "$unpack/." .
-	else
-		inner=$(find "$unpack" -maxdepth 2 -type d -name addons | head -1)
-		[ -n "$inner" ] || { echo "$name: no addons/ in the archive" >&2; exit 1; }
-		cp -R "$(dirname "$inner")/." .
-	fi
-	rm -rf "$unpack"
+	mkdir -p "$into"
+	unzip -q -o "$zip" -d "$into"
 	test -e "$marker" || { echo "$name: $marker missing after install" >&2; exit 1; }
 	echo "$name plugin installed"
 }
@@ -64,14 +61,22 @@ fetch() {
 for target in "$@"; do
 	case "$target" in
 		android)
+			# The archive's top level is GodotGooglePlayBilling/, not addons/,
+			# so it unpacks INTO addons rather than over the project root.
 			fetch android "$ANDROID_URL" "$ANDROID_SHA256" \
-				"addons/GodotGooglePlayBilling/BillingClient.gd"
+				"addons/GodotGooglePlayBilling/BillingClient.gd" "addons"
 			# The plugin ships an EditorExportPlugin, which only runs when the
 			# addon is enabled in project.godot. Switched on here, at the
 			# moment the files exist, rather than committed -- see the script.
-			python3 tools/enable-editor-plugin.py GodotGooglePlayBilling ;;
-		ios) fetch ios "$IOS_URL" "$IOS_SHA256" \
-			"ios/plugins/inappstore.gdip" ;;
+			"${PYTHON:-python3}" tools/enable-editor-plugin.py GodotGooglePlayBilling ;;
+		ios)
+			IOS_PLUGIN_REPO="$IOS_PLUGIN_REPO" \
+			IOS_PLUGIN_COMMIT="$IOS_PLUGIN_COMMIT" \
+			IOS_GODOT_TAG="$IOS_GODOT_TAG" \
+				bash tools/build-ios-iap-plugin.sh
+			test -e "ios/plugins/inappstore.gdip" \
+				|| { echo "ios: ios/plugins/inappstore.gdip missing after build" >&2; exit 1; }
+			echo "ios plugin installed" ;;
 		*) echo "unsupported target: $target" >&2; exit 2 ;;
 	esac
 done

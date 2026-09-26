@@ -10,9 +10,6 @@ override the earlier cut-outs of the same subject:
 
 | file | size | note |
 |---|---|---|
-| `props/brick.png` | 128x128 | three-brick block |
-| `props/pipe.png` | 160x227 | green pipe |
-| `props/qblock.png` | 128x119 | star block |
 | `props/spikes.png` | 384x95 | five-spike plate, tiled along a hazard |
 | `props/signpost.png` | 168x203 | wooden direction sign |
 | `props/coin.png` | 112x113 | gauge pickup |
@@ -39,9 +36,6 @@ table. It will not overwrite anything in the list above.
 | `characters/walker.png` | m2 | `(1356, 460, 1444, 552)` | cut | 74x78 | on grass, unobstructed |
 | `holograms/platform.png` | m1 | `(662, 424, 968, 502)` | cut | 281x53 | solid slab, face-on |
 | `holograms/wall.png` | m1 | `(0, 0, 0, 0)` | derive | 53x281 | platform rotated 90deg |
-| `props/pipe.png` | m3 | `(470, 430, 604, 524)` | cut | 101x82 | zoomed, highest res |
-| `props/qblock.png` | m3 | `(332, 332, 448, 402)` | cut | 54x52 | zoomed |
-| `props/brick.png` | m1 | `(192, 318, 290, 420)` | cut | 67x69 | single brick block, sky margin |
 | `props/spikes.png` | m3 | `(606, 626, 916, 694)` | cut | 306x53 | zoomed spike row |
 | `props/fence.png` | m1 | `(218, 484, 316, 550)` | key | 98x66 | wooden rail on grass |
 | `props/flowers.png` | m1 | `(134, 474, 216, 536)` | cut | 80x56 | daisies |
@@ -51,7 +45,6 @@ table. It will not overwrite anything in the list above.
 | `bg/cloud_a.png` | m1 | `(440, 18, 668, 122)` | key | 218x104 |  |
 | `bg/cloud_b.png` | m1 | `(1080, 146, 1312, 244)` | key | 204x74 |  |
 | `bg/cloud_c.png` | m1 | `(176, 206, 352, 294)` | key | 167x88 |  |
-| `bg/castle.png` | m2 | `(1410, 120, 1624, 306)` | key | 214x164 | distant skyline |
 | `ui/panel_p1.png` | m3 | `(0, 4, 316, 96)` | rect | 316x92 | P1 plate with hearts |
 | `ui/panel_p2.png` | m3 | `(4, 104, 330, 196)` | rect | 326x92 | P2 plate |
 | `ui/portrait_lira.png` | m3 | `(10, 10, 104, 92)` | rect | 94x82 |  |
@@ -204,7 +197,7 @@ written down, which is why they are a table rather than a detection pass.
 | `ground_block` | 02_terrain_tiles | a whole grass-topped block; `crumbling_floor.gd` stretches it |
 | `runner_*` (8) | 04_player_sprites | nineteen frames on the sheet, eight named poses here |
 | `walker`, `walker_spiky` | 05_enemy_sprites | two ground enemies arrived; see `Walker.skin` |
-| `qblock`, `brick`, `coin`, `moving_platform` | 06_items_blocks_platform | |
+| `coin`, `moving_platform` | 06_items_blocks_platform | |
 | `goal` | 07_goal_gate | |
 | `tree`, `fence`, `flowers` | 03_decorations | |
 | `signpost`, `heart` | 08_ui_and_signs | |
@@ -242,9 +235,9 @@ one scale aligned by the feet, as the first hand-over's poses do, which moved
 **Not covered by this hand-over.** Roughly thirty registered keys have no
 drawing on these sheets and keep the art they had: the guardian's `platform`,
 `wall` and `warp_gate`, the whole optic (`scope_ring`, `crosshair`,
-`zoom_slider`, `cartridge`, `btn_reticle`), `spikes`, `spring`, `pipe`,
+`zoom_slider`, `cartridge`, `btn_reticle`), `spikes`, `spring`,
 `turret`, `flyer`, `projectile`, the lasers, the switches, the checkpoints,
-`cloud_a/b/c`, `castle`, the portraits and the HUD icons. The result is
+`cloud_a/b/c`, the portraits and the HUD icons. The result is
 deliberately a mixed set.
 
 **Arrived with no home.** Ten number tiles, four clock faces, a second signpost,
@@ -294,6 +287,26 @@ readable on a phone.
   of the painted set.
 - Other stages' terrain and props remain original deterministic
   vertex-coloured recipes in `src/render/three/`.
+
+
+## Withdrawn, 2026-09-26
+
+Four files were removed from this repository and from `Art.MANIFEST`:
+`props/pipe.png`, `props/qblock.png`, `props/brick.png` and `bg/castle.png`.
+
+They were cut, by `tools/extract_assets.py`, out of the concept mockups
+supplied with the brief -- and what they were cut out of was a green pipe, a
+`?` block, a brick block and a mushroom-roofed castle. Those are Nintendo's
+designs, they are among the most recognisable in the medium, and no amount of
+recolouring makes a cut-out of one into something else. `docs/testflight.md`
+warned about exactly these four before the first public build; this is that
+warning being acted on.
+
+Nothing was lost from the game. The objects are still there, in the same
+places, with the same colliders: the pipe is a stone conduit, the block row is
+coursed masonry with one carved stone in it, and the castle on the horizon is
+a broken tower. All four are drawn in code now -- `src/render/decor.gd` and
+`src/render/sky_canvas.gd` -- so there is no file to accidentally restore.
 
 ## Stage 1-4 "THE SUNLIT COAST" (`stage_1_4/`)
 

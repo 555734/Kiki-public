@@ -108,14 +108,34 @@ func _redeem(receipt: Dictionary) -> String:
 	var puid := EosRuntime.product_user_id()
 	if puid.is_empty():
 		return "オンラインの準備ができていません。通信を確認してもう一度お試しください。"
+	# The backend may attach a note to itself about what still has to be closed
+	# once the server has answered. It is not part of the receipt and the
+	# Worker must never see it.
+	var pending_finish := String(receipt.get("_finish", ""))
+	receipt.erase("_finish")
 	var answer: Dictionary = await EntitlementClient.verify(receipt, puid)
 	if answer.has("error"):
 		return String(answer["error"])
 	var token := String(answer.get("token", ""))
 	if token.is_empty() or not Entitlement.install_token(token, puid):
 		return "購入は確認できましたが、権限を受け取れませんでした。"
+	_finish(pending_finish)
 	changed.emit()
 	return ""
+
+## Close the store's transaction, now that the entitlement is on this device.
+##
+## StoreKit keeps redelivering a transaction that was never finished: the
+## player is charged once, and then every launch replays the purchase for
+## ever. Apple rejects for it, and it is invisible in a build with no plugin,
+## which is how it survived until the plugin was actually wired up. The order
+## is deliberate -- the server has the identifier BEFORE anything is finished,
+## so a crash in between loses nothing that cannot be restored.
+func _finish(pending: String) -> void:
+	if pending.is_empty() or _backend == null:
+		return
+	if _backend.has_method("finish"):
+		_backend.finish(pending)
 
 func _refresh_price() -> void:
 	if not available():
