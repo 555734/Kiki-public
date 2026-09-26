@@ -89,7 +89,11 @@ enum World {
 ## screen says rather than a game that half works.
 ## 15: sky crows add enemies after each stage's own, and the goal needs a key.
 ## 16: 1-4 rebuilt (new enemies and layout).
-const VERSION: int = 16
+## 17: the handshake carries an entitlement token, so a paying player can lend
+##     the full game to the person they are playing with. Two lines of work met
+##     here -- one had reached 16, the other 15 -- and a build carrying both is
+##     neither of them.
+const VERSION: int = 17
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -136,12 +140,19 @@ static func _buf(kind: int) -> StreamPeerBuffer:
 ## the symptom of that mistake is "my partner is describing a place that does
 ## not exist". There is no way to debug that from inside the game, so it is
 ## refused at the door instead.
-static func hello(player_id: String, stage: int, role: String = "guardian") -> PackedByteArray:
+## `token` is this device's entitlement token, or "" when it has bought
+## nothing. It rides the handshake rather than a message of its own because the
+## handshake is the one exchange that is repeated verbatim on every reconnect
+## (see HostSession._resync): an entitlement that arrived on a separate message
+## would be an entitlement that a dropped link could lose.
+static func hello(player_id: String, stage: int, role: String = "guardian",
+		token: String = "") -> PackedByteArray:
 	var b := _buf(Msg.HELLO)
 	b.put_u8(VERSION)
 	b.put_u8(stage)
 	b.put_u8(1 if role == "runner" else 2)
 	b.put_utf8_string(player_id)
+	b.put_utf8_string(token)
 	return b.data_array
 
 static func runner_input(axis: float, axis_y: float, jump: bool, dash: bool,
@@ -159,11 +170,18 @@ static func authority_ready(epoch: int, tick: int) -> PackedByteArray:
 	b.put_u32(tick)
 	return b.data_array
 
-static func welcome(tick: int, player_id: String) -> PackedByteArray:
+static func welcome(tick: int, player_id: String, token: String = "") -> PackedByteArray:
 	var b := _buf(Msg.WELCOME)
 	b.put_u32(tick)
 	b.put_utf8_string(player_id)
+	b.put_utf8_string(token)
 	return b.data_array
+
+## A string that may not be there, because the sender is an older build or
+## because it had nothing to say. Reading past the end of a StreamPeerBuffer
+## returns junk rather than failing, so the length is checked first.
+static func opt_string(b: StreamPeerBuffer) -> String:
+	return b.get_utf8_string() if b.get_available_bytes() > 0 else ""
 
 static func ping(client_ms: int) -> PackedByteArray:
 	var b := _buf(Msg.PING)

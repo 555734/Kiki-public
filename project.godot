@@ -1,4 +1,4 @@
-; SIDE / SKY  --  asymmetric co-op 2D action
+; 走れメロス  --  asymmetric co-op 2D action
 ; Engine configuration file.
 
 config_version=5
@@ -22,6 +22,9 @@ Clock="*res://src/autoload/clock.gd"
 Audio="*res://src/autoload/audio.gd"
 Events="*res://src/autoload/events.gd"
 GameState="*res://src/autoload/game_state.gd"
+Entitlement="*res://src/autoload/entitlement.gd"
+EntitlementClient="*res://src/store/entitlement_client.gd"
+Iap="*res://src/store/iap.gd"
 EosRuntime="*res://src/net/eos/eos_runtime.gd"
 
 ; These files are installed from the pinned EOSG release before CI imports the

@@ -43,6 +43,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install the in-app purchase plugin
+        if: vars.IAP_PLUGINS == '1'
+        run: bash tools/install-iap-plugins.sh ios
+
       - name: Install pinned EOSG for macOS host and iOS target
         run: bash tools/install-eosg.sh macos ios
 

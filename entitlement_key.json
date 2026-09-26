@@ -1,0 +1,16 @@
+{
+  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nPLACEHOLDER\n-----END PUBLIC KEY-----\n",
+  "note": [
+    "The entitlement server's RSA-2048 PUBLIC key. A public key is not a secret:",
+    "it can only CHECK a token, never make one, so it is committed on purpose and",
+    "a build is reproducible from this repository alone.",
+    "While it still says PLACEHOLDER, no token validates, so every player is a free",
+    "player and nothing unlocks. A build with no key must fail closed.",
+    "tools/make-entitlement-key.sh generates the real pair. The PRIVATE half goes to",
+    "the Cloudflare Worker via `wrangler secret put ENTITLEMENT_SIGNING_KEY` and must",
+    "never be committed. See docs/monetization.md.",
+    "JSON rather than .pem because Godot exports .json as a resource; a bare .pem",
+    "would need an include_filter entry in every preset and would be missing from a",
+    "build the first time somebody added a preset and forgot."
+  ]
+}

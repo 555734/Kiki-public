@@ -315,7 +315,8 @@ readable on a phone.
   generated with OpenAI's built-in image generation tool in this task. The
   owner-provided platform-game screenshot served only as a texture/style
   reference for v2; v3 adds moderate material depth. The boards are design
-  references, and v3 supplies the stage-selection preview's scene area.
+  references only: the stage-selection card is now `menu/card_1_5.png`, a
+  screenshot of the stage itself, and no longer a crop of v3.
 - `distant_swamp.png` is a separately generated distant background, with no
   gameplay geometry. `props_atlas.png` is a separately generated transparent
   2x2 sheet of a willow, mushrooms, reeds, and a boulder. Both were generated
@@ -324,3 +325,16 @@ readable on a phone.
   `sky/island_cap.png` textures with swamp tinting; the poisonous water, bridge,
   raft, and falling floor are drawn at runtime. No image from the owner's
   screenshot is copied into the game.
+
+## Stage-select cards (`menu/`)
+
+`card_1_1.png` 〜 `card_1_5.png` are **not** a hand-over. They are screenshots
+of the stages in this repository, rendered by `tools/capture_stage_cards.gd`
+through a 432x840 window so the picture matches the card's shape instead of
+being a centre crop of a 16:9 frame. Everything in them is art already
+accounted for elsewhere in this file, so they add no new provenance -- and
+they are regenerated, not edited, whenever a stage's art or layout changes.
+
+The one that still reads flat is `card_1_2.png`, and that is the stage: see
+**The reversal** above. A card cannot be better looking than the stage it is
+a photograph of.

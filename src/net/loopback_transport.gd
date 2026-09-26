@@ -15,6 +15,14 @@ var latency: float = 0.0        ## one-way, seconds
 var jitter: float = 0.0         ## uniform +/- , seconds
 var loss: float = 0.0           ## 0..1, applied to unreliable channels only
 var peer: LoopbackTransport = null
+## Stands in for an EOS lobby's answer to peer_identity().
+##
+## The entitlement exchange asks the transport who the other device is, because
+## asking the packet would be asking the thing under test. There is no lobby in
+## a loopback pair, so a test that wants to drive the friend pass sets this the
+## way EOS would have. Production never touches it: EosTransport overrides
+## peer_identity() and reads the real lobby.
+var stub_identity: Dictionary = {"puid": "", "room_kind": ""}
 
 var _clock: float = 0.0
 var _inbox: Array[Dictionary] = []     ## {"at": float, "channel": int, "payload": ...}
@@ -24,6 +32,9 @@ var _rng := RandomNumberGenerator.new()
 ## Deterministic by default: a test that fails should fail every time.
 func _init(seed_value: int = 12345) -> void:
 	_rng.seed = seed_value
+
+func peer_identity() -> Dictionary:
+	return stub_identity
 
 static func pair(one_way_latency: float, packet_loss: float = 0.0,
 		packet_jitter: float = 0.0) -> Array[LoopbackTransport]:

@@ -77,10 +77,25 @@ func _ready() -> void:
 				check(not seen.has(label),
 					"start screen does NOT offer %s (hidden on purpose)" % label)
 
+			# Difficulty belongs to the stage that has been chosen, so it is
+			# not offered before one has been.
+			check(_speeds(panel).is_empty(),
+				"the stage screen does not ask about difficulty yet")
+
 			panel._show_play_screen()
 			await get_tree().process_frame
 			check(panel.get("_code") != null,
 				"choosing a stage opens the separate play/connect screen")
+			check(_speeds(panel).size() == Difficulty.LABELS.size(),
+				"every 追跡者の速さ setting is offered once the stage is chosen")
+			# And it still takes: the chasers read the value live, and the room
+			# carries the host's, so this is the last screen that can set it.
+			var before := Difficulty.current()
+			var other := (before + 1) % Difficulty.LABELS.size()
+			panel._on_difficulty(other)
+			check(Difficulty.current() == other,
+				"the play screen actually changes the difficulty")
+			panel._on_difficulty(before)
 			check(panel.find_children("*", "Button", true, false).all(
 				func(button: Button) -> bool: return not button.text.contains("1-2")),
 				"stage cards are not duplicated on the play screen")
@@ -134,3 +149,11 @@ func _ready() -> void:
 		for failure in failures:
 			push_error("stage menu probe: " + failure)
 		get_tree().quit(1)
+
+## Every 追跡者の速さ button currently on screen.
+func _speeds(panel: Node) -> Array:
+	var found := []
+	for node in panel.find_children("*", "Button", true, false):
+		if Difficulty.LABELS.has(String((node as Button).text)):
+			found.append(node)
+	return found

@@ -5,22 +5,26 @@ extends RefCounted
 ## is all relief now: sea stacks, cliffs and drops of up to 560px, with open
 ## water under everything, so a miss is a fall. Nine beats:
 ##
-##   A  beach start       -- two crabs, the purple chaser wakes early.
-##   A2 dune steps        -- two 110px step-ups to warm the jump up.
+##   A  beach start       -- two crabs, a spiked strip to hop, and the purple
+##                           chaser waking early.
+##   A2 dune steps        -- two 110px step-ups to warm the jump up, and a tide
+##                           belt across the top that turns every 3.2s.
 ##   B  stepping rocks    -- rocks that rise and fall, then a cliff with a
 ##                           turret firing down at the climb.
 ##   C  crumbling pier    -- three planks that give way, then 560px of open
 ##                           water that NEEDS a guardian slab.
-##   D  sea stacks        -- three pillars climbing 120px each, then a long
-##                           drop to a beach guarded by a turret.
+##   D  sea stacks        -- three pillars climbing 120px each, a sea breeze off
+##                           the highest one that trades speed for height, then
+##                           a 460px drop to a beach guarded by a turret.
 ##   E  the lift raft     -- a raft rising 300px up the face of a cliff.
 ##   F  blinking steps    -- three blink platforms over 700px of sea, out of
 ##                           phase, so the crossing is a rhythm.
 ##   G  the sea wall      -- a spring over a 280px wall, then 620px of water
 ##                           with seabirds over it: guardian.
-##   H  falling bridge    -- three crumbling planks, the chaser closing.
-##   I  last climb        -- two steps up and 650px of water: guardian, then
-##                           the lighthouse point and the flag.
+##   H  falling bridge    -- a harbour gate whose switch only the rifle reaches,
+##                           then three crumbling planks, the chaser closing.
+##   I  last climb        -- two steps up and 650px of water: guardian, then a
+##                           beacon sweeping the point, and the flag.
 ##
 ## Jumps are sized against the measured runner (B = 48): a jump rises 154px
 ## (184 at a sprint), a sprint jump carries ~300px, a spring ~307px. So every
@@ -95,8 +99,12 @@ static func solid_decor() -> Array[Rect2]:
 		out.append(f["rect"])
 	return out
 
+## A spiked strip washed up on the first beach. Everything else on this coast
+## is dangerous because of what is under it; this is the one thing that is
+## dangerous with both feet on the sand, and it is on the beach the stage gives
+## you to get used to the controls on.
 static func hazards() -> Array[Dictionary]:
-	return []
+	return [{"pos": Vector2(150, 384), "size": Vector2(130, 32)}]
 
 static func enemies() -> Array[Dictionary]:
 	return [
@@ -132,12 +140,31 @@ static func enemies() -> Array[Dictionary]:
 		{"type": "flyer", "pos": Vector2(10920, -150), "patrol": 220.0},
 	]
 
+## Eight kinds now, not three. The relief is what makes this coast hard -- the
+## drops and the open water under everything -- and that does not change here;
+## what changes is how many different questions it asks on the way down.
+##
+## Everything added is INSIDE a slab. The three guardian crossings (560, 620
+## and 650px) are the spine of the stage and the probe allows no spare: a
+## gimmick whose x-span touched one would read as bridging it, and the stage
+## would quietly stop needing a second player for that crossing.
 static func gimmicks() -> Array[Dictionary]:
 	return [
+		# A2 -- the tide over the wet top of the dune, turning every 3.2s. The
+		# 130px hop off the end has not changed; what has changed is that
+		# standing on the lip to line it up is now a decision.
+		{"type": "conveyor", "pos": Vector2(1040, 177),
+			"span": Vector2(240, 26), "speed": 120.0, "flip": 3.2, "dir": 1},
 		# C -- the pier's planks, each gone a moment after it is stood on.
 		{"type": "crumble", "pos": Vector2(2600, 165), "span": Vector2(110, 30)},
 		{"type": "crumble", "pos": Vector2(2760, 165), "span": Vector2(110, 30)},
 		{"type": "crumble", "pos": Vector2(2920, 165), "span": Vector2(110, 30)},
+		# D -- a sea breeze off the highest stack. Height for nothing, paid for
+		# in horizontal speed (Balance.UPDRAFT_DRAG), at the exact point where
+		# the next thing is a 460px drop to a beach with a turret on it: ride
+		# it and there had better be a plan, which is a sentence one of them
+		# has to say out loud.
+		{"type": "updraft", "pos": Vector2(4825, -160), "span": Vector2(140, 420)},
 		# E -- a raft that rises up the cliff face and sinks back to the beach.
 		{"type": "moving_platform", "pos": Vector2(5750, 250),
 			"span": Vector2(140, 26), "travel": Vector2(0, -300)},
@@ -148,10 +175,22 @@ static func gimmicks() -> Array[Dictionary]:
 			"beat": 1.6, "colour": 1, "phase": 0.55},
 		{"type": "blink", "pos": Vector2(6780, 120), "span": Vector2(120, 26),
 			"beat": 1.6, "colour": 0, "phase": 1.1},
+		# G -- a harbour gate in front of the falling bridge. The switch hangs
+		# where only the rifle reaches it, the gate is open for six seconds,
+		# and the purple chaser is closing the whole time. The checkpoint is
+		# right behind it, so getting this wrong costs seconds, not minutes.
+		{"type": "switch", "pos": Vector2(8800, -30), "id": "coast_gate", "hold": 6.0},
+		{"type": "gate", "pos": Vector2(9020, 25), "span": Vector2(44, 190),
+			"id": "coast_gate", "wants": 0},
 		# H -- the falling bridge.
 		{"type": "crumble", "pos": Vector2(9220, 125), "span": Vector2(110, 30)},
 		{"type": "crumble", "pos": Vector2(9380, 125), "span": Vector2(110, 30)},
 		{"type": "crumble", "pos": Vector2(9540, 125), "span": Vector2(110, 30)},
+		# I -- the lighthouse sweeps the last stretch of the point, 1.6s lit
+		# and 1.4s dark. Run the dark, or have a wall put up in front of it --
+		# and the last three coins are inside the beam, which is the choice.
+		{"type": "laser", "pos": Vector2(12000, 70), "dir": Vector2.LEFT,
+			"length": 560.0},
 	]
 
 static func checkpoints() -> Array[Vector2]:

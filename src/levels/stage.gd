@@ -151,6 +151,22 @@ static func stage_name() -> String:
 		return Level03Data.STAGE_NAME
 	return Level02Data.STAGE_NAME if is_crossing() else Level01Data.STAGE_NAME
 
+## The stages a player who has not bought the full game can start on their own.
+##
+## Deliberately a property OF the stage list and not a gate INSIDE use(): every
+## probe in test/ calls Stage.use() directly to inspect a stage's geometry, and
+## a stage that refused to load without an entitlement would take the whole
+## suite down with it. Locking happens where a player starts a game -- the menu
+## and the room-creation path -- not where the data is read.
+##
+## 1-1 teaches running and jumping; 1-2 is the first stage that cannot be
+## finished without the guardian, which is the thing being sold. Someone who
+## has played both has seen what the full game is.
+const FREE_STAGES: Array[int] = [Which.GREENFIELD, Which.HORROR]
+
+static func is_free(which: int = -1) -> bool:
+	return FREE_STAGES.has(_which if which < 0 else which)
+
 static func stage_number() -> String:
 	if is_swamp():
 		return _data("level_swamp_data").stage_number_value()
