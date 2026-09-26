@@ -11,6 +11,9 @@ const SkyPursuerScript = preload("res://src/entities/enemies/sky_pursuer.gd")
 const ThornmiteScript = preload("res://src/entities/enemies/thornmite.gd")
 
 var runner: Runner = null
+## The co-op run's sky crows and gate key. The versus circuit is cut from 1-1
+## but races to a finish of its own, so it builds neither.
+var co_op_extras: bool = true
 ## Needed before build(): which player this screen belongs to decides what the
 ## veils hide, and the terrain is filtered on the way in.
 var input_hub: InputHub = null
@@ -135,6 +138,27 @@ func rebuild_dynamic() -> void:
 			_dynamic.add_child(node)
 			_veil(node, Veil.ENEMIES, true)
 		enemy_id += 1
+
+	# Crows over the course come after the listed enemies, so their net_ids
+	# continue the same numbering on both devices.
+	var crow_i := 0
+	for p in (Stage.sky_crows() if co_op_extras else []):
+		var crow := SkyCrow.new()
+		crow.global_position = p
+		crow.net_id = enemy_id
+		crow.phase_offset = float(crow_i) * 1.7
+		crow.patrol = 200.0 + float(crow_i % 3) * 40.0
+		_dynamic.add_child(crow)
+		_veil(crow, Veil.ENEMIES, true)
+		enemy_id += 1
+		crow_i += 1
+
+	if co_op_extras and Stage.needs_key() and not GameState.has_key:
+		var key := StageKey.new()
+		key.runner = runner
+		key.global_position = Stage.key_position()
+		_dynamic.add_child(key)
+		_veil(key, Veil.PICKUPS)
 
 	for g in Stage.gimmicks():
 		var node := _make_gimmick(g)

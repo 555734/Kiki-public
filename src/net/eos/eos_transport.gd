@@ -30,12 +30,6 @@ const EARLY_MAX := 32
 var _pending_since: Dictionary = {}
 const UNKNOWN_REQUEST_GRACE_MS := 6000
 
-## The real answer: both halves read off the lobby, never off a packet.
-func peer_identity() -> Dictionary:
-	if room == null:
-		return {"puid": "", "room_kind": ""}
-	return {"puid": room.remote_puid(), "room_kind": room.room_kind()}
-
 func open(p_room: EosCoopLobby) -> String:
 	room = p_room
 	if room == null or room.lobby == null:
@@ -79,7 +73,7 @@ func send(channel: int, reliability: int, payload: PackedByteArray) -> void:
 	if _peer == null or not _connected:
 		return
 	if payload.size() + 1 > PAYLOAD_LIMIT:
-		push_error("EOS packet of %d bytes exceeds the game cap %d" % [payload.size() + 1, PAYLOAD_LIMIT])
+		push_error("EOS packet of %d bytes exceeds SIDE / SKY cap %d" % [payload.size() + 1, PAYLOAD_LIMIT])
 		return
 	_peer.set_transfer_channel(0)
 	_peer.set_transfer_mode(MultiplayerPeer.TRANSFER_MODE_RELIABLE \

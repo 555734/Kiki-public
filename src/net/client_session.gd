@@ -114,38 +114,7 @@ func _ready() -> void:
 	Events.level_rebuilt.connect(_take_over_local_world)
 	transport.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED,
-		Protocol.hello(NetLink.client_id(), Stage.current(), local_role,
-			Entitlement.local_token()))
-
-## Take the partner's entitlement, if they have one and if this is the kind of
-## room that lends it.
-##
-## Everything that decides this comes from somewhere the sender does not
-## control: the signature is the server's, the puid it must match is the one
-## the EOS lobby reports for that member, and the room kind is a lobby
-## attribute. A device that simply claims to have bought the game gets nothing.
-##
-## Re-run on every WELCOME, so a reconnect restores the guest's unlock without
-## a special path -- there is no branch here that only runs after something has
-## gone wrong.
-func _take_entitlement(token: String) -> void:
-	var who := transport.peer_identity() if transport != null \
-		else {"puid": "", "room_kind": ""}
-	if token.is_empty():
-		Entitlement.revoke_guest()
-		return
-	var was_guest := Entitlement.is_guest()
-	if Entitlement.grant_guest(token, String(who.get("puid", "")),
-			String(who.get("room_kind", ""))) and not was_guest:
-		# Said once, when it starts, rather than parked on the HUD forever: the
-		# guest needs to know the unlock is borrowed and why it will go away,
-		# and then they need to be left alone to play.
-		Events.notice.emit("フレンドパス：一緒に遊んでいる間だけ全ステージが遊べます")
-
-## The borrowed unlock dies with the room. Nothing about it is written down, so
-## there is nothing to clean up on disk -- this is the whole of the revocation.
-func _exit_tree() -> void:
-	Entitlement.revoke_guest()
+		Protocol.hello(NetLink.client_id(), Stage.current(), local_role))
 
 ## Switch off everything the host owns. Leaving these running would not just
 ## waste frames -- a locally simulated runner would visibly disagree with the
@@ -197,8 +166,7 @@ func _process(delta: float) -> void:
 		if not _welcomed:
 			transport.send(NetTransport.Channel.CONTROL,
 				NetTransport.Reliability.RELIABLE_ORDERED,
-				Protocol.hello(NetLink.client_id(), Stage.current(), local_role,
-			Entitlement.local_token()))
+				Protocol.hello(NetLink.client_id(), Stage.current(), local_role))
 	if local_role == "runner" and _down_for < 0.0:
 		_runner_input_accumulator += delta
 		if _runner_input_accumulator >= 1.0 / 30.0:
@@ -312,8 +280,7 @@ func _send_hello() -> void:
 	_restoring = true
 	transport.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED,
-		Protocol.hello(NetLink.client_id(), Stage.current(), local_role,
-			Entitlement.local_token()))
+		Protocol.hello(NetLink.client_id(), Stage.current(), local_role))
 
 func migration_state_is_fresh() -> bool:
 	return not _latest_migration.is_empty() and _latest_migration_received_ms >= 0 \
@@ -490,7 +457,6 @@ func _handle(packet: Dictionary) -> void:
 			# holds is a separate fact from which device is the authority, and
 			# the two are recorded separately on purpose -- see Party.
 			var host_id := b.get_utf8_string()
-			_take_entitlement(Protocol.opt_string(b))
 			party.clear()
 			party.seat(NetLink.client_id(), Party.ROLE_RUNNER \
 				if local_role == "runner" else Party.ROLE_GUARDIAN)
@@ -758,6 +724,14 @@ func _confirm_hologram(b: StreamPeerBuffer) -> void:
 	holo.birth_tick = birth
 	holo.death_tick = death
 	main.guardian.spawn_hologram(holo)
+	# The host replaces its oldest platform when a third is built; keep this
+	# device to the same two even if that removal is never heard about.
+	if holo.kind == Hologram.Kind.PLATFORM:
+		var live: Array = main.guardian.holograms_of(Hologram.Kind.PLATFORM)
+		while live.size() > Balance.PLATFORM_MAX_ALIVE:
+			var oldest = live.pop_front()
+			if is_instance_valid(oldest) and oldest != holo:
+				oldest.queue_free()
 
 ## Make this device's constructs exactly the host's set: remove what the host
 ## does not have, correct what it does, add what is missing.

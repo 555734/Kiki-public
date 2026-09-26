@@ -70,7 +70,7 @@ func ensure_ready() -> bool:
 	if not bool(await auth.call("login_anonymous_async", display_name)):
 		_fail("EOSの匿名ログインに失敗しました")
 		return false
-	# EOS relay is allowed only as EOS's free NAT fallback. No server of our own
+	# EOS relay is allowed only as EOS's free NAT fallback. No SIDE / SKY server
 	# receives gameplay packets.
 	p2p.call("set_relay_control", 1)
 	_set_state(State.READY, "")

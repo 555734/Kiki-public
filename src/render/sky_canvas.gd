@@ -16,13 +16,13 @@ func _draw() -> void:
 		_three_background(view,scroll,t)
 		return
 	if _panorama(view, scroll * PANORAMA_RATE):
-		# The painted backdrop already contains its own clouds, hills, tower and
+		# The painted backdrop already contains its own clouds, hills, castle and
 		# bush line. Drawing the procedural ones on top of it would be two of
 		# each, at two different rates, so the whole mid-distance is either
 		# painted or drawn -- never both.
 		return
 	if Stage.is_sky():
-		# No hills, no tower, no bush line -- there is no ground in 1-S and a
+		# No hills, no castle, no bush line -- there is no ground in 1-S and a
 		# skyline would be a promise the stage does not keep. What replaces
 		# them is the thing the stage is standing over.
 		_clouds(view, scroll * 0.05 - t * 5.0, _base(view, 0.05) - view.y * 0.78)
@@ -31,12 +31,12 @@ func _draw() -> void:
 		return
 	_clouds(view, scroll * 0.06 - t * 6.0, _base(view, 0.06) - view.y * 0.63)
 	_hills(view, scroll * 0.16, _base(view, 0.16), 0.0)
-	_ruin_tower(view, scroll * 0.24, _base(view, 0.24))
+	_castle(view, scroll * 0.24, _base(view, 0.24))
 	_hills(view, scroll * 0.38, _base(view, 0.38), 1.0)
 	_bushes(view, scroll * 0.55, _base(view, 0.55))
 
 ## How fast the painted backdrop scrolls relative to the world. Between the old
-## tower layer (0.24) and the near hills (0.38): the panorama spans that whole
+## castle layer (0.24) and the near hills (0.38): the panorama spans that whole
 ## range of depth, so it takes the middle of it.
 const PANORAMA_RATE := 0.30
 
@@ -313,71 +313,53 @@ func _hills(view: Vector2, offset: float, base_y: float, near: float) -> void:
 				7.0 + DrawUtil.hash01(i + s) * 6.0, Color(1, 1, 1, 0.13))
 	draw_rect(Rect2(0, base + 78.0, view.x, view.y - base), col)
 
-func _ruin_tower(view: Vector2, offset: float, base_y: float) -> void:
-	# One landmark on the skyline, repeating on a long period rather than
-	# appearing once and sliding away for good.
+func _castle(view: Vector2, offset: float, base_y: float) -> void:
+	# The mockups keep a castle on the skyline throughout, so it repeats on a
+	# long period rather than appearing once and sliding away for good.
 	var span := 2400.0
 	var range_ := _visible_range(offset - 600.0, span, view.x + 1200.0)
 	for i in range(range_[0], range_[1] + 1):
-		_ruin_tower_at(view, float(i) * span + 600.0 - offset, base_y)
+		_castle_at(view, float(i) * span + 600.0 - offset, base_y)
 
-## The broken tower on the horizon.
-##
-## What stood here was a white castle with red conical roofs and a pennant --
-## traced out of the concept mockups, and recognisably somebody else's. This
-## is a ruin: the same silhouette weight in the same place, so the skyline
-## still has something to measure distance against, but it is the same ruin
-## the gate at the end of 1-1 belongs to. See docs/design-decisions.md.
-func _ruin_tower_at(view: Vector2, x: float, base_y: float) -> void:
+func _castle_at(view: Vector2, x: float, base_y: float) -> void:
 	if x < -520.0 or x > view.x + 520.0:
 		return
+	# Sits well above its own parallax line so the nearer hill layers, which are
+	# drawn after this one, leave the silhouette showing the way the mockups do.
+	if Balance.USE_TEXTURES and Art.draw_sprite(self, "castle", Vector2(x, base_y - 64.0), 232.0):
+		return
+	# Scaled down from the first pass: at full size it competed with the play
+	# field instead of sitting on the horizon like the mockups' castle.
 	const K := 0.72
 	var base := base_y - 10.0
-	var stone := Color("cfc8bd")
-	var stone_dark := Color("aaa294")
-	var shadow := Color("8d8477")
+	var stone := Color("f2ece4")
+	var stone_dark := Color("d7cec2")
+	var roof := Color("d94b3a")
 
-	# The keep, broken off at an angle: the roofline is the whole silhouette,
-	# so it is a polygon rather than a rect with something sitting on top.
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(x - 128.0 * K, base),
-		Vector2(x - 128.0 * K, base - 96.0 * K),
-		Vector2(x - 56.0 * K, base - 128.0 * K),
-		Vector2(x + 18.0 * K, base - 104.0 * K),
-		Vector2(x + 96.0 * K, base - 132.0 * K),
-		Vector2(x + 128.0 * K, base - 88.0 * K),
-		Vector2(x + 128.0 * K, base),
-	]), stone)
-	draw_rect(Rect2(x + 40.0 * K, base - 104.0 * K, 88.0 * K, 104.0 * K), Color(shadow, 0.35))
-
-	# Two towers, both open at the top -- one snapped low, one still standing.
-	for spec in [[-96.0, 206.0, 52.0], [64.0, 150.0, 44.0]]:
-		var tx := x + float(spec[0]) * K
-		var th := float(spec[1]) * K
-		var tw := float(spec[2]) * K
-		draw_rect(Rect2(tx, base - th, tw, th), stone)
-		draw_rect(Rect2(tx + tw * 0.62, base - th, tw * 0.38, th), Color(shadow, 0.30))
-		# The broken crown: three stubs of wall left standing on the rim.
-		for j in range(3):
-			var bw := tw / 3.0
-			var bh := (6.0 + float((j * 7) % 3) * 7.0) * K
-			draw_rect(Rect2(tx + float(j) * bw, base - th - bh, bw - 2.0 * K, bh + 3.0 * K),
-				stone_dark)
-		# One dark opening each, where a window was.
-		draw_rect(Rect2(tx + tw * 0.32, base - th * 0.62, tw * 0.36, th * 0.22),
-			Color("3d3730"))
-
-	# A crack down the keep, and rubble at the foot of it.
-	draw_polyline(PackedVector2Array([
-		Vector2(x + 6.0 * K, base - 100.0 * K),
-		Vector2(x - 6.0 * K, base - 66.0 * K),
-		Vector2(x + 8.0 * K, base - 34.0 * K),
-		Vector2(x - 2.0 * K, base),
-	]), Color(shadow, 0.55), 2.5)
-	for j in range(5):
-		var rx := x + (-140.0 + float(j) * 62.0 + DrawUtil.hash01(j * 13) * 26.0) * K
-		draw_circle(Vector2(rx, base - 3.0 * K), (7.0 + DrawUtil.hash01(j * 17) * 6.0) * K,
-			stone_dark)
+	DrawUtil.rounded_rect(self, Rect2(x - 130 * K, base - 150 * K, 260 * K, 152 * K), 6.0, stone)
+	draw_rect(Rect2(x - 130 * K, base - 150 * K, 260 * K, 12 * K), stone_dark)
+	for i in range(3):
+		var tx := x - 130.0 * K + float(i) * 110.0 * K
+		var tw := 58.0 * K
+		var th := (210.0 - absf(float(i) - 1.0) * 46.0) * K
+		DrawUtil.rounded_rect(self, Rect2(tx, base - th, tw, th), 4.0, stone)
+		draw_rect(Rect2(tx, base - th, tw, 10 * K), stone_dark)
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(tx - 9 * K, base - th), Vector2(tx + tw + 9 * K, base - th),
+			Vector2(tx + tw * 0.5, base - th - 54.0 * K),
+		]), roof)
+		draw_line(Vector2(tx + tw * 0.5, base - th - 54.0 * K),
+			Vector2(tx + tw * 0.5, base - th - 76.0 * K), stone_dark, 2.0)
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(tx + tw * 0.5, base - th - 76.0 * K),
+			Vector2(tx + tw * 0.5 + 22.0 * K, base - th - 70.0 * K),
+			Vector2(tx + tw * 0.5, base - th - 64.0 * K),
+		]), Color("f2b32c"))
+		for w in range(2):
+			DrawUtil.rounded_rect(self,
+				Rect2(tx + tw * 0.5 - 7.0 * K, base - th + (34.0 + float(w) * 40.0) * K,
+					14.0 * K, 22.0 * K),
+				7.0 * K, Color("4a6b8a"))
 
 func _bushes(view: Vector2, offset: float, base_y: float) -> void:
 	var span := 190.0

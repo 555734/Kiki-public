@@ -25,17 +25,14 @@ func _ready() -> void:
 	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	veil.color = Color(0.90, 0.97, 1.0, 0.72)
 	add_child(veil)
-	var logo := Label.new()
-	logo.text = "走れメロス   ✦"
-	logo.add_theme_font_size_override("font_size", 34)
-	logo.add_theme_color_override("font_color", Color("0751a5"))
-	logo.position = Vector2(54, 20)
-	add_child(logo)
+	add_child(_company_logo())
 	_dots = Label.new()
 	_dots.text = "読み込み中"
 	_dots.add_theme_font_size_override("font_size", 18)
 	_dots.add_theme_color_override("font_color", Color("37638d"))
-	_dots.set_anchors_preset(Control.PRESET_CENTER)
+	_dots.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_dots.offset_top = -64.0
+	_dots.offset_bottom = -36.0
 	_dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dots.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(_dots)
@@ -44,6 +41,40 @@ func _ready() -> void:
 	# several threads at once, and the Motorola (Vulkan) build crashed on the
 	# loading screen with them; the single background thread had been stable.
 	ResourceLoader.load_threaded_request(MAIN_SCENE)
+
+## The "PRESENT SOFT" company mark, centred: a bold wordmark with a drop
+## shadow, a gold rule under it, and the game's title beneath. Built from
+## Labels and ColorRects only, so it costs nothing to show on the first frame.
+func _company_logo() -> Control:
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 10)
+	var mark := Label.new()
+	mark.text = "PRESENT SOFT"
+	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mark.add_theme_font_size_override("font_size", 52)
+	mark.add_theme_color_override("font_color", Color("0b2f63"))
+	mark.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.9))
+	mark.add_theme_constant_override("shadow_offset_x", 3)
+	mark.add_theme_constant_override("shadow_offset_y", 3)
+	mark.add_theme_color_override("font_outline_color", Color("f3c334"))
+	mark.add_theme_constant_override("outline_size", 4)
+	box.add_child(mark)
+	var rule := ColorRect.new()
+	rule.color = Color("f3c334")
+	rule.custom_minimum_size = Vector2(320, 4)
+	rule.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(rule)
+	var title := Label.new()
+	title.text = "走れメロス"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color("37638d"))
+	box.add_child(title)
+	return box
 
 func _process(delta: float) -> void:
 	_elapsed += delta

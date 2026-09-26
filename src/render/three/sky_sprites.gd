@@ -151,7 +151,7 @@ const DECOR := {
 	"bush": ["bush", 1.0], "flowers": ["bush_flower", 1.0],
 	"rock": ["rock_mossy", 1.0], "sign": ["sign_arrow", 1.0],
 	"grass": ["grass_a", 1.0], "stone_wall": ["stone_wall", 1.0],
-	"ruin_tower": ["bg_island_ruins", 1.0],
+	"castle": ["bg_island_ruins", 1.0],
 }
 
 ## Decor entries keep their data meaning: pos is the foot, size.y the height.

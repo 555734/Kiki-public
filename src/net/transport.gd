@@ -44,14 +44,5 @@ func poll() -> Array[Dictionary]:
 func is_connected_to_peer() -> bool:
 	return false
 
-## Who the other device is, and what kind of room this is.
-##
-## Only the EOS lobby knows either, and the entitlement exchange needs both:
-## the puid is what a partner's token has to have been issued to, and a friend
-## pass is only handed out in a friend room. Everything else answers "nobody,
-## nowhere", which is the fail-closed answer -- no puid means no grant.
-func peer_identity() -> Dictionary:
-	return {"puid": "", "room_kind": ""}
-
 func close() -> void:
 	pass

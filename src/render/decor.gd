@@ -11,7 +11,7 @@ func _ready() -> void:
 func _draw() -> void:
 	for item in items:
 		match String(item.get("type", "")):
-			"conduit": _conduit(item["pos"], item.get("size", Vector2(90, 76)))
+			"pipe": _pipe(item["pos"], item.get("size", Vector2(90, 76)))
 			"blocks": _blocks(item["pos"], int(item.get("count", 3)),
 				float(item.get("cell", 46.0)))
 			"ruin_blocks": _ruin_blocks(item["pos"], int(item.get("count", 2)),
@@ -60,76 +60,37 @@ func _draw() -> void:
 			"swamp_stone", "swamp_bridge":
 				_swamp_footing(String(item["type"]), item["rect"])
 
-## A stone conduit rising out of the ground: the thing the runner stands on
-## and the guardian shoots past.
-##
-## It is drawn entirely INSIDE its rect, which is the rect
-## Level01Data.solid_decor() turns into a collider. The shape this replaced
-## carried a wide cap 26px above that rect, so its top edge was a lie -- the
-## runner landed on a line 26px below the surface they could see. Nothing was
-## measuring that, because it was art.
-func _conduit(base: Vector2, size: Vector2) -> void:
+func _pipe(base: Vector2, size: Vector2) -> void:
 	var rect := Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y)
-	var stone := Balance.C_CONDUIT
-	var dark := Balance.C_CONDUIT_DARK
-	var collar_h: float = minf(22.0, size.y * 0.28)
-	var inset: float = size.x * 0.10
+	if Art.draw_stretched(self, "pipe", rect):
+		return
+	var w := size.x
+	var height := size.y
+	var body := Rect2(rect.position.x, rect.position.y, w, height)
+	draw_rect(body, Balance.C_PIPE)
+	draw_rect(Rect2(body.position.x + 8, body.position.y, 13, body.size.y),
+		Color(1, 1, 1, 0.20))
+	draw_rect(Rect2(body.position.x + body.size.x - 16, body.position.y, 12, body.size.y),
+		Balance.C_PIPE_DARK)
+	var lip := Rect2(base.x - w * 0.5 - 9, base.y - height - 26, w + 18, 28)
+	DrawUtil.rounded_rect(self, lip, 6.0, Balance.C_PIPE)
+	draw_rect(Rect2(lip.position.x + 8, lip.position.y + 4, 14, lip.size.y - 8),
+		Color(1, 1, 1, 0.22))
+	draw_rect(Rect2(lip.position.x, lip.position.y + lip.size.y - 6, lip.size.x, 6),
+		Balance.C_PIPE_DARK)
+	draw_rect(Rect2(lip.position.x + 4, lip.position.y + 4, lip.size.x - 8, 7),
+		Color(0.08, 0.24, 0.10, 0.55))
 
-	# The shaft narrows slightly towards the collar, so the silhouette reads as
-	# masonry standing up rather than a tube lying in the ground.
-	var shaft := PackedVector2Array([
-		Vector2(rect.position.x, rect.position.y + rect.size.y),
-		Vector2(rect.position.x + inset, rect.position.y + collar_h),
-		Vector2(rect.end.x - inset, rect.position.y + collar_h),
-		Vector2(rect.end.x, rect.position.y + rect.size.y),
-	])
-	draw_colored_polygon(shaft, stone)
-	# One lit face and one shaded one. Two flat planes are enough to sit a
-	# square object in the same light as the ground blocks beside it.
-	draw_colored_polygon(PackedVector2Array([
-		shaft[0], shaft[1],
-		Vector2(rect.position.x + inset + size.x * 0.22, rect.position.y + collar_h),
-		Vector2(rect.position.x + size.x * 0.24, rect.position.y + rect.size.y),
-	]), Color(1, 1, 1, 0.13))
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(rect.end.x - inset - size.x * 0.20, rect.position.y + collar_h),
-		shaft[2], shaft[3],
-		Vector2(rect.end.x - size.x * 0.22, rect.position.y + rect.size.y),
-	]), dark)
-
-	# Courses, so the height is legible at a glance from across the screen.
-	var course := maxf(14.0, size.y * 0.22)
-	var y := rect.position.y + collar_h + course
-	while y < rect.end.y - 4.0:
-		var t := (y - rect.position.y) / rect.size.y
-		var half := lerpf(size.x * 0.5 - inset, size.x * 0.5, t)
-		draw_line(Vector2(base.x - half + 2.0, y), Vector2(base.x + half - 2.0, y),
-			Color(dark, 0.55), 2.0)
-		y += course
-
-	# The collar: a flat stone band the width of the shaft plus a little, and
-	# the dark mouth cut into it. No overhang, nothing to mistake for a ledge.
-	var collar := Rect2(rect.position.x - 4.0, rect.position.y, size.x + 8.0, collar_h)
-	DrawUtil.rounded_rect(self, collar, 3.0, stone)
-	draw_rect(Rect2(collar.position.x, collar.end.y - 4.0, collar.size.x, 4.0), dark)
-	var mouth := Rect2(base.x - size.x * 0.32, rect.position.y + 4.0,
-		size.x * 0.64, collar_h * 0.5)
-	DrawUtil.rounded_rect(self, mouth, 3.0, Color("241f1a"))
-	draw_rect(Rect2(mouth.position.x, mouth.end.y - 2.0, mouth.size.x, 2.0),
-		Color(1, 1, 1, 0.10))
-
-## A short run of solid masonry with one marked stone in the middle of it.
-##
-## The marked one is not a container and never was -- nothing in this game
-## opens it. It is a landmark: it tells the runner which block of a row they
-## are looking at, and it gives the guardian something to name out loud.
 func _blocks(at: Vector2, count: int, cell: float) -> void:
 	for i in range(count):
 		var r := Rect2(at.x + float(i) * cell, at.y, cell, cell)
+		var key := "qblock" if i == count / 2 else "brick"
+		if Art.draw_stretched(self, key, r):
+			continue
 		if i == count / 2:
-			_sigil_block(r)
+			_question_block(r)
 		else:
-			_masonry_block(r)
+			_brick_block(r)
 
 func _ruin_blocks(at: Vector2, count: int, cell: float) -> void:
 	# Chunky square masonry, painted with a top plane and dark right plane.
@@ -159,54 +120,31 @@ func _ruin_blocks(at: Vector2, count: int, cell: float) -> void:
 		draw_line(r.position + Vector2(8.0, 9.0),
 			r.position + Vector2(r.size.x - 8.0, 9.0), Color("577a61"), 4.0)
 
-## Coursed stone. Two stones per row, offset row by row, with the top course
-## catching the light -- the way the ground blocks in this stage are built.
-func _masonry_block(r: Rect2) -> void:
-	var stone := Balance.C_MASONRY
-	var dark := Balance.C_MASONRY_DARK
-	draw_rect(r, stone)
-	draw_rect(r, dark, false, 2.0)
-	var rows := 3
-	var h := r.size.y / float(rows)
-	for row in range(rows):
-		var y := r.position.y + float(row) * h
-		if row > 0:
-			draw_line(Vector2(r.position.x, y), Vector2(r.end.x, y), Color(dark, 0.6), 2.0)
-		# Two stones a course, shifted half a stone every other row.
-		var joint := r.position.x + r.size.x * (0.5 if row % 2 == 0 else 0.28)
-		draw_line(Vector2(joint, y + 2.0), Vector2(joint, y + h - 2.0), Color(dark, 0.6), 2.0)
-	draw_rect(Rect2(r.position.x + 2.0, r.position.y + 2.0, r.size.x - 4.0, 4.0),
-		Color(1, 1, 1, 0.16))
-	draw_rect(Rect2(r.position.x + 2.0, r.end.y - 5.0, r.size.x - 4.0, 3.0),
-		Color(dark, 0.45))
+func _brick_block(r: Rect2) -> void:
+	draw_rect(r, Balance.C_BRICK)
+	draw_rect(r, Color(0.35, 0.16, 0.05, 0.55), false, 2.0)
+	for row in range(3):
+		var y := r.position.y + (float(row) + 1.0) * r.size.y / 3.0
+		draw_line(Vector2(r.position.x, y), Vector2(r.position.x + r.size.x, y),
+			Color(0.35, 0.16, 0.05, 0.5), 2.0)
+		var offset := 0.0 if row % 2 == 0 else r.size.x * 0.5
+		var x := r.position.x + offset + r.size.x * 0.25
+		if x < r.position.x + r.size.x:
+			draw_line(Vector2(x, y - r.size.y / 3.0), Vector2(x, y),
+				Color(0.35, 0.16, 0.05, 0.5), 2.0)
+	draw_rect(Rect2(r.position.x + 2, r.position.y + 2, r.size.x - 4, 5),
+		Color(1, 1, 1, 0.18))
 
-## The marked stone: the same masonry with a chiselled spiral cut into it and
-## a little gold left in the groove. It reads as "someone made this one on
-## purpose" without reading as a container to hit.
-func _sigil_block(r: Rect2) -> void:
-	_masonry_block(r)
-	var c := r.position + r.size * 0.5
-	var gold := Balance.C_SIGIL
-	var groove := Color(0.18, 0.15, 0.11, 0.85)
-	# The spiral is drawn twice: once dark and one pixel down for the cut, once
-	# in gold for what is still in it.
-	for pass_i in 2:
-		var colour: Color = groove if pass_i == 0 else gold
-		var drop := 1.5 if pass_i == 0 else 0.0
-		var points := PackedVector2Array()
-		var turns := 2.25
-		var steps := 34
-		for i in range(steps + 1):
-			var t := float(i) / float(steps)
-			var angle := t * TAU * turns
-			var radius := lerpf(r.size.x * 0.06, r.size.x * 0.30, t)
-			points.append(c + Vector2(cos(angle), sin(angle)) * radius + Vector2(0.0, drop))
-		draw_polyline(points, colour, 2.6 if pass_i == 0 else 2.0)
-	# Four chisel marks at the corners, where the old art had rivets.
+func _question_block(r: Rect2) -> void:
+	DrawUtil.rounded_rect(self, r, 5.0, Balance.C_QBLOCK)
+	draw_rect(r, Color(0.55, 0.33, 0.03, 0.8), false, 2.5)
 	for i in range(4):
-		var cx := r.position.x + (5.0 if i % 2 == 0 else r.size.x - 5.0)
-		var cy := r.position.y + (5.0 if i < 2 else r.size.y - 5.0)
-		draw_line(Vector2(cx - 2.5, cy - 2.5), Vector2(cx + 2.5, cy + 2.5), groove, 1.8)
+		var cx := r.position.x + (6.0 if i % 2 == 0 else r.size.x - 6.0)
+		var cy := r.position.y + (6.0 if i < 2 else r.size.y - 6.0)
+		draw_circle(Vector2(cx, cy), 2.6, Color(0.55, 0.33, 0.03))
+	var font := Art.font()
+	draw_string(font, r.position + Vector2(r.size.x * 0.5 - 9.0, r.size.y * 0.72), "?",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(0.45, 0.26, 0.02))
 
 func _signpost(base: Vector2, flip: bool) -> void:
 	if Art.draw_sprite(self, "signpost", base + Vector2(0, 4.0), 92.0, flip):

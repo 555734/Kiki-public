@@ -14,14 +14,6 @@ const CODE_LENGTH := 6
 const BUCKET := "side-sky-coop"
 const EOS_PATH := "res://addons/epic-online-services-godot/eos.gd"
 const STAGE_KEY_ATTRIBUTE := "stage_key"
-const ROOM_KIND_ATTRIBUTE := "room_kind"
-## Every room today is made by one person reading six digits to another, which
-## is an invitation however the lobby is flagged underneath. The attribute is
-## written now so that the day a public matchmaking queue exists, the rooms it
-## makes are already a different KIND of room and the friend pass does not have
-## to be re-reasoned about -- it hands out nothing unless this says "friend".
-const ROOM_KIND_FRIEND := "friend"
-const ROOM_KIND_PUBLIC := "public"
 
 var lobby = null
 var room_code: String = ""
@@ -44,12 +36,6 @@ static func new_code() -> String:
 
 func create_room(stage_id: int, stage_key: String = "") -> bool:
 	desired_role = "host"
-	# The last gate, at the point where a room would actually be advertised.
-	# A free player cannot put a paid stage on the wire at all, which is what
-	# makes "two free players cannot start a paid stage" a property of the
-	# system rather than a promise made by a menu.
-	if not Entitlement.can_host(stage_id):
-		return _fail("このステージの部屋を作るには完全版が必要です")
 	var lobbies = _lobbies()
 	if lobbies == null:
 		return _fail("EOS Lobbyを利用できません")
@@ -97,7 +83,6 @@ func _open_lobby(lobbies, stage_id: int, stage_key: String) -> bool:
 	lobby.call("add_attribute", "build", Balance.BUILD_ID)
 	lobby.call("add_attribute", "started", 0)
 	lobby.call("add_attribute", "difficulty", Difficulty.current())
-	lobby.call("add_attribute", ROOM_KIND_ATTRIBUTE, ROOM_KIND_FRIEND)
 	if not bool(await lobby.call("update_async")):
 		return _fail("EOSルーム情報を保存できませんでした")
 	return true
@@ -141,16 +126,6 @@ func join_room(code: String, stage_id: int, stage_key: String = "") -> bool:
 	_bind_lobby()
 	_refresh_members()
 	return true
-
-## "friend" for a room somebody was invited into by being told its six digits,
-## which is every room there is today. A room whose attribute is missing is
-## treated as NOT a friend room: an unreadable answer must not be the generous
-## one. See Entitlement.grant_guest.
-func room_kind() -> String:
-	if lobby == null:
-		return ""
-	var value := _attribute_string(lobby, ROOM_KIND_ATTRIBUTE, "")
-	return value
 
 func mark_started() -> void:
 	if lobby == null or not local_is_owner():

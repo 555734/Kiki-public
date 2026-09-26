@@ -14,13 +14,6 @@ class_name = "Room"
 name = "RATE_LIMITER"
 class_name = "RateLimiter"
 
-# One instance, named "global". It holds which purchase belongs to which
-# device and which devices are developers -- a few rows, read about once a
-# month per player. SQLite-backed, so it stays on the free plan.
-[[durable_objects.bindings]]
-name = "ENTITLEMENTS"
-class_name = "Entitlements"
-
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
@@ -28,7 +21,3 @@ new_sqlite_classes = ["Room"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["RateLimiter"]
-
-[[migrations]]
-tag = "v3"
-new_sqlite_classes = ["Entitlements"]

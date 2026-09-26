@@ -87,7 +87,9 @@ enum World {
 ## each other at the handshake, which is what makes changing this safe -- and
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
-const VERSION: int = 15
+## 15: sky crows add enemies after each stage's own, and the goal needs a key.
+## 16: 1-4 rebuilt (new enemies and layout).
+const VERSION: int = 16
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -134,19 +136,12 @@ static func _buf(kind: int) -> StreamPeerBuffer:
 ## the symptom of that mistake is "my partner is describing a place that does
 ## not exist". There is no way to debug that from inside the game, so it is
 ## refused at the door instead.
-## `token` is this device's entitlement token, or "" when it has bought
-## nothing. It rides the handshake rather than a message of its own because the
-## handshake is the one exchange that is repeated verbatim on every reconnect
-## (see HostSession._resync): an entitlement that arrived on a separate message
-## would be an entitlement that a dropped link could lose.
-static func hello(player_id: String, stage: int, role: String = "guardian",
-		token: String = "") -> PackedByteArray:
+static func hello(player_id: String, stage: int, role: String = "guardian") -> PackedByteArray:
 	var b := _buf(Msg.HELLO)
 	b.put_u8(VERSION)
 	b.put_u8(stage)
 	b.put_u8(1 if role == "runner" else 2)
 	b.put_utf8_string(player_id)
-	b.put_utf8_string(token)
 	return b.data_array
 
 static func runner_input(axis: float, axis_y: float, jump: bool, dash: bool,
@@ -164,18 +159,11 @@ static func authority_ready(epoch: int, tick: int) -> PackedByteArray:
 	b.put_u32(tick)
 	return b.data_array
 
-static func welcome(tick: int, player_id: String, token: String = "") -> PackedByteArray:
+static func welcome(tick: int, player_id: String) -> PackedByteArray:
 	var b := _buf(Msg.WELCOME)
 	b.put_u32(tick)
 	b.put_utf8_string(player_id)
-	b.put_utf8_string(token)
 	return b.data_array
-
-## A string that may not be there, because the sender is an older build or
-## because it had nothing to say. Reading past the end of a StreamPeerBuffer
-## returns junk rather than failing, so the length is checked first.
-static func opt_string(b: StreamPeerBuffer) -> String:
-	return b.get_utf8_string() if b.get_available_bytes() > 0 else ""
 
 static func ping(client_ms: int) -> PackedByteArray:
 	var b := _buf(Msg.PING)

@@ -1,6 +1,6 @@
 # EOS co-op operations
 
-The production co-op path has no 走れメロス application server. Devices sign
+The production co-op path has no SIDE / SKY application server. Devices sign
 in with EOS Connect Device ID, discover a two-member EOS Lobby by a six-digit
 code, and exchange gameplay through EOS P2P. EOS may use its relay when direct
 NAT traversal fails. The old Cloudflare relay is not contacted by the co-op UI.
@@ -78,6 +78,6 @@ two physical phones must complete all of the following on different networks:
 8. verify Android/iOS cross-play with the same protocol/build.
 
 EOS service terms or quotas can change, and store membership, devices and user
-data plans are not zero-cost. The architecture removes the game's own
+data plans are not zero-cost. The architecture removes SIDE / SKY's own
 always-on server bill; it does not promise that every external dependency will
 remain free forever.

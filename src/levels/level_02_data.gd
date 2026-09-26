@@ -33,7 +33,7 @@ static func solid_decor() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for d in decor():
 		match String(d.get("type", "")):
-			"conduit":
+			"pipe":
 				var size: Vector2 = d.get("size", Vector2(90, 76))
 				var base: Vector2 = d["pos"]
 				out.append(Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y))
@@ -170,7 +170,7 @@ static func decor() -> Array[Dictionary]:
 		{"type": "tree", "pos": Vector2(1900, SHELF)},
 
 		{"type": "signpost", "pos": Vector2(3500, MID)},
-		{"type": "conduit", "pos": Vector2(2900, MID), "size": Vector2(60, 84)},
+		{"type": "pipe", "pos": Vector2(2900, MID), "size": Vector2(60, 84)},
 		{"type": "flowers", "pos": Vector2(3200, MID)},
 		{"type": "tree", "pos": Vector2(4700, MID)},
 

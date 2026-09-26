@@ -35,18 +35,15 @@ static func ground() -> Array[Rect2]:
 	return out
 
 static func _stones() -> Array[Dictionary]:
-	# Narrow, unevenly stacked footing. Every gap here sits between 152 and 190
-	# pixels: a walking jump covers 182, so the wide ones only clear at a sprint
-	# and the landings are barely wider than the runner.
 	return [
-		{"type": "swamp_stone", "rect": Rect2(676, 404, 112, 58)},
-		{"type": "swamp_stone", "rect": Rect2(972, 384, 104, 78)},
-		{"type": "swamp_stone", "rect": Rect2(1266, 396, 100, 66)},
-		{"type": "swamp_stone", "rect": Rect2(1552, 372, 96, 90)},
-		{"type": "swamp_bridge", "rect": Rect2(2550, 370, 170, 30)},
-		{"type": "swamp_stone", "rect": Rect2(4238, 342, 98, 70)},
-		{"type": "swamp_stone", "rect": Rect2(4526, 328, 94, 84)},
-		{"type": "swamp_stone", "rect": Rect2(4806, 336, 94, 76)},
+		{"type": "swamp_stone", "rect": Rect2(650, 410, 160, 52)},
+		{"type": "swamp_stone", "rect": Rect2(940, 400, 160, 52)},
+		{"type": "swamp_stone", "rect": Rect2(1230, 390, 160, 52)},
+		{"type": "swamp_stone", "rect": Rect2(1520, 390, 160, 52)},
+		{"type": "swamp_bridge", "rect": Rect2(2550, 370, 220, 30)},
+		{"type": "swamp_stone", "rect": Rect2(4180, 350, 150, 52)},
+		{"type": "swamp_stone", "rect": Rect2(4460, 340, 150, 52)},
+		{"type": "swamp_stone", "rect": Rect2(4740, 335, 150, 52)},
 	]
 
 static func solid_decor() -> Array[Rect2]:
@@ -63,47 +60,32 @@ static func hazards() -> Array[Dictionary]:
 
 static func enemies() -> Array[Dictionary]:
 	return [
-		{"type": "walker", "pos": Vector2(-350, 379), "patrol": 210.0,
+		{"type": "walker", "pos": Vector2(-350, 379), "patrol": 150.0,
 			"skin": "walker_spiky"},
-		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 190.0,
+		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 130.0,
 			"skin": "walker_spiky"},
-		{"type": "walker", "pos": Vector2(3740, 329), "patrol": 200.0,
+		{"type": "walker", "pos": Vector2(3740, 329), "patrol": 140.0,
 			"skin": "walker_spiky"},
-		{"type": "walker", "pos": Vector2(5340, 309), "patrol": 170.0,
+		{"type": "walker", "pos": Vector2(5340, 309), "patrol": 110.0,
 			"skin": "walker_spiky"},
-		{"type": "walker", "pos": Vector2(6480, 299), "patrol": 190.0,
+		{"type": "walker", "pos": Vector2(6480, 299), "patrol": 130.0,
 			"skin": "walker_spiky"},
-		{"type": "walker", "pos": Vector2(8160, 279), "patrol": 190.0,
+		{"type": "walker", "pos": Vector2(8160, 279), "patrol": 130.0,
 			"skin": "walker_spiky"},
 		{"type": "walker", "pos": Vector2(9540, 269), "patrol": 170.0,
 			"skin": "walker_spiky"},
-		# Flyers now hang in the jump arcs rather than above them, so the
-		# stepping stones and the raft need the guardian's rifle first.
-		{"type": "flyer", "pos": Vector2(1300, 340), "patrol": 160.0},
+		{"type": "flyer", "pos": Vector2(1300, 200), "patrol": 160.0},
 		{"type": "flyer", "pos": Vector2(3200, 170), "patrol": 180.0},
-		{"type": "flyer", "pos": Vector2(4560, 300), "patrol": 220.0},
 		{"type": "flyer", "pos": Vector2(5900, 150), "patrol": 190.0},
-		{"type": "flyer", "pos": Vector2(7250, 250), "patrol": 300.0},
 		{"type": "flyer", "pos": Vector2(8750, 130), "patrol": 180.0},
 	]
 
 static func gimmicks() -> Array[Dictionary]:
-	# The raft deck is narrower than the runner's landing margin used to be, and
-	# it travels further, so boarding and leaving it are both timed hops.
-	# Every crumbling slab sits inside one of the three guardian channels: it
-	# offers 0.45s of floor, which turns each crossing into a two-step plan
-	# instead of a single platform placed at leisure.
 	return [
-		{"type": "moving_platform", "pos": Vector2(6890, 315),
-			"span": Vector2(130, 26), "travel": Vector2(800, 0)},
-		{"type": "crumble", "pos": Vector2(2836, 370),
-			"span": Vector2(92, 28)},
-		{"type": "crumble", "pos": Vector2(3086, 360),
-			"span": Vector2(92, 28)},
-		{"type": "crumble", "pos": Vector2(5980, 330),
-			"span": Vector2(92, 28)},
-		{"type": "crumble", "pos": Vector2(8810, 305),
-			"span": Vector2(92, 28)},
+		{"type": "moving_platform", "pos": Vector2(6910, 315),
+			"span": Vector2(180, 26), "travel": Vector2(760, 0)},
+		{"type": "crumble", "pos": Vector2(2840, 370),
+			"span": Vector2(100, 28)},
 	]
 
 static func checkpoints() -> Array[Vector2]:
@@ -116,10 +98,10 @@ static func goal() -> Vector2:
 static func coins() -> Array[Vector2]:
 	return [
 		Vector2(-760, 345), Vector2(-680, 325), Vector2(-600, 345),
-		Vector2(732, 344), Vector2(1024, 324), Vector2(1316, 336),
-		Vector2(1600, 312), Vector2(2010, 320), Vector2(2635, 300),
+		Vector2(690, 345), Vector2(980, 330), Vector2(1270, 320),
+		Vector2(1560, 320), Vector2(2010, 320), Vector2(2640, 300),
 		Vector2(2970, 250), Vector2(3150, 230), Vector2(3330, 250),
-		Vector2(4287, 282), Vector2(4573, 268), Vector2(4853, 276),
+		Vector2(4250, 280), Vector2(4530, 270), Vector2(4810, 265),
 		Vector2(5740, 225), Vector2(5910, 205), Vector2(6080, 225),
 		Vector2(7040, 250), Vector2(7260, 240), Vector2(7480, 250),
 		Vector2(8560, 200), Vector2(8740, 180), Vector2(8920, 200),

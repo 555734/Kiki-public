@@ -9,11 +9,11 @@ on:
       version_code:
         description: "Google Play version code (must exceed the last uploaded build)"
         required: true
-        default: "25"
+        default: "24"
       version_name:
         description: "Public version name"
         required: true
-        default: "0.9.0"
+        default: "0.2.4"
 
 permissions:
   contents: read
@@ -33,13 +33,6 @@ jobs:
 
       - name: Install pinned EOSG for Linux host and Android target
         run: bash tools/install-eosg.sh linux android
-
-      # The Play build is the one that MUST carry billing, so this is not
-      # opt-in: an .aab without it would reach the store as a game that shows
-      # a price and cannot take the money. If the plugin cannot be installed,
-      # the build fails here rather than three screens into a player's evening.
-      - name: Install the in-app purchase plugin
-        run: bash tools/install-iap-plugins.sh android
 
       - name: Write EOS production credentials
         env:

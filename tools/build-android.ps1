@@ -251,7 +251,7 @@ function Export-Android([string]$Preset, [string]$OutputPath) {
 }
 
 try {
-    Write-Host "== 走れメロス Android 0.2.3 (versionCode 23) =="
+    Write-Host "== SIDE / SKY Android 0.2.3 (versionCode 23) =="
     Write-Host "Godot: $Godot"
     Write-Host "SDK:   $AndroidSdk"
     Write-Host "JDK:   $JavaHome"
