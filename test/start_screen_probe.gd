@@ -13,7 +13,8 @@ func _ready() -> void:
 		if String((node as Label).text).contains("PRESENT SOFT"):
 			publisher_found = true
 	check(not publisher_found, "publisher splash is absent")
-	for frame in 600:
+	var load_deadline := Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < load_deadline:
 		if boot.get("_main_scene") != null or boot.get("_load_failed"):
 			break
 		await get_tree().process_frame
