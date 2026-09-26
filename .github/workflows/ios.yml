@@ -117,10 +117,11 @@ jobs:
           IOS_GODOT_TAG: ${{ env.GODOT_VERSION }}-stable
         run: |
           set -euo pipefail
-          # scons is not on the macOS image; the plugin's build system is it.
-          python3 -m pip install --user --quiet --disable-pip-version-check scons
-          echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
-          export PATH="$(python3 -m site --user-base)/bin:$PATH"
+          # Homebrew Python is externally managed; install scons in a venv.
+          python3 -m venv "$RUNNER_TEMP/scons-venv"
+          "$RUNNER_TEMP/scons-venv/bin/pip" install --quiet --disable-pip-version-check scons
+          echo "$RUNNER_TEMP/scons-venv/bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/scons-venv/bin:$PATH"
           bash tools/install-iap-plugins.sh ios
 
       - name: Install Codemagic CLI signing tools
