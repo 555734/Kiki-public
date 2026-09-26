@@ -63,7 +63,8 @@ func _ready() -> void:
 	process_physics_priority = 100
 	z_index = 5
 	_read_command_line()
-	_start_debug_log()
+	if OS.has_feature("editor"):
+		_start_debug_log()
 	_build_world()
 
 	input = VersusInput.new()
@@ -83,7 +84,7 @@ func _ready() -> void:
 	hud = preload("res://src/versus/versus_hud.gd").new()
 	hud.arena = self
 	layer.add_child(hud)
-	if mode != Mode.SOLO:
+	if mode != Mode.SOLO and OS.has_feature("editor"):
 		_debug_copy_button = Button.new()
 		_debug_copy_button.text = "接続ログをコピー"
 		_debug_copy_button.custom_minimum_size = Vector2(200, 44)
@@ -393,6 +394,8 @@ func _start_debug_log() -> void:
 		_debug("user://versus-debug.log could not be opened: %d" % FileAccess.get_open_error())
 
 func _debug(message: String) -> void:
+	if not OS.has_feature("editor"):
+		return
 	var line := "%s %s" % [Time.get_time_string_from_system(), message]
 	print("[versus] " + line)
 	_debug_lines.append(line)
@@ -416,6 +419,8 @@ func _copy_debug_log() -> void:
 ## 404 instead means the worker serving this URL does not have /room4.
 ## WebSocketPeer itself does not expose HTTP handshake response status.
 func _probe_relay_route() -> void:
+	if not OS.has_feature("editor"):
+		return
 	var base := _relay.strip_edges().rstrip("/")
 	if base.begins_with("wss://"):
 		base = "https://" + base.substr(6)
@@ -455,6 +460,8 @@ func _on_relay_probe_complete(result: int, http_status: int,
 ## Emit on direction changes and at 3-second intervals so a stuck input can
 ## be diagnosed from the copyable log without recording every physics frame.
 func _trace_local_input() -> void:
+	if not OS.has_feature("editor"):
+		return
 	if mode == Mode.SOLO or local_team < 0 or input.hubs.is_empty():
 		return
 	var h: InputHub = input.hubs[0]

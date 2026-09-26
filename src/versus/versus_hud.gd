@@ -144,6 +144,8 @@ func _waiting() -> void:
 ## Deliberately legible in a screenshot: users can report what the relay said,
 ## not just a generic 'waiting' state. Full log is user://versus-debug.log.
 func _debug_trace() -> void:
+	if not OS.has_feature("editor"):
+		return
 	var lines: Array[String] = arena.debug_lines()
 	if lines.is_empty():
 		return
