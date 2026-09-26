@@ -235,7 +235,7 @@ func _change_stage_page(direction: int) -> void:
 	_stage_page = destination
 	_show_stage_screen()
 
-func _input(event: InputEvent) -> void:
+func _handle_stage_swipe(event: InputEvent) -> void:
 	if _stage_view == null or not _root.visible:
 		return
 	if event is InputEventScreenTouch:
@@ -1020,6 +1020,7 @@ func _close_keyboard() -> void:
 ## A tap anywhere off the field puts the keyboard away. Watched in _input so
 ## it works over cards and panels that would swallow the press themselves.
 func _input(event: InputEvent) -> void:
+	_handle_stage_swipe(event)
 	if _code == null or not is_instance_valid(_code) or not _code.has_focus():
 		return
 	var pressed: bool = (event is InputEventMouseButton and event.pressed) \
