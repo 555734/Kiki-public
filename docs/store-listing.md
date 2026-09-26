@@ -7,11 +7,8 @@ App Store Connect と Google Play Console に**そのまま貼れる**文面と�
 対象ビルド: version 0.9.0 / Android versionCode 25
 bundle / package: `com.sasakiful.sidesky`（両プラットフォーム共通）
 
-> **先に埋めるもの（2つだけ）**
-> 1. `docs/privacy-policy.md` の `<連絡先メールアドレス>`
-> 2. そのポリシーの**公開URL**（下の「プライバシーポリシーの公開手順」）
->
-> この2つが埋まるまで、どちらのストアも提出フォームを閉じられない。
+> プライバシーポリシーは公開済み:
+> **https://555734.github.io/Kiki-public/privacy-policy.html**
 
 ---
 
@@ -180,20 +177,29 @@ No ads. No subscription. No stamina.
 
 ---
 
-## 4. プライバシーポリシーの公開手順
+## 4. プライバシーポリシーの公開URL
 
-両ストアとも**到達可能なURL**が必須。リポジトリの Markdown は URL にならない。
+**これを入れる:**
 
-```bash
-# 公開リポジトリ側で一度だけ
-# Settings > Pages > Source = "Deploy from a branch", Branch = main, Folder = /docs
+```
+https://555734.github.io/Kiki-public/privacy-policy.html
 ```
 
-これで `https://555734.github.io/Kiki-public/privacy-policy` が生えるので、
-その URL を両ストアの「プライバシーポリシー」欄に入れる。
-サポートURLは公開リポジトリのトップで足りる。
+両ストアの「プライバシーポリシー」欄に同じものを入れる。サポートURLは
+`https://github.com/555734/Kiki-public` で足りる。
 
----
+中身は `docs/privacy-policy.html`（正本は `docs/privacy-policy.md`。両方を
+直すこと ―― HTML のほうが公開される)。`docs/.nojekyll` を置いてあるので
+GitHub は Jekyll を通さずそのまま配信する。他の `docs/*.md` は変換されずに
+テキストとして置かれるだけで、リポジトリが公開である以上すでに読める内容。
+
+有効化（**一度だけ**。私が `gh api` で済ませたが、消えたらここから）:
+
+```bash
+gh api -X POST repos/555734/Kiki-public/pages -f "source[branch]=main" -f "source[path]=/docs"
+```
+
+反映まで1〜2分かかる。開けることを**ブラウザで確認してから**ストアの欄に入れること。
 
 ## 5. スクリーンショット
 
@@ -267,8 +273,8 @@ godot --path . --rendering-method gl_compatibility --rendering-driver opengl3   
 
 `tools/release-check.sh` が自動で見る部分は ✅ 印。人が見る部分だけ残した。
 
-- [ ] `docs/privacy-policy.md` の連絡先を埋めた
-- [ ] GitHub Pages を有効にし、ポリシーURLが**ブラウザで開けた**
+- [x] `docs/privacy-policy.md` の連絡先を埋めた（a3506124@gmail.com）
+- [x] GitHub Pages を有効にし、ポリシーURLが**ブラウザで開けた**
 - [ ] ✅ 署名鍵が本番のもので、Worker に対になる秘密鍵が入っている
 - [ ] ✅ バージョンが 0.9.0 / versionCode 25 で全箇所一致している
 - [ ] ✅ 課金プラグインがピン留めされ、CIで有効
