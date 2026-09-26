@@ -29,6 +29,10 @@ func execute(guardian: Node, world_pos: Vector2) -> void:
 	while live.size() >= max_alive:
 		var oldest: Hologram = live.pop_front()
 		if is_instance_valid(oldest):
+			# Tell the other device, too: platforms no longer expire on a shared
+			# timer, so without this the guardian's screen kept every one.
+			if Clock.is_host and oldest.net_id > 0:
+				Events.hologram_revoked.emit(oldest.net_id)
 			oldest.expire()
 	var holo := Hologram.create(kind, world_pos, _path(guardian))
 	guardian.spawn_hologram(holo)

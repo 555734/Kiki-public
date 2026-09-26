@@ -28,8 +28,10 @@ const SHOTS := [
 	# The one stage that is already a tall picture: islands stacked to the top.
 	{"which": Stage.Which.SKYWARD_RUINS, "file": "card_1_3.png",
 		"at": Vector2(0, 5250), "zoom": 1.8, "runner": Vector2(-260, 5600)},
+	# The sea stacks, with the breeze off the highest one. The old card was a
+	# beach, and the stage stopped being a beach when it was rebuilt.
 	{"which": Stage.Which.SEA, "file": "card_1_4.png",
-		"at": Vector2(2000, 120), "zoom": 2.7, "runner": Vector2(1940, 290)},
+		"at": Vector2(4720, -180), "zoom": 2.5, "runner": Vector2(4800, -220)},
 	# Two stepping stones and the gap between them, which is the whole stage.
 	{"which": Stage.Which.SWAMP, "file": "card_1_5.png",
 		"at": Vector2(1120, 300), "zoom": 2.9, "runner": Vector2(1024, 330)},

@@ -40,15 +40,15 @@ export APP_STORE_CONNECT_ISSUER_ID="$ASC_ISSUER_ID"
 export APP_STORE_CONNECT_PRIVATE_KEY="$ASC_PRIVATE_KEY"
 export CERTIFICATE_PRIVATE_KEY="$IOS_CERTIFICATE_PRIVATE_KEY"
 
-# Reserve a higher build-number range than earlier Codemagic/TestFlight uploads
-# (which have already reached 1037). For manual/local invocation callers can
-# still set BUILD_NUMBER explicitly.
+# The build number is minutes since 2026-01-01 UTC (~385000 in late 2026). It used
+# to be 10000 + GITHUB_RUN_NUMBER, but the standalone iOS workflow and the
+# Mobile Android + iOS workflow count their runs separately, so both reached
+# run 38 and App Store Connect refused the second 10038. A timestamp only ever
+# goes up whichever workflow uploads, is far above every earlier number, and
+# stays a small plain integer.
+# For manual/local invocation callers can still set BUILD_NUMBER explicitly.
 if [ -z "${BUILD_NUMBER:-}" ]; then
-	if [[ "${GITHUB_RUN_NUMBER:-}" =~ ^[0-9]+$ ]]; then
-		BUILD_NUMBER=$((10000 + GITHUB_RUN_NUMBER))
-	else
-		BUILD_NUMBER=1001
-	fi
+	BUILD_NUMBER=$(( ($(date -u +%s) - 1767225600) / 60 ))
 fi
 export APPLE_TEAM_ID BUNDLE_ID APP_VERSION BUILD_NUMBER
 bash tools/ios-identity.sh

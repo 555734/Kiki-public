@@ -2,6 +2,9 @@ extends LevelBuilder
 ## Reuse 1-1's objects and art, but build only the shorter versus circuit.
 ## The cooperative builder and Level01Data retain the complete original map.
 
+func _init() -> void:
+	co_op_extras = false
+
 func build() -> void:
 	super.build()
 	_veils.take_terrain(_terrain, VersusStageData.ground())

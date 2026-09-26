@@ -125,6 +125,7 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_menu_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/entitlement_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/guardian_clear_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/key_crow_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_net_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
           # Boot the actual entry scene without triggering native EOS auth in a
