@@ -154,6 +154,8 @@ func _ready() -> void:
 func _speeds(panel: Node) -> Array:
 	var found := []
 	for node in panel.find_children("*", "Button", true, false):
-		if Difficulty.LABELS.has(String((node as Button).text)):
-			found.append(node)
+		for label in Difficulty.LABELS:
+			if String((node as Button).text) == TranslationServer.translate(label):
+				found.append(node)
+				break
 	return found
