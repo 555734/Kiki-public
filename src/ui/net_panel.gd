@@ -476,7 +476,7 @@ func _stage_card(info: Dictionary) -> Button:
 	heading.add_theme_color_override("font_outline_color", Color(0, 0.06, 0.12, 0.9))
 	heading.add_theme_constant_override("outline_size", 6)
 	caption.add_child(heading)
-	var stage_title := _title(String(info["name"]), 13, Color.WHITE)
+	var stage_title := _title(tr(String(info["name"])), 13, Color.WHITE)
 	stage_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	stage_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.add_child(stage_title)

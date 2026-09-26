@@ -1,0 +1,20 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "GREENFIELD PLAINS"
+msgstr "みどりの草原"
+
+msgid "THE HOLLOW OUTSKIRTS"
+msgstr "うつろな村外れ"
+
+msgid "THE SKYWARD RUINS"
+msgstr "天空の遺跡"
+
+msgid "THE SUNLIT COAST"
+msgstr "陽光の海岸"
+
+msgid "THE POISON MARSH"
+msgstr "毒の沼地"

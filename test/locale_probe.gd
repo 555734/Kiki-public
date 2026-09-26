@@ -8,9 +8,13 @@ func _ready() -> void:
 	TranslationServer.set_locale("ja")
 	if TranslationServer.translate("メロスゲーム") != "メロスゲーム":
 		failures.append("Japanese devices keep Japanese source text")
+	if TranslationServer.translate("GREENFIELD PLAINS") != "みどりの草原":
+		failures.append("Japanese devices see localized stage names")
 	TranslationServer.set_locale("en")
 	if TranslationServer.translate("メロスゲーム") != "Melos Game":
 		failures.append("English devices use the English catalog")
+	if TranslationServer.translate("GREENFIELD PLAINS") != "GREENFIELD PLAINS":
+		failures.append("English devices keep English stage names")
 	for failure in failures:
 		push_error("locale probe: " + failure)
 	print("locale probe: %d failures" % failures.size())

@@ -73,7 +73,7 @@ func _stage_plate(view: Vector2) -> void:
 	# the string to the anchor instead of laying it out, which is what ate the
 	# stage name the first time round.
 	draw_string(font, origin + Vector2(Hud.SKEW + 6.0, 24.0),
-		"%s   %s" % [Stage.stage_number(), Stage.stage_name()],
+		"%s   %s" % [Stage.stage_number(), tr(Stage.stage_name())],
 		HORIZONTAL_ALIGNMENT_RIGHT, w - Hud.SKEW - 20.0, 18, _dim(Color(1, 1, 1, 0.95), fade))
 
 	var obj_w := w - 14.0
