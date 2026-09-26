@@ -42,6 +42,7 @@ HP2P="*res://addons/epic-online-services-godot/heos/hp2p.gd"
 
 [internationalization]
 
+locale/fallback="ja"
 locale/translations=PackedStringArray("res://translations/en.po")
 
 [editor_plugins]

@@ -148,23 +148,23 @@ func _cards() -> Array[Dictionary]:
 		{"number": "1-1", "name": "GREENFIELD PLAINS",
 			"blurb": "走る・跳ぶ・助け合う最初の一歩",
 			"which": Stage.Which.GREENFIELD, "accent": Color("15cf8a"),
-			"art": preload("res://assets/menu/card_1_1.png")},
+			"art": preload("res://assets/menu/card_1_1.png"), "crop_top": 370.0},
 		{"number": "1-2", "name": "THE HOLLOW OUTSKIRTS",
 			"blurb": "月明かりの村を駆け抜ける",
 			"which": Stage.Which.HORROR, "accent": Color("4688ef"),
-			"art": preload("res://assets/menu/card_1_2.png")},
+			"art": preload("res://assets/menu/card_1_2.png"), "crop_top": 310.0},
 		{"number": "1-3", "name": "THE SKYWARD RUINS",
 			"blurb": "足場をつないで天空の頂へ",
 			"which": Stage.Which.SKYWARD_RUINS, "accent": Color("8659e8"),
-			"art": preload("res://assets/menu/card_1_3.png")},
+			"art": preload("res://assets/menu/card_1_3.png"), "crop_top": 430.0},
 		{"number": "1-4", "name": "THE SUNLIT COAST",
 			"blurb": "岩と桟橋をつないで海の旗へ",
 			"which": Stage.Which.SEA, "accent": Color("1fa7d8"),
-			"art": preload("res://assets/menu/card_1_4.png")},
+			"art": preload("res://assets/menu/card_1_4.png"), "crop_top": 400.0},
 		{"number": "1-5", "name": "THE POISON MARSH",
 			"blurb": "毒沼の足場を渡り岸の門へ",
 			"which": Stage.Which.SWAMP, "accent": Color("75b72b"),
-			"art": preload("res://assets/menu/card_1_5.png")},
+			"art": preload("res://assets/menu/card_1_5.png"), "crop_top": 350.0},
 	]
 
 func _show_stage_screen() -> void:
@@ -438,7 +438,14 @@ func _stage_card(info: Dictionary) -> Button:
 
 	var art := TextureRect.new()
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	art.texture = info["art"]
+	# Crop each portrait screenshot around its runner, enemy, and terrain. The
+	# caption occupies the bottom of the card, so a centered cover crop hid the
+	# action and left mostly sky visible above the text.
+	var source: Texture2D = info["art"]
+	var crop := AtlasTexture.new()
+	crop.atlas = source
+	crop.region = Rect2(0.0, float(info["crop_top"]), float(source.get_width()), 405.0)
+	art.texture = crop
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE

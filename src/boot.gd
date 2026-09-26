@@ -17,8 +17,8 @@ var _load_failed: bool = false
 func _ready() -> void:
 	# Japanese remains the source language. All other device locales use the
 	# English catalog, including locales for which we do not ship a catalog yet.
-	if not OS.get_locale_language().begins_with("ja"):
-		TranslationServer.set_locale("en")
+	var device_language := OS.get_locale_language()
+	TranslationServer.set_locale("ja" if device_language.begins_with("ja") else "en")
 	# Once, at the top of the boot screen, before anything is drawn.
 	Engine.max_fps = Balance.target_fps()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
