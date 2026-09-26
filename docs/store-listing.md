@@ -1,4 +1,4 @@
-# ストア提出物 — 走れメロス 0.9.0
+# ストア提出物 — メロスゲーム 0.9.0
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
@@ -21,7 +21,7 @@ bundle / package: `com.sasakiful.sidesky`（両プラットフォーム共通）
 
 | 欄 | 文字数上限 | 内容 |
 |---|---|---|
-| アプリ名 | iOS 30 / Play 30 | `走れメロス` |
+| アプリ名 | iOS 30 / Play 30 | `メロスゲーム` |
 | サブタイトル (iOS) | 30 | `ふたりで越える、非対称の協力プレイ` |
 | 簡単な説明 (Play) | 80 | `ひとりが走り、ひとりが世界を描き換える。通話しながら遊ぶ協力アクション。` |
 
@@ -70,9 +70,13 @@ bundle / package: `com.sasakiful.sidesky`（両プラットフォーム共通）
 
 ### English (secondary locale)
 
+> 英語名は `Melos Game` とした。日本語名が「メロスゲーム」になった以上、
+> 英語だけ `Run, Melos` のままにすると別のアプリに見える。変えたければ
+> ここ1か所で、ストアのフォームに入れる前に決めること。
+
 | Field | Content |
 |---|---|
-| Name | `Run, Melos` |
+| Name | `Melos Game` |
 | Subtitle | `Asymmetric co-op, two players` |
 | Short description | `One player runs. One rewrites the world. A co-op action game made for two.` |
 

@@ -1,7 +1,7 @@
-# プライバシーポリシー / Privacy Policy — 走れメロス
+# プライバシーポリシー / Privacy Policy — メロスゲーム
 
 最終更新 / Last updated: 2026-09-26
-対象 / Applies to: 走れメロス (iOS `com.sasakiful.sidesky`, Android `com.sasakiful.sidesky`)
+対象 / Applies to: メロスゲーム (iOS `com.sasakiful.sidesky`, Android `com.sasakiful.sidesky`)
 
 > **公開前に1か所だけ埋めてください。** 下の「お問い合わせ / Contact」の
 > `<連絡先メールアドレス>` は、ストアの審査でも実際の問い合わせ窓口としても

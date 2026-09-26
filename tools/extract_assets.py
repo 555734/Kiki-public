@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cut game sprites out of the three supplied concept mockups.
 
-The mockups ARE the art direction for 走れメロス, so lifting the artwork out of
+The mockups ARE the art direction for メロスゲーム, so lifting the artwork out of
 them is the closest match available -- every sprite ends up with the same paint,
 the same light direction and the same palette as the concept.
 

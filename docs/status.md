@@ -1,4 +1,4 @@
-# 走れメロス — 現状まとめ
+# メロスゲーム — 現状まとめ
 
 最終更新 2026-09-12 / コミット `6fea643` / ブランチ `claude/coop-platformer-game-pfgass`
 

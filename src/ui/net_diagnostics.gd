@@ -184,7 +184,7 @@ func _run() -> void:
 # ------------------------------------------------------------------- steps
 
 func _describe_device() -> void:
-	_say("走れメロス 接続診断")
+	_say("メロスゲーム 接続診断")
 	_say("時刻 %s" % Time.get_datetime_string_from_system(true))
 	_say("ビルド %s / 通信プロトコル v%d" % [Balance.BUILD_ID, Protocol.VERSION])
 	_say("端末 %s %s / Godot %s" % [OS.get_name(), OS.get_version(),

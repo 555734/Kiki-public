@@ -1,11 +1,11 @@
-; 走れメロス  --  asymmetric co-op 2D action
+; メロスゲーム  --  asymmetric co-op 2D action
 ; Engine configuration file.
 
 config_version=5
 
 [application]
 
-config/name="走れメロス"
+config/name="メロスゲーム"
 ; One version number, read by tools/release-check.sh and compared against
 ; the export presets and both workflows. They drifted apart once (iOS was
 ; shipping 0.2.3 while Play built 0.2.4) and nothing noticed.
