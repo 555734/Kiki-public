@@ -125,7 +125,7 @@ func _explain(code: int) -> String:
 		3: return "この端末では購入できません。"
 		4: return "この商品はいま購入できません。"
 		7: return "すでに購入済みです。「購入を復元する」をお試しください。"
-	return "購入できませんでした（%d）。" % code
+	return TranslationServer.translate("購入できませんでした（%d）。") % code
 
 func _wait_connected() -> bool:
 	if _client == null:

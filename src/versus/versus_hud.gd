@@ -67,14 +67,14 @@ func _scoreboard() -> void:
 			ArenaRules.TEAM_COLOURS[team] * Color(1.15, 1.15, 1.15))
 
 	draw_string(font, panel.position + Vector2(0.0, 36.0),
-		"さきに %d まい" % VersusRules.WIN_AT,
+		TranslationServer.translate("さきに %d まい") % VersusRules.WIN_AT,
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 22, COL_INK)
 
 	var loose := 0
 	for c in arena.coins():
 		if int(c["state"]) == ArenaCoin.State.WORLD:
 			loose += 1
-	var line := "おちているコイン %d" % loose
+	var line := TranslationServer.translate("おちているコイン %d") % loose
 	if not String(arena.status).is_empty():
 		line += "   ·   " + String(arena.status)
 	draw_string(font, panel.position + Vector2(0.0, 62.0), line,
@@ -171,7 +171,7 @@ func _result() -> void:
 	var who: int = arena.winner()
 	var tint: Color = ArenaRules.TEAM_COLOURS[who] if who >= 0 else COL_INK
 	draw_string(font, panel.position + Vector2(0.0, 70.0),
-		"%s チームの かち" % ("A" if who == 0 else "B"),
+		TranslationServer.translate("%s チームの かち") % ("A" if who == 0 else "B"),
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 40, tint)
 	draw_string(font, panel.position + Vector2(0.0, 118.0),
 		"%d  -  %d" % [arena.score(0), arena.score(1)],

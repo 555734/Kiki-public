@@ -13,6 +13,10 @@ var _dots: Label = null
 var _elapsed: float = 0.0
 
 func _ready() -> void:
+	# Japanese remains the source language. All other device locales use the
+	# English catalog, including locales for which we do not ship a catalog yet.
+	if not OS.get_locale_language().begins_with("ja"):
+		TranslationServer.set_locale("en")
 	# Once, at the top of the boot screen, before anything is drawn.
 	Engine.max_fps = Balance.target_fps()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -29,7 +33,7 @@ func _ready() -> void:
 	add_child(veil)
 	add_child(_company_logo())
 	_dots = Label.new()
-	_dots.text = "読み込み中"
+	_dots.text = tr("読み込み中")
 	_dots.add_theme_font_size_override("font_size", 18)
 	_dots.add_theme_color_override("font_color", Color("37638d"))
 	_dots.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -71,7 +75,7 @@ func _company_logo() -> Control:
 	rule.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(rule)
 	var title := Label.new()
-	title.text = "メロスゲーム"
+	title.text = tr("メロスゲーム")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color("37638d"))
@@ -80,7 +84,7 @@ func _company_logo() -> Control:
 
 func _process(delta: float) -> void:
 	_elapsed += delta
-	_dots.text = "読み込み中" + ".".repeat(int(_elapsed * 3.0) % 4)
+	_dots.text = tr("読み込み中") + ".".repeat(int(_elapsed * 3.0) % 4)
 	match ResourceLoader.load_threaded_get_status(MAIN_SCENE):
 		ResourceLoader.THREAD_LOAD_LOADED:
 			set_process(false)

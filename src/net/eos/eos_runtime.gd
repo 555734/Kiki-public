@@ -43,7 +43,7 @@ func ensure_ready() -> bool:
 	for key in ["product_name", "product_version", "product_id", "sandbox_id",
 			"deployment_id", "client_id", "client_secret"]:
 		if String(values.get(key, "")).is_empty():
-			_fail("EOS接続設定に %s がありません" % key)
+			_fail(TranslationServer.translate("EOS接続設定に %s がありません") % key)
 			return false
 
 	var credentials_script = load(EOSG_ROOT + "/heos/hcredentials.gd")

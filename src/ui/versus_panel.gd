@@ -45,7 +45,7 @@ func _ready() -> void:
 	box.add_child(_title("コイン たいせん", 30, Color(1, 1, 1)))
 	box.add_child(_title("ステージは 1-1。2チームにわかれて コインを とりあいます。",
 		15, Color(0.72, 0.85, 0.95)))
-	box.add_child(_title("さきに %d まい あつめたチームの かち" % VersusRules.WIN_AT,
+	box.add_child(_title(TranslationServer.translate("さきに %d まい あつめたチームの かち") % VersusRules.WIN_AT,
 		15, Color(0.72, 0.85, 0.95)))
 
 	box.add_child(_spacer(6))
@@ -117,7 +117,7 @@ func _on_host() -> void:
 		return
 	var code := VersusWsTransport.new_code()
 	_code.text = code
-	_status.text = "ルーム番号：%s\nこの6もじを 相手に おしえてください。" % code
+	_status.text = TranslationServer.translate("ルーム番号：%s\nこの6もじを 相手に おしえてください。") % code
 	_go(VersusLaunch.How.HOST, code, relay, VersusRoster.SEAT_A_RUNNER)
 
 func _on_join() -> void:

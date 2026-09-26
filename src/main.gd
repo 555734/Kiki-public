@@ -199,7 +199,7 @@ func join_online(address: String, port: int) -> String:
 ## login, lobby search and lobby creation are backend operations.
 func host_eos() -> String:
 	if link.busy():
-		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
+		return TranslationServer.translate("すでに接続中です（%s）") % NetLink.LABELS.get(link.phase, "?")
 	_end_any_session()
 	# The six digits are ours to choose, so they go on screen now rather than
 	# after EOS login and two lobby round trips.
@@ -230,7 +230,7 @@ func host_eos() -> String:
 
 func join_eos(code: String) -> String:
 	if link.busy():
-		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
+		return TranslationServer.translate("すでに接続中です（%s）") % NetLink.LABELS.get(link.phase, "?")
 	_end_any_session()
 	link.begin(code, "guest")
 	var room := EosCoopLobby.new()
@@ -345,7 +345,7 @@ func _dial_relay(relay: String, code: String, role: String) -> String:
 	if link.busy():
 		# Two taps on the same button used to build two sessions. The second
 		# one took the room's other slot from its own partner.
-		return "すでに接続中です（%s）" % NetLink.LABELS.get(link.phase, "?")
+		return TranslationServer.translate("すでに接続中です（%s）") % NetLink.LABELS.get(link.phase, "?")
 	_end_any_session()
 	link.begin(code, role)
 	var t = load("res://src/net/websocket_transport.gd").new()
@@ -365,7 +365,7 @@ func _dial_relay(relay: String, code: String, role: String) -> String:
 func _watch_transport(t) -> void:
 	t.joined.connect(func(role: String) -> void:
 		link.relay_role = role
-		link.note("中継が役割を割り当て: %s" % role)
+		link.note(TranslationServer.translate("中継が役割を割り当て: %s") % role)
 		# Being told "host" when we asked to be the guest means the room was
 		# empty. That is not a broken relay, and saying so is the difference
 		# between a fixable problem and a mysterious one.

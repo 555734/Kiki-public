@@ -91,7 +91,7 @@ func _entitlement_row() -> VBoxContainer:
 	section.add_theme_constant_override("separation", 4)
 	var state := Label.new()
 	state.add_theme_font_size_override("font_size", 13)
-	state.text = "権限：%s" % _entitlement_label()
+	state.text = TranslationServer.translate("権限：%s") % _entitlement_label()
 	var f := Art.font()
 	if f != null:
 		state.add_theme_font_override("font", f)
@@ -125,7 +125,7 @@ func _enrol(phrase: String, state: Label) -> void:
 	if token.is_empty() or not Entitlement.install_token(token, puid):
 		_say("開発者登録: 受け付けられませんでした")
 		return
-	state.text = "権限：%s" % _entitlement_label()
+	state.text = TranslationServer.translate("権限：%s") % _entitlement_label()
 	_say("開発者登録: 完了")
 
 func _entitlement_label() -> String:
@@ -137,7 +137,7 @@ func _entitlement_label() -> String:
 
 func _button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = tr(text)
 	b.custom_minimum_size = Vector2(0, 46)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size", 16)
@@ -163,7 +163,7 @@ func report() -> String:
 ## except that one takes 20ms and the other takes 10 seconds.
 func _say(text: String) -> void:
 	var t := float(Time.get_ticks_msec() - _started_ms) / 1000.0
-	_lines.append("[%6.2fs] %s" % [t, text])
+	_lines.append("[%6.2fs] %s" % [t, tr(text)])
 	if _log != null:
 		_log.text = report()
 		_log.scroll_vertical = _log.get_line_count()
@@ -185,13 +185,13 @@ func _run() -> void:
 
 func _describe_device() -> void:
 	_say("メロスゲーム 接続診断")
-	_say("時刻 %s" % Time.get_datetime_string_from_system(true))
-	_say("ビルド %s / 通信プロトコル v%d" % [Balance.BUILD_ID, Protocol.VERSION])
-	_say("端末 %s %s / Godot %s" % [OS.get_name(), OS.get_version(),
+	_say(TranslationServer.translate("時刻 %s") % Time.get_datetime_string_from_system(true))
+	_say(TranslationServer.translate("ビルド %s / 通信プロトコル v%d") % [Balance.BUILD_ID, Protocol.VERSION])
+	_say(TranslationServer.translate("端末 %s %s / Godot %s") % [OS.get_name(), OS.get_version(),
 		Engine.get_version_info().get("string", "?")])
-	_say("モデル %s" % OS.get_model_name())
-	_say("描画 %s" % RenderingServer.get_video_adapter_name())
-	_say("EOSG組み込み %s" % ("はい" if EosRuntime.available() else "いいえ"))
+	_say(TranslationServer.translate("モデル %s") % OS.get_model_name())
+	_say(TranslationServer.translate("描画 %s") % RenderingServer.get_video_adapter_name())
+	_say(TranslationServer.translate("EOSG組み込み %s") % ("はい" if EosRuntime.available() else "いいえ"))
 	var addresses: Array[String] = []
 	for a in IP.get_local_addresses():
 		var one := String(a)
@@ -200,27 +200,25 @@ func _describe_device() -> void:
 		if one.begins_with("127.") or one.begins_with("::") or one.begins_with("fe80"):
 			continue
 		addresses.append(one)
-	_say("この端末のIP %s" % (", ".join(addresses) if not addresses.is_empty() else "(なし)"))
+	_say(TranslationServer.translate("この端末のIP %s") % (", ".join(addresses) if not addresses.is_empty() else "(なし)"))
 	_say("")
 
 func _check_eos() -> void:
-	_say("[EOS] 状態: %s" % ["未初期化", "初期化中", "準備完了", "失敗"][EosRuntime.state])
+	_say(TranslationServer.translate("[EOS] 状態: %s") % ["未初期化", "初期化中", "準備完了", "失敗"][EosRuntime.state])
 	if not EosRuntime.last_error.is_empty():
-		_say("  最後のエラー: %s" % EosRuntime.last_error)
+		_say(TranslationServer.translate("  最後のエラー: %s") % EosRuntime.last_error)
 	var puid := EosRuntime.product_user_id()
 	_say("  Product User ID: %s" % (puid if not puid.is_empty() else "未取得"))
 
 func _check_relay_reachable() -> void:
-	_say("[1/3] 中継サーバーに届くか  GET %s/health" % relay)
+	_say(TranslationServer.translate("[1/3] 中継サーバーに届くか  GET %s/health") % relay)
 	var result := await _http_get(relay.rstrip("/") + "/health")
 	if int(result["error"]) != OK:
-		_say("  失敗: HTTPRequest エラー %d (%s)"
-			% [result["error"], _http_error_name(int(result["error"]))])
+		_say(TranslationServer.translate("  失敗: HTTPRequest エラー %d (%s)") % [result["error"], _http_error_name(int(result["error"]))])
 		_say("  → この端末からインターネットに出られていないか、URLが違います。")
 		_say("    機内モード／VPN／会社や学校のWi-Fiのフィルタを疑ってください。")
 		return
-	_say("  HTTP %d  %.2f秒  本文: %s"
-		% [result["code"], result["seconds"], result["body"]])
+	_say(TranslationServer.translate("  HTTP %d  %.2f秒  本文: %s") % [result["code"], result["seconds"], result["body"]])
 	if int(result["code"]) == 200:
 		_say("  → 中継サーバーは生きています。")
 	else:
@@ -233,14 +231,12 @@ var _made_room: String = ""
 
 func _check_room_creation() -> void:
 	_say("")
-	_say("[2/3] 部屋を作れるか  POST %s/room" % relay)
+	_say(TranslationServer.translate("[2/3] 部屋を作れるか  POST %s/room") % relay)
 	var result := await _http_post(relay.rstrip("/") + "/room")
 	if int(result["error"]) != OK:
-		_say("  失敗: HTTPRequest エラー %d (%s)"
-			% [result["error"], _http_error_name(int(result["error"]))])
+		_say(TranslationServer.translate("  失敗: HTTPRequest エラー %d (%s)") % [result["error"], _http_error_name(int(result["error"]))])
 		return
-	_say("  HTTP %d  %.2f秒  本文: %s"
-		% [result["code"], result["seconds"], result["body"]])
+	_say(TranslationServer.translate("  HTTP %d  %.2f秒  本文: %s") % [result["code"], result["seconds"], result["body"]])
 	var parsed = JSON.parse_string(String(result["body"]))
 	if typeof(parsed) == TYPE_DICTIONARY and parsed.has("code"):
 		_made_room = String(parsed["code"])
@@ -259,12 +255,12 @@ func _check_websocket() -> void:
 	elif not base.begins_with("ws"):
 		base = "wss://" + base
 	var url := "%s/room/%s" % [base, code]
-	_say("[3/3] WebSocketがつながるか  %s" % url)
+	_say(TranslationServer.translate("[3/3] WebSocketがつながるか  %s") % url)
 
 	var socket := WebSocketPeer.new()
 	var err := socket.connect_to_url(url)
 	if err != OK:
-		_say("  失敗: connect_to_url がエラー %d (%s)" % [err, error_string(err)])
+		_say(TranslationServer.translate("  失敗: connect_to_url がエラー %d (%s)") % [err, error_string(err)])
 		_say("  → URLの形が不正です。https:// から始まる中継URLを入れてください。")
 		return
 
@@ -277,27 +273,25 @@ func _check_websocket() -> void:
 		var state := socket.get_ready_state()
 		if state != last:
 			last = state
-			_say("  状態 → %s  (%.2f秒)"
-				% [_ws_state_name(state), float(Time.get_ticks_msec() - began) / 1000.0])
+			_say(TranslationServer.translate("  状態 → %s  (%.2f秒)") % [_ws_state_name(state), float(Time.get_ticks_msec() - began) / 1000.0])
 		if state == WebSocketPeer.STATE_OPEN:
 			opened = true
 			while socket.get_available_packet_count() > 0:
 				var packet := socket.get_packet()
 				if socket.was_string_packet():
 					joined = packet.get_string_from_utf8()
-					_say("  受信: %s" % joined)
+					_say(TranslationServer.translate("  受信: %s") % joined)
 			if not joined.is_empty():
 				break
 		if state == WebSocketPeer.STATE_CLOSED and opened:
-			_say("  閉じられました code=%d reason='%s'"
-				% [socket.get_close_code(), socket.get_close_reason()])
+			_say(TranslationServer.translate("  閉じられました code=%d reason='%s'") % [socket.get_close_code(), socket.get_close_reason()])
 			break
 		if state == WebSocketPeer.STATE_CLOSED and not opened \
 				and Time.get_ticks_msec() - began > 400:
-			_say("  つながる前に閉じられました code=%d" % socket.get_close_code())
+			_say(TranslationServer.translate("  つながる前に閉じられました code=%d") % socket.get_close_code())
 			break
 		if Time.get_ticks_msec() - began > int(STEP_TIMEOUT * 1000.0):
-			_say("  %.0f秒待っても開きませんでした" % STEP_TIMEOUT)
+			_say(TranslationServer.translate("  %.0f秒待っても開きませんでした") % STEP_TIMEOUT)
 			break
 		await get_tree().process_frame
 
@@ -343,25 +337,23 @@ func _report_live_session() -> void:
 		_say("  役: まだどちらでもありません（部屋に入っていません）")
 		_conclude_no_session(link)
 		return
-	_say("  役: %s" % ("ガーディアン側" if client != null else "ランナー側"))
+	_say(TranslationServer.translate("  役: %s") % ("ガーディアン側" if client != null else "ランナー側"))
 
 	var t: Object = session.get("transport")
 	if t == null:
 		_say("  transport がありません（未確定）")
 		return
 	if t.has_method("room_code"):
-		_say("  ★ この端末がいる部屋: %s" % String(t.call("room_code")))
+		_say(TranslationServer.translate("  ★ この端末がいる部屋: %s") % String(t.call("room_code")))
 		_say("     （相手の画面の合言葉と、一文字ずつ見比べてください）")
 	var link_open: bool = t.has_method("is_link_open") and bool(t.call("is_link_open"))
 	var peer_here: bool = t.has_method("is_connected_to_peer") \
 		and bool(t.call("is_connected_to_peer"))
-	_say("  EOS P2Pリンク: %s" % ("開いています" if link_open else "閉じています"))
-	_say("  相手がいるか: %s" % ("はい" if peer_here else "いいえ"))
-	_say("  受信 %d 個 / 送信 %d 個"
-		% [int(t.get("packets_in")), int(t.get("packets_out"))])
+	_say(TranslationServer.translate("  EOS P2Pリンク: %s") % ("開いています" if link_open else "閉じています"))
+	_say(TranslationServer.translate("  相手がいるか: %s") % ("はい" if peer_here else "いいえ"))
+	_say(TranslationServer.translate("  受信 %d 個 / 送信 %d 個") % [int(t.get("packets_in")), int(t.get("packets_out"))])
 	if t.get("last_close_code") != null and int(t.get("last_close_code")) >= 0:
-		_say("  最後の切断: コード %d / 理由 %s"
-			% [int(t.get("last_close_code")),
+		_say(TranslationServer.translate("  最後の切断: コード %d / 理由 %s") % [int(t.get("last_close_code")),
 				String(t.get("last_close_reason")) if not String(t.get("last_close_reason")).is_empty() else "（なし）"])
 
 	if client != null:
@@ -370,14 +362,12 @@ func _report_live_session() -> void:
 		# Zero and "never measured" are different facts. Printing 0ms for both
 		# is the report lying about one of them.
 		var rtt: float = float(session.call("round_trip"))
-		_say("  往復: %s" % ("まだ測れていません" if rtt < 0.0 else "%.0fms" % (rtt * 1000.0)))
-		_say("  時計 %d / 最新スナップショット %s / 表示位置 %d"
-			% [Clock.tick, str(newest) if newest > 0 else "まだ来ていません",
+		_say(TranslationServer.translate("  往復: %s") % ("まだ測れていません" if rtt < 0.0 else "%.0fms" % (rtt * 1000.0)))
+		_say(TranslationServer.translate("  時計 %d / 最新スナップショット %s / 表示位置 %d") % [Clock.tick, str(newest) if newest > 0 else "まだ来ていません",
 				int(session.call("view_tick"))])
 		if newest > 0:
-			_say("  表示の遅れ %dms"
-				% int(float(newest - int(session.call("view_tick"))) * Clock.DT * 1000.0))
-		_say("  最後に受信してからの時間 %.1f秒" % float(session.get("_silence")))
+			_say(TranslationServer.translate("  表示の遅れ %dms") % int(float(newest - int(session.call("view_tick"))) * Clock.DT * 1000.0))
+		_say(TranslationServer.translate("  最後に受信してからの時間 %.1f秒") % float(session.get("_silence")))
 
 	_say("")
 	_say("── この記録から言えること ──")
@@ -413,7 +403,7 @@ func _conclude(link: NetLink, link_open: bool, peer_here: bool, packets_in: int)
 		return
 	_say("  この接続は生きていて、データも届いています。")
 	if link.reconnects > 0:
-		_say("  ただし %d 回つなぎ直しています。回線が不安定です。" % link.reconnects)
+		_say(TranslationServer.translate("  ただし %d 回つなぎ直しています。回線が不安定です。") % link.reconnects)
 
 func _conclude_no_session(link: NetLink) -> void:
 	_say("")
@@ -421,8 +411,7 @@ func _conclude_no_session(link: NetLink) -> void:
 	if link.phase == NetLink.Phase.IDLE:
 		_say("  まだ部屋を作っても入ってもいません。接続の良し悪しは未確定です。")
 	else:
-		_say("  接続を始めたところで止まっています（%s）。"
-			% NetLink.LABELS.get(link.phase, "?"))
+		_say(TranslationServer.translate("  接続を始めたところで止まっています（%s）。") % NetLink.LABELS.get(link.phase, "?"))
 		if not link.last_error.is_empty():
 			_say("  最後のエラー: " + link.last_error)
 
@@ -499,5 +488,5 @@ func _http_error_name(result: int) -> String:
 		HTTPRequest.RESULT_NO_RESPONSE: return "応答なし"
 		HTTPRequest.RESULT_TIMEOUT: return "時間切れ"
 	if result == ERR_TIMEOUT:
-		return "時間切れ（%.0f秒）" % STEP_TIMEOUT
-	return "その他 (%d)" % result
+		return TranslationServer.translate("時間切れ（%.0f秒）") % STEP_TIMEOUT
+	return TranslationServer.translate("その他 (%d)") % result

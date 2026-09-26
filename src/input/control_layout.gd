@@ -327,8 +327,8 @@ static func stick_deadzone(place: Dictionary) -> float:
 
 ## A readable name for the layout editor and for failure messages.
 static func label(id: String) -> String:
-	return {
+	return TranslationServer.translate({
 		"stick": "移動", "jump": "ジャンプ",
 		"slot_1": "足場", "slot_2": "壁", "slot_3": "狙撃", "slot_4": "ワープ",
 		"scope": "スコープ", "pan_left": "◀ 見る", "pan_right": "見る ▶",
-	}.get(id, id)
+	}.get(id, id))

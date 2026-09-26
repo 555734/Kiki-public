@@ -65,7 +65,7 @@ func _create_peer() -> String:
 		err = int(_peer.call("create_client", room.socket_id(), owner))
 	if err != OK:
 		_peer = null
-		return "EOS P2Pを開始できません（error %d）" % err
+		return TranslationServer.translate("EOS P2Pを開始できません（error %d）") % err
 	_closed = false
 	return ""
 
@@ -89,7 +89,7 @@ func send(channel: int, reliability: int, payload: PackedByteArray) -> void:
 	framed.append_array(payload)
 	var err := _peer.put_packet(framed)
 	if err != OK:
-		failed.emit("EOSパケットを送信できません（error %d）" % err)
+		failed.emit(TranslationServer.translate("EOSパケットを送信できません（error %d）") % err)
 	else:
 		packets_out += 1
 

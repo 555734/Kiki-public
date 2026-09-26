@@ -209,7 +209,7 @@ func _difficulty_panel() -> VBoxContainer:
 	row.add_theme_constant_override("separation", 8)
 	_difficulty_buttons.clear()
 	for i in Difficulty.LABELS.size():
-		var b := _button(Difficulty.LABELS[i], _on_difficulty.bind(i), false)
+		var b := _button(tr(Difficulty.LABELS[i]), _on_difficulty.bind(i), false)
 		b.custom_minimum_size = Vector2(0, 46)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(b)
@@ -390,7 +390,7 @@ func _stage_card(info: Dictionary) -> Button:
 	stage_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	stage_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.add_child(stage_title)
-	var blurb := _title(String(info["blurb"]), 11, Color("c8dced"))
+	var blurb := _title(tr(String(info["blurb"])), 11, Color("c8dced"))
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.add_child(blurb)
@@ -481,7 +481,7 @@ func _selected_stage_preview() -> PanelContainer:
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(art)
 	layer.add_child(_scrim(108, false))
-	var label := _title("選択中  %s\n%s" % [stage_info["number"], stage_info["name"]],
+	var label := _title(tr("選択中  %s\n%s") % [stage_info["number"], stage_info["name"]],
 		18, Color.WHITE)
 	label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	label.offset_top = -74
@@ -537,8 +537,8 @@ func _show_purchase(which: int) -> void:
 	_purchase.join_requested.connect(func() -> void: _on_join_as_guest(which))
 	_root.add_child(_purchase)
 	if not Iap.available():
-		_purchase.say("このビルドではストアに接続できません。"
-			+ "購入済みの友達の部屋には、このままでも入れます。")
+		_purchase.say(tr("このビルドではストアに接続できません。")
+			+ tr("購入済みの友達の部屋には、このままでも入れます。"))
 
 ## The middle door. It does not unlock anything -- it lets the player carry a
 ## stage they cannot host as far as the room-code field, where the unlock will
@@ -624,7 +624,7 @@ func _on_phase(phase: int, detail: String) -> void:
 		if is_instance_valid(b):
 			b.disabled = busy or _locked_actions.has(b)
 	_cancel.visible = busy
-	_phase_label.text = NetLink.LABELS.get(phase, "")
+	_phase_label.text = tr(NetLink.LABELS.get(phase, ""))
 	if not detail.is_empty():
 		_phase_label.text += "  （%s）" % detail
 	if _banner != null:
@@ -635,7 +635,7 @@ func _on_phase(phase: int, detail: String) -> void:
 			_status.text = "EOSに接続しています…"
 		NetLink.Phase.WAITING_PEER:
 			if main.link.desired_role == "host":
-				_status.text = "ルーム番号：%s\n相手にこの6桁を伝えてください。" % main.link.room_code
+				_status.text = tr("ルーム番号：%s\n相手にこの6桁を伝えてください。") % main.link.room_code
 			elif detail.is_empty():
 				_status.text = "部屋に入りました。ホストの応答を待っています…"
 			else:
@@ -730,10 +730,10 @@ func _close_banner() -> void:
 
 func _on_banner_phase(phase: int, detail: String) -> void:
 	_cancel.visible = true
-	_phase_label.text = NetLink.LABELS.get(phase, "")
+	_phase_label.text = tr(NetLink.LABELS.get(phase, ""))
 	match phase:
 		NetLink.Phase.DIALLING:
-			_status.text = "準備中…（番号はもう決まっています）"
+			_status.text = tr("準備中…（番号はもう決まっています）")
 		NetLink.Phase.WAITING_PEER:
 			_status.text = "相手にこの6桁を伝えてください。"
 		NetLink.Phase.HANDSHAKING:
@@ -780,7 +780,7 @@ func _title(text: String, size: int, colour: Color) -> Label:
 ## language reads as bolted on.
 static func heading(text: String, size: int, colour: Color) -> Label:
 	var l := Label.new()
-	l.text = text
+	l.text = TranslationServer.translate(text)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", colour)
@@ -791,7 +791,7 @@ static func heading(text: String, size: int, colour: Color) -> Label:
 
 func _field(placeholder: String) -> LineEdit:
 	var e := LineEdit.new()
-	e.placeholder_text = placeholder
+	e.placeholder_text = tr(placeholder)
 	e.custom_minimum_size = Vector2(0, 42)
 	e.add_theme_font_size_override("font_size", 16)
 	e.add_theme_color_override("font_color", Color("123f70"))
@@ -875,7 +875,7 @@ func _button(text: String, handler: Callable, guarded: bool = true) -> Button:
 ## Without the guarded list, which is this panel's own bookkeeping.
 static func action_button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = TranslationServer.translate(text)
 	b.custom_minimum_size = Vector2(0, 50)
 	b.add_theme_font_size_override("font_size", 16)
 	b.add_theme_color_override("font_color", Color("064d92"))
@@ -909,7 +909,7 @@ func _on_diagnose() -> void:
 ## Anything that goes wrong offers the report rather than making the player go
 ## and find it.
 func _failed(message: String) -> void:
-	_status.text = message + "\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。"
+	_status.text = tr(message) + tr("\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。")
 
 func _on_code_changed(text: String) -> void:
 	var digits := ""

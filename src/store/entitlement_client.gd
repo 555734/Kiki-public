@@ -83,4 +83,4 @@ func _post(path: String, body: Dictionary) -> Dictionary:
 			+ "しばらくしてから「購入を復元する」をお試しください。"}
 	if answer.has("message"):
 		return {"error": String(answer["message"])}
-	return {"error": "購入を確認できませんでした（%d）。" % status}
+	return {"error": TranslationServer.translate("購入を確認できませんでした（%d）。") % status}

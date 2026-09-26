@@ -141,7 +141,7 @@ func begin(code: String, role: String) -> void:
 	last_error = ""
 	reconnects = 0
 	_journal.clear()
-	_write("試行 %s  部屋 %s  希望役割 %s" % [attempt_id, code, role])
+	_write(TranslationServer.translate("試行 %s  部屋 %s  希望役割 %s") % [attempt_id, code, role])
 	enter(Phase.DIALLING)
 
 func finish() -> void:
@@ -209,21 +209,21 @@ static func _short_id() -> String:
 ## value that was never measured says so rather than reading as zero.
 func lines() -> Array[String]:
 	var out: Array[String] = []
-	out.append("状態: %s" % LABELS.get(phase, "?"))
-	out.append("試行ID: %s / 部屋: %s" % [
+	out.append(TranslationServer.translate("状態: %s") % LABELS.get(phase, "?"))
+	out.append(TranslationServer.translate("試行ID: %s / 部屋: %s") % [
 		attempt_id if not attempt_id.is_empty() else "（なし）",
 		room_code if not room_code.is_empty() else "（なし）"])
-	out.append("希望役割: %s / 中継が返した役割: %s" % [
+	out.append(TranslationServer.translate("希望役割: %s / 中継が返した役割: %s") % [
 		desired_role if not desired_role.is_empty() else "（未指定）",
 		relay_role if not relay_role.is_empty() else "（未受信）"])
-	out.append("接続開始: %s" % _stamp(dialled_at_ms))
-	out.append("部屋に入った: %s" % _stamp(joined_at_ms))
-	out.append("ゲーム開始の確認: %s" % _stamp(handshaken_at_ms))
+	out.append(TranslationServer.translate("接続開始: %s") % _stamp(dialled_at_ms))
+	out.append(TranslationServer.translate("部屋に入った: %s") % _stamp(joined_at_ms))
+	out.append(TranslationServer.translate("ゲーム開始の確認: %s") % _stamp(handshaken_at_ms))
 	if close_code >= 0 or not close_reason.is_empty():
-		out.append("切断: コード %d / 理由 %s" % [close_code,
+		out.append(TranslationServer.translate("切断: コード %d / 理由 %s") % [close_code,
 			close_reason if not close_reason.is_empty() else "（なし）"])
-	out.append("最後のエラー: %s" % (last_error if not last_error.is_empty() else "（なし）"))
-	out.append("再接続回数: %d" % reconnects)
+	out.append(TranslationServer.translate("最後のエラー: %s") % (last_error if not last_error.is_empty() else "（なし）"))
+	out.append(TranslationServer.translate("再接続回数: %d") % reconnects)
 	return out
 
 func journal_lines() -> Array[String]:
@@ -239,4 +239,4 @@ func _stamp(ms: int) -> String:
 		return "まだ"
 	if dialled_at_ms < 0:
 		return "%.2fs" % (float(ms) / 1000.0)
-	return "開始から %.2fs" % (float(ms - dialled_at_ms) / 1000.0)
+	return TranslationServer.translate("開始から %.2fs") % (float(ms - dialled_at_ms) / 1000.0)

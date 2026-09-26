@@ -432,7 +432,7 @@ func _probe_relay_route() -> void:
 	_debug("PROBE GET " + url + " (expected HTTP 426; no websocket upgrade)")
 	var err := _relay_probe.request(url)
 	if err != OK:
-		_relay_probe_detail = "接続先のHTTP検査を開始できません (%d)" % err
+		_relay_probe_detail = TranslationServer.translate("接続先のHTTP検査を開始できません (%d)") % err
 		_debug("PROBE request error=%d" % err)
 
 func _on_relay_probe_complete(result: int, http_status: int,
@@ -440,7 +440,7 @@ func _on_relay_probe_complete(result: int, http_status: int,
 	_debug("PROBE result=%d HTTP=%d body=%s" % [result, http_status,
 		body.get_string_from_utf8().substr(0, 120).replace("\n", " ")])
 	if result != HTTPRequest.RESULT_SUCCESS:
-		_relay_probe_detail = "中継HTTP接続失敗 result=%d (DNS/通信を確認)" % result
+		_relay_probe_detail = TranslationServer.translate("中継HTTP接続失敗 result=%d (DNS/通信を確認)") % result
 	elif http_status == 426:
 		_relay_probe_detail = ""
 		_debug("PROBE /room4 exists on deployed relay")
@@ -449,7 +449,7 @@ func _on_relay_probe_complete(result: int, http_status: int,
 	elif http_status == 429:
 		_relay_probe_detail = "中継の接続回数制限 HTTP 429"
 	else:
-		_relay_probe_detail = "中継の /room4 が HTTP %d を返しました" % http_status
+		_relay_probe_detail = TranslationServer.translate("中継の /room4 が HTTP %d を返しました") % http_status
 
 ## The value Runner actually reads, plus touch owner and the local actor.
 ## Emit on direction changes and at 3-second intervals so a stuck input can
@@ -771,27 +771,27 @@ func map_marks() -> Array[Dictionary]:
 func waiting_detail() -> String:
 	var code := room_code if not room_code.is_empty() else "------"
 	if link != null and not link.last_error().is_empty():
-		return "room %s · 通信エラー: %s" % [code, link.last_error()]
+		return TranslationServer.translate("room %s · 通信エラー: %s") % [code, link.last_error()]
 	if not _relay_probe_detail.is_empty():
 		return "room %s · %s" % [code, _relay_probe_detail]
 	if mode == Mode.HOST:
 		if host == null:
-			return "room %s · 中継に接続中（/room4を確認）" % code
+			return TranslationServer.translate("room %s · 中継に接続中（/room4を確認）") % code
 		if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and \
 				host.roster.can_play() and not host._reported.has(VersusRoster.SEAT_B_RUNNER):
-			return "room %s · 2/2認証済み / 相手の初期位置を受信待ち" % code
-		return "room %s · 参加認証 %d/2" % [code, host.roster.peers_filled()]
+			return TranslationServer.translate("room %s · 2/2認証済み / 相手の初期位置を受信待ち") % code
+		return TranslationServer.translate("room %s · 参加認証 %d/2") % [code, host.roster.peers_filled()]
 	if mode == Mode.CLIENT:
 		if client == null:
-			return "room %s · 中継に接続中（/room4を確認）" % code
+			return TranslationServer.translate("room %s · 中継に接続中（/room4を確認）") % code
 		if client.refused:
 			return client.refusal_reason if not client.refusal_reason.is_empty() \
 				else "入室拒否：APK・対戦モード・部屋番号を確認"
 		if not client.connected:
-			return "room %s · ホストからの入室認証待ち" % code
+			return TranslationServer.translate("room %s · ホストからの入室認証待ち") % code
 		if not client.seen_world:
-			return "room %s · 認証済み、状態の受信待ち" % code
-		return "room %s · 認証済み、ホストの開始待ち" % code
+			return TranslationServer.translate("room %s · 認証済み、状態の受信待ち") % code
+		return TranslationServer.translate("room %s · 認証済み、ホストの開始待ち") % code
 	return ""
 
 func waiting() -> bool:

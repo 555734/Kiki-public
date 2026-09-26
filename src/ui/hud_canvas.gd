@@ -113,7 +113,7 @@ static var _key_text: Dictionary = {}
 static func _key_line(have: bool) -> TextLine:
 	if not _key_text.has(have):
 		var line := TextLine.new()
-		line.add_string("鍵 あり" if have else "鍵 さがせ", Art.font(), 15)
+		line.add_string(TranslationServer.translate("鍵 あり" if have else "鍵 さがせ"), Art.font(), 15)
 		_key_text[have] = line
 	return _key_text[have]
 
@@ -567,7 +567,7 @@ func _clear_panel(view: Vector2) -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if t > 0.6:
 		var a := clampf((t - 0.6) * 2.0, 0.0, 1.0)
-		draw_string(font, Vector2(0, c.y + 70.0), "やったね！ ふたりでゴール！",
+		draw_string(font, Vector2(0, c.y + 70.0), tr("やったね！ ふたりでゴール！"),
 			HORIZONTAL_ALIGNMENT_CENTER, view.x, 24, Color(1, 1, 1, a))
 
 func _ease_out_back(x: float) -> float:

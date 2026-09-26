@@ -129,7 +129,7 @@ func _ready() -> void:
 
 func _button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = tr(text)
 	b.custom_minimum_size = Vector2(190, 48)
 	b.add_theme_font_size_override("font_size", 16)
 	var f := Art.font()
@@ -157,12 +157,12 @@ func _refresh() -> void:
 		toggle.visible = _mode != "guardian"
 	if _movement_help != null:
 		_movement_help.visible = _mode != "guardian"
-	var custom := "（自分で変えた配置です）" if ControlLayout.has_custom(_mode) \
-		else "（はじめの配置です）"
-	_status.text = "ボタンを指でドラッグすると動きます。%s" % custom
+	var custom := tr("（自分で変えた配置です）") if ControlLayout.has_custom(_mode) \
+		else tr("（はじめの配置です）")
+	_status.text = tr("ボタンを指でドラッグすると動きます。%s") % custom
 	if _size_label != null:
-		_size_label.text = "大きさ：%s" % (ControlLayout.label(_selected)
-			if _selected != "" else "（ボタンを選んでください）")
+		_size_label.text = tr("大きさ：%s") % (tr(ControlLayout.label(_selected))
+			if _selected != "" else tr("（ボタンを選んでください）"))
 	if _size != null:
 		_size.editable = _selected != ""
 

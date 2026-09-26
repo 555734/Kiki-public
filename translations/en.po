@@ -1,0 +1,758 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "メロスゲーム"
+msgstr "Melos Game"
+
+msgid "メロスゲーム   ✦"
+msgstr "Melos Game   ✦"
+
+msgid "読み込み中"
+msgstr "Loading"
+
+msgid "走る・跳ぶ・助け合う最初の一歩"
+msgstr "Run, jump, and help each other"
+
+msgid "月明かりの村を駆け抜ける"
+msgstr "Run through a moonlit village"
+
+msgid "足場をつないで天空の頂へ"
+msgstr "Build a path to the sky"
+
+msgid "岩と桟橋をつないで海の旗へ"
+msgstr "Cross the rocks and piers"
+
+msgid "毒沼の足場を渡り岸の門へ"
+msgstr "Cross the poisoned marsh"
+
+msgid "—  ステージを選択  —"
+msgstr "—  SELECT A STAGE  —"
+
+msgid "遊ぶステージをタップしてください"
+msgstr "Tap a stage to play"
+
+msgid "カードを選ぶと、遊び方と難易度の画面へ進みます"
+msgstr "Choose a stage to set up your game"
+
+msgid "追跡者の速さ"
+msgstr "Chaser speed"
+
+msgid "追いかけてくる敵だけが速くなります"
+msgstr "Only chasing enemies change speed"
+
+msgid "イージー"
+msgstr "Easy"
+
+msgid "ノーマル"
+msgstr "Normal"
+
+msgid "ハード"
+msgstr "Hard"
+
+msgid "—  遊び方を選択  —"
+msgstr "—  CHOOSE HOW TO PLAY  —"
+
+msgid "一緒に遊ぶ方法を選んでください"
+msgstr "Choose how to play together"
+
+msgid "この1台で一緒に遊ぶ"
+msgstr "Play together on one device"
+
+msgid "▶  この1台で 2人プレイを始める"
+msgstr "▶  Start two-player game here"
+
+msgid "オンラインで離れて遊ぶ"
+msgstr "Play together online"
+
+msgid "ルーム番号（6桁）"
+msgstr "Room code (6 digits)"
+
+msgid "＋  部屋を作る"
+msgstr "+  Create a room"
+
+msgid "→  ルームに入る"
+msgstr "→  Join a room"
+
+msgid "このステージは完全版です。完全版を持っている友達に部屋を作ってもらい、\nその6桁を入れて「ルームに入る」を押してください。"
+msgstr "This stage is in the full game. Ask a friend who owns it to create a room,\nthen enter their six-digit code and tap Join a room."
+
+msgid "接続をやめる"
+msgstr "Cancel connection"
+
+msgid "‹  もどる"
+msgstr "‹  Back"
+
+msgid "ボタン配置"
+msgstr "Control layout"
+
+msgid "接続記録"
+msgstr "Connection log"
+
+msgid "選択中  %s\n%s"
+msgstr "Selected  %s\n%s"
+
+msgid "購入済みの友達と遊ぶ"
+msgstr "Play with a friend who owns it"
+
+msgid "このステージは完全版に入っています"
+msgstr "This stage is in the full game"
+
+msgid "👥  購入済みの友達と遊ぶ"
+msgstr "👥  Play with a friend who owns it"
+
+msgid "友達が完全版を持っていれば、その人の部屋に入るだけで\n全ステージを一緒に遊べます。購入は要りません。"
+msgstr "If your friend owns the full game, join their room to play\nevery stage together. You do not need to buy it."
+
+msgid "↺  購入を復元する"
+msgstr "↺  Restore purchase"
+
+msgid "購入を復元する"
+msgstr "Restore purchase"
+
+msgid "機種変更や再インストールのあとはこちら"
+msgstr "Use this after changing devices or reinstalling"
+
+msgid "▶  完全版を購入する（%s）"
+msgstr "▶  Buy full game (%s)"
+
+msgid "▶  完全版を購入する（価格を読み込み中…）"
+msgstr "▶  Buy full game (loading price…)"
+
+msgid "このビルドではストアに接続できません。"
+msgstr "This build cannot connect to the store."
+
+msgid "購入が見つかりませんでした。別のアカウントで購入した場合は、\nそのアカウントでストアにログインしてからもう一度お試しください。"
+msgstr "No purchase found. If you bought it with another account,\nsign in to that account and try again."
+
+msgid "このルーム番号の部屋には、まだ誰もいません。\n・相手が『部屋を作る』を押しているか\n・6桁の番号が一つも違っていないか\nを確かめてください"
+msgstr "Nobody is in this room yet.\nCheck that your friend created a room\nand that every digit of the code matches."
+
+msgid "\n\n下の「接続診断」を押すと、原因を調べて\nコピーできる記録を出します。"
+msgstr "\n\nTap Connection log below to investigate\nand copy a diagnostic report."
+
+msgid "購入済みの友達の部屋には、このままでも入れます。"
+msgstr "You can still join a room hosted by a friend who owns it."
+
+msgid "ストアに接続しています…"
+msgstr "Connecting to the store…"
+
+msgid "購入履歴を確認しています…"
+msgstr "Checking purchase history…"
+
+msgid "購入が見つかりませんでした。別のアカウントで購入した場合は、そのアカウントでストアにログインしてからもう一度お試しください。"
+msgstr "No purchase found. If you bought it with another account, sign in to that account and try again."
+
+msgid "EOSに接続しています…"
+msgstr "Connecting to EOS…"
+
+msgid "ルーム番号：%s\n相手にこの6桁を伝えてください。"
+msgstr "Room code: %s\nTell your friend these six digits."
+
+msgid "部屋に入りました。ホストの応答を待っています…"
+msgstr "Joined the room. Waiting for the host…"
+
+msgid "相手が来ました。ゲームを始められるか確認しています…"
+msgstr "Your friend joined. Checking if the game can start…"
+
+msgid "接続が切れました。つなぎ直しています…"
+msgstr "Connection lost. Reconnecting…"
+
+msgid "接続できませんでした："
+msgstr "Could not connect: "
+
+msgid "接続をやめました。もう一度選んでください。"
+msgstr "Connection cancelled. Choose again."
+
+msgid "部屋を作る"
+msgstr "Create a room"
+
+msgid "ルーム番号"
+msgstr "Room code"
+
+msgid "準備中…"
+msgstr "Getting ready…"
+
+msgid "やめる"
+msgstr "Cancel"
+
+msgid "準備中…（番号はもう決まっています）"
+msgstr "Getting ready… (your code is set)"
+
+msgid "相手にこの6桁を伝えてください。"
+msgstr "Tell your friend these six digits."
+
+msgid "番号がそろいました。「ルームに入る」を押してください"
+msgstr "Code complete. Tap Join a room."
+
+msgid "このステージの部屋を作るには完全版が必要です。"
+msgstr "You need the full game to host this stage."
+
+msgid "失敗："
+msgstr "Failed: "
+
+msgid "ルーム番号は6桁の数字で入力してください"
+msgstr "Enter a six-digit room code"
+
+msgid "ルーム番号は6桁の数字で入力してください。"
+msgstr "Enter a six-digit room code."
+
+msgid "スタート画面へ戻る"
+msgstr "Return to start"
+
+msgid "鍵 あり"
+msgstr "KEY FOUND"
+
+msgid "鍵 さがせ"
+msgstr "FIND KEY"
+
+msgid "足場"
+msgstr "Platform"
+
+msgid "壁"
+msgstr "Wall"
+
+msgid "狙撃"
+msgstr "Snipe"
+
+msgid "取消"
+msgstr "Cancel"
+
+msgid "ここ"
+msgstr "Here"
+
+msgid "待って"
+msgstr "Wait"
+
+msgid "やったね！ ふたりでゴール！"
+msgstr "You did it! You reached the goal together!"
+
+msgid "鍵がかかっている！ 地上のどこかにある鍵を探そう"
+msgstr "Locked! Find the key somewhere on the ground."
+
+msgid "鍵を手に入れた！ ゴールの門が開きます"
+msgstr "Key found! The goal gate is open."
+
+msgid "移動"
+msgstr "Move"
+
+msgid "ジャンプ"
+msgstr "Jump"
+
+msgid "ワープ"
+msgstr "Warp"
+
+msgid "スコープ"
+msgstr "Scope"
+
+msgid "◀ 見る"
+msgstr "◀ Look"
+
+msgid "見る ▶"
+msgstr "Look ▶"
+
+msgid "ガーディアン"
+msgstr "Guardian"
+
+msgid "→ ガーディアン"
+msgstr "→ Guardian"
+
+msgid "ランナー"
+msgstr "Runner"
+
+msgid "1台で2人"
+msgstr "Two on one device"
+
+msgid "この配置をリセット"
+msgstr "Reset layout"
+
+msgid "保存して閉じる"
+msgstr "Save and close"
+
+msgid "自動ダッシュ（移動とジャンプを2本指で操作）"
+msgstr "Auto dash (move and jump with two fingers)"
+
+msgid "短い指の移動で走る"
+msgstr "Run with a short swipe"
+
+msgid "スティック下：しゃがむ・滑る　／　空中で下：ヒップドロップ\nジャンプ長押し：高く跳ぶ　／　壁に向かってジャンプ：壁キック"
+msgstr "Stick down: crouch/slide  /  Down in air: ground pound\nHold Jump: jump higher  /  Jump into a wall: wall kick"
+
+msgid "（自分で変えた配置です）"
+msgstr "(Custom layout)"
+
+msgid "（はじめの配置です）"
+msgstr "(Default layout)"
+
+msgid "ボタンを指でドラッグすると動きます。%s"
+msgstr "Drag a button to move it. %s"
+
+msgid "大きさ：%s"
+msgstr "Size: %s"
+
+msgid "（ボタンを選んでください）"
+msgstr "(Select a button)"
+
+msgid "未接続"
+msgstr "Disconnected"
+
+msgid "接続中"
+msgstr "Connecting"
+
+msgid "相手を待っています"
+msgstr "Waiting for your friend"
+
+msgid "ゲーム開始を確認中"
+msgstr "Checking game start"
+
+msgid "プレイ中"
+msgstr "Playing"
+
+msgid "再接続中"
+msgstr "Reconnecting"
+
+msgid "失敗"
+msgstr "Failed"
+
+msgid "フレンドパス：一緒に遊んでいる間だけ全ステージが遊べます"
+msgstr "Friend Pass: play every stage while you are together"
+
+msgid "つなぎ直せませんでした。もう一度部屋に入ってください"
+msgstr "Could not reconnect. Please join the room again."
+
+msgid "世界を取り戻しています…"
+msgstr "Restoring the world…"
+
+msgid "バージョンが違います（相手 %d / こちら %d）。同じビルドを使ってください"
+msgstr "Version mismatch (friend %d / yours %d). Use the same build."
+
+msgid "ステージが違います（相手 %s / こちら %s）。同じステージを選んでください"
+msgstr "Stage mismatch (friend %s / yours %s). Select the same stage."
+
+msgid "同じ役割では接続できません。片方ずつランナーとガーディアンを選んでください"
+msgstr "You cannot connect with the same role. Choose one Runner and one Guardian."
+
+msgid "購入が見つかりませんでした。"
+msgstr "No purchase found."
+
+msgid "オンラインの準備ができていません。通信を確認してもう一度お試しください。"
+msgstr "Online services are not ready. Check your connection and try again."
+
+msgid "購入は確認できましたが、権限を受け取れませんでした。"
+msgstr "Purchase confirmed, but the unlock was not received."
+
+msgid "App Storeに接続できませんでした。"
+msgstr "Could not connect to the App Store."
+
+msgid "購入を開始できませんでした。"
+msgstr "Could not start the purchase."
+
+msgid "Google Playに接続できませんでした。"
+msgstr "Could not connect to Google Play."
+
+msgid "商品情報を読み取れませんでした。"
+msgstr "Could not load product details."
+
+msgid "支払いの確認待ちです。完了したらもう一度お試しください。"
+msgstr "Waiting for payment confirmation. Try again when it finishes."
+
+msgid "通信できませんでした。電波を確認してもう一度お試しください。"
+msgstr "Could not connect. Check your signal and try again."
+
+msgid "この端末では購入できません。"
+msgstr "Purchases are not available on this device."
+
+msgid "この商品はいま購入できません。"
+msgstr "This item is currently unavailable."
+
+msgid "すでに購入済みです。「購入を復元する」をお試しください。"
+msgstr "Already purchased. Try Restore purchase."
+
+msgid "EOSライブラリがこのビルドに含まれていません"
+msgstr "This build does not include the EOS library"
+
+msgid "EOS接続設定がこのビルドに含まれていません"
+msgstr "This build does not include EOS connection settings"
+
+msgid "EOSを初期化しています"
+msgstr "Starting EOS"
+
+msgid "EOS接続設定を読み取れません"
+msgstr "Could not read EOS connection settings"
+
+msgid "EOSの匿名ログインに失敗しました"
+msgstr "EOS guest sign-in failed"
+
+msgid "EOSルームがありません"
+msgstr "EOS room not found"
+
+msgid "そのルーム番号は見つかりません"
+msgstr "Room code not found"
+
+msgid "このルームはすでにプレイ中です"
+msgstr "This room is already playing"
+
+msgid "EOSルームに参加できませんでした"
+msgstr "Could not join the EOS room"
+
+msgid "EOSルームから切断されました"
+msgstr "Disconnected from the EOS room"
+
+msgid "すでに接続中です（%s）"
+msgstr "Already connecting (%s)"
+
+msgid "中継が役割を割り当て: %s"
+msgstr "Relay assigned role: %s"
+
+msgid "%.0f秒つなぎ直せませんでした"
+msgstr "Could not reconnect for %.0f seconds"
+
+msgid "つなぎ直しています… (%d)"
+msgstr "Reconnecting… (%d)"
+
+msgid "購入を確認できませんでした（%d）。"
+msgstr "Could not verify purchase (%d)."
+
+msgid "購入できませんでした（%d）。"
+msgstr "Purchase failed (%d)."
+
+msgid "EOS接続設定に %s がありません"
+msgstr "EOS settings are missing %s"
+
+msgid "EOS P2Pを開始できません（error %d）"
+msgstr "Could not start EOS P2P (error %d)"
+
+msgid "EOSパケットを送信できません（error %d）"
+msgstr "Could not send EOS packet (error %d)"
+
+msgid "試行 %s  部屋 %s  希望役割 %s"
+msgstr "Attempt %s  room %s  requested role %s"
+
+msgid "状態: %s"
+msgstr "Status: %s"
+
+msgid "試行ID: %s / 部屋: %s"
+msgstr "Attempt ID: %s / room: %s"
+
+msgid "希望役割: %s / 中継が返した役割: %s"
+msgstr "Requested role: %s / assigned role: %s"
+
+msgid "接続開始: %s"
+msgstr "Connection started: %s"
+
+msgid "部屋に入った: %s"
+msgstr "Joined room: %s"
+
+msgid "ゲーム開始の確認: %s"
+msgstr "Game start confirmed: %s"
+
+msgid "切断: コード %d / 理由 %s"
+msgstr "Disconnected: code %d / reason %s"
+
+msgid "最後のエラー: %s"
+msgstr "Last error: %s"
+
+msgid "再接続回数: %d"
+msgstr "Reconnects: %d"
+
+msgid "開始から %.2fs"
+msgstr "%.2fs since start"
+
+msgid "権限：%s"
+msgstr "Access: %s"
+
+msgid "時刻 %s"
+msgstr "Time %s"
+
+msgid "ビルド %s / 通信プロトコル v%d"
+msgstr "Build %s / protocol v%d"
+
+msgid "端末 %s %s / Godot %s"
+msgstr "Device %s %s / Godot %s"
+
+msgid "モデル %s"
+msgstr "Model %s"
+
+msgid "描画 %s"
+msgstr "Renderer %s"
+
+msgid "EOSG組み込み %s"
+msgstr "EOSG included %s"
+
+msgid "この端末のIP %s"
+msgstr "Device IP %s"
+
+msgid "[EOS] 状態: %s"
+msgstr "[EOS] status: %s"
+
+msgid "  最後のエラー: %s"
+msgstr "  Last error: %s"
+
+msgid "[1/3] 中継サーバーに届くか  GET %s/health"
+msgstr "[1/3] Relay reachability  GET %s/health"
+
+msgid "  失敗: HTTPRequest エラー %d (%s)"
+msgstr "  Failed: HTTPRequest error %d (%s)"
+
+msgid "  HTTP %d  %.2f秒  本文: %s"
+msgstr "  HTTP %d  %.2fs  body: %s"
+
+msgid "[2/3] 部屋を作れるか  POST %s/room"
+msgstr "[2/3] Room creation  POST %s/room"
+
+msgid "[3/3] WebSocketがつながるか  %s"
+msgstr "[3/3] WebSocket connection  %s"
+
+msgid "  失敗: connect_to_url がエラー %d (%s)"
+msgstr "  Failed: connect_to_url error %d (%s)"
+
+msgid "  状態 → %s  (%.2f秒)"
+msgstr "  Status → %s  (%.2fs)"
+
+msgid "  受信: %s"
+msgstr "  Received: %s"
+
+msgid "  閉じられました code=%d reason='%s'"
+msgstr "  Closed code=%d reason='%s'"
+
+msgid "  つながる前に閉じられました code=%d"
+msgstr "  Closed before connecting code=%d"
+
+msgid "  %.0f秒待っても開きませんでした"
+msgstr "  Did not open within %.0f seconds"
+
+msgid "  役: %s"
+msgstr "  Role: %s"
+
+msgid "  ★ この端末がいる部屋: %s"
+msgstr "  ★ This device's room: %s"
+
+msgid "  EOS P2Pリンク: %s"
+msgstr "  EOS P2P link: %s"
+
+msgid "  相手がいるか: %s"
+msgstr "  Friend present: %s"
+
+msgid "  受信 %d 個 / 送信 %d 個"
+msgstr "  Received %d / sent %d"
+
+msgid "  最後の切断: コード %d / 理由 %s"
+msgstr "  Last disconnect: code %d / reason %s"
+
+msgid "  往復: %s"
+msgstr "  Round trip: %s"
+
+msgid "  時計 %d / 最新スナップショット %s / 表示位置 %d"
+msgstr "  Tick %d / newest snapshot %s / display position %d"
+
+msgid "  表示の遅れ %dms"
+msgstr "  Display delay %dms"
+
+msgid "  最後に受信してからの時間 %.1f秒"
+msgstr "  Time since last packet %.1fs"
+
+msgid "  ただし %d 回つなぎ直しています。回線が不安定です。"
+msgstr "  Reconnected %d times. The connection is unstable."
+
+msgid "  接続を始めたところで止まっています（%s）。"
+msgstr "  Stalled while connecting (%s)."
+
+msgid "時間切れ（%.0f秒）"
+msgstr "Timed out (%.0f seconds)"
+
+msgid "その他 (%d)"
+msgstr "Other (%d)"
+
+msgid "接続診断"
+msgstr "Connection diagnostics"
+
+msgid "すべてコピー"
+msgstr "Copy all"
+
+msgid "もう一度実行"
+msgstr "Run again"
+
+msgid "閉じる"
+msgstr "Close"
+
+msgid "開発者コード"
+msgstr "Developer code"
+
+msgid "登録"
+msgstr "Register"
+
+msgid "完全版"
+msgstr "Full game"
+
+msgid "開発者"
+msgstr "Developer"
+
+msgid "フレンドパス（この部屋のあいだだけ）"
+msgstr "Friend Pass (this room only)"
+
+msgid "無料"
+msgstr "Free"
+
+msgid "(コピーしました)"
+msgstr "(Copied)"
+
+msgid "=== ここまでをコピーして送ってください ==="
+msgstr "=== Copy and send everything above ==="
+
+msgid "メロスゲーム 接続診断"
+msgstr "Melos Game connection diagnostics"
+
+msgid "はい"
+msgstr "Yes"
+
+msgid "いいえ"
+msgstr "No"
+
+msgid "(なし)"
+msgstr "(none)"
+
+msgid "（なし）"
+msgstr "(none)"
+
+msgid "未初期化"
+msgstr "Not initialized"
+
+msgid "初期化中"
+msgstr "Initializing"
+
+msgid "準備完了"
+msgstr "Ready"
+
+msgid "未取得"
+msgstr "Unavailable"
+
+msgid "開いています"
+msgstr "Open"
+
+msgid "閉じています"
+msgstr "Closed"
+
+msgid "まだ測れていません"
+msgstr "Not measured yet"
+
+msgid "まだ来ていません"
+msgstr "None received yet"
+
+msgid "ガーディアン側"
+msgstr "Guardian side"
+
+msgid "ランナー側"
+msgstr "Runner side"
+
+msgid "  → この端末からインターネットに出られていないか、URLが違います。"
+msgstr "  → This device cannot reach the internet, or the URL is wrong."
+
+msgid "    機内モード／VPN／会社や学校のWi-Fiのフィルタを疑ってください。"
+msgstr "    Check airplane mode, VPN, or workplace/school Wi-Fi filters."
+
+msgid "  → 中継サーバーは生きています。"
+msgstr "  → The relay is running."
+
+msgid "  → 200 以外です。URLが違うか、サーバーが更新されています。"
+msgstr "  → Not HTTP 200. The URL may be wrong or the server may have changed."
+
+msgid "  → URLの形が不正です。https:// から始まる中継URLを入れてください。"
+msgstr "  → Invalid URL. Enter a relay URL beginning with https://."
+
+msgid "  → WebSocketは通っています。"
+msgstr "  → WebSocket works."
+
+msgid "    これは『いま新しい接続を作れるか』の結果であって、"
+msgstr "    This only checks whether a new connection can be opened now."
+
+msgid "    ゲームが使っている接続が生きている証拠ではありません。"
+msgstr "    It does not prove the current game connection is working."
+
+msgid "    そちらは下の『いま動いているゲーム接続』を見てください。"
+msgstr "    See the live game connection below."
+
+msgid "  → 開いたのに relay からの joined が来ませんでした。中継サーバー側の問題です。"
+msgstr "  → Opened, but the relay did not send joined. Check the relay server."
+
+msgid "  → WebSocketがつながりません。HTTPは通るのにここで止まる場合、"
+msgstr "  → WebSocket failed. If HTTP works but this stops,"
+
+msgid "    そのWi-FiがWebSocketを遮断しています（社内・学校・ホテルに多い）。"
+msgstr "    the Wi-Fi may block WebSockets (common at work, school, or hotels)."
+
+msgid "    携帯回線（テザリング）で試すと切り分けられます。"
+msgstr "    Try a mobile connection to check."
+
+msgid "── いま動いているゲーム接続 ──"
+msgstr "── Live game connection ──"
+
+msgid "  この画面からゲーム本体が見つかりません（未確定）"
+msgstr "  Could not find the game from this screen (unknown)"
+
+msgid "  役: まだどちらでもありません（部屋に入っていません）"
+msgstr "  Role: none yet (not in a room)"
+
+msgid "  transport がありません（未確定）"
+msgstr "  Transport is unavailable (unknown)"
+
+msgid "     （相手の画面の合言葉と、一文字ずつ見比べてください）"
+msgstr "     (Compare every digit with the code on your friend's screen)"
+
+msgid "── この記録から言えること ──"
+msgstr "── What this report shows ──"
+
+msgid "  この端末は部屋に入れていません（接続が開いていません）。"
+msgstr "  This device is not in a room (the connection is closed)."
+
+msgid "  上の[1/3][2/3][3/3]は『新しい接続を今から作れるか』の試験なので、"
+msgstr "  Steps [1/3][2/3][3/3] only test a new connection."
+
+msgid "  それが通っていてもこの接続が生きていることにはなりません。"
+msgstr "  Passing them does not mean this connection is alive."
+
+msgid "  ・そのまま待てば数秒おきに自動でつなぎ直します"
+msgstr "  • Wait a few seconds for an automatic reconnect"
+
+msgid "  ・『やめる』を押してから、もう一度部屋を作るか入り直しても直ります"
+msgstr "  • Or tap Cancel, then create or join a room again"
+
+msgid "  この合言葉の部屋には、まだ誰もいません。"
+msgstr "  Nobody else is in this room yet."
+
+msgid "  部屋には入れていますが、相手がまだ来ていません。"
+msgstr "  You joined the room, but your friend has not arrived."
+
+msgid "  通信障害ではありません。待っている状態です。"
+msgstr "  This is not a connection failure. You are waiting."
+
+msgid "  相手は同じ部屋にいますが、この端末にはまだ1個も届いていません。"
+msgstr "  Your friend is in the room, but no packets have arrived here yet."
+
+msgid "  この接続は生きていて、データも届いています。"
+msgstr "  This connection is active and receiving data."
+
+msgid "  まだ部屋を作っても入ってもいません。接続の良し悪しは未確定です。"
+msgstr "  You have not created or joined a room, so connection health is unknown."
+
+msgid "── 接続の経過 ──"
+msgstr "── Connection history ──"
+
+msgid "つなげない（サーバーに到達しない）"
+msgstr "Cannot connect (server unreachable)"
+
+msgid "名前が引けない（DNS）"
+msgstr "DNS lookup failed"
+
+msgid "接続エラー"
+msgstr "Connection error"
+
+msgid "TLSハンドシェイク失敗（証明書）"
+msgstr "TLS handshake failed (certificate)"
+
+msgid "応答なし"
+msgstr "No response"
+
+msgid "時間切れ"
+msgstr "Timed out"

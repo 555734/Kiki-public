@@ -101,8 +101,8 @@ func _ready() -> void:
 ## what a regional price is, and one hard-coded number is how a store listing
 ## and a game end up disagreeing in public.
 func _price_label() -> String:
-	return "▶  完全版を購入する（%s）" % price_text if not price_text.is_empty() \
-		else "▶  完全版を購入する（価格を読み込み中…）"
+	return tr("▶  完全版を購入する（%s）") % price_text if not price_text.is_empty() \
+		else tr("▶  完全版を購入する（価格を読み込み中…）")
 
 func set_price(text: String) -> void:
 	price_text = text
@@ -111,7 +111,7 @@ func set_price(text: String) -> void:
 
 func say(message: String) -> void:
 	if _status != null and is_instance_valid(_status):
-		_status.text = message
+		_status.text = tr(message)
 
 ## Purchases can be slow and can be cancelled. While one is in flight nothing
 ## else on this panel may be pressed, or a second tap buys a second time.

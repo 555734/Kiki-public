@@ -26,7 +26,7 @@ func _draw() -> void:
 	if editor.mode() == "shared":
 		var x := ControlLayout.DIVIDER * view.x
 		draw_line(Vector2(x, 0), Vector2(x, view.y), Color(1, 1, 1, 0.18), 2.0)
-		draw_string(font, Vector2(x + 8.0, 28.0), "→ ガーディアン",
+		draw_string(font, Vector2(x + 8.0, 28.0), tr("→ ガーディアン"),
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, 0.35))
 
 	for id in places:

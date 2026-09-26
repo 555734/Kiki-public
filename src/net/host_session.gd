@@ -303,8 +303,7 @@ func _handle(packet: Dictionary) -> void:
 			var their_version := b.get_u8()
 			if their_version != Protocol.VERSION:
 				_send_event(Protocol.notice(
-					"バージョンが違います（相手 %d / こちら %d）。同じビルドを使ってください"
-						% [their_version, Protocol.VERSION]))
+					TranslationServer.translate("バージョンが違います（相手 %d / こちら %d）。同じビルドを使ってください") % [their_version, Protocol.VERSION]))
 				return
 			# The client names itself in the same message that names its
 			# version: one is "can we talk", the other is "who are you", and
@@ -315,8 +314,7 @@ func _handle(packet: Dictionary) -> void:
 			var their_stage := b.get_u8()
 			if their_stage != Stage.current():
 				_send_event(Protocol.notice(
-					"ステージが違います（相手 %s / こちら %s）。同じステージを選んでください"
-						% [_stage_label(their_stage), _stage_label(Stage.current())]))
+					TranslationServer.translate("ステージが違います（相手 %s / こちら %s）。同じステージを選んでください") % [_stage_label(their_stage), _stage_label(Stage.current())]))
 				return
 			var role_code := b.get_u8()
 			remote_role = "runner" if role_code == 1 else "guardian"

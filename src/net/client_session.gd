@@ -257,7 +257,7 @@ func _watch_link(delta: float, heard_something: bool) -> void:
 
 	_down_for += delta
 	if _down_for > GIVE_UP_AFTER:
-		_link().enter(NetLink.Phase.FAILED, "%.0f秒つなぎ直せませんでした" % GIVE_UP_AFTER)
+		_link().enter(NetLink.Phase.FAILED, TranslationServer.translate("%.0f秒つなぎ直せませんでした") % GIVE_UP_AFTER)
 		Events.link_state.emit("つなぎ直せませんでした。もう一度部屋に入ってください")
 		disconnected.emit()
 		set_process(false)
@@ -269,7 +269,7 @@ func _watch_link(delta: float, heard_something: bool) -> void:
 	_retry_in = RETRY_EVERY
 	_tries += 1
 	_link().reconnects += 1
-	Events.link_state.emit("つなぎ直しています… (%d)" % _tries)
+	Events.link_state.emit(TranslationServer.translate("つなぎ直しています… (%d)") % _tries)
 	# Only re-dial a link that is actually down. A silent but OPEN socket means
 	# the other side has gone quiet, not that this side has lost its connection,
 	# and throwing the socket away there was making things permanently worse:

@@ -5,7 +5,7 @@ config_version=5
 
 [application]
 
-config/name="メロスゲーム"
+config/name="Melos Game"
 ; One version number, read by tools/release-check.sh and compared against
 ; the export presets and both workflows. They drifted apart once (iOS was
 ; shipping 0.2.3 while Play built 0.2.4) and nothing noticed.
@@ -39,6 +39,10 @@ HPlatform="*res://addons/epic-online-services-godot/heos/hplatform.gd"
 HAuth="*res://addons/epic-online-services-godot/heos/hauth.gd"
 HLobbies="*res://addons/epic-online-services-godot/heos/hlobbies.gd"
 HP2P="*res://addons/epic-online-services-godot/heos/hp2p.gd"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://translations/en.po")
 
 [editor_plugins]
 
