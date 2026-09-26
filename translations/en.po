@@ -4,6 +4,21 @@ msgstr ""
 "Language: en\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+msgid "GREENFIELD PLAINS"
+msgstr "GREENFIELD PLAINS"
+
+msgid "THE HOLLOW OUTSKIRTS"
+msgstr "THE HOLLOW OUTSKIRTS"
+
+msgid "THE SKYWARD RUINS"
+msgstr "THE SKYWARD RUINS"
+
+msgid "THE SUNLIT COAST"
+msgstr "THE SUNLIT COAST"
+
+msgid "THE POISON MARSH"
+msgstr "THE POISON MARSH"
+
 msgid "メロスゲーム"
 msgstr "Melos Game"
 
