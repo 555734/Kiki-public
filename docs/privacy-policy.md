@@ -3,14 +3,6 @@
 最終更新 / Last updated: 2026-09-26
 対象 / Applies to: メロスゲーム (iOS `com.sasakiful.sidesky`, Android `com.sasakiful.sidesky`)
 
-> **公開前に1か所だけ埋めてください。** 下の「お問い合わせ / Contact」の
-> `<連絡先メールアドレス>` は、ストアの審査でも実際の問い合わせ窓口としても
-> 必要です。ここに書いたアドレスは公開されます。
->
-> このファイルは `docs/privacy-policy.html` として GitHub Pages で公開でき、
-> その URL を App Store Connect と Google Play Console の両方に入れます。
-> 手順は `docs/store-listing.md`。
-
 ---
 
 ## 日本語
@@ -93,7 +85,7 @@ Apple / Google のプライバシーポリシー:
 
 ### 8. お問い合わせ / Contact
 
-`<連絡先メールアドレス>`
+a3506124@gmail.com
 
 ---
 
@@ -168,4 +160,4 @@ changes are also noted in the app's release notes.
 
 ### 8. Contact
 
-`<contact email address>`
+a3506124@gmail.com
