@@ -24,11 +24,15 @@ const MANIFEST := {
 	"wall": "holograms/wall.png",
 	"warp_gate": "holograms/warp_gate.png",
 	# props
-	# No "pipe", "brick", "qblock" or "castle" key: those four paintings were
-	# cut from the concept mockups and were Nintendo's furniture. The objects
-	# survive as the conduit, the masonry row, the marked stone and the broken
-	# tower, all drawn in code -- see Decor and SkyCanvas. Registering a key
-	# again would make the audit demand a file for it.
+	# The stone set that replaced four cut-outs of Nintendo's furniture. Drawn
+	# by tools/make-stone-textures.ps1 rather than painted, and a TEXTURE
+	# rather than Node2D draw calls: the code-drawn version cost 1-1 eighty
+	# draw calls and a 48ms frame, and the version cheap enough to be fast
+	# looked like grey boxes. A sprite is one quad however detailed it is.
+	# The broken tower on the horizon is still vector -- see SkyCanvas.
+	"conduit": "props/conduit.png",
+	"masonry": "props/masonry.png",
+	"sigil_block": "props/sigil_block.png",
 	"spikes": "props/spikes.png",
 	"fence": "props/fence.png",
 	"flowers": "props/flowers.png",
