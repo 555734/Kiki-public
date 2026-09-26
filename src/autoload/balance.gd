@@ -563,6 +563,18 @@ const ENABLE_BLOOM: bool = true
 ## is one word. tools/perf_probe.gd measures the difference.
 static func bloom_enabled() -> bool:
 	return ENABLE_BLOOM and not OS.has_feature("mobile")
+
+## The frame rate to aim for on this device, or 0 for "as fast as it will go".
+##
+## The simulation is 60Hz and nothing in it moves between ticks: the runner,
+## the enemies and the platforms all step in _physics_process. A 120Hz phone
+## therefore draws every position twice, which is half the GPU's work spent
+## redrawing a picture that did not change -- and the camera, which DOES move
+## every rendered frame (Main._update_camera), slides underneath the runner
+## while the runner stands still, so the extra frames make the motion look
+## worse rather than better. moto g66 is a 120Hz screen.
+static func target_fps() -> int:
+	return 60 if OS.has_feature("mobile") else 0
 ## Astra's complete 2.5D presentation: terrain, actors, enemies and props.
 const USE_3D: bool = true
 const USE_3D_RUNNER: bool = false
