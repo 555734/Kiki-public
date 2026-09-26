@@ -46,6 +46,11 @@ echo "== fetch the engine headers @ $GODOT_TAG =="
 git clone -q --depth 1 --branch "$GODOT_TAG" \
 	https://github.com/godotengine/godot.git "$WORK/godot"
 
+# The source tree does not contain generated engine headers. The plugin's
+# build includes version_generated.gen.h and other SCons outputs, so prepare
+# the matching iOS engine tree before compiling the plugin.
+(cd "$WORK/godot" && scons platform=ios target=editor -j 3)
+
 echo "== compile inappstore (device + both simulators, release and debug) =="
 cd "$WORK"
 # `version=4.0` is the SConstruct's name for "the Godot 4 API", not a claim
