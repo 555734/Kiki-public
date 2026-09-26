@@ -85,6 +85,9 @@ func _conduit(base: Vector2, size: Vector2) -> void:
 	# The silhouette does the work: a shaft narrowing to a flat collar, one
 	# shaded face, one dark mouth. No courses, no rounded corners, no highlight
 	# -- each was its own primitive, for detail nobody sees at this size.
+	if Art.draw_stretched(self, "conduit", rect):
+		return
+
 	var top := rect.position.y + collar_h
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(rect.position.x, rect.end.y),
@@ -147,6 +150,8 @@ func _ruin_blocks(at: Vector2, count: int, cell: float) -> void:
 ## Coursed stone. Two stones per row, offset row by row, with the top course
 ## catching the light -- the way the ground blocks in this stage are built.
 func _masonry_block(r: Rect2) -> void:
+	if Art.draw_stretched(self, "masonry", r):
+		return
 	var stone := Balance.C_MASONRY
 	var dark := Balance.C_MASONRY_DARK
 	# Four primitives: the stone, its shaded right side, one course line and
@@ -163,6 +168,8 @@ func _masonry_block(r: Rect2) -> void:
 ## across a screen -- the spiral that was here first was a 35-point polyline
 ## drawn twice, which is 68 segments per block, every frame.
 func _sigil_block(r: Rect2) -> void:
+	if Art.draw_stretched(self, "sigil_block", r):
+		return
 	_masonry_block(r)
 	var c := r.position + r.size * 0.5
 	var w := r.size.x * 0.26
