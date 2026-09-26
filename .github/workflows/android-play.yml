@@ -53,9 +53,13 @@ jobs:
 
       - name: Install build utilities
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb
-          yes | sdkmanager "platform-tools" "build-tools;36.1.0" "platforms;android-36" >/dev/null
+          SDKMANAGER="$(find "${ANDROID_SDK_ROOT}/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          [ -n "$SDKMANAGER" ] || { echo "Android SDK command-line tools are unavailable" >&2; exit 1; }
+          set +o pipefail  # yes exits on SIGPIPE after sdkmanager finishes.
+          yes | "$SDKMANAGER" "platform-tools" "build-tools;36.1.0" "platforms;android-36" >/dev/null
 
       - name: Cache Godot and export templates
         id: godot-cache

@@ -87,13 +87,7 @@ enum World {
 ## each other at the handshake, which is what makes changing this safe -- and
 ## the refusal names both versions, so "one of you needs to update" is what the
 ## screen says rather than a game that half works.
-## 15: sky crows add enemies after each stage's own, and the goal needs a key.
-## 16: 1-4 rebuilt (new enemies and layout).
-## 17: the handshake carries an entitlement token, so a paying player can lend
-##     the full game to the person they are playing with. Two lines of work met
-##     here -- one had reached 16, the other 15 -- and a build carrying both is
-##     neither of them.
-const VERSION: int = 17
+const VERSION: int = 15
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

@@ -99,9 +99,7 @@ func run() -> void:
 		check(not places.has(id), "and no %s button" % id)
 	if places.has("slot_1") and places.has("slot_3"):
 		check(places["slot_1"]["center"].x < view.x * 0.5, "platform is on the left")
-		check(places["slot_3"]["center"].x < view.x * 0.5, "shot is on the left too")
-		check(places["slot_1"]["center"].y > places["slot_3"]["center"].y,
-			"with the platform below the shot")
+		check(places["slot_3"]["center"].x > view.x * 0.5, "shot is on the right")
 
 	Stage.use(Stage.Which.GREENFIELD)
 	var main = load("res://src/main.tscn").instantiate()

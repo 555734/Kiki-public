@@ -758,14 +758,6 @@ func _confirm_hologram(b: StreamPeerBuffer) -> void:
 	holo.birth_tick = birth
 	holo.death_tick = death
 	main.guardian.spawn_hologram(holo)
-	# The host replaces its oldest platform when a third is built; keep this
-	# device to the same two even if that removal is never heard about.
-	if holo.kind == Hologram.Kind.PLATFORM:
-		var live: Array = main.guardian.holograms_of(Hologram.Kind.PLATFORM)
-		while live.size() > Balance.PLATFORM_MAX_ALIVE:
-			var oldest = live.pop_front()
-			if is_instance_valid(oldest) and oldest != holo:
-				oldest.queue_free()
 
 ## Make this device's constructs exactly the host's set: remove what the host
 ## does not have, correct what it does, add what is missing.

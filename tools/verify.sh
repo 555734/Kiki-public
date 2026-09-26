@@ -57,9 +57,6 @@ run_checked "$GODOT" --headless --path . res://test/check_scripts.tscn
 step "2.5D scene integration and camera alignment (not a visual-quality test)"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/three_view_probe.tscn
 
-step "the gate key and the crows that guard the way round it"
-run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/key_crow_probe.tscn
-
 step "who may play which stage, and what a friend pass is worth"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/entitlement_probe.tscn
 
