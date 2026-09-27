@@ -71,7 +71,7 @@ func _ready() -> void:
 	root.add_child(sizer)
 	_size_label = Label.new()
 	_size_label.custom_minimum_size = Vector2(210, 0)
-	_size_label.add_theme_font_size_override("font_size", 15)
+	_size_label.add_theme_font_size_override("font_size", 18)
 	var sf := Art.font()
 	if sf != null:
 		_size_label.add_theme_font_override("font", sf)
@@ -88,8 +88,8 @@ func _ready() -> void:
 	_auto_dash = CheckButton.new()
 	_auto_dash.text = "自動ダッシュ（移動とジャンプを2本指で操作）"
 	_auto_dash.position = Vector2(14, 146)
-	_auto_dash.custom_minimum_size = Vector2(440, 44)
-	_auto_dash.add_theme_font_size_override("font_size", 16)
+	_auto_dash.custom_minimum_size = Vector2(520, 50)
+	_auto_dash.add_theme_font_size_override("font_size", 19)
 	if sf != null:
 		_auto_dash.add_theme_font_override("font", sf)
 	_auto_dash.set_pressed_no_signal(Options.auto_dash())
@@ -102,7 +102,7 @@ func _ready() -> void:
 		toggle.text = String(item[0])
 		toggle.position = Vector2(14, 192 + _touch_options.size() * 42)
 		toggle.custom_minimum_size = Vector2(440, 40)
-		toggle.add_theme_font_size_override("font_size", 16)
+		toggle.add_theme_font_size_override("font_size", 19)
 		if sf != null:
 			toggle.add_theme_font_override("font", sf)
 		toggle.set_pressed_no_signal(bool(item[1]))
@@ -112,7 +112,7 @@ func _ready() -> void:
 	_movement_help = Label.new()
 	_movement_help.text = "スティック下：しゃがむ・滑る　／　空中で下：ヒップドロップ\nジャンプ長押し：高く跳ぶ　／　壁に向かってジャンプ：壁キック"
 	_movement_help.position = Vector2(14, 238)
-	_movement_help.add_theme_font_size_override("font_size", 15)
+	_movement_help.add_theme_font_size_override("font_size", 18)
 	if sf != null:
 		_movement_help.add_theme_font_override("font", sf)
 	_movement_help.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -120,7 +120,7 @@ func _ready() -> void:
 
 	_status = Label.new()
 	_status.position = Vector2(14, 62)
-	_status.add_theme_font_size_override("font_size", 15)
+	_status.add_theme_font_size_override("font_size", 18)
 	var f := Art.font()
 	if f != null:
 		_status.add_theme_font_override("font", f)
@@ -130,8 +130,8 @@ func _ready() -> void:
 func _button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
 	b.text = tr(text)
-	b.custom_minimum_size = Vector2(190, 48)
-	b.add_theme_font_size_override("font_size", 16)
+	b.custom_minimum_size = Vector2(210, 54)
+	b.add_theme_font_size_override("font_size", 19)
 	var f := Art.font()
 	if f != null:
 		b.add_theme_font_override("font", f)

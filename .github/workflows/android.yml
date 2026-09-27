@@ -116,6 +116,7 @@ jobs:
           export GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
           "$GODOT" --headless --path . res://test/check_scripts.tscn
           "$GODOT" --headless --path . res://test/locale_probe.tscn
+          "$GODOT" --headless --path . res://test/purchase_layout_probe.tscn
           "$GODOT" --headless --path . res://test/eos_contract_probe.tscn
           "$GODOT" --headless --path . res://test/touch_feel_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/movement_probe.tscn

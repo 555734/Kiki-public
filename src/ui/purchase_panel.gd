@@ -52,45 +52,51 @@ func _ready() -> void:
 	add_child(centre)
 
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(560, 0)
+	card.custom_minimum_size = Vector2(720, 0)
 	card.add_theme_stylebox_override("panel", NetPanel.panel_style())
 	centre.add_child(card)
 
 	var margin := MarginContainer.new()
 	for side in ["margin_left", "margin_top", "margin_right", "margin_bottom"]:
-		margin.add_theme_constant_override(side, 22)
+		margin.add_theme_constant_override(side, 26)
 	card.add_child(margin)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
+	box.add_theme_constant_override("separation", 10)
 	margin.add_child(box)
 
-	box.add_child(NetPanel.heading("%s  %s" % [stage_number, stage_name], 22,
+	box.add_child(NetPanel.heading("%s  %s" % [stage_number, tr(stage_name)], 27,
 		Color("073f89")))
-	box.add_child(NetPanel.heading("このステージは完全版に入っています", 14,
+	box.add_child(NetPanel.heading("このステージは完全版に入っています", 19,
 		Color("37638d")))
 	box.add_child(_spacer(6))
 
 	_buy = NetPanel.action_button(_price_label(), func() -> void:
 		buy_requested.emit())
-	_buy.custom_minimum_size.y = 54
+	_buy.custom_minimum_size.y = 62
 	box.add_child(_buy)
 
 	box.add_child(NetPanel.action_button("👥  購入済みの友達と遊ぶ", func() -> void:
 		join_requested.emit()))
-	box.add_child(NetPanel.heading(
+	var friend_help := NetPanel.heading(
 		"友達が完全版を持っていれば、その人の部屋に入るだけで\n"
-		+ "全ステージを一緒に遊べます。購入は要りません。", 12, Color("416b91")))
+		+ "全ステージを一緒に遊べます。購入は要りません。", 18, Color("416b91"))
+	friend_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	friend_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(friend_help)
 	box.add_child(_spacer(4))
 
 	box.add_child(NetPanel.action_button("↺  購入を復元する", func() -> void:
 		restore_requested.emit()))
-	box.add_child(NetPanel.heading("機種変更や再インストールのあとはこちら", 12,
-		Color("416b91")))
+	var restore_help := NetPanel.heading("機種変更や再インストールのあとはこちら", 18,
+		Color("416b91"))
+	restore_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	restore_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(restore_help)
 
-	_status = NetPanel.heading("", 13, Color("264c70"))
+	_status = NetPanel.heading("", 18, Color("264c70"))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size.y = 34
+	_status.custom_minimum_size.y = 44
 	box.add_child(_status)
 
 	box.add_child(NetPanel.action_button("‹  もどる", func() -> void:

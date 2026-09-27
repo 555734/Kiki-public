@@ -181,7 +181,7 @@ func _show_stage_screen() -> void:
 	_screen_host.add_child(box)
 
 	box.add_child(_title("—  ステージを選択  —", 30, Color("073f89")))
-	box.add_child(_title("遊ぶステージをタップ。左右にスワイプして切り替え。", 15, Color("37638d")))
+	box.add_child(_title("遊ぶステージをタップ。左右にスワイプして切り替え。", 19, Color("37638d")))
 	box.add_child(_spacer(8))
 
 	var row := HBoxContainer.new()
@@ -214,18 +214,18 @@ func _show_stage_screen() -> void:
 	box.add_child(navigation)
 	var previous := _button("‹  前のステージ", func() -> void: _change_stage_page(-1), false)
 	previous.disabled = _stage_page == 0
-	previous.custom_minimum_size = Vector2(200, 42)
+	previous.custom_minimum_size = Vector2(200, 54)
 	navigation.add_child(previous)
 	var page_label := _title("%d–%d / %d" % [first + 1,
-		mini(first + STAGES_PER_PAGE, cards.size()), cards.size()], 16, Color("073f89"))
+		mini(first + STAGES_PER_PAGE, cards.size()), cards.size()], 20, Color("073f89"))
 	page_label.custom_minimum_size.x = 120
 	navigation.add_child(page_label)
 	var next := _button("次のステージ  ›", func() -> void: _change_stage_page(1), false)
 	next.disabled = first + STAGES_PER_PAGE >= cards.size()
-	next.custom_minimum_size = Vector2(200, 42)
+	next.custom_minimum_size = Vector2(200, 54)
 	navigation.add_child(next)
 
-	box.add_child(_title("カードを選ぶと、遊び方と難易度の画面へ進みます", 14, Color("416b91")))
+	box.add_child(_title("カードを選ぶと、遊び方と難易度の画面へ進みます", 18, Color("416b91")))
 
 func _change_stage_page(direction: int) -> void:
 	var pages := ceili(float(_cards().size()) / STAGES_PER_PAGE)
@@ -284,7 +284,7 @@ var _difficulty_buttons: Array[Button] = []
 func _difficulty_panel() -> VBoxContainer:
 	var panel := VBoxContainer.new()
 	panel.add_theme_constant_override("separation", 4)
-	panel.add_child(_title("追跡者の速さ", 17, Color("073f89")))
+	panel.add_child(_title("追跡者の速さ", 21, Color("073f89")))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
@@ -296,7 +296,7 @@ func _difficulty_panel() -> VBoxContainer:
 		row.add_child(b)
 		_difficulty_buttons.append(b)
 	panel.add_child(row)
-	panel.add_child(_title("追いかけてくる敵だけが速くなります", 12, Color("416b91")))
+	panel.add_child(_title("追いかけてくる敵だけが速くなります", 16, Color("416b91")))
 	_refresh_difficulty()
 	return panel
 
@@ -323,7 +323,7 @@ func _show_play_screen() -> void:
 	box.add_theme_constant_override("separation", 10)
 	_screen_host.add_child(box)
 	box.add_child(_title("—  遊び方を選択  —", 28, Color("073f89")))
-	box.add_child(_title("一緒に遊ぶ方法を選んでください", 14, Color("37638d")))
+	box.add_child(_title("一緒に遊ぶ方法を選んでください", 19, Color("37638d")))
 
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -386,16 +386,16 @@ func _show_play_screen() -> void:
 		host.disabled = true
 		choices.add_child(_title(
 			"このステージは完全版です。完全版を持っている友達に部屋を作ってもらい、\n"
-			+ "その6桁を入れて「ルームに入る」を押してください。", 13, Color("416b91")))
+			+ "その6桁を入れて「ルームに入る」を押してください。", 18, Color("416b91")))
 
 	_cancel = _button("接続をやめる", _on_cancel, false)
 	_cancel.visible = false
 	choices.add_child(_cancel)
-	_phase_label = _title("", 13, Color("08796e"))
+	_phase_label = _title("", 18, Color("08796e"))
 	choices.add_child(_phase_label)
-	_status = _title("", 13, Color("264c70"))
+	_status = _title("", 18, Color("264c70"))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size.y = 34
+	_status.custom_minimum_size.y = 44
 	choices.add_child(_status)
 
 	var footer := HBoxContainer.new()
@@ -466,21 +466,21 @@ func _stage_card(info: Dictionary) -> Button:
 	caption.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	caption.offset_left = 12
 	caption.offset_right = -12
-	caption.offset_top = -116
+	caption.offset_top = -132
 	caption.offset_bottom = -12
 	caption.alignment = BoxContainer.ALIGNMENT_END
 	caption.add_theme_constant_override("separation", 2)
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var heading := _title(number, 22, accent)
+	var heading := _title(number, 26, accent)
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	heading.add_theme_color_override("font_outline_color", Color(0, 0.06, 0.12, 0.9))
 	heading.add_theme_constant_override("outline_size", 6)
 	caption.add_child(heading)
-	var stage_title := _title(tr(String(info["name"])), 13, Color.WHITE)
+	var stage_title := _title(tr(String(info["name"])), 17, Color.WHITE)
 	stage_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	stage_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.add_child(stage_title)
-	var blurb := _title(tr(String(info["blurb"])), 11, Color("c8dced"))
+	var blurb := _title(tr(String(info["blurb"])), 15, Color("c8dced"))
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.add_child(blurb)
@@ -571,8 +571,8 @@ func _selected_stage_preview() -> PanelContainer:
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(art)
 	layer.add_child(_scrim(108, false))
-	var label := _title(tr("選択中  %s\n%s") % [stage_info["number"], stage_info["name"]],
-		18, Color.WHITE)
+	var label := _title(tr("選択中  %s\n%s") % [stage_info["number"], tr(String(stage_info["name"]))],
+		22, Color.WHITE)
 	label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	label.offset_top = -74
 	label.offset_bottom = -10
@@ -881,8 +881,8 @@ static func heading(text: String, size: int, colour: Color) -> Label:
 func _field(placeholder: String) -> LineEdit:
 	var e := LineEdit.new()
 	e.placeholder_text = tr(placeholder)
-	e.custom_minimum_size = Vector2(0, 42)
-	e.add_theme_font_size_override("font_size", 16)
+	e.custom_minimum_size = Vector2(0, 54)
+	e.add_theme_font_size_override("font_size", 21)
 	e.add_theme_color_override("font_color", Color("123f70"))
 	e.add_theme_color_override("font_placeholder_color", Color("8aa5bc"))
 	e.add_theme_stylebox_override("normal", _control_style(Color("eaf4fb"), 0.94, 10))
@@ -944,7 +944,7 @@ static func control_style(colour: Color, alpha: float, radius: int = 12) -> Styl
 func _stage_button(text: String, handler: Callable, colour: Color) -> Button:
 	var button := _button(text, handler)
 	button.custom_minimum_size = Vector2(0, 104)
-	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_font_size_override("font_size", 19)
 	button.add_theme_stylebox_override("normal", _control_style(colour, 0.18, 16))
 	button.add_theme_stylebox_override("hover", _control_style(colour, 0.34, 16))
 	button.add_theme_stylebox_override("pressed", _control_style(colour, 0.46, 16))
@@ -965,8 +965,8 @@ func _button(text: String, handler: Callable, guarded: bool = true) -> Button:
 static func action_button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
 	b.text = TranslationServer.translate(text)
-	b.custom_minimum_size = Vector2(0, 50)
-	b.add_theme_font_size_override("font_size", 16)
+	b.custom_minimum_size = Vector2(0, 58)
+	b.add_theme_font_size_override("font_size", 20)
 	b.add_theme_color_override("font_color", Color("064d92"))
 	b.add_theme_stylebox_override("normal", control_style(Color("d9f1ff"), 0.96))
 	b.add_theme_stylebox_override("hover", control_style(Color("86dcf4"), 1.0))
