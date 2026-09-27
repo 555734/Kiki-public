@@ -5,7 +5,7 @@ App Store Connect と Google Play Console に**そのまま貼れる**文面と�
 コードからは検証できない。ここが唯一の正本になる。
 
 対象ビルド: version 0.9.0 / Android versionCode 25
-bundle / package: `com.sasakiful.sidesky`（両プラットフォーム共通）
+bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melosgame`
 
 > プライバシーポリシーは公開済み:
 > **https://555734.github.io/Kiki-public/privacy-policy.html**

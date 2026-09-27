@@ -36,7 +36,7 @@ const DEV_TTL = 7 * DAY;
 const RECHECK_AFTER = 7 * DAY;
 const DEFAULT_DEV_MAX = 2;
 const PRODUCT_ID = "full_unlock";
-const ANDROID_PACKAGE = "com.sasakiful.sidesky";
+const ANDROID_PACKAGE = "com.sasakiful.melosgame";
 const IOS_BUNDLE = "com.sasakiful.sidesky";
 
 const APPLE_PRODUCTION = "https://api.storekit.itunes.apple.com";

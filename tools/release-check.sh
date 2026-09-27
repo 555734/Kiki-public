@@ -95,6 +95,14 @@ case "$ios_bundle" in
 	""|com.example.*) bad "ios.yml does not supply a real BUNDLE_ID (got '${ios_bundle:-nothing}')" ;;
 	*) ok "iOS bundle $ios_bundle" ;;
 esac
+play_package=$(sed -n '/^\[preset\.3\.options\]/,/^\[preset\./s/^package\/unique_name="\(.*\)"$/\1/p' export_presets.cfg | head -1)
+worker_package=$(sed -n 's/^const ANDROID_PACKAGE = "\(.*\)";$/\1/p' server/signaling/entitlement.js | head -1)
+[ "$play_package" = "com.sasakiful.melosgame" ] \
+	&& ok "Google Play package $play_package" \
+	|| bad "Android Play package must be com.sasakiful.melosgame (got '${play_package:-nothing}')"
+[ "$worker_package" = "$play_package" ] \
+	&& ok "purchase verification package matches Google Play" \
+	|| bad "purchase verification package $worker_package differs from Google Play $play_package"
 
 # ------------------------------------------------------------------ icons ---
 section "icons"

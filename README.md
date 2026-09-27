@@ -278,7 +278,7 @@ Vulkan（Godot mobile）でAstraの3Dステージを使う。Playが端末ごと
 
 | 配布先 | 成果物 | 用途 |
 |---|---|---|
-| Google Play | `side-sky-play.aab` | 本番。application IDは`com.sasakiful.sidesky` |
+| Google Play | `side-sky-play.aab` | 本番。application IDは`com.sasakiful.melosgame` |
 | GitHub Release | `side-sky-motorola-vulkan.apk` | Motorola実機確認・サイドロード専用 |
 | GitHub Release | `side-sky-gles3.apk` | 比較・診断専用 |
 
