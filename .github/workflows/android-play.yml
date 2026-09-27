@@ -13,6 +13,10 @@ on:
         description: "Public version name"
         required: true
         default: "0.9.0"
+      package_name:
+        description: "Play app package name (existing: com.sasakiful.melosgame; new: com.sasakiful.melos)"
+        required: true
+        default: "com.sasakiful.melosgame"
 
 permissions:
   contents: read
@@ -111,12 +115,13 @@ jobs:
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
           VERSION_CODE: ${{ inputs.version_code }}
           VERSION_NAME: ${{ inputs.version_name }}
+          PLAY_PACKAGE: ${{ inputs.package_name }}
           BUILD_STAMP: play-${{ inputs.version_code }}-${{ github.sha }}
         run: bash tools/build-android-play.sh
 
       - name: Upload store artifact
         uses: actions/upload-artifact@v4
         with:
-          name: side-sky-play-${{ inputs.version_code }}
+          name: side-sky-play-${{ inputs.package_name }}-${{ inputs.version_code }}
           path: build/android/side-sky-play.aab
           if-no-files-found: error
