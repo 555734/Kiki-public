@@ -166,6 +166,20 @@ async function main() {
   const notYours = await dev.renew({ token: devTok, puid: "somebody-else" });
   check(notYours.status === 403, "a token presented by a different device is refused");
 
+  // Reviewer access has its own limit and does not consume developer slots.
+  const review = new Entitlements({ storage: clean },
+    { ...env, REVIEW_ENROL_SECRET: "review-only", REVIEW_ENROL_MAX: 2 });
+  check((await review.reviewEnrol({ phrase: "wrong", puid: "r1" })).status === 403,
+    "a wrong reviewer code grants nothing");
+  const reviewerAnswer = await (await review.reviewEnrol(
+    { phrase: "review-only", puid: "r1" })).json();
+  check(!!reviewerAnswer.token && !!(await (await review.renew(
+    { token: reviewerAnswer.token, puid: "r1" })).json()).token,
+    "a reviewer receives a renewable signed entitlement");
+  await review.reviewEnrol({ phrase: "review-only", puid: "r2" });
+  check((await review.reviewEnrol({ phrase: "review-only", puid: "r3" })).status === 403,
+    "reviewer registration stops at its separate device cap");
+
   console.log(failures === 0
     ? "entitlement worker tests: all checks passed"
     : `entitlement worker tests: ${failures} failed`);

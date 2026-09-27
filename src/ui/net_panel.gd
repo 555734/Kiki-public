@@ -624,6 +624,7 @@ func _show_purchase(which: int) -> void:
 	_purchase.closed.connect(func() -> void: _purchase = null)
 	_purchase.buy_requested.connect(_on_buy)
 	_purchase.restore_requested.connect(_on_restore)
+	_purchase.review_code_requested.connect(_on_review_code)
 	_purchase.join_requested.connect(func() -> void: _on_join_as_guest(which))
 	_root.add_child(_purchase)
 	if not Iap.available():
@@ -662,6 +663,31 @@ func _on_restore() -> void:
 	_purchase.say("購入履歴を確認しています…")
 	var result: String = await Iap.restore()
 	_after_store(result)
+
+func _on_review_code(code: String) -> void:
+	if _purchase == null or not is_instance_valid(_purchase) or code.is_empty():
+		return
+	_purchase.set_busy(true)
+	_purchase.say("アクセスコードを確認しています…")
+	if not await EosRuntime.ensure_ready():
+		_purchase.set_busy(false)
+		_purchase.say("オンライン接続を確認してもう一度お試しください。")
+		return
+	var puid := EosRuntime.product_user_id()
+	var answer: Dictionary = await EntitlementClient.enrol_reviewer(code, puid)
+	if _purchase == null or not is_instance_valid(_purchase):
+		return
+	if answer.has("error"):
+		_purchase.set_busy(false)
+		_purchase.say(String(answer["error"]))
+		return
+	var token := String(answer.get("token", ""))
+	if token.is_empty() or not Entitlement.install_token(token, puid):
+		_purchase.set_busy(false)
+		_purchase.say("アクセスコードを確認できませんでした。")
+		return
+	Iap.changed.emit()
+	_after_store("")
 
 func _after_store(error: String) -> void:
 	if _purchase == null or not is_instance_valid(_purchase):

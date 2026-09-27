@@ -625,6 +625,21 @@ msgstr "Close"
 msgid "開発者コード"
 msgstr "Developer code"
 
+msgid "審査用アクセスコード"
+msgstr "Review access code"
+
+msgid "コードを適用"
+msgstr "Apply code"
+
+msgid "アクセスコードを確認しています…"
+msgstr "Checking access code…"
+
+msgid "オンライン接続を確認してもう一度お試しください。"
+msgstr "Check your connection and try again."
+
+msgid "アクセスコードを確認できませんでした。"
+msgstr "Could not verify the access code."
+
 msgid "登録"
 msgstr "Register"
 

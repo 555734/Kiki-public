@@ -23,6 +23,7 @@ signal closed
 signal buy_requested
 signal restore_requested
 signal join_requested
+signal review_code_requested(code: String)
 
 var stage_number: String = ""
 var stage_name: String = ""
@@ -93,6 +94,21 @@ func _ready() -> void:
 	restore_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	restore_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(restore_help)
+
+	# Google Play reviewers cannot make a purchase with a personal account.
+	# A server-validated, limited reviewer code gives them access to every stage
+	# in the same release build that customers receive.
+	var review_row := HBoxContainer.new()
+	review_row.add_theme_constant_override("separation", 8)
+	var review_code := LineEdit.new()
+	review_code.placeholder_text = tr("審査用アクセスコード")
+	review_code.secret = true
+	review_code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	review_code.add_theme_font_size_override("font_size", 19)
+	review_row.add_child(review_code)
+	review_row.add_child(NetPanel.action_button("コードを適用", func() -> void:
+		review_code_requested.emit(review_code.text.strip_edges())))
+	box.add_child(review_row)
 
 	_status = NetPanel.heading("", 18, Color("264c70"))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

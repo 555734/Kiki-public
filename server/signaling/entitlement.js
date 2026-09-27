@@ -12,6 +12,7 @@
  *   POST /entitlement/verify     a store receipt  -> a signed entitlement token
  *   POST /entitlement/renew      an old token     -> a fresher one
  *   POST /entitlement/dev-enrol  a phrase         -> a developer token
+ *   POST /entitlement/review-enrol a reviewer code -> a limited review token
  *
  * Why a token at all, rather than the game asking "is this person allowed?"
  * every time: the answer has to work with the aeroplane mode, and it has to
@@ -35,8 +36,11 @@ const DEV_TTL = 7 * DAY;
  *  renewing monthly costs one Google/Apple call a month, not one per launch. */
 const RECHECK_AFTER = 7 * DAY;
 const DEFAULT_DEV_MAX = 2;
+const DEFAULT_REVIEW_MAX = 5;
 const PRODUCT_ID = "full_unlock";
-const ANDROID_PACKAGE = "com.sasakiful.melosgame";
+// Both Play listings use the same product ID. Google, rather than an
+// untrusted client parameter, determines which package issued a token.
+const ANDROID_PACKAGES = ["com.sasakiful.melosgame", "com.sasakiful.melos"];
 const IOS_BUNDLE = "com.sasakiful.sidesky";
 
 const APPLE_PRODUCTION = "https://api.storekit.itunes.apple.com";
@@ -176,24 +180,28 @@ async function googleAccessToken(env) {
  */
 async function askGoogle(env, purchaseToken) {
   const access = await googleAccessToken(env);
-  const base = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
-    + `/${ANDROID_PACKAGE}/purchases/products/${PRODUCT_ID}/tokens/${encodeURIComponent(purchaseToken)}`;
-  const response = await fetch(base, { headers: { authorization: `Bearer ${access}` } });
-  if (response.status === 404) return { ok: false, reason: "not-found" };
-  if (!response.ok) throw new Error(`google ${response.status}`);
-  const purchase = await response.json();
-  // 0 purchased, 1 cancelled, 2 pending. Only 0 is a sale.
-  if (Number(purchase.purchaseState) !== 0) {
-    return { ok: false, reason: purchase.purchaseState === 2 ? "pending" : "cancelled" };
+  for (const packageName of ANDROID_PACKAGES) {
+    const base = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
+      + `/${packageName}/purchases/products/${PRODUCT_ID}/tokens/${encodeURIComponent(purchaseToken)}`;
+    const response = await fetch(base, { headers: { authorization: `Bearer ${access}` } });
+    if (response.status === 404) continue;
+    if (!response.ok) throw new Error(`google ${response.status}`);
+    const purchase = await response.json();
+    // 0 purchased, 1 cancelled, 2 pending. Only 0 is a sale.
+    if (Number(purchase.purchaseState) !== 0) {
+      return { ok: false, reason: purchase.purchaseState === 2 ? "pending" : "cancelled" };
+    }
+    if (Number(purchase.acknowledgementState) === 0) {
+      const acknowledged = await fetch(`${base}:acknowledge`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${access}`, "content-type": "application/json" },
+        body: "{}",
+      });
+      if (!acknowledged.ok) throw new Error(`google acknowledge ${acknowledged.status}`);
+    }
+    return { ok: true, orderId: purchase.orderId || "" };
   }
-  if (Number(purchase.acknowledgementState) === 0) {
-    await fetch(`${base}:acknowledge`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${access}`, "content-type": "application/json" },
-      body: "{}",
-    });
-  }
-  return { ok: true, orderId: purchase.orderId || "" };
+  return { ok: false, reason: "not-found" };
 }
 
 // ------------------------------------------------------------------- Apple
@@ -308,6 +316,7 @@ export class Entitlements {
       case "/verify": return this.verify(body);
       case "/renew": return this.renew(body);
       case "/dev-enrol": return this.devEnrol(body);
+      case "/review-enrol": return this.reviewEnrol(body);
       default: return json({ message: "not found" }, 404);
     }
   }
@@ -369,7 +378,8 @@ export class Entitlements {
     if (claims.puid !== body.puid) return json({ message: "not your token" }, 403);
 
     if (claims.kind === "dev") {
-      const enrolled = await this.state.storage.get(`dev:${body.puid}`);
+      const enrolled = await this.state.storage.get(`dev:${body.puid}`)
+        || await this.state.storage.get(`review:${body.puid}`);
       // The revocation path for developers: the row is gone, so the token
       // simply stops being renewed and expires by itself within the week.
       if (!enrolled) return json({ revoked: true });
@@ -420,6 +430,28 @@ export class Entitlements {
       await this.state.storage.put(`dev:${body.puid}`, {
         boundAt: Math.floor(Date.now() / 1000),
       });
+    }
+    return json({ token: await this.issue(body.puid, "dev", String(body.platform || "")) });
+  }
+
+  /** Reviewer access is separate from the two developer slots. It is
+   * explicitly documented in Play Console and can be revoked without an app
+   * update. The code is a Worker secret, never embedded in the app bundle. */
+  async reviewEnrol(body) {
+    if (!this.env.REVIEW_ENROL_SECRET) {
+      return json({ message: "review enrolment is closed" }, 403);
+    }
+    if (String(body.phrase || "") !== this.env.REVIEW_ENROL_SECRET) {
+      return json({ message: "そのコードは使えません。" }, 403);
+    }
+    const key = `review:${body.puid}`;
+    if (!await this.state.storage.get(key)) {
+      const rows = await this.state.storage.list({ prefix: "review:" });
+      const max = Number(this.env.REVIEW_ENROL_MAX) || DEFAULT_REVIEW_MAX;
+      if (rows.size >= max) {
+        return json({ message: "審査用の登録枠がいっぱいです。" }, 403);
+      }
+      await this.state.storage.put(key, { boundAt: Math.floor(Date.now() / 1000) });
     }
     return json({ token: await this.issue(body.puid, "dev", String(body.platform || "")) });
   }

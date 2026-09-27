@@ -16,6 +16,7 @@ extends Node
 const VERIFY := "/entitlement/verify"
 const RENEW := "/entitlement/renew"
 const ENROL := "/entitlement/dev-enrol"
+const REVIEW_ENROL := "/entitlement/review-enrol"
 ## Short on purpose. Buying is the one moment a player is watching a spinner,
 ## and an unlock that takes half a minute to appear feels broken even when it
 ## works. A timeout here is not a failure of the purchase: the receipt is still
@@ -57,6 +58,9 @@ func renew(token: String, puid: String) -> Dictionary:
 ## app update. See docs/monetization.md.
 func enrol_developer(phrase: String, puid: String) -> Dictionary:
 	return await _post(ENROL, {"phrase": phrase, "puid": puid})
+
+func enrol_reviewer(phrase: String, puid: String) -> Dictionary:
+	return await _post(REVIEW_ENROL, {"phrase": phrase, "puid": puid})
 
 func _post(path: String, body: Dictionary) -> Dictionary:
 	var request := HTTPRequest.new()
