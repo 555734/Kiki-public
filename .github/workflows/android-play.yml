@@ -9,7 +9,6 @@ on:
       version_code:
         description: "Google Play version code (must exceed the last uploaded build)"
         required: true
-        default: "25"
       version_name:
         description: "Public version name"
         required: true

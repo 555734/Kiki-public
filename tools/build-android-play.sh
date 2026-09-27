@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 
 GODOT="${GODOT:-godot}"
 OUT="${OUT:-$PWD/build/android}"
-VERSION_CODE="${VERSION_CODE:-24}"
+VERSION_CODE="${VERSION_CODE:?set the Google Play version code explicitly}"
 VERSION_NAME="${VERSION_NAME:-0.2.4}"
 
 : "${GODOT_ANDROID_KEYSTORE_RELEASE_PATH:?set the stable Play upload keystore path}"
@@ -64,5 +64,6 @@ jarsigner -verify "$OUT/side-sky-play.aab" >/dev/null 2>&1 || {
 	echo "INVALID OR UNSIGNED: side-sky-play.aab" >&2
 	exit 1
 }
+bash tools/verify-play-aab-signature.sh "$OUT/side-sky-play.aab"
 unzip -tq "$OUT/side-sky-play.aab" >/dev/null
 echo "Store artifact: $OUT/side-sky-play.aab"
