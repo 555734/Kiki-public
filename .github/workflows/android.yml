@@ -150,7 +150,6 @@ jobs:
         with:
           name: side-sky-android
           path: |
-            build/android/*.aab
             build/android/*.apk
 
       - name: Publish release
@@ -164,21 +163,20 @@ jobs:
 
           | file | purpose | renderer |
           |---|---|---|
-          | `side-sky-play.aab` | Google Play upload format | Vulkan / Godot mobile |
           | `side-sky-vulkan.apk` | direct install | Vulkan / Godot mobile |
           | `side-sky-motorola-vulkan.apk` | **Motorola / PowerVR向け** direct install | Vulkan / Godot mobile |
           | `side-sky-gles3.apk` | compatibility fallback | GLES3 / Godot compatibility |
 
           Motorola端末では最初に`side-sky-motorola-vulkan.apk`を使用し、描画互換性の比較時だけGLES3版を使用してください。
 
-          These files are signed with a throwaway key generated only for this
-          workflow run. The AAB is the Google Play upload file format, but a
-          production upload must be rebuilt with the app's stable Play upload
-          key. APKs from different workflow runs may require the previous test
-          build to be uninstalled before installation.
+          These APKs are signed with a throwaway key generated only for this
+          workflow run. Do not upload them to Google Play. The store AAB must
+          be built by the separate Android Play AAB workflow with the app's
+          stable upload key. APKs from different workflow runs may require the
+          previous test build to be uninstalled before installation.
           EOF
           )
-          gh release create "$TAG" build/android/*.aab build/android/*.apk \
+          gh release create "$TAG" build/android/*.apk \
             --title "SIDE / SKY $TAG" --notes "$NOTES" || \
-          gh release upload "$TAG" build/android/*.aab build/android/*.apk --clobber
+          gh release upload "$TAG" build/android/*.apk --clobber
           echo "Release: $(gh release view "$TAG" --json url -q .url)"
