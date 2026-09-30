@@ -57,3 +57,16 @@ func is_host() -> bool:
 
 func close() -> void:
 	pass
+
+## Pump the underlying connection once per frame. Transports whose poll()
+## already does this leave it empty.
+func poll_socket() -> void:
+	pass
+
+## Ready for a VersusHost or VersusClient to be started on it.
+func is_open() -> bool:
+	return true
+
+## Why the link stopped working, or "" while it works.
+func last_error() -> String:
+	return ""

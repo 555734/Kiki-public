@@ -1,308 +1,217 @@
 class_name VersusStageData
-## The versus circuit uses sections A-D of 1-1, followed by a return stair.
-## Co-op Level01Data is unchanged. All versus geometry reads these bounds.
+## The 2v2 star arena: a small, left-right symmetric field built from 1-1's own
+## pieces -- its grass slabs, block rows, conduits, trees and flowers -- rather
+## than a lap of 1-1 itself.
+##
+## Small on purpose. The circuit it replaces was 13,000px around, and on a phone
+## the other team was a dot on a bar for most of a match. This is about three
+## screens wide, walled at both ends, so the other runner is usually on screen
+## and never more than one short run away; the HUD's full-map view and the edge
+## arrows cover the rest (docs/versus-2v2-stars.md).
+##
+## Co-op Level01Data is unchanged. Everything the match measures reads these
+## functions, so the scene, the host's star physics and a client's collision
+## world are all the same list.
+##
+## Y is positive downwards and every figure below is the TOP of a surface.
+## Mirror rule: a piece at [x0, x1] on the left has a twin at
+## [WIDTH - x1, WIDTH - x0] on the right. `test/versus_arena_probe.gd` checks it.
 
-const LOOP_FROM: float = -1600.0
-const LOOP_TO: float = 11400.0
-const LOOP_SPAN: float = LOOP_TO - LOOP_FROM   ## 13000
-const STEP_FROM: float = 10700.0
-const STEP_COUNT: int = 4
+## The playable floor runs from x=0 to x=WIDTH; walls stand beyond both ends.
+const WIDTH: float = 3200.0
+const LEFT: float = 0.0
+const RIGHT: float = WIDTH
+## The end walls. Tall enough that no jump, wall kick or guardian platform gets
+## a runner over them: a runner outside the field would be a runner nobody can
+## reach, holding stars nobody can take back.
+const WALL_THICKNESS: float = 360.0
+const WALL_TOP: float = -1400.0
+## Tops of the three floor heights, and the base 1-1 draws every slab down to.
+const FLOOR_TOP: float = 400.0
+const STEP_TOP: float = 330.0
+const GROUND_BASE: float = Level01Data.GROUND_BASE
+## The region the HUD's map shows. Covers every surface and a jump above the
+## highest block, and nothing of the empty sky or the ground's skirt.
+const MAP_RECT := Rect2(LEFT, 40.0, WIDTH, 420.0)
 
+## Floors as (x0, x1, top), left half only; the right half is mirrored.
+## Two small pits (140px) between the steps and the middle: a hop anyone can
+## make, and a place a hit can knock you into -- which costs every star you
+## were carrying.
+const _LEFT_FLOORS := [
+	[0.0, 760.0, FLOOR_TOP],       # home ground, team A starts here
+	[760.0, 1160.0, STEP_TOP],     # a 70px step up
+	[1300.0, 1600.0, FLOOR_TOP],   # the middle, left half (joined to its twin)
+]
+
+## Rows of 1-1's ?/brick blocks, solid, as (x, top, count). About 110px above
+## what is under them: one held jump, no platform needed.
+const _LEFT_BLOCKS := [
+	[330.0, 290.0, 3],
+	[620.0, 180.0, 2],
+	[880.0, 222.0, 2],
+]
+## The centre stack sits on the mirror line and is listed once.
+const _CENTRE_BLOCKS := [
+	[1531.0, 290.0, 3],
+	[1554.0, 180.0, 2],
+]
+const BLOCK_CELL: float = 46.0
+
+static func _mirror_span(x0: float, x1: float) -> Vector2:
+	return Vector2(WIDTH - x1, WIDTH - x0)
+
+## Solid ground, the walls included.
 static func ground() -> Array[Rect2]:
 	var out: Array[Rect2] = []
-	for rect in Level01Data.ground():
-		if rect.position.x >= STEP_FROM:
-			continue
-		rect.size.x = minf(rect.end.x, STEP_FROM) - rect.position.x
-		out.append(rect)
+	out.append(Rect2(LEFT - WALL_THICKNESS, WALL_TOP, WALL_THICKNESS,
+		GROUND_BASE - WALL_TOP))
+	for f in _LEFT_FLOORS:
+		out.append(_slab(f[0], f[1], f[2]))
+	for i in range(_LEFT_FLOORS.size() - 1, -1, -1):
+		var f: Array = _LEFT_FLOORS[i]
+		var m := _mirror_span(f[0], f[1])
+		out.append(_slab(m.x, m.y, f[2]))
+	out.append(Rect2(RIGHT, WALL_TOP, WALL_THICKNESS, GROUND_BASE - WALL_TOP))
+	return out
+
+static func _slab(x0: float, x1: float, top: float) -> Rect2:
+	return Rect2(x0, top, x1 - x0, GROUND_BASE - top)
+
+## The floors a runner stands on, without the walls.
+static func floors() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for r in ground():
+		if r.position.x >= LEFT and r.end.x <= RIGHT:
+			out.append(r)
+	return out
+
+## Decor, in 1-1's own vocabulary. "blocks" and "conduit" are solid (read back
+## by solid_decor below, the same way Level01Data does it); the rest is scenery.
+static func decor() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for b in _LEFT_BLOCKS:
+		out.append({"type": "blocks", "pos": Vector2(b[0], b[1]),
+			"count": int(b[2]), "cell": BLOCK_CELL})
+		var width := BLOCK_CELL * float(b[2])
+		out.append({"type": "blocks", "pos": Vector2(WIDTH - b[0] - width, b[1]),
+			"count": int(b[2]), "cell": BLOCK_CELL})
+	for b in _CENTRE_BLOCKS:
+		out.append({"type": "blocks", "pos": Vector2(b[0], b[1]),
+			"count": int(b[2]), "cell": BLOCK_CELL})
+	var pipe := Vector2(62, 88)
+	out.append({"type": "conduit", "pos": Vector2(560, FLOOR_TOP), "size": pipe})
+	out.append({"type": "conduit", "pos": Vector2(WIDTH - 560, FLOOR_TOP), "size": pipe})
+	out.append({"type": "tree", "pos": Vector2(60, FLOOR_TOP)})
+	out.append({"type": "tree", "pos": Vector2(WIDTH - 60, FLOOR_TOP)})
+	out.append({"type": "signpost", "pos": Vector2(260, FLOOR_TOP)})
+	out.append({"type": "signpost", "pos": Vector2(WIDTH - 260, FLOOR_TOP), "flip": true})
+	out.append({"type": "flowers", "pos": Vector2(960, STEP_TOP)})
+	out.append({"type": "flowers", "pos": Vector2(WIDTH - 960, STEP_TOP)})
+	out.append({"type": "flowers", "pos": Vector2(1400, FLOOR_TOP)})
+	out.append({"type": "flowers", "pos": Vector2(WIDTH - 1400, FLOOR_TOP)})
+	out.append({"type": "fence", "pos": Vector2(WIDTH * 0.5 - 100.0, FLOOR_TOP),
+		"width": 200.0})
 	return out
 
 static func solid_decor() -> Array[Rect2]:
 	var out: Array[Rect2] = []
-	for rect in Stage.solid_decor():
-		if rect.end.x <= STEP_FROM:
-			out.append(rect)
+	for d in decor():
+		match String(d.get("type", "")):
+			"conduit":
+				var size: Vector2 = d.get("size", Vector2(90, 76))
+				var base: Vector2 = d["pos"]
+				out.append(Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y))
+			"blocks":
+				var cell: float = float(d.get("cell", BLOCK_CELL))
+				var n: int = int(d.get("count", 3))
+				var at: Vector2 = d["pos"]
+				out.append(Rect2(at.x, at.y, cell * float(n), cell))
 	return out
 
-static func decor() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for item in Level01Data.decor():
-		if Vector2(item["pos"]).x < STEP_FROM:
-			out.append(item)
-	return out
-
-## The steps. Drawn down to 1-1's own GROUND_BASE so they read as columns of
-## earth like every other slab, rather than slabs floating in the sky.
-static func connector() -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	var width := (LOOP_TO - STEP_FROM) / float(STEP_COUNT)
-	var slabs := ground()
-	var last_top := slabs[slabs.size() - 1].position.y
-	var plateau_top := Level01Data.ground()[0].position.y
-	var rise := (plateau_top - last_top) / float(STEP_COUNT)
-	for i in range(STEP_COUNT):
-		var top := last_top + rise * float(i + 1)
-		out.append(Rect2(STEP_FROM + width * float(i), top, width,
-			Level01Data.GROUND_BASE - top))
-	return out
-
-## Everything solid in one lap: 1-1's own ground plus the steps.
+## Kept for the callers that used to ask for a lap: the arena IS the whole map.
 static func lap_ground() -> Array[Rect2]:
-	var out: Array[Rect2] = ground()
-	out.append_array(connector())
-	return out
+	return ground()
 
-## An x brought back into one lap.
+## Brought back inside the field. There is no lap any more, so this is a clamp
+## rather than a wrap; the walls already stop a runner, so it only ever matters
+## for a star knocked loose right against one.
 static func wrap_x(x: float) -> float:
-	return LOOP_FROM + fposmod(x - LOOP_FROM, LOOP_SPAN)
+	return clampf(x, LEFT + 12.0, RIGHT - 12.0)
 
-## `of`, expressed in whichever lap is nearest to `seen_from`.
-##
-## The whole reason a loop is more than a teleport. Two runners either side of
-## the join are 20px apart, and every piece of geometry in the match -- who can
-## reach a coin, whose strike lands, whether a floor is between them -- would
-## otherwise measure that as 18,980. Everything that asks a distance asks this
-## first.
-static func nearest_image(of: Vector2, seen_from: Vector2) -> Vector2:
-	# A DIFFERENCE, so the lap's origin does not come into it. The first
-	# version routed this through wrap_x, which adds LOOP_FROM back in, and
-	# every distance in the match came out shifted by 17,400px -- no strike
-	# landed and no coin could be picked up.
-	var dx := fposmod(of.x - seen_from.x + LOOP_SPAN * 0.5, LOOP_SPAN) \
-		- LOOP_SPAN * 0.5
-	return Vector2(seen_from.x + dx, of.y)
+## No lap, so every point has exactly one image.
+static func nearest_image(of: Vector2, _seen_from: Vector2) -> Vector2:
+	return of
 
-## Where `of` sits around the lap, as 0..1. For the map.
+## Where `x` sits across the field, as 0..1. For the map.
 static func lap_fraction(x: float) -> float:
-	return (wrap_x(x) - LOOP_FROM) / LOOP_SPAN
+	return clampf((x - MAP_RECT.position.x) / MAP_RECT.size.x, 0.0, 1.0)
+
+## Where `y` sits in the map's height, as 0..1 (0 = top).
+static func height_fraction(y: float) -> float:
+	return clampf((y - MAP_RECT.position.y) / MAP_RECT.size.y, 0.0, 1.0)
 
 static func kill_y() -> float:
-	return Stage.kill_y()
+	return Level01Data.KILL_Y
 
-## Where the two runners begin: 1-1's own start, a little apart so they are not
-## inside each other on the first frame. Both at the same place on purpose --
-## the whole stage is ahead of both of them and neither gets a head start.
+## Team A on the left, team B on the right, facing each other. Symmetric, so
+## neither side starts nearer the middle.
 static func start_positions() -> Array[Vector2]:
-	var at := Stage.start()
-	return [at + Vector2(-26.0, 0.0), at + Vector2(26.0, 0.0)]
+	return [Vector2(160.0, FLOOR_TOP - 26.0), Vector2(WIDTH - 160.0, FLOOR_TOP - 26.0)]
 
 static func start_facing() -> Array[int]:
-	return [1, 1]
+	return [1, -1]
 
-## Coins, spread the length of the stage, one above each slab of ground.
+## Where stars may appear. Every surface a runner can stand on, sampled about
+## every 180px, 40px above it -- the floors, the steps and the tops of the
+## block rows. The host draws from this list at random (VersusMatch
+## ._free_point), adds a small sideways jitter, and refuses a point that is
+## inside something solid or has no floor under it.
 ##
-## Generated from 1-1's own slabs rather than listed, so they are always ON
-## something and always wherever the stage's floor currently is. A wide slab
-## gets two, which keeps the long runs from being empty without putting a coin
-## every few steps.
+## The strip right in front of each team's start is left out, so a star never
+## appears in one team's lap; the first steps of a match are a race to the
+## middle, not a gift.
+const STAR_HOME_CLEAR: float = 360.0
+const STAR_PITCH: float = 180.0
+
 static func coin_points() -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	for slab in ground():
-		# The start plateau runs a long way off-screen to the left; only the
-		# part anybody plays on is worth putting a coin on.
-		var from := maxf(slab.position.x, 0.0)
-		var to := slab.position.x + slab.size.x
-		if to - from < 60.0:
+	var surfaces: Array[Rect2] = floors()
+	surfaces.append_array(solid_decor())
+	for s in surfaces:
+		var from := s.position.x + 30.0
+		var to := s.end.x - 30.0
+		if to < from:
 			continue
-		var top := slab.position.y - 40.0
-		if to - from > 420.0:
-			out.append(Vector2(from + (to - from) * 0.33, top))
-			out.append(Vector2(from + (to - from) * 0.67, top))
-		else:
-			out.append(Vector2((from + to) * 0.5, top))
-	return out
-
-## Coming back after a death: the last checkpoint the runner reached, which is
-## 1-1's own answer to the same question. Sending them to the start of a
-## sixteen-thousand-pixel stage for one mistake is not a rule, it is a forfeit.
-static func respawn_for(_team: int, from: Vector2 = Vector2.ZERO) -> Vector2:
-	var best := Stage.start()
-	for c in Stage.checkpoints():
-		if c.x < STEP_FROM and c.x <= from.x and c.x > best.x:
-			best = c
-	return best
-
-# ----------------------------------------------------------------- the enemies
-## Extra enemies, for the versus circuit only.
-##
-## 1-1's own twenty are spread across a stage you walk through once. Going round
-## it over and over leaves long quiet stretches, so this tops the thin parts up.
-## 1-1 itself is NOT touched: Level01Data.enemies() is what the cooperative game
-## still gets, and the test that measures 1-1's arcs never sees these.
-##
-## Only WALKERS and FLYERS. Not turrets, and that is not an aesthetic choice:
-## Turret keeps a reference to "the runner" and uses it as a range gate
-## (turret.gd:30-33), so it fires when THAT runner is near. With two runners on
-## two machines, each machine binds a different one, and the same turret would
-## fire on one screen and not the other. Walker and Flyer hold no such reference
-## -- they patrol geometry and nothing else -- so every machine builds the same
-## enemies doing the same thing. 1-1's existing turrets already have this
-## wrinkle; there is no reason to add more of it.
-##
-## Placed by MEASURING, not by eye: the lap is cut into buckets, the ones 1-1
-## left thin are topped up, and every walker is seated on the floor that is
-## actually there.
-const EXTRA_BUCKET: float = 1500.0
-const EXTRA_PER_BUCKET: int = 3
-const EXTRA_MAX: int = 12
-## Clear of the start, and clear of the join: a runner crossing the seam should
-## be thinking about nothing else.
-const EXTRA_CLEAR_START: float = 400.0
-## How far short of the connecting steps the last enemy may stand. DERIVED from
-## STEP_FROM rather than written down: the circuit has already been shortened
-## once (17,400 to 11,400), and the hard-coded version quietly went on placing
-## enemies in a stretch of 1-1 the circuit no longer uses -- where
-## VersusLevelBuilder then threw them away.
-const EXTRA_SEAM_MARGIN: float = 300.0
-## How far either side of the ideal spot to look for floor, and in what steps.
-## Two of the ideal spots on this circuit sit over 1-1's gaps; without this the
-## two stretches they were meant to fill stay exactly as thin as they were.
-const EXTRA_NUDGE: float = 600.0
-const EXTRA_NUDGE_STEP: float = 100.0
-## No new enemy stands closer than this to one already there. A nudged walker
-## has to be allowed to move without ending up inside its neighbour.
-const EXTRA_APART: float = 220.0
-
-static func extra_clear_seam() -> float:
-	return STEP_FROM - EXTRA_SEAM_MARGIN
-
-## 1-1's own enemies that fall inside the circuit. VersusLevelBuilder frees
-## everything at or past STEP_FROM, so these are the ones actually in play --
-## and the ones the extras are measured against.
-static func circuit_enemies() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for e in Stage.enemies():
-		if Vector2(e.get("pos", Vector2.ZERO)).x < STEP_FROM:
-			out.append(e)
-	return out
-
-## 1-1 seats a walker with its feet on the ledge -- WALKER_SIZE.y * 0.5 above
-## the surface. The same rule here, so the new ones stand the way the old ones
-## do.
-const WALKER_FEET: float = 21.0
-## A flyer bobs on a sine around its origin, so it is hung a body's height above
-## the floor rather than resting on it.
-const FLYER_HEIGHT: float = 150.0
-
-static func extra_enemies() -> Array[Dictionary]:
-	var world := ArenaStage.new(lap_ground())
-	var thin := _thin_buckets()
-	var taken: Array[float] = []
-	for e in circuit_enemies():
-		taken.append(Vector2(e.get("pos", Vector2.ZERO)).x)
-	var out: Array[Dictionary] = []
-	var made := 0
-	for entry in thin:
-		var bucket: int = entry["bucket"]
-		var want: int = entry["want"]
-		for k in range(want):
-			if made >= EXTRA_MAX:
-				return out
-			var x := float(bucket) * EXTRA_BUCKET \
-				+ EXTRA_BUCKET * (float(k) + 1.0) / (float(want) + 1.0)
-			var spec := _seat(world, x, made, taken)
-			if spec.is_empty():
+		var n := maxi(1, int(floor((to - from) / STAR_PITCH)) + 1)
+		for k in range(n):
+			var x := (from + to) * 0.5 if n == 1 \
+				else from + (to - from) * float(k) / float(n - 1)
+			if x < LEFT + STAR_HOME_CLEAR or x > RIGHT - STAR_HOME_CLEAR:
 				continue
-			out.append(spec)
-			taken.append(Vector2(spec["pos"]).x)
-			made += 1
+			out.append(Vector2(x, s.position.y - 40.0))
 	return out
 
-## The buckets 1-1 left emptiest, emptiest first. Ties keep their order along
-## the lap, so the result is the same on every machine -- which matters, because
-## nothing about these enemies goes over the wire.
-static func _thin_buckets() -> Array[Dictionary]:
-	var counts: Dictionary = {}
-	var last := int(extra_clear_seam() / EXTRA_BUCKET)
-	for b in range(0, last + 1):
-		counts[b] = 0
-	for e in circuit_enemies():
-		var at: Vector2 = e.get("pos", Vector2.ZERO)
-		var b := int(floor(at.x / EXTRA_BUCKET))
-		if counts.has(b):
-			counts[b] = int(counts[b]) + 1
-	var out: Array[Dictionary] = []
-	for b in counts.keys():
-		var want := EXTRA_PER_BUCKET - int(counts[b])
-		if want > 0:
-			out.append({"bucket": b, "want": want, "had": int(counts[b])})
-	out.sort_custom(func(a, c):
-		if int(a["had"]) != int(c["had"]):
-			return int(a["had"]) < int(c["had"])
-		return int(a["bucket"]) < int(c["bucket"]))
-	return out
+## A runner who is out comes back at their own team's start. The field is
+## small enough that this is a few seconds from anywhere, and it is the one
+## place guaranteed not to be where the other team is standing.
+static func respawn_for(team: int, _from: Vector2 = Vector2.ZERO) -> Vector2:
+	return start_positions()[clampi(team, 0, 1)]
 
-## One enemy near an x, standing on whatever is under it.
-##
-## A walker placed over one of 1-1's gaps falls to the kill plane before anybody
-## sees it, and a flyer hung over one has no height to be hung relative to -- so
-## the ideal spot is only a starting point, and the search steps outwards from
-## it until it finds floor that nothing is standing on yet. Returns nothing when
-## the whole window is gap or is already occupied.
-static func _seat(world: ArenaStage, x: float, index: int,
-		taken: Array[float]) -> Dictionary:
-	var found := _floor_near(world, x, taken)
-	if found == Vector2.INF:
-		return {}
-	x = found.x
-	var top := found.y
-	# Three in rotation, so the additions are not a row of identical mushrooms:
-	# the plain walker, the spiky one from the 1-1 set, and a flyer.
-	match index % 3:
-		0:
-			return {"type": "walker", "pos": Vector2(x, top - WALKER_FEET),
-				"patrol": 200.0}
-		1:
-			return {"type": "flyer", "pos": Vector2(x, top - FLYER_HEIGHT),
-				"patrol": 200.0}
-		_:
-			return {"type": "walker", "pos": Vector2(x, top - WALKER_FEET),
-				"patrol": 240.0, "skin": "walker_spiky"}
+## Nothing extra: the arena has no enemies. Every machine would have had to
+## simulate them independently (docs/versus-1v1-network-plan.md section 2),
+## and in a 2v2 the other team is the only thing worth watching.
+static func extra_enemies() -> Array[Dictionary]:
+	return []
 
-## The nearest x to `want` with floor under it and elbow room, as (x, floor y).
-## Offsets are tried nearest-first and the ideal spot first of all, so a bucket
-## with clear ground in it still gets its enemy exactly where it was measured.
-static func _floor_near(world: ArenaStage, want: float,
-		taken: Array[float]) -> Vector2:
-	var steps := int(EXTRA_NUDGE / EXTRA_NUDGE_STEP)
-	for i in range(steps * 2 + 1):
-		# 0, +1, -1, +2, -2 ... so the ideal spot is tried first and the rest
-		# work outwards from it, alternating sides.
-		var reach := float((i + 1) >> 1) * EXTRA_NUDGE_STEP
-		var x := want + (reach if i % 2 == 1 else -reach)
-		if x < EXTRA_CLEAR_START or x > extra_clear_seam():
-			continue
-		var crowded := false
-		for other in taken:
-			if absf(other - x) < EXTRA_APART:
-				crowded = true
-				break
-		if crowded:
-			continue
-		var top := world.floor_below(Vector2(x, -400.0), 1600.0)
-		if top == INF:
-			continue
-		return Vector2(x, top)
-	return Vector2.INF
-
-## Still in the match.
-##
-## Y only. A loop has no left and no right edge to fall off -- running far
-## enough in either direction brings you back -- so the only way out is down,
-## which is 1-1's own kill plane.
+## Still in the match: above the kill plane and between the walls.
 static func in_bounds(at: Vector2) -> bool:
-	return at.y < kill_y()
+	return at.y < kill_y() and at.x > LEFT - 4.0 and at.x < RIGHT + 4.0
 
-## The one authoritative collision representation of 1-1's closed circuit.
-## Scene runners, host coin physics and remote coin physics must all use it.
+## The one authoritative collision representation of the arena. Scene runners,
+## host star physics and remote star physics must all use it.
 static func collision_rects(constructs: Array[Rect2] = []) -> Array[Rect2]:
-	Stage.use(Stage.Which.GREENFIELD)
-	var one: Array[Rect2] = lap_ground()
-	one.append_array(solid_decor())
-	var out: Array[Rect2] = []
-	for lap in [-1, 0, 1]:
-		var shift := VersusStageData.LOOP_SPAN * float(lap)
-		for r in one:
-			out.append(Rect2(r.position + Vector2(shift, 0.0), r.size))
+	var out: Array[Rect2] = ground()
+	out.append_array(solid_decor())
 	out.append_array(constructs)
 	return out

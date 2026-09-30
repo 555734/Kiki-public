@@ -816,3 +816,171 @@ msgstr "No response"
 
 msgid "時間切れ"
 msgstr "Timed out"
+
+msgid "⚔  2対2 スターたいせん"
+msgstr "⚔  2v2 Star Battle"
+
+msgid "2対2 スターたいせん"
+msgstr "2v2 Star Battle"
+
+msgid "⚔  2対2 たいせん"
+msgstr "⚔  2v2 Battle"
+
+msgid "ランナーと ガーディアンの 2人チームで たたかう（最大4人）"
+msgstr "Teams of two: a runner and a guardian (up to 4 players)"
+
+msgid "ランダムに でてくる スターを さきに %d こ もったチームの かち"
+msgstr "Stars appear at random. The first team holding %d wins"
+
+msgid "こうげきを うけると スターを 1こ おとす。ステージは 1-1 の くさはら。"
+msgstr "A hit knocks one star loose. Played on the 1-1 grasslands."
+
+msgid "無料版でも すべて あそべます"
+msgstr "Fully playable in the free version"
+
+msgid "＋  部屋を作る（Aチームのランナー）"
+msgstr "+  Create a room (Team A runner)"
+
+msgid "友達の部屋に入る"
+msgstr "Join a friend's room"
+
+msgid "Bチーム：ランナー（はしって スターを とる）"
+msgstr "Team B: Runner (runs and grabs stars)"
+
+msgid "Aチーム：ガーディアン（足場と壁で たすける）"
+msgstr "Team A: Guardian (helps with platforms and walls)"
+
+msgid "Bチーム：ガーディアン（足場と壁で たすける）"
+msgstr "Team B: Guardian (helps with platforms and walls)"
+
+msgid "ルーム番号（6けた）"
+msgstr "Room code (6 digits)"
+
+msgid "→  入る"
+msgstr "→  Join"
+
+msgid "1台で ためす"
+msgstr "Try on one device"
+
+msgid "ルーム番号は 6けたの 数字です"
+msgstr "The room code is 6 digits"
+
+msgid "スタート"
+msgstr "Start"
+
+msgid "もういちど"
+msgstr "Play again"
+
+msgid "EOSに接続中"
+msgstr "Connecting to EOS"
+
+msgid "通信エラー: %s"
+msgstr "Connection error: %s"
+
+msgid "オンラインに接続中…"
+msgstr "Connecting online…"
+
+msgid "部屋を準備中…"
+msgstr "Preparing the room…"
+
+msgid "両チームのランナーがそろうと始められます"
+msgstr "You can start once both teams have a runner"
+
+msgid "そろったら「スタート」を押してください"
+msgstr "Press Start when everyone is here"
+
+msgid "部屋に接続中…"
+msgstr "Joining the room…"
+
+msgid "入室できませんでした"
+msgstr "Could not join the room"
+
+msgid "ホストの確認を待っています"
+msgstr "Waiting for the host to let you in"
+
+msgid "認証済み、状態の受信待ち"
+msgstr "Joined, waiting for the match state"
+
+msgid "ホストのスタートを待っています"
+msgstr "Waiting for the host to start"
+
+msgid "スターを さきに %d こ もったチームの かち"
+msgstr "First team holding %d stars wins"
+
+msgid "ルーム番号  %s"
+msgstr "Room code  %s"
+
+msgid "Aチーム ランナー"
+msgstr "Team A Runner"
+
+msgid "Aチーム ガーディアン"
+msgstr "Team A Guardian"
+
+msgid "Bチーム ランナー"
+msgstr "Team B Runner"
+
+msgid "Bチーム ガーディアン"
+msgstr "Team B Guardian"
+
+msgid "（あなた）"
+msgstr " (you)"
+
+msgid "ランナーは スターを あつめて、ガーディアンは 足場と壁で たすける"
+msgstr "Runners collect stars; guardians help with platforms and walls"
+
+msgid "%s チームの かち"
+msgstr "Team %s wins"
+
+msgid "ホストが「もういちど」を押すと 再戦します"
+msgstr "Rematch starts when the host presses Play again"
+
+msgid "「もういちど」で 同じメンバーで再戦"
+msgstr "Play again for a rematch with the same players"
+
+msgid "空いているルーム番号を作れませんでした"
+msgstr "Could not find a free room code"
+
+msgid "そのルーム番号は見つかりません（アプリのバージョンも確認してください）"
+msgstr "No room with that code (check that everyone has the same app version)"
+
+msgid "このルームはすでに対戦中です"
+msgstr "That room's match has already started"
+
+msgid "EOSルームに参加できませんでした（満員の可能性があります）"
+msgstr "Could not join the room (it may be full)"
+
+msgid "ホストが部屋を閉じました"
+msgstr "The host closed the room"
+
+msgid "ホストとの接続が切れました"
+msgstr "Lost the connection to the host"
+
+msgid "EOS P2Pライブラリがありません"
+msgstr "The EOS P2P library is missing"
+
+msgid "EOSルームのホストが見つかりません"
+msgstr "Could not find the room's host"
+
+msgid "EOS Lobbyを利用できません"
+msgstr "EOS lobbies are unavailable"
+
+msgid "EOSルームを作れませんでした"
+msgstr "Could not create the room"
+
+msgid "EOSルーム情報を保存できませんでした"
+msgstr "Could not save the room details"
+
+msgid "ルームを検索できませんでした"
+msgstr "Could not search for rooms"
+
+msgid "攻撃"
+msgstr "Attack"
+
+msgid "建築"
+msgstr "Build"
+
+msgid "戻る"
+msgstr "Back"
+
+msgid "たいせんが 中断されました"
+msgstr "The match was interrupted"

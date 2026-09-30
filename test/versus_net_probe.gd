@@ -35,6 +35,8 @@ func _ready() -> void:
 	_test_duel_ready_requires_first_input()
 	_test_input_isolation()
 	_test_build_revisions()
+	_test_start_and_rematch()
+	_test_eos_peer_ids()
 
 	print("versus net probe: %d checks failed" % failures.size())
 	if failures.is_empty():
@@ -77,8 +79,11 @@ func _test_the_wire() -> void:
 			"position": Vector2(7000 + i, 300 - i)})
 	var builds := [{"build_id": 99, "seat": 1, "position": Vector2(7100, 120),
 		"size": Balance.PLATFORM_SIZE}]
-	var snap := VersusProtocol.snapshot(999, 0, -1, runners, coins, builds, 42)
+	var snap := VersusProtocol.snapshot(999, 0, -1, runners, coins, builds, 42,
+		3, 125, 0b0101)
 	var s := VersusProtocol.read_snapshot(snap)
+	check(s["epoch"] == 3 and s["countdown"] == 125 and s["seat_mask"] == 0b0101,
+		"and the rematch epoch, the countdown and who is seated")
 	check(s["tick"] == 999 and s["winner"] == -1, "a snapshot keeps its clock")
 	check(s["coins"].size() == VersusRules.COIN_TOTAL,
 		"and all %d coins" % VersusRules.COIN_TOTAL)
@@ -100,6 +105,8 @@ func _test_the_wire() -> void:
 		% [snap.size(), VersusTransport.MAX_PACKET_BYTES])
 	check(snap.size() <= 768,
 		"a full snapshot fits the 768-byte budget (%d)" % snap.size())
+	check(snap.size() < VersusEosTransport.PAYLOAD_LIMIT,
+		"and the EOS packet cap (%d)" % VersusEosTransport.PAYLOAD_LIMIT)
 
 # --------------------------------------------------------- waiting transition
 ## The host intentionally freezes the match tick while waiting. START at tick
@@ -188,6 +195,7 @@ func _test_agreement() -> void:
 			m.advance(delta)
 
 		host.step(_moving_seat(0, t, rng))
+		host.request_start(0)
 		truth[host.match_rules.tick] = [host.match_rules.score(0),
 			host.match_rules.score(1)]
 		best = maxi(best, maxi(host.match_rules.score(0),
@@ -277,6 +285,7 @@ func _test_reordering() -> void:
 		for m in mesh:
 			m.advance(delta)
 		host.step(_moving_seat(0, t, rng))
+		host.request_start(0)
 		other.step(_moving_seat(1, t, rng))
 		if other.seen_world:
 			if other.world_tick < last:
@@ -305,8 +314,10 @@ func _test_a_lost_peer() -> void:
 		for m in mesh:
 			m.advance(delta)
 		host.step(_moving_seat(0, t, rng))
+		host.request_start(0)
 		other.step(_moving_seat(1, t, rng))
 	check(other.connected, "the second runner is in the match")
+	check(host.playing, "and the host started it")
 	var where: Vector2 = host.match_rules.seats[1].position
 
 	mesh[1].close()
@@ -350,12 +361,11 @@ func _test_the_guardian() -> void:
 	check(guard.connected and guard.seat == VersusRoster.SEAT_A_GUARDIAN,
 		"the guardian is seated")
 
-	# Over the gap between the first two stepping stones, where 1-1 has nothing.
-	# 1-1's own gap between the first two stepping stones of the wall lesson.
-	var over_the_gap := Vector2(7220.0, 150.0)
+	# Over the arena's left pit, where there is no floor at all.
+	var over_the_gap := Vector2(1230.0, 150.0)
 	# Asked from above the platform: floor_below finds surfaces BELOW the point,
 	# and a point inside the slab it just built sees nothing under it.
-	var looking_down := Vector2(7220.0, 60.0)
+	var looking_down := Vector2(1230.0, 60.0)
 	check(host.world.floor_below(looking_down, 500.0) == INF,
 		"there is no floor over the gap to begin with")
 	guard.request_build(over_the_gap)
@@ -379,7 +389,7 @@ func _test_the_guardian() -> void:
 	mesh[1].send_to(0, VersusTransport.Channel.COMMAND,
 		VersusTransport.Reliability.RELIABLE,
 		VersusProtocol.command(VersusRoster.SEAT_A_GUARDIAN, 0,
-			1, Vector2(7500.0, 150.0)))
+			1, Vector2(1970.0, 150.0)))
 	for t in range(60):
 		for m in mesh:
 			m.advance(delta)
@@ -459,12 +469,13 @@ func _test_input_isolation() -> void:
 func _test_build_revisions() -> void:
 	_current = "build revisions"
 	Stage.use(Stage.Which.GREENFIELD)
-	var circuit := VersusStageData.collision_rects()
-	var connector := ArenaStage.new(circuit)
-	check(connector.floor_below(Vector2(VersusStageData.STEP_FROM + 100, 40), 500.0) < INF,
-		"the host and client collision factory includes the closing stairs")
-	check(connector.floor_below(Vector2(VersusStageData.LOOP_TO + 20, 40), 500.0) < INF,
-		"and the next lap starts with solid ground past the seam")
+	var arena := VersusStageData.collision_rects()
+	var connector := ArenaStage.new(arena)
+	check(connector.overlaps(Rect2(Vector2(-30, 200), Vector2(10, 10)))
+			and connector.overlaps(Rect2(Vector2(VersusStageData.WIDTH + 20, 200), Vector2(10, 10))),
+		"the host and client collision factory includes both end walls")
+	check(connector.floor_below(Vector2(VersusStageData.WIDTH * 0.5, 40), 500.0) < INF,
+		"and the block stack in the middle")
 	var mesh := VersusLoopback.mesh(2)
 	var host := VersusHost.new()
 	host.start(mesh[0], connector, 5150)
@@ -479,7 +490,7 @@ func _test_build_revisions() -> void:
 	check(guard.connected, "guardian connected for world-revision trial")
 	for i in range(VersusHost.MAX_BUILDS):
 		check(host.place_build(VersusRoster.SEAT_A_GUARDIAN,
-			Vector2(7200 + i * 40, 100)), "construct %d accepted" % i)
+			Vector2(700 + i * 40, 100)), "construct %d accepted" % i)
 	var previous_id := int(host.builds[0]["build_id"])
 	for m in mesh:
 		m.advance(1.0 / 60.0)
@@ -493,7 +504,7 @@ func _test_build_revisions() -> void:
 		and guard.world_revision == VersusHost.MAX_BUILDS,
 		"twelve constructs reach the remote side with revision twelve")
 	check(host.place_build(VersusRoster.SEAT_A_GUARDIAN,
-		Vector2(8200, 100)), "thirteenth construct accepted")
+		Vector2(1700, 100)), "thirteenth construct accepted")
 	for m in mesh:
 		m.advance(1.0 / 60.0)
 	host.step(_moving_seat(0, 11, rng))
@@ -566,8 +577,8 @@ func _test_duel_combined() -> void:
 	check(extra.refused and not extra.connected,
 		"third peer is refused instead of taking a different seat")
 	check(host.place_build(VersusRoster.SEAT_A_GUARDIAN,
-		Vector2(7210, 100), 1), "host player can place through guardian A")
-	guest.request_build(Vector2(7350, 100), 2)
+		Vector2(1210, 100), 1), "host player can place through guardian A")
+	guest.request_build(Vector2(1350, 100), 2)
 	for m in mesh:
 		m.advance(1.0 / 60.0)
 	host.step(_moving_seat(0, 0, RandomNumberGenerator.new()))
@@ -578,7 +589,7 @@ func _test_duel_combined() -> void:
 	mesh[2].send_to(0, VersusTransport.Channel.COMMAND,
 		VersusTransport.Reliability.RELIABLE,
 		VersusProtocol.command(VersusRoster.SEAT_B_GUARDIAN,
-			0, 1, Vector2(7700, 100)))
+			0, 1, Vector2(1700, 100)))
 	for m in mesh:
 		m.advance(1.0 / 60.0)
 	host.step(_moving_seat(0, 1, RandomNumberGenerator.new()))
@@ -588,16 +599,13 @@ func _test_duel_combined() -> void:
 # ------------------------------------------------------------------ helpers
 func _world() -> ArenaStage:
 	Stage.use(Stage.Which.GREENFIELD)
-	var rects: Array[Rect2] = Stage.ground()
-	rects.append_array(Stage.solid_decor())
-	return ArenaStage.new(rects)
+	return ArenaStage.new(VersusStageData.collision_rects())
 
-## A runner touring 1-1's coin points, so coins actually change hands.
+## A runner touring the arena's star points, so stars actually change hands.
 ##
-## Written as "stand where a coin appears" rather than as a wander: the stage is
-## 16,700px long and a runner sweeping a thousand pixels of it never met one,
-## which left the score at zero and made the agreement check compare nothing to
-## nothing. What this probe is about is whether four peers agree, not whether a
+## Written as "stand where a star appears" rather than as a wander: a runner
+## that never met one left the score at zero and made the agreement check
+## compare nothing to nothing. What this probe is about is whether four peers agree, not whether a
 ## path is realistic.
 func _moving_seat(team: int, t: int, rng: RandomNumberGenerator) -> VersusMatch.Seat:
 	var s := VersusMatch.Seat.new()
@@ -614,3 +622,110 @@ func _moving_seat(team: int, t: int, rng: RandomNumberGenerator) -> VersusMatch.
 	# vacuous -- it was comparing nothing to nothing.
 	s.strike_seq = int(t / 240) if team == 0 else 0
 	return s
+
+# -------------------------------------------------------- start and rematch
+## Nobody scores before the host presses start; "3, 2, 1" reaches every
+## client; a rematch restarts the tick at zero and every client follows it
+## rather than throwing the new match away as older than the old one.
+func _test_start_and_rematch() -> void:
+	_current = "start, countdown and rematch"
+	var mesh := VersusLoopback.mesh(4, 0.02, 0.0, 0.0, 8080)
+	var host := VersusHost.new()
+	host.start(mesh[0], _world(), 6060)
+	check(not host.playing and not host.request_start(30),
+		"a room with one runner cannot be started")
+	var other := VersusClient.new()
+	other.start(mesh[1], VersusRoster.SEAT_B_RUNNER)
+	var guard := VersusClient.new()
+	guard.start(mesh[3], VersusRoster.SEAT_B_GUARDIAN)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var delta := 1.0 / 60.0
+	for t in range(60):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_moving_seat(0, t, rng))
+		other.step(_moving_seat(1, t, rng))
+		guard.step(null)
+	check(host.match_rules.tick == 0 and host.match_rules.score(0) == 0
+			and host.match_rules.score(1) == 0,
+		"everyone seated, but nothing is scored before start")
+	check(other.phase == VersusProtocol.PHASE_WAITING,
+		"and the clients are shown the waiting room")
+	check(other.seat_mask == 0b1101,
+		"which knows seats A-runner, B-runner and B-guardian are taken (%d)" % other.seat_mask)
+
+	check(host.request_start(30), "the host's start is accepted once both runners are in")
+	check(not host.request_start(30), "and only once")
+	var saw_countdown := false
+	var counted_down := true
+	var last_count := 1 << 16
+	for t in range(20):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_moving_seat(0, t, rng))
+		other.step(_moving_seat(1, t, rng))
+		guard.step(null)
+		if other.phase == VersusProtocol.PHASE_COUNTDOWN:
+			saw_countdown = true
+			if other.countdown > last_count:
+				counted_down = false
+			last_count = other.countdown
+	check(saw_countdown and counted_down, "the countdown reaches a client, counting down")
+	check(host.match_rules.tick == 0, "and the match clock does not run through it")
+	for t in range(40):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_moving_seat(0, t, rng))
+		other.step(_moving_seat(1, t, rng))
+		guard.step(null)
+	check(host.playing and host.match_rules.tick > 0
+			and other.phase == VersusMatch.Phase.PLAYING,
+		"after it, the match is on for everyone")
+
+	# Win it outright, then play again.
+	for id in range(VersusRules.WIN_AT):
+		ArenaCoin.to_held(host.match_rules.ledger.get_coin(id), 0)
+	for t in range(10):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_moving_seat(0, t, rng))
+		other.step(_moving_seat(1, t, rng))
+		guard.step(null)
+	check(host.match_rules.phase == VersusMatch.Phase.OVER and other.phase == VersusMatch.Phase.OVER
+			and guard.winner == 0,
+		"seven held stars end it on every screen")
+	var old_tick := other.world_tick
+	check(host.restart_match(10), "the host can start a rematch")
+	for t in range(30):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_moving_seat(0, t, rng))
+		other.step(_moving_seat(1, t, rng))
+		guard.step(null)
+	check(other.epoch == 1 and other.epoch_changes == 1 and guard.epoch_changes == 1,
+		"every client follows the rematch exactly once")
+	check(other.world_tick < old_tick and other.phase == VersusMatch.Phase.PLAYING,
+		"with the clock back from %d to %d and the match on again" % [old_tick, other.world_tick])
+	check(other.score(0) + other.score(1) < VersusRules.WIN_AT,
+		"and the old stars gone")
+	# A late packet from the finished match must not undo the rematch.
+	var stale := VersusProtocol.snapshot(old_tick + 50, VersusMatch.Phase.OVER, 0,
+		other.runners, other.coins, [], 0, 0, 0, 0b1101)
+	other._absorb(stale)
+	check(other.epoch == 1 and other.phase == VersusMatch.Phase.PLAYING,
+		"a delayed snapshot from the old match is refused")
+
+## EOSG numbers its server 1; the game calls the host 0. Both directions.
+func _test_eos_peer_ids() -> void:
+	_current = "EOS peer ids"
+	check(VersusEosTransport.to_game(1) == VersusTransport.HOST_PEER,
+		"the EOS server is the game's host")
+	check(VersusEosTransport.to_eos(VersusTransport.HOST_PEER) == 1,
+		"and the host is addressed as the EOS server")
+	check(VersusEosTransport.to_game(1234567) == 1234567
+			and VersusEosTransport.to_eos(1234567) == 1234567,
+		"client ids pass through unchanged")
+	check(VersusProtocol.bye(255).size() == 2
+			and VersusProtocol.kind_of(VersusProtocol.bye(255)) == VersusProtocol.Msg.BYE,
+		"a dropped client is reported to the host as a BYE")

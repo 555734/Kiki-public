@@ -26,7 +26,14 @@ var world: ArenaStage = null
 
 var seed_value: int = 0
 var tick: int = 0
-var playing: bool = true
+## False until the match is under way: while people are still arriving, and
+## through the countdown. Nothing is scored and no star appears before it.
+var playing: bool = false
+## Matches played in this room. A rematch bumps it, and every client resets
+## on seeing it change (VersusProtocol.snapshot).
+var epoch: int = 0
+## Ticks of "3, 2, 1" left, or 0.
+var countdown: int = 0
 
 ## The newest thing each runner said about itself, by SEAT. Kept rather than
 ## consumed, so a dropped input packet leaves the last one standing instead of
@@ -56,7 +63,12 @@ func start(link: VersusTransport, collision: ArenaStage,
 	match_rules = VersusMatch.new()
 	match_rules.setup(world, seed_value)
 	roster = VersusRoster.new(selected_mode)
-	playing = selected_mode == VersusRoster.RoomMode.TEAM_SPLIT
+	# Nobody plays until the host says so (TEAM_SPLIT) or the other player has
+	# reported in (DUEL). Starting the moment the room opened handed the host
+	# free stars while the others were still typing the code.
+	playing = false
+	countdown = 0
+	epoch = 0
 	# The host takes the first runner's chair. It is a runner's device by
 	# definition: the guardian has no body to simulate, so hosting from one
 	# would mean both runners were remote and neither felt right.
@@ -70,6 +82,50 @@ func start(link: VersusTransport, collision: ArenaStage,
 	_since_snapshot = 0
 	out_events.clear()
 
+## The host's start button. Both runners have to be seated -- a missing
+## guardian is a handicap, a missing runner is no match -- and it only works
+## once. Returns whether the countdown began.
+func request_start(ticks: int = VersusRules.COUNTDOWN_TICKS) -> bool:
+	if playing or countdown > 0 or not roster.can_play():
+		return false
+	if match_rules.phase != VersusMatch.Phase.PLAYING:
+		return false
+	_begin_countdown(ticks)
+	diagnostic.emit("START requested: roster=%s" % roster.describe())
+	return true
+
+## The same room, the same seats, a fresh match. Everything the last match
+## left behind -- the ledger, the constructs, the tick -- starts over, and the
+## epoch tells every client to start over with it.
+func restart_match(ticks: int = VersusRules.COUNTDOWN_TICKS) -> bool:
+	if not roster.can_play():
+		return false
+	seed_value = int(Time.get_ticks_usec() & 0x7fffffff)
+	match_rules = VersusMatch.new()
+	match_rules.setup(world_without_builds(), seed_value)
+	builds.clear()
+	world_revision += 1
+	_rebuild_world()
+	tick = 0
+	epoch = (epoch + 1) & 0xFF
+	playing = false
+	_begin_countdown(ticks)
+	diagnostic.emit("REMATCH epoch=%d" % epoch)
+	return true
+
+func _begin_countdown(ticks: int) -> void:
+	countdown = maxi(ticks, 0)
+	if countdown == 0:
+		playing = true
+	out_events.append({"kind": "countdown", "ticks": countdown})
+
+func world_without_builds() -> ArenaStage:
+	return ArenaStage.new(VersusStageData.collision_rects())
+
+## True between the start button and the first tick of play.
+func counting() -> bool:
+	return countdown > 0
+
 ## One tick. `local` is the host's own runner, observed by its own scene.
 func step(local: VersusMatch.Seat) -> void:
 	_take_post()
@@ -78,11 +134,17 @@ func step(local: VersusMatch.Seat) -> void:
 	# A HELLO only proves a socket joined. The guest must report their
 	# own runner once before the host can simulate either side. Otherwise
 	# the first live snapshot marks the guest dead at an uninitialised pose.
-	if not playing and roster.can_play() \
-			and (roster.room_mode != VersusRoster.RoomMode.DUEL_COMBINED \
-			or _reported.has(VersusRoster.SEAT_B_RUNNER)):
+	if not playing and countdown == 0 and roster.can_play() \
+			and roster.room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
+			and _reported.has(VersusRoster.SEAT_B_RUNNER) \
+			and match_rules.phase == VersusMatch.Phase.PLAYING:
 		playing = true
 		diagnostic.emit("START: guest first runner input received; host match begins")
+	if countdown > 0:
+		countdown -= 1
+		if countdown == 0:
+			playing = true
+			diagnostic.emit("START: countdown over; match begins epoch=%d" % epoch)
 	if not playing:
 		out_events.clear()
 		_since_snapshot += 1
@@ -104,6 +166,19 @@ func step(local: VersusMatch.Seat) -> void:
 	if _since_snapshot >= SNAPSHOT_EVERY:
 		_since_snapshot = 0
 		_broadcast_snapshot()
+
+## Where a team's runner is, as far as the host knows: its last report, or
+## its start if it has not reported yet.
+func reported_runner(team: int) -> VersusMatch.Seat:
+	return _seat_for(VersusRoster.runner_seat(team), team)
+
+## Bit N set when seat N is taken.
+func seat_mask() -> int:
+	var mask := 0
+	for seat in range(VersusRoster.SEATS):
+		if roster.peer_at(seat) != -1:
+			mask |= 1 << seat
+	return mask
 
 ## An absent or silent runner stands still rather than vanishing. A match with
 ## a missing seat is a handicap, not a crash.
@@ -266,7 +341,10 @@ func _rebuild_world() -> void:
 func _broadcast_snapshot() -> void:
 	var runners: Array = []
 	for team in range(2):
-		var s: VersusMatch.Seat = match_rules.seats[team]
+		# Before play the rules have not adopted anyone's position yet, so
+		# describe what each runner last reported (or its start).
+		var s: VersusMatch.Seat = match_rules.seats[team] if playing \
+			else reported_runner(team)
 		var c: ArenaCombat.CombatState = match_rules.combat[team]
 		runners.append({
 			"position": s.position, "velocity": Vector2.ZERO,
@@ -284,9 +362,12 @@ func _broadcast_snapshot() -> void:
 		gs.append({"seat": g["seat"], "position": r.position, "size": r.size,
 			"build_id": g["build_id"]})
 
-	var phase_to_send := 2 if not playing else match_rules.phase
+	var phase_to_send := match_rules.phase
+	if not playing:
+		phase_to_send = VersusProtocol.PHASE_COUNTDOWN if countdown > 0 \
+			else VersusProtocol.PHASE_WAITING
 	var payload := VersusProtocol.snapshot(match_rules.tick,
 		phase_to_send, match_rules.winner, runners, coins, gs,
-		world_revision)
+		world_revision, epoch, countdown, seat_mask())
 	transport.broadcast(VersusTransport.Channel.SNAPSHOT,
 		VersusTransport.Reliability.UNRELIABLE, payload)

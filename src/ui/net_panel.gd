@@ -224,6 +224,12 @@ func _show_stage_screen() -> void:
 	next.disabled = first + STAGES_PER_PAGE >= cards.size()
 	next.custom_minimum_size = Vector2(200, 54)
 	navigation.add_child(next)
+	# 2v2 versus. Always shown and never locked: versus is free for every
+	# player, whatever they have bought (docs/versus-2v2-stars.md).
+	var versus := _button("⚔  2対2 たいせん", _on_versus, false)
+	versus.custom_minimum_size = Vector2(240, 54)
+	versus.add_theme_color_override("font_color", Color("b8420f"))
+	navigation.add_child(versus)
 
 	box.add_child(_title("カードを選ぶと、遊び方と難易度の画面へ進みます", 18, Color("416b91")))
 
@@ -403,8 +409,7 @@ func _show_play_screen() -> void:
 	var back := _button("‹  もどる", _show_stage_screen, false)
 	var layout := _button("ボタン配置", _on_layout, false)
 	footer.add_child(back)
-	# Internet versus still uses the retired Cloudflare relay. Keep its release
-	# entry hidden until the separate EOS versus migration is complete.
+	# Versus has its own entry on the stage screen (EOS, free for everyone).
 	footer.add_child(layout)
 	if OS.has_feature("editor"):
 		footer.add_child(_button("接続記録", _on_diagnose, false))
@@ -1013,6 +1018,11 @@ func _on_local() -> void:
 ## Hands differ and so do phones. The defaults are a guess; this is where the
 ## guess gets corrected.
 # ------------------------------------------------------------------ たいせん
+## The 2v2 star match. No Entitlement check on purpose: versus is free.
+func _on_versus() -> void:
+	_close_keyboard()
+	_root.add_child(load("res://src/ui/versus_panel.gd").new())
+
 func _on_layout() -> void:
 	add_child(load("res://src/ui/layout_editor.gd").new())
 

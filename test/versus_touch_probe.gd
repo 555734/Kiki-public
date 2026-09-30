@@ -68,11 +68,8 @@ func _ready() -> void:
 		check(scene.runners[i].is_physics_processing(), "peer %d local physics enabled" % i)
 		check(not scene.input.hubs[1].is_processing_unhandled_input(),
 			"peer %d unused hub cannot consume touch" % i)
-		var correct_entities := true
-		for entity in scene.level._dynamic.get_children():
-			if entity is Coin or (entity is Node2D and entity.position.x >= VersusStageData.STEP_FROM):
-				correct_entities = false
-		check(correct_entities, "peer %d omits co-op fixed coins and trimmed stage entities" % i)
+		check(scene.level._dynamic.get_child_count() == 0,
+			"peer %d builds the arena without 1-1's pickups or enemies" % i)
 		var layout := ControlLayout.layout("runner", Vector2(1280, 720), false)
 		var stick: Dictionary = layout["stick"]
 		var at: Vector2 = stick["center"] + Vector2(float(stick["radius"]) * 0.7, 0)

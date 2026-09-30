@@ -93,6 +93,16 @@ static func mesh(kind: String, size: Vector2 = Vector2(40,40)) -> ArrayMesh:
 			for i in 12: pts.append(Vector2(cos(i*TAU/12),sin(i*TAU/12))*size.x*.5)
 			m.prism(pts,0,3,gold)
 			m.gem(Vector3(0,0,2.5),Vector3(size.x*.65,size.x*.65,2),Color("ffe28c"),4)
+		"star":
+			# The versus star: a five-pointed gold prism with a bright core, so
+			# it reads as a different prize from 1-1's sun coins.
+			var pts: Array = []
+			for i in 10:
+				var r := size.x*(.5 if i%2==0 else .22)
+				var a := -PI/2+i*TAU/10
+				pts.append(Vector2(cos(a),sin(a))*r)
+			m.prism(pts,0,5,Color("ffc933"))
+			m.gem(Vector3(0,0,4),Vector3(size.x*.3,size.x*.3,3),Color("fff4b8"),5)
 		"crystal", "sigil":
 			m.gem(Vector3.ZERO,Vector3(20,32,16),cyan,5)
 			m.gem(Vector3(0,0,9),Vector3(8,16,3),Color("dafbf1"),4)

@@ -1,5 +1,6 @@
 class_name VersusMatch
-## The rules of the 1-1 coin match: who holds what, who hit whom, who has won.
+## The rules of the 2v2 star match: who holds what, who hit whom, who has won.
+## (The ledger calls them coins; the players see stars. See VersusRules.)
 ##
 ## Deliberately NOT a Node and deliberately holding no Runner. It is handed two
 ## "seats" -- a small description of where each runner is, which way it faces,
@@ -168,11 +169,7 @@ func _gather_hits() -> Array:
 		var v := 1 - a
 		if not seats[v].alive:
 			continue
-		# The stage is a loop, so the victim may be a few pixels away across the
-		# join and eighteen thousand away in a straight line. Everything below
-		# measures against the nearest lap.
-		var victim_at := VersusStageData.nearest_image(
-			seats[v].position, seats[a].position)
+		var victim_at := seats[v].position
 		# The victim's own invulnerability, as the game reports it. Asking the
 		# combat state instead would be asking a second opinion: Runner is the
 		# one that will refuse the damage, so it has to be the one that decides
@@ -217,8 +214,8 @@ func _drop_one(side: int, dir: float) -> void:
 	if held.is_empty():
 		return
 	var r := ledger.get_coin(held[0])
-	# Wrapped, so a coin knocked loose at the far end of the join is not left
-	# sitting in a lap nobody will ever walk through.
+	# Kept inside the walls, so a star knocked loose against one is not left
+	# somewhere nobody can reach.
 	ArenaCoin.to_dropped(r, Vector2(
 		VersusStageData.wrap_x(seats[side].position.x),
 		seats[side].position.y), dir, tick)
@@ -272,7 +269,7 @@ func _step_coins(delta: float) -> void:
 			c.owner = -1
 			c.revision += 1
 
-## Keep ON_FIELD coins loose. This is what makes ten reachable: the supply is a
+## Keep ON_FIELD stars loose. This is what makes seven reachable: the supply is a
 ## flow, not a fixed seven.
 func _top_up() -> void:
 	if _spawn_in > 0:
@@ -362,9 +359,8 @@ func _strike_box(side: int) -> Rect2:
 	return Rect2(mid - VersusRules.STRIKE_SIZE * 0.5, VersusRules.STRIKE_SIZE)
 
 ## To the body, not to the centre: the rule is "within 20px of the runner".
-## Measured to the nearest lap, so a coin just past the join is just past it.
 func _distance_to_body(at: Vector2, side: int) -> float:
-	var b := _body_at(VersusStageData.nearest_image(seats[side].position, at))
+	var b := _body_at(seats[side].position)
 	var nearest := Vector2(
 		clampf(at.x, b.position.x, b.position.x + b.size.x),
 		clampf(at.y, b.position.y, b.position.y + b.size.y))

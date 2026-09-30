@@ -13,8 +13,9 @@ class_name VersusProtocol
 ## relay's 1170-byte cap is never in question. Every message begins with a kind
 ## byte, and every message about a person carries their SEAT.
 ##
-## Budget, against the 1170-byte cap: a snapshot is 12 bytes of header, 14 per
-## runner and 6 per coin, so a full 18-coin match is 12 + 28 + 108 = 148 bytes.
+## Budget, against the 1100-byte EOS cap: a snapshot is 16 bytes of header, 14
+## per runner and 6 per star, so a full 12-star match is 16 + 28 + 72 = 116
+## bytes before constructs.
 ## The plan allowed 768 (docs/coin-battle-plan.md:315).
 
 enum Msg {
@@ -30,7 +31,12 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 4 # Shorter versus circuit; reject peers using the old map.
+const VERSION: int = 5 # 2v2 star arena, countdown and rematch epoch.
+
+## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
+## the host only; the rules engine never enters them.
+const PHASE_WAITING: int = 2    ## not everyone is here / the host has not started
+const PHASE_COUNTDOWN: int = 3  ## 3, 2, 1: everyone frozen at their start
 
 ## Velocity is stored in eighths of a pixel per second, as the co-op snapshot
 ## does. A runner tops out around 1000px/s, so 8000 fits an i16 with room.
@@ -183,13 +189,23 @@ static func read_command(payload: PackedByteArray) -> Dictionary:
 
 # ------------------------------------------------------------------ snapshot
 ## The world, as the host sees it. Sent unreliably and often.
+##
+## `epoch` counts matches in this room: a rematch starts the tick again from
+## zero, and without it every client would throw the new match away as older
+## than the one it already had. `countdown` is ticks left before PLAYING.
 static func snapshot(tick: int, phase: int, winner: int, runners: Array,
-		coins: Array, builds: Array, world_revision: int = 0) -> PackedByteArray:
+		coins: Array, builds: Array, world_revision: int = 0,
+		epoch: int = 0, countdown: int = 0, seat_mask: int = 0) -> PackedByteArray:
 	var b := _buf(Msg.SNAPSHOT)
 	b.put_u32(tick)
 	b.put_u8(phase)
 	b.put_8(winner)
 	b.put_u32(world_revision)
+	b.put_u8(epoch & 0xFF)
+	b.put_u16(clampi(countdown, 0, 0xFFFF))
+	# Which of the four chairs are taken, one bit each, so every screen can
+	# show who the room is still waiting for.
+	b.put_u8(seat_mask & 0x0F)
 
 	b.put_u8(runners.size())
 	for r in runners:
@@ -221,7 +237,8 @@ static func read_snapshot(payload: PackedByteArray) -> Dictionary:
 	var b := reader(payload)
 	b.get_u8()
 	var out := {"tick": b.get_u32(), "phase": b.get_u8(), "winner": b.get_8(),
-		"world_revision": b.get_u32()}
+		"world_revision": b.get_u32(), "epoch": b.get_u8(),
+		"countdown": b.get_u16(), "seat_mask": b.get_u8()}
 
 	var runners: Array = []
 	var n := b.get_u8()

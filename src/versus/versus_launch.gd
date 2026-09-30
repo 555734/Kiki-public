@@ -8,12 +8,16 @@ class_name VersusLaunch
 ## to do.
 
 enum How { NONE, SOLO, HOST, JOIN }
+## How the four devices reach each other. EOS is what ships; the old
+## Cloudflare relay stays for editor sessions and the WebSocket probes.
+enum Link { EOS, RELAY }
 
 static var how: int = How.NONE
 static var code: String = ""
 static var relay: String = ""
 static var seat: int = 0
 static var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
+static var link: int = Link.EOS
 
 static func clear() -> void:
 	how = How.NONE
@@ -21,6 +25,7 @@ static func clear() -> void:
 	relay = ""
 	seat = 0
 	room_mode = VersusRoster.RoomMode.TEAM_SPLIT
+	link = Link.EOS
 
 static func chosen() -> bool:
 	return how != How.NONE

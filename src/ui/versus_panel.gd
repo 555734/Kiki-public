@@ -1,29 +1,30 @@
 extends Control
-## The たいせん screen: pick a seat, make a room or join one.
+## The 2v2 スターたいせん screen: make a room, or pick a seat and join one.
 ##
-## Its own screen rather than four more rows on the start panel, which pushed
-## the buttons off the bottom of a 720-tall display. Everything a player needs
-## to start a four-person match is here, and none of it needs a keyboard: the
-## mode began life behind command-line flags, and on a phone that is the same
-## as not shipping it.
+## Free for everyone. Nothing here -- and nothing in the match -- reads
+## Entitlement: a player who has not bought the full version can make a room,
+## join a room and play every part of the match (docs/versus-2v2-stars.md).
+##
+## Rooms are EOS lobbies found by six digits, the same way co-op rooms are, so
+## there is no server address to type. The person who makes the room is team
+## A's runner; everyone else picks one of the three other seats.
 ##
 ## It does not touch the cooperative session. Choosing a match is choosing to
 ## go somewhere else, and the scene change is the whole of that.
 
-var _relay: LineEdit = null
+const JOIN_SEATS := [
+	[VersusRoster.SEAT_B_RUNNER, "Bチーム：ランナー（はしって スターを とる）"],
+	[VersusRoster.SEAT_A_GUARDIAN, "Aチーム：ガーディアン（足場と壁で たすける）"],
+	[VersusRoster.SEAT_B_GUARDIAN, "Bチーム：ガーディアン（足場と壁で たすける）"],
+]
+
 var _code: LineEdit = null
 var _seat: OptionButton = null
-var _mode: OptionButton = null
-var _seat_label: Label = null
-var _host_button: Button = null
-var _join_button: Button = null
 var _status: Label = null
 
 func _ready() -> void:
-	# ...and_offsets_, not set_anchors_preset alone. Anchors without offsets
-	# leave the rect at whatever size it already had, which for a Control made
-	# in code is zero -- so the CenterContainer centred inside nothing and the
-	# whole screen laid itself out in the top-left corner of the start screen.
+	# ...and_offsets_, not set_anchors_preset alone: a Control made in code has
+	# zero size, and anchors without offsets would keep it that way.
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
@@ -33,121 +34,106 @@ func _ready() -> void:
 	shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(shade)
 
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
 	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
+	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	centre.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(centre)
 
 	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(620, 0)
+	box.custom_minimum_size = Vector2(640, 0)
 	box.add_theme_constant_override("separation", 10)
 	centre.add_child(box)
 
-	box.add_child(_title("コイン たいせん", 30, Color(1, 1, 1)))
-	box.add_child(_title("ステージは 1-1。2チームにわかれて コインを とりあいます。",
-		15, Color(0.72, 0.85, 0.95)))
-	box.add_child(_title(TranslationServer.translate("さきに %d まい あつめたチームの かち") % VersusRules.WIN_AT,
-		15, Color(0.72, 0.85, 0.95)))
+	box.add_child(_title("⚔  2対2 スターたいせん", 32, Color(1, 1, 1)))
+	box.add_child(_title("ランナーと ガーディアンの 2人チームで たたかう（最大4人）",
+		16, Color(0.72, 0.85, 0.95)))
+	box.add_child(_title(TranslationServer.translate("ランダムに でてくる スターを さきに %d こ もったチームの かち")
+		% VersusRules.WIN_AT, 16, Color(1.0, 0.85, 0.35)))
+	box.add_child(_title("こうげきを うけると スターを 1こ おとす。ステージは 1-1 の くさはら。",
+		14, Color(0.72, 0.85, 0.95)))
+	box.add_child(_title("無料版でも すべて あそべます", 14, Color(0.60, 0.92, 0.70)))
 
 	box.add_child(_spacer(6))
-	_mode = OptionButton.new()
-	_mode.add_item("1対1：ふたりとも ランナー＋ガーディアン",
-		VersusRoster.RoomMode.DUEL_COMBINED)
-	_mode.add_item("チーム戦：最大4人で役割を分担",
-		VersusRoster.RoomMode.TEAM_SPLIT)
-	_mode.selected = 0
-	_mode.custom_minimum_size = Vector2(0, 48)
-	box.add_child(_mode)
-	_seat_label = _title("あなたの せき", 15, Color(0.72, 0.85, 0.95))
-	box.add_child(_seat_label)
-	_seat = OptionButton.new()
-	_seat.add_item("Aチーム：ランナー（うごかす）", VersusRoster.SEAT_A_RUNNER)
-	_seat.add_item("Aチーム：ガーディアン（たすける）", VersusRoster.SEAT_A_GUARDIAN)
-	_seat.add_item("Bチーム：ランナー（うごかす）", VersusRoster.SEAT_B_RUNNER)
-	_seat.add_item("Bチーム：ガーディアン（たすける）", VersusRoster.SEAT_B_GUARDIAN)
-	_seat.selected = 0
-	_seat.custom_minimum_size = Vector2(0, 46)
-	box.add_child(_seat)
+	box.add_child(_button("＋  部屋を作る（Aチームのランナー）", _on_host))
 
-	_relay = _field("中継サーバーのURL")
-	_relay.text = _remembered_relay()
-	box.add_child(_relay)
-	_code = _field("ルーム番号（6もじ）")
-	_code.max_length = VersusWsTransport.CODE_LENGTH
-	box.add_child(_code)
-
-	_host_button = _button("1対1の部屋を作る", _on_host)
-	_join_button = _button("1対1の部屋に入る", _on_join)
-	box.add_child(_host_button)
-	box.add_child(_join_button)
-	_mode.item_selected.connect(func(_index: int) -> void: _update_mode())
-	_update_mode()
 	box.add_child(_spacer(4))
-	box.add_child(_button("1台で ためす（ランナー2人・通信なし）", _on_solo))
-	box.add_child(_button("もどる", func() -> void: queue_free()))
+	box.add_child(_title("友達の部屋に入る", 18, Color(1, 1, 1)))
+	_seat = OptionButton.new()
+	for entry in JOIN_SEATS:
+		_seat.add_item(entry[1], entry[0])
+	_seat.selected = 0
+	_seat.custom_minimum_size = Vector2(0, 50)
+	_seat.add_theme_font_size_override("font_size", 18)
+	box.add_child(_seat)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_code = LineEdit.new()
+	_code.placeholder_text = "ルーム番号（6けた）"
+	_code.max_length = EosVersusLobby.CODE_LENGTH
+	_code.custom_minimum_size = Vector2(0, 52)
+	_code.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_code.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	_code.add_theme_font_size_override("font_size", 24)
+	_code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_code.text_changed.connect(_on_code_changed)
+	row.add_child(_code)
+	var join := _button("→  入る", _on_join)
+	join.custom_minimum_size = Vector2(170, 52)
+	row.add_child(join)
+	box.add_child(row)
 
-	_status = _title("", 15, Color(0.85, 0.92, 1.0))
+	box.add_child(_spacer(4))
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 10)
+	var back := _button("‹  もどる", func() -> void: queue_free())
+	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(back)
+	var solo := _button("1台で ためす", _on_solo)
+	solo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(solo)
+	box.add_child(footer)
+
+	_status = _title("", 16, Color(0.85, 0.92, 1.0))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size = Vector2(600, 48)
+	_status.custom_minimum_size = Vector2(620, 44)
 	box.add_child(_status)
 
-## The cooperative screen already remembers a relay; reuse it rather than
-## asking the same person for the same URL twice.
-func _remembered_relay() -> String:
-	var cfg := ConfigFile.new()
-	if cfg.load("user://net.cfg") == OK:
-		var kept := String(cfg.get_value("relay", "url", ""))
-		if not kept.is_empty():
-			return kept
-	return Balance.DEFAULT_RELAY
-
-func _room_mode() -> int:
-	return _mode.get_item_id(_mode.selected)
-
-func _update_mode() -> void:
-	var duel := _room_mode() == VersusRoster.RoomMode.DUEL_COMBINED
-	_seat.visible = not duel
-	_seat_label.visible = not duel
-	_host_button.text = "1対1の部屋を作る" if duel else "チーム戦の部屋を作る"
-	_join_button.text = "1対1の部屋に入る" if duel else "チーム戦の部屋に入る"
+## Digits only, and never more than six: a phone's full keyboard is what most
+## people get even when a number pad was asked for.
+func _on_code_changed(text: String) -> void:
+	var digits := ""
+	for i in text.length():
+		if text[i] >= "0" and text[i] <= "9":
+			digits += text[i]
+	digits = digits.substr(0, EosVersusLobby.CODE_LENGTH)
+	if digits != text:
+		_code.text = digits
+		_code.caret_column = digits.length()
 
 func _on_host() -> void:
-	var relay := _relay.text.strip_edges()
-	if relay.is_empty():
-		_status.text = "中継サーバーのURLを入れてください"
-		return
-	var code := VersusWsTransport.new_code()
-	_code.text = code
-	_status.text = TranslationServer.translate("ルーム番号：%s\nこの6もじを 相手に おしえてください。") % code
-	_go(VersusLaunch.How.HOST, code, relay, VersusRoster.SEAT_A_RUNNER)
+	_go(VersusLaunch.How.HOST, EosVersusLobby.new_code(), VersusRoster.SEAT_A_RUNNER)
 
 func _on_join() -> void:
-	var relay := _relay.text.strip_edges()
-	var code := _code.text.strip_edges().to_upper()
-	if relay.is_empty():
-		_status.text = "中継サーバーのURLを入れてください"
+	var code := _code.text.strip_edges()
+	if not EosVersusLobby.valid_code(code):
+		_status.text = tr("ルーム番号は 6けたの 数字です")
 		return
-	if not VersusWsTransport.valid_code(code):
-		_status.text = "ルーム番号は 6もじです（数字と アルファベット）"
-		return
-	var seat: int = VersusRoster.SEAT_B_RUNNER if _room_mode() == VersusRoster.RoomMode.DUEL_COMBINED \
-		else _seat.get_item_id(_seat.selected)
-	if seat == VersusRoster.SEAT_A_RUNNER:
-		# Seat 0 belongs to whoever made the room; the host is a runner's
-		# device by definition, because a guardian has no body to simulate.
-		_status.text = "Aチームのランナーは 部屋を作った人です。ほかのせきを えらんでください"
-		return
-	_go(VersusLaunch.How.JOIN, code, relay, seat)
+	_go(VersusLaunch.How.JOIN, code, _seat.get_item_id(_seat.selected))
 
 func _on_solo() -> void:
-	_go(VersusLaunch.How.SOLO, "", "", VersusRoster.SEAT_A_RUNNER)
+	_go(VersusLaunch.How.SOLO, "", VersusRoster.SEAT_A_RUNNER)
 
-func _go(how: int, code: String, relay: String, seat: int) -> void:
+func _go(how: int, code: String, seat: int) -> void:
 	VersusLaunch.how = how
 	VersusLaunch.code = code
-	VersusLaunch.relay = relay
+	VersusLaunch.relay = ""
 	VersusLaunch.seat = seat
-	VersusLaunch.room_mode = _room_mode() if how != VersusLaunch.How.SOLO \
-		else VersusRoster.RoomMode.TEAM_SPLIT
+	VersusLaunch.room_mode = VersusRoster.RoomMode.TEAM_SPLIT
+	VersusLaunch.link = VersusLaunch.Link.EOS
 	get_tree().change_scene_to_file("res://src/versus/versus_main.tscn")
 
 # ------------------------------------------------------------------- widgets
@@ -155,16 +141,10 @@ func _title(text: String, size: int, colour: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", colour)
 	return label
-
-func _field(placeholder: String) -> LineEdit:
-	var edit := LineEdit.new()
-	edit.placeholder_text = placeholder
-	edit.custom_minimum_size = Vector2(0, 46)
-	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return edit
 
 func _spacer(h: int) -> Control:
 	var gap := Control.new()
@@ -174,6 +154,7 @@ func _spacer(h: int) -> Control:
 func _button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, 52)
+	b.custom_minimum_size = Vector2(0, 54)
+	b.add_theme_font_size_override("font_size", 20)
 	b.pressed.connect(handler)
 	return b

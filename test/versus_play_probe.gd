@@ -1,9 +1,9 @@
 extends Node
-## Does the 1-1 coin match work as a SCENE, not just as rules?
+## Does the 2v2 star match work as a SCENE, not just as rules?
 ##
 ## versus_probe drives VersusMatch with made-up observations, which proves the
 ## rules and proves nothing about the thing you actually launch. This one builds
-## the real scene -- real Runner nodes, real 1-1 collision, real physics -- and
+## the real scene -- real Runner nodes, the real arena collision, real physics -- and
 ## drives it through the input hubs the way a player's keyboard does.
 ##
 ## It is the check that would have caught every wiring mistake the rules probe
@@ -52,7 +52,7 @@ func _tick(n: int) -> void:
 	for i in range(n):
 		await get_tree().physics_frame
 
-## Both runners have to end up standing on 1-1's ground, not falling through it.
+## Both runners have to end up standing on the arena's ground, not falling through it.
 func _test_standing() -> void:
 	_current = "standing"
 	for i in range(2):
@@ -121,126 +121,78 @@ func _test_striking() -> void:
 		"and costs them health as well (%d -> %d)" % [hp_before, victim.hp])
 	check(m.ledger.conserved(), "the ledger survives a real strike")
 
-	await _test_the_spikes()
-	await _test_a_lap()
-	_test_the_enemies()
+	await _test_the_pit()
+	await _test_the_walls()
+	_test_no_enemies()
 
-## The extra enemies are data until something builds them. This is the check
-## that they became nodes: the versus_probe can only say the list is right.
-func _test_the_enemies() -> void:
-	_current = "the enemies"
-	var alive := 0
+## The arena is built from 1-1's pieces but not from its course: no enemy of
+## 1-1's is in the scene, so no machine simulates one the others do not see.
+func _test_no_enemies() -> void:
+	_current = "no enemies"
+	var found := 0
 	for node in arena.find_children("*", "", true, false):
-		if node.is_in_group("enemy"):
-			alive += 1
-	# 1-1's enemies that are INSIDE the circuit, not all of 1-1's: the versus
-	# builder frees everything past the connecting steps, because the circuit
-	# is shorter than the stage it is cut from.
-	var want := VersusStageData.circuit_enemies().size() \
-		+ VersusStageData.extra_enemies().size()
-	print("    %d enemy nodes in the scene, expecting %d" % [alive, want])
-	# 1-1 builds every one of its own, and the circuit adds its own on top.
-	check(alive == want,
-		"1-1's enemies and the circuit's extras are all in the scene (%d of %d)"
-			% [alive, want])
+		if node is Enemy:
+			found += 1
+	check(found == 0, "the arena has no enemies in it (%d)" % found)
+	var goal := 0
+	for node in arena.find_children("*", "", true, false):
+		if node is Goal or node is Checkpoint:
+			goal += 1
+	check(goal == 0, "and no 1-1 goal or checkpoints")
 
-## Run off the end of the stage and come out at the start, with nothing to
-## show for it. The seam is the one thing in this mode that has to be
-## invisible, so what is measured is the things that would give it away: a
-## change in height, and a camera that has to travel.
-func _test_a_lap() -> void:
-	_current = "a lap"
-	var r: Runner = arena.runners[0]
-	var cam: Camera2D = arena._camera
-
-	# On the last of the added steps, just short of the join.
-	r.global_position = Vector2(VersusStageData.LOOP_TO - 260.0, 300.0)
-	r.velocity = Vector2.ZERO
-	await _tick(40)
-	var height_before := r.global_position.y
-	var lead_before := absf(cam.global_position.x - r.global_position.x)
-	check(r.on_ground(), "standing on the steps that close the circuit")
-
-	# The measurement is of the WRAP ITSELF, on the tick it happens -- not of
-	# the run either side of it. The staircase legitimately descends 55px a
-	# step, so comparing a point mid-staircase with one on the plateau says
-	# nothing about the seam. The first version of this check did that and
-	# reported a step it had walked down on purpose.
-	var wrapped := false
-	var y_before := 0.0
-	var y_after := 0.0
-	var jump_in_y := 0.0
-	var worst_lead := 0.0
-	var was := r.global_position
-	for i in range(220):
-		arena.input.hubs[0].drive_runner(1.0, 0.0, false, true)
-		await get_tree().physics_frame
-		var now := r.global_position
-		if not wrapped and now.x < was.x - 4000.0:
-			wrapped = true
-			y_before = was.y
-			y_after = now.y
-			jump_in_y = absf(now.y - was.y)
-		was = now
-		worst_lead = maxf(worst_lead, absf(cam.global_position.x - now.x))
-	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
-	await _tick(30)
-
-	print("    on the wrap tick: y %.1f -> %.1f; camera lead %.0f -> worst %.0f"
-		% [y_before, y_after, lead_before, worst_lead])
-	check(wrapped, "running off the end brings you back to the start")
-	check(jump_in_y < 2.0,
-		"and the wrap itself moves nothing but x (y moved %.2fpx)" % jump_in_y)
-	# The give-away. If the wrap moved the runner and not the camera, the
-	# camera would be a whole lap behind and spend seconds catching up.
-	check(worst_lead < 600.0,
-		"and the camera never falls behind (worst %.0fpx)" % worst_lead)
-	check(r.state != Runner.State.DEAD, "crossing the join is not fatal")
-
-	# And back the other way: the steps have to be climbable, or the circuit
-	# only runs one way round.
-	r.global_position = Vector2(VersusStageData.LOOP_FROM + 120.0, 300.0)
-	r.velocity = Vector2.ZERO
-	await _tick(40)
-	var from_x := r.global_position.x
-	for i in range(240):
-		# Hold left, and jump often enough to take a 55px step.
-		arena.input.hubs[0].drive_runner(-1.0, 0.0, i % 24 < 10, true)
-		await get_tree().physics_frame
-	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
-	await _tick(20)
-	var climbed := VersusStageData.wrap_x(from_x) \
-		- VersusStageData.wrap_x(r.global_position.x)
-	print("    going the other way, moved %.0fpx" % climbed)
-	check(r.global_position.x > VersusStageData.LOOP_TO - 2000.0
-			or climbed < -1000.0,
-		"the circuit can be run the other way round too")
-
-## 1-1's own spike strip kills the runner by itself, through the runner's
-## contact handling -- this mode never calls for it. So the mode has to NOTICE,
-## or a runner killed by the spikes lies there holding its coins for good.
-func _test_the_spikes() -> void:
-	_current = "the spikes"
+## The pits between the steps and the middle are real: fall in and the whole
+## hand goes back into play, and the runner comes back at its own start.
+func _test_the_pit() -> void:
+	_current = "the pit"
 	var m: VersusMatch = arena.match_rules
 	var r: Runner = arena.runners[0]
-	var spikes: Dictionary = Stage.hazards()[0]
-	# Named coins, not a total: this runner already picked one up earlier in
-	# the probe, and a global count would be measuring that as well.
 	_give_to(m, 0, [1, 2])
-	check(_held_of(m, 0, [1, 2]) == 2, "the runner is carrying the two coins")
-
-	# Drop it onto the strip.
-	r.global_position = Vector2(spikes["pos"].x, spikes["pos"].y - 60.0)
+	check(_held_of(m, 0, [1, 2]) == 2, "the runner is carrying the two stars")
+	r.global_position = Vector2(1230.0, 500.0)
 	r.velocity = Vector2.ZERO
-	await _tick(30)
-	check(m.ledger.count_held_by(0) == 0,
-		"landing on 1-1's spikes costs the whole hand")
-	check(_held_of(m, 0, [1, 2]) == 0, "including the two it was given")
-	check(m.ledger.conserved(), "and every coin is still accounted for")
+	await _tick(60)
+	check(m.ledger.count_held_by(0) == 0, "falling into a pit costs the whole hand")
+	check(m.ledger.conserved(), "and every star is still accounted for")
 	await _tick(VersusRules.RESPAWN_TICKS + 8)
 	check(r.state != Runner.State.DEAD, "and the runner comes back")
-	check(VersusStageData.in_bounds(r.global_position),
-		"inside the arena")
+	check(r.global_position.distance_to(VersusStageData.start_positions()[0]) < 80.0,
+		"at its own team's start")
+
+## Nobody leaves the field sideways: running into an end wall stops you.
+func _test_the_walls() -> void:
+	_current = "the walls"
+	var r: Runner = arena.runners[0]
+	r.global_position = Vector2(120.0, 360.0)
+	r.velocity = Vector2.ZERO
+	for i in range(90):
+		arena.input.hubs[0].drive_runner(-1.0, 0.0, i % 20 < 10, true)
+		await get_tree().physics_frame
+	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
+	await _tick(30)
+	check(r.global_position.x > VersusStageData.LEFT,
+		"running and jumping at the left wall stays inside (x=%.0f)" % r.global_position.x)
+	check(r.global_position.y < VersusStageData.kill_y(), "and on the ground")
+
+	# A block row is one held jump up: a jump from the floor beside the first
+	# row rises clear of its top. The scene's own keyboard poll is paused for
+	# this, or it would release the jump between the probe's frames and a
+	# held jump would measure as a string of taps.
+	var row: Rect2 = VersusStageData.solid_decor()[0]
+	r.global_position = Vector2(row.position.x - 90.0, VersusStageData.FLOOR_TOP - 24.0)
+	r.velocity = Vector2.ZERO
+	await _tick(6)
+	arena.set_physics_process(false)
+	var peak := INF
+	for i in range(30):
+		arena.input.hubs[0].drive_runner(0.0, 0.0, i < 20, false)
+		await get_tree().physics_frame
+		peak = minf(peak, r.global_position.y + Balance.RUNNER_SIZE.y * 0.5)
+	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
+	arena.set_physics_process(true)
+	await _tick(30)
+	check(peak < row.position.y - 10.0,
+		"a jump from the floor clears the lowest block row (feet %.0f, top %.0f)"
+			% [peak, row.position.y])
 
 func _held_of(m: VersusMatch, side: int, ids: Array) -> int:
 	var n := 0

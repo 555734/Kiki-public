@@ -1,6 +1,9 @@
 extends Node2D
-## Coin match on the shortened A-D circuit of 1-1. Uses the game's Runner,
-## a local following camera, and a host-owned coin ledger.
+## The 2v2 star match: two teams of a runner and a guardian, on a small arena
+## built from 1-1's pieces. Uses the game's Runner, a local following camera,
+## and a host-owned star ledger (VersusMatch; the ledger calls them coins).
+## Seven stars held wins. Free for every player -- nothing here reads
+## Entitlement (docs/versus-2v2-stars.md).
 
 const RunnerVisualScript = preload("res://src/runner/runner_visual.gd")
 
@@ -26,7 +29,15 @@ var mode: int = Mode.SOLO
 var match_rules: VersusMatch = null       ## host and solo only
 var host: VersusHost = null
 var client: VersusClient = null
-var link: VersusWsTransport = null
+var link: VersusTransport = null
+## Over EOS (what ships) or the old WebSocket relay (editor, probes).
+var use_eos: bool = false
+var eos_room: EosVersusLobby = null
+## Set once the EOS lobby has been told the match began.
+var _marked_started: bool = false
+## The client's rematch counter last acted on.
+var _seen_epoch_changes: int = 0
+var _menu: Control = null
 var room_code: String = ""
 var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 var controls: Control = null
@@ -91,6 +102,7 @@ func _ready() -> void:
 		_debug_copy_button.size = Vector2(200, 44)
 		_debug_copy_button.pressed.connect(_copy_debug_log)
 		layer.add_child(_debug_copy_button)
+	_build_menu(layer)
 	if mode != Mode.SOLO and local_team >= 0:
 		controls = preload("res://src/versus/versus_controls.gd").new()
 		controls.arena = self
@@ -129,6 +141,7 @@ func _read_command_line() -> void:
 		room_code = VersusLaunch.code
 		_seat = clampi(VersusLaunch.seat, 0, 3)
 		room_mode = VersusLaunch.room_mode
+		use_eos = VersusLaunch.link == VersusLaunch.Link.EOS
 		if not VersusLaunch.relay.is_empty():
 			_relay = VersusLaunch.relay
 	else:
@@ -166,115 +179,25 @@ var _relay: String = Balance.DEFAULT_RELAY
 func _collision_rects() -> Array[Rect2]:
 	return VersusStageData.collision_rects(_built)
 
-## 1-1, built the way the cooperative game builds it. Terrain, decor, hazards,
-## enemies, checkpoints and the goal all come from LevelBuilder, so the stage
-## in this mode is the stage -- not a copy of it that can drift.
+## The arena, painted and collided by 1-1's own terrain and decor painters.
+## See VersusLevelBuilder: nothing of 1-1's course -- no enemy, no hazard --
+## is built, so there is nothing each machine would simulate on its own.
 func _build_world() -> void:
 	Stage.use(Stage.Which.GREENFIELD)
 	level = preload("res://src/versus/versus_level_builder.gd").new()
 	level.name = "Level"
 	add_child(level)
 
-## The laps either side of the one 1-1 was built in: the steps that close the
-## circuit, and a copy of the terrain and the scenery to each side.
-##
-## Painted and collided, but NOT populated. The enemies, the spikes and the
-## gimmicks stay in the middle lap. They would be a second set of the same
-## creatures if they were repeated. The connector closes the shortened lap.
-func _build_laps() -> void:
-	var one: Array[Rect2] = VersusStageData.lap_ground()
-	var scenery := VersusStageData.decor()
-	var body := StaticBody2D.new()
-	body.name = "Laps"
-	body.collision_layer = 1
-	body.collision_mask = 0
-	add_child(body)
-
-	for lap in [-1, 0, 1]:
-		var shift := VersusStageData.LOOP_SPAN * float(lap)
-		# The middle lap's own terrain is LevelBuilder's; only the steps are
-		# added to it, so 1-1 is painted exactly once by the thing that paints
-		# it everywhere else.
-		var slabs: Array[Rect2] = one if lap != 0 \
-			else VersusStageData.connector()
-		var painted: Array[Rect2] = []
-		for r in slabs:
-			painted.append(Rect2(r.position + Vector2(shift, 0.0), r.size))
-		var terrain := preload("res://src/render/terrain.gd").new()
-		terrain.slabs = painted
-		add_child(terrain)
-		for r in painted:
-			var shape := CollisionShape2D.new()
-			var box := RectangleShape2D.new()
-			box.size = r.size
-			shape.shape = box
-			shape.position = r.position + r.size * 0.5
-			body.add_child(shape)
-		if lap == 0:
-			continue
-		var decor := preload("res://src/render/decor.gd").new()
-		var moved: Array[Dictionary] = []
-		for d in scenery:
-			var copy := d.duplicate()
-			copy["pos"] = Vector2(d["pos"]) + Vector2(shift, 0.0)
-			moved.append(copy)
-		decor.items = moved
-		add_child(decor)
-
-## The enemies this mode adds on top of 1-1's own.
-##
-## Built through LevelBuilder's own _make_enemy, so they are the same classes
-## configured the same way -- there is no second kind of walker here. They go
-## into the same Dynamic node, so a rebuild frees them with everything else.
-##
-## Middle lap only, which IS the whole circuit: a runner is always wrapped back
-## into it, and the laps either side exist to make the join look continuous
-## rather than to be played in.
-func _build_extra_enemies() -> void:
-	var extra := VersusStageData.extra_enemies()
-	if extra.is_empty():
-		return
-	var into: Node = level.get_node_or_null("Dynamic")
-	if into == null:
-		into = level
-	# Past 1-1's own, so the two sets cannot collide on an id. Nothing in this
-	# mode sends enemies over the wire -- every machine builds the same list
-	# from the same data -- but an id that means two things is a trap for
-	# whoever adds that later.
-	var id := Stage.enemies().size()
-	for spec in extra:
-		var node := level._make_enemy(spec)
-		if node == null:
-			continue
-		node.global_position = spec["pos"]
-		node.net_id = id
-		into.add_child(node)
-		id += 1
-
-## 1-1's goal is a place to arrive at. On a circuit you arrive at it every lap,
-## and it would announce the stage cleared every time round.
-func _remove_the_goal() -> void:
-	for node in level.find_children("*", "", true, false):
-		if node.name.to_lower().contains("goal"):
-			node.queue_free()
-
-## LevelBuilder wants the runner and the hub before it builds, because an
-## asymmetric stage decides what to paint from who is watching. 1-1 hides
-## nothing, but it is given the local player's hub anyway rather than null --
-## the same call the cooperative game makes.
 func _finish_world() -> void:
 	level.runner = runners[maxi(local_team, 0)]
 	level.input_hub = input.hubs[0]
 	level.build()
-	_remove_the_goal()
-	_build_extra_enemies()
-	_build_laps()
 
 func _build_camera() -> void:
 	_camera = Camera2D.new()
 	_camera.name = "Camera"
 	_camera.position_smoothing_enabled = false   # smoothed by hand, below
-	_camera.zoom = Vector2.ONE * Balance.CAMERA_ZOOM
+	_camera.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM
 	_camera.global_position = runners[maxi(local_team, 0)].global_position
 	add_child(_camera)
 	_camera.make_current()
@@ -295,6 +218,12 @@ func _update_camera(delta: float) -> void:
 	var lead := clampf(who.velocity.x / Balance.RUNNER_RUN_SPEED, -1.0, 1.0) \
 		* Balance.CAMERA_LOOKAHEAD
 	var target := who.global_position + Vector2(lead, -40.0)
+	# Never past the walls: beyond them is nothing to look at, and the space is
+	# better spent on the part of the field the other team might be in.
+	var half := get_viewport_rect().size.x * 0.5 / _camera.zoom.x
+	var lo := VersusStageData.LEFT - 120.0 + half
+	var hi := VersusStageData.RIGHT + 120.0 - half
+	target.x = clampf(target.x, lo, hi) if lo < hi else VersusStageData.WIDTH * 0.5
 	var t := clampf(delta * Balance.CAMERA_SMOOTH, 0.0, 1.0)
 	_camera.global_position = _camera.global_position.lerp(target, t)
 
@@ -307,6 +236,7 @@ func _view_team() -> int:
 func _process(delta: float) -> void:
 	if _camera != null:
 		_update_camera(delta)
+	_refresh_menu()
 	if _debug_copy_button != null:
 		_debug_copy_button.visible = waiting()
 		var viewport_size := get_viewport_rect().size
@@ -381,6 +311,59 @@ func _build_guardian() -> void:
 		add_child(router)
 		guardian.command_router = router
 	add_child(guardian)
+
+# ------------------------------------------------------------------ the menu
+## Real buttons for what the keyboard did before: start, play again, leave.
+## A phone has no R and no Esc, and a mode you cannot start or leave from the
+## screen is not a mode a phone can play.
+var _start_button: Button = null
+var _again_button: Button = null
+var _leave_button: Button = null
+
+func _build_menu(layer: CanvasLayer) -> void:
+	_menu = VBoxContainer.new()
+	_menu.name = "VersusMenu"
+	_menu.add_theme_constant_override("separation", 10)
+	_menu.custom_minimum_size = Vector2(300, 0)
+	layer.add_child(_menu)
+	_start_button = _menu_button("スタート", start_match)
+	_again_button = _menu_button("もういちど", rematch)
+	_leave_button = _menu_button("やめる", leave_versus)
+	_refresh_menu()
+
+func _menu_button(text: String, handler: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(300, 56)
+	b.add_theme_font_size_override("font_size", 24)
+	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(handler)
+	_menu.add_child(b)
+	return b
+
+func _refresh_menu() -> void:
+	if _menu == null:
+		return
+	var over := phase() == VersusMatch.Phase.OVER
+	var pre := waiting()
+	_start_button.visible = pre and is_host()
+	_start_button.disabled = not can_start()
+	_again_button.visible = over and (mode == Mode.HOST or mode == Mode.SOLO)
+	# Runners have their own 戻る circle during play; a guardian has none.
+	var broken := not link_error().is_empty()
+	_leave_button.visible = pre or over or broken or (local_team < 0 and mode != Mode.SOLO)
+	var view := get_viewport_rect().size
+	var shown := 0
+	for b in [_start_button, _again_button, _leave_button]:
+		if b.visible:
+			shown += 1
+	_menu.size = Vector2(300, shown * 66)
+	if pre or over or broken:
+		_menu.position = Vector2(view.x * 0.5 - 150.0, view.y * 0.5 + 90.0)
+	else:
+		_menu.position = Vector2(16.0, view.y - _menu.size.y - 16.0)
+		_leave_button.custom_minimum_size = Vector2(160, 48)
+	_menu.visible = shown > 0
 
 # ----------------------- on-device diagnostic log (also in user://)
 func _start_debug_log() -> void:
@@ -492,22 +475,76 @@ func _record_match_state() -> void:
 
 # --------------------------------------------------------------------- the link
 func _open_link(as_host: bool) -> void:
-	link = VersusWsTransport.new()
-	link.diagnostic.connect(_debug)
+	if use_eos:
+		_open_eos(as_host)
+		return
+	var ws := VersusWsTransport.new()
+	ws.diagnostic.connect(_debug)
+	link = ws
 	if as_host and room_code.is_empty():
 		room_code = VersusWsTransport.new_code()
 	_probe_relay_route()
-	var err := link.open_room(_relay, room_code, "versus-%d" % (Time.get_ticks_usec() & 0xffff))
+	var err := ws.open_room(_relay, room_code, "versus-%d" % (Time.get_ticks_usec() & 0xffff))
 	if not err.is_empty():
 		status = err
 		_debug("open_room failed: " + err)
 		return
 	status = "room %s - waiting" % room_code
 
+## EOS sign-in, then the four-person lobby, then P2P -- the same path co-op
+## rooms take, in a bucket of their own. Asynchronous: the arena is already up
+## and says what it is doing while this runs.
+var _link_error: String = ""
+
+func _open_eos(as_host: bool) -> void:
+	var room := EosVersusLobby.new()
+	eos_room = room
+	if as_host:
+		room.room_code = room_code if EosVersusLobby.valid_code(room_code) \
+			else EosVersusLobby.new_code()
+		room_code = room.room_code
+		room.room_code_chosen.connect(func(code: String) -> void:
+			if room == eos_room:
+				room_code = code)
+	status = "EOSに接続中"
+	_debug("EOS versus %s room=%s" % ["host" if as_host else "join", room_code])
+	if not await EosRuntime.ensure_ready():
+		_link_failed(room, EosRuntime.last_error)
+		return
+	if room != eos_room:
+		room.leave()
+		return
+	var ok := false
+	if as_host:
+		ok = await room.create_room()
+	else:
+		ok = await room.join_room(room_code)
+	if room != eos_room:
+		room.leave()
+		return
+	if not ok:
+		_link_failed(room, room.last_error)
+		return
+	var t := VersusEosTransport.new()
+	t.diagnostic.connect(_debug)
+	var err := t.open(room)
+	if not err.is_empty():
+		_link_failed(room, err)
+		return
+	link = t
+	status = "room %s" % room_code
+
+func _link_failed(room: EosVersusLobby, reason: String) -> void:
+	if room != eos_room:
+		return
+	_link_error = reason
+	status = reason
+	_debug("EOS failed: " + reason)
+
 func _network_ready() -> void:
 	if host != null or client != null:
 		return
-	if not link.is_open():
+	if link == null or not link.is_open():
 		return
 	if mode == Mode.HOST:
 		if link.local_peer() != VersusTransport.HOST_PEER:
@@ -518,7 +555,7 @@ func _network_ready() -> void:
 		host.diagnostic.connect(_debug)
 		host.start(link, ArenaStage.new(_collision_rects()), 0, room_mode)
 		match_rules = host.match_rules
-		_debug("HOST ready: relay peer=%d roster=%s" % [
+		_debug("HOST ready: peer=%d roster=%s" % [
 			link.local_peer(), host.roster.describe()])
 		status = "room %s" % room_code
 	else:
@@ -530,8 +567,8 @@ func _network_ready() -> void:
 			router.client = client
 			add_child(router)
 			guardian.command_router = router
-		_debug("JOIN ready: relay peer=%d" % link.local_peer())
-		status = "room %s - joining" % room_code
+		_debug("JOIN ready: peer=%d" % link.local_peer())
+		status = "room %s" % room_code
 
 # --------------------------------------------------------------------- the tick
 func _physics_process(_delta: float) -> void:
@@ -539,16 +576,12 @@ func _physics_process(_delta: float) -> void:
 		link.poll_socket()
 		_network_ready()
 
-	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
-		_update_duel_activity()
 	var seqs := input.poll()
 	_trace_local_input()
 
-	if phase() == VersusMatch.Phase.OVER and room_mode != VersusRoster.RoomMode.DUEL_COMBINED:
-		if Input.is_physical_key_pressed(KEY_R) and mode != Mode.CLIENT:
-			_start_solo() if mode == Mode.SOLO else _restart_host()
-		_redraw()
-		return
+	if phase() == VersusMatch.Phase.OVER and mode != Mode.CLIENT \
+			and Input.is_physical_key_pressed(KEY_R):
+		rematch()
 
 	match mode:
 		Mode.SOLO:
@@ -557,42 +590,38 @@ func _physics_process(_delta: float) -> void:
 			_tick_host(seqs)
 		Mode.CLIENT:
 			_tick_client(seqs)
-	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
-		_update_duel_activity()
+	_update_activity()
+	_mark_started()
 	_record_match_state()
 	_redraw()
 
-func _update_duel_activity() -> void:
-	if local_team < 0:
+## Runners move only while the match is on: not while the room is filling, not
+## through "3, 2, 1", not after someone has won. The other team's runners are
+## hidden until the room has them, rather than standing at their starts
+## looking like players.
+func _update_activity() -> void:
+	if mode == Mode.SOLO:
 		return
-	var active := not waiting() and phase() != VersusMatch.Phase.OVER
-	if runners[local_team].is_physics_processing() != active:
+	var active := can_move()
+	if local_team >= 0 and runners[local_team].is_physics_processing() != active:
 		runners[local_team].set_physics_process(active)
-	# Both Runner nodes exist before joining. Do not show a fake opponent.
-	runners[1 - local_team].visible = active
-
-## Bring a runner back into the middle lap when it walks off the end of one.
-##
-## The whole of "seamless". The world is periodic, so subtracting exactly one
-## lap from a position puts the runner somewhere that looks identical -- same
-## ground under the feet, same scenery either side. The camera is moved by the
-## same amount in the same frame, or it would pan the full circuit's
-## pixels back and the join would read as a catapult.
-##
-## Nothing else is touched: velocity, state, the jump in progress and the coins
-## in hand all carry straight through, because as far as the runner is
-## concerned it did not happen.
-func _wrap_bodies() -> void:
 	for i in range(2):
-		var r := runners[i]
-		var was := r.global_position.x
-		var now := VersusStageData.wrap_x(was)
-		if is_equal_approx(was, now):
-			continue
-		var shift := now - was
-		r.global_position.x = now
-		if i == _view_team() and _camera != null:
-			_camera.global_position.x += shift
+		if i != local_team:
+			runners[i].visible = not waiting() and _seat_taken(VersusRoster.runner_seat(i))
+
+func can_move() -> bool:
+	if mode == Mode.SOLO:
+		return phase() != VersusMatch.Phase.OVER
+	return not waiting() and countdown_ticks() == 0 \
+		and phase() == VersusMatch.Phase.PLAYING
+
+## The lobby stops advertising the room once the countdown starts.
+func _mark_started() -> void:
+	if _marked_started or eos_room == null or host == null:
+		return
+	if host.playing or host.counting():
+		_marked_started = true
+		eos_room.mark_started()
 
 func _redraw() -> void:
 	queue_redraw()
@@ -612,8 +641,16 @@ func _observe(i: int, seq: int) -> VersusMatch.Seat:
 	s.strike_seq = seq
 	return s
 
+## Before and after play: where the runner stands, alive, and not acting.
+func _idle(i: int, seq: int) -> VersusMatch.Seat:
+	var s := _observe(i, seq)
+	s.alive = true
+	s.can_act = false
+	return s
+
 func _tick_solo(seqs: Array[int]) -> void:
-	_wrap_bodies()
+	if phase() == VersusMatch.Phase.OVER:
+		return
 	_apply_respawns()
 	_catch_deaths()
 	match_rules.step([_observe(0, seqs[0]), _observe(1, seqs[1])])
@@ -622,47 +659,39 @@ func _tick_solo(seqs: Array[int]) -> void:
 func _tick_host(seqs: Array[int]) -> void:
 	if host == null:
 		return
-	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
-			and phase() == VersusMatch.Phase.OVER:
-		host.step(_observe(0, seqs[0]))
-		return
-	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and not host.playing:
-		host.step(_observe(0, seqs[0]))
-		return
-	_wrap_bodies()
-	_apply_respawns()
-	_catch_deaths()
-	host.step(_observe(0, seqs[0]))
+	# The host keeps stepping in every phase: it is also the post office, and
+	# a host that stopped at the result screen stopped answering everyone.
+	var live := host.playing and phase() == VersusMatch.Phase.PLAYING
+	if live:
+		_apply_respawns()
+		_catch_deaths()
+	host.step(_observe(0, seqs[0]) if live else _idle(0, seqs[0]))
+	match_rules = host.match_rules
 	_sync_builds(host.builds, host.world_revision)
 	# The other runner is wherever its own machine says it is.
-	_place_puppet(1, host.match_rules.seats[1].position,
-		host.match_rules.seats[1].facing)
+	var other := host.reported_runner(1)
+	_place_puppet(1, other.position, other.facing)
 	_apply_events(host.out_events)
 
 func _tick_client(seqs: Array[int]) -> void:
 	if client == null:
 		return
-	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and waiting():
-		# The guest cannot simulate movement before START, but the host needs
-		# its spawn position and ALIVE state to start safely. A HELLO by itself
-		# is insufficient. Report an idle, non-acting runner while waiting.
-		var initial = null
-		if client.connected and local_team >= 0:
-			initial = _observe(local_team, 0)
-			initial.can_act = false
-			initial.strike_seq = 0
-		client.step(initial, _seat)
-		return
-	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
-			and phase() == VersusMatch.Phase.OVER:
-		client.step(null, _seat)
-		return
+	if client.epoch_changes != _seen_epoch_changes:
+		# A rematch: the host has started over, so this machine's own runner
+		# goes back to its start too, and whatever was built is gone.
+		_seen_epoch_changes = client.epoch_changes
+		_reset_bodies()
+		_built_revision = -1
 	var mine = null
 	if local_team >= 0:
-		_wrap_bodies()
-		_apply_respawns()
-		_catch_deaths_local()
-		mine = _observe(local_team, seqs[0])
+		if can_move():
+			_apply_respawns()
+			_catch_deaths_local()
+			mine = _observe(local_team, seqs[0])
+		elif client.connected:
+			# The host needs this runner's start and ALIVE state before the
+			# match can begin; a HELLO alone says nothing about the body.
+			mine = _idle(local_team, seqs[0])
 	client.step(mine, _seat)
 	_sync_builds_from_snapshot(client.builds, client.world_revision)
 	# Everyone the host describes and this machine does not own.
@@ -681,11 +710,7 @@ func _tick_client(seqs: Array[int]) -> void:
 ## steppy. A big jump is snapped, because that is a respawn rather than a walk.
 func _place_puppet(i: int, at: Vector2, facing: int) -> void:
 	var r := runners[i]
-	# In the lap nearest the camera. The position on the wire is wrapped into
-	# one lap, and dropping it there unchanged would put the other runner a
-	# whole circuit away whenever you were on the other side of the join.
-	var here := VersusStageData.nearest_image(at, _camera.global_position) \
-		if _camera != null else at
+	var here := at
 	if r.global_position.distance_to(here) > 240.0:
 		r.global_position = here
 	else:
@@ -753,76 +778,174 @@ func held_by(team: int) -> int:
 			n += 1
 	return n
 
-## What the map shows: both runners and every loose coin, each as a fraction
-## around the lap.
+## What the map shows: all four players' runners and every loose star, each as
+## a position across the whole arena (x01) and up it (y01, 0 = top).
 ##
 ## Data, not drawing. The HUD renders whatever this returns, which is what lets
-## a headless probe check the map's CONTENTS -- that the other runner is on it,
-## that the coins are -- without looking at a single pixel.
+## a headless probe check the map's CONTENTS -- that the other team is on it,
+## that the stars are -- without looking at a single pixel.
 func map_marks() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for c in coins():
 		if int(c["state"]) != ArenaCoin.State.WORLD:
 			continue
-		out.append({"kind": "coin", "team": -1,
-			"x01": VersusStageData.lap_fraction(Vector2(c["position"]).x)})
+		var at: Vector2 = c["position"]
+		out.append({"kind": "star", "team": -1, "world": at,
+			"x01": VersusStageData.lap_fraction(at.x),
+			"y01": VersusStageData.height_fraction(at.y)})
 	for i in range(2):
+		if not runners[i].visible:
+			continue
+		var at: Vector2 = runners[i].global_position
 		out.append({
 			"kind": "you" if i == _view_team() else "them",
 			"team": i,
-			"x01": VersusStageData.lap_fraction(runners[i].global_position.x),
+			"world": at,
+			"held": held_by(i),
+			"x01": VersusStageData.lap_fraction(at.x),
+			"y01": VersusStageData.height_fraction(at.y),
 		})
 	return out
 
-## Show the authenticated peer count, not the two locally spawned avatars.
+## The world rectangle currently on screen, for the HUD's edge arrows.
+func view_rect() -> Rect2:
+	if _camera == null:
+		return Rect2()
+	var size := get_viewport_rect().size / _camera.zoom
+	return Rect2(_camera.get_screen_center_position() - size * 0.5, size)
+
+## Everything on the map that is NOT on screen, with where on the screen's edge
+## to point at it: the other team's runner, your own when a guardian has lost
+## it, and loose stars. Also data, for the same reason as map_marks.
+func offscreen_marks() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var view := view_rect()
+	if view.size == Vector2.ZERO:
+		return out
+	var inner := view.grow(-24.0)
+	for mark in map_marks():
+		var at: Vector2 = mark["world"]
+		if inner.has_point(at):
+			continue
+		var centre := view.get_center()
+		var dir := (at - centre).normalized()
+		out.append({"kind": mark["kind"], "team": mark["team"], "dir": dir,
+			"distance": centre.distance_to(at)})
+	return out
+
+## Is seat N taken? The host knows its roster; a client knows the mask the
+## host sends in every snapshot.
+func _seat_taken(seat: int) -> bool:
+	if mode == Mode.SOLO:
+		return true
+	return (seat_mask() & (1 << seat)) != 0
+
+func seat_mask() -> int:
+	if mode == Mode.SOLO:
+		return 0x0F
+	if host != null:
+		return host.seat_mask()
+	return client.seat_mask if client != null else 0
+
+## Ticks of "3, 2, 1" left, or 0.
+func countdown_ticks() -> int:
+	if host != null:
+		return host.countdown
+	if client != null and client.phase == VersusProtocol.PHASE_COUNTDOWN:
+		return client.countdown
+	return 0
+
+## The machine that decides: the host, or the one machine of a solo test.
+func is_host() -> bool:
+	return mode != Mode.CLIENT
+
+## Show the room's state, not the two locally spawned avatars.
 func waiting_detail() -> String:
 	var code := room_code if not room_code.is_empty() else "------"
+	if not _link_error.is_empty():
+		return _link_error
 	if link != null and not link.last_error().is_empty():
-		return TranslationServer.translate("room %s · 通信エラー: %s") % [code, link.last_error()]
+		return TranslationServer.translate("通信エラー: %s") % link.last_error()
 	if not _relay_probe_detail.is_empty():
 		return "room %s · %s" % [code, _relay_probe_detail]
+	if link == null:
+		return TranslationServer.translate("オンラインに接続中…")
 	if mode == Mode.HOST:
 		if host == null:
-			return TranslationServer.translate("room %s · 中継に接続中（/room4を確認）") % code
-		if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and \
-				host.roster.can_play() and not host._reported.has(VersusRoster.SEAT_B_RUNNER):
-			return TranslationServer.translate("room %s · 2/2認証済み / 相手の初期位置を受信待ち") % code
-		return TranslationServer.translate("room %s · 参加認証 %d/2") % [code, host.roster.peers_filled()]
+			return TranslationServer.translate("部屋を準備中…")
+		if not host.roster.can_play():
+			return TranslationServer.translate("両チームのランナーがそろうと始められます")
+		return TranslationServer.translate("そろったら「スタート」を押してください")
 	if mode == Mode.CLIENT:
 		if client == null:
-			return TranslationServer.translate("room %s · 中継に接続中（/room4を確認）") % code
+			return TranslationServer.translate("部屋に接続中…")
 		if client.refused:
 			return client.refusal_reason if not client.refusal_reason.is_empty() \
-				else "入室拒否：APK・対戦モード・部屋番号を確認"
+				else TranslationServer.translate("入室できませんでした")
 		if not client.connected:
-			return TranslationServer.translate("room %s · ホストからの入室認証待ち") % code
+			return TranslationServer.translate("ホストの確認を待っています")
 		if not client.seen_world:
-			return TranslationServer.translate("room %s · 認証済み、状態の受信待ち") % code
-		return TranslationServer.translate("room %s · 認証済み、ホストの開始待ち") % code
+			return TranslationServer.translate("認証済み、状態の受信待ち")
+		return TranslationServer.translate("ホストのスタートを待っています")
 	return ""
+
+## Why the room stopped working, or "". Shown over play as well as over the
+## waiting screen: a host who leaves mid-match ends it for everyone.
+func link_error() -> String:
+	if not _link_error.is_empty():
+		return _link_error
+	if link != null:
+		return link.last_error()
+	return ""
+
+## One line per chair, for the waiting screen: who the room has and who it is
+## still waiting for.
+func seat_lines() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for seat in range(VersusRoster.SEATS):
+		out.append({"seat": seat, "team": VersusRoster.team_of(seat),
+			"runner": VersusRoster.role_of(seat) == VersusRoster.Role.RUNNER,
+			"taken": _seat_taken(seat), "you": seat == _seat})
+	return out
 
 func waiting() -> bool:
 	if mode == Mode.SOLO:
 		return false
 	if mode == Mode.HOST:
-		return host == null or not host.roster.can_play() or \
-			(room_mode == VersusRoster.RoomMode.DUEL_COMBINED and not host.playing)
-	return client == null or not client.connected or not client.seen_world or \
-		(room_mode == VersusRoster.RoomMode.DUEL_COMBINED and client.phase == 2)
+		return host == null or (not host.playing and not host.counting())
+	return client == null or not client.connected or not client.seen_world \
+		or client.phase == VersusProtocol.PHASE_WAITING
+
+## The host's start button: can it be pressed now?
+func can_start() -> bool:
+	return mode == Mode.HOST and host != null and not host.playing \
+		and not host.counting() and host.roster.can_play()
+
+func start_match() -> void:
+	if can_start():
+		host.request_start()
+
+## After a result: same room, same seats, a fresh match. Host (and solo) only;
+## everyone else follows the host's new epoch.
+func rematch() -> void:
+	if phase() != VersusMatch.Phase.OVER:
+		return
+	if mode == Mode.SOLO:
+		_start_solo()
+	elif mode == Mode.HOST and host != null:
+		if not host.restart_match():
+			return
+		match_rules = host.match_rules
+		_built.clear()
+		_build_owner.clear()
+		_built_revision = -1
+		_refresh_ground()
+		_reset_bodies()
 
 # ---------------------------------------------------------------- lives, deaths
 func _start_solo() -> void:
 	match_rules.setup(ArenaStage.new(_collision_rects()),
 		int(Time.get_ticks_usec() & 0x7fffffff))
-	_reset_bodies()
-
-func _restart_host() -> void:
-	host.start(link, ArenaStage.new(_collision_rects()), 0, room_mode)
-	match_rules = host.match_rules
-	_built.clear()
-	_build_owner.clear()
-	_built_revision = -1
-	_refresh_ground()
 	_reset_bodies()
 
 func _reset_bodies() -> void:
@@ -831,6 +954,7 @@ func _reset_bodies() -> void:
 	for i in range(2):
 		runners[i].respawn(starts[i])
 		runners[i].facing = facings[i]
+		runners[i].velocity = Vector2.ZERO
 		_respawn_in[i] = 0
 
 func _apply_events(events: Array) -> void:
@@ -890,9 +1014,7 @@ func _apply_respawns() -> void:
 		_respawn_in[i] -= 1
 		if _respawn_in[i] > 0:
 			continue
-		# The checkpoint behind where they died, which is 1-1's own answer.
-		# Sending someone back to the start of a sixteen-thousand-pixel stage
-		# for one mistake is a forfeit, not a rule.
+		# Back at their own team's start, a short run from anywhere.
 		runners[i].respawn(VersusStageData.respawn_for(i, _died_at[i]))
 		runners[i].facing = VersusStageData.start_facing()[i]
 
@@ -920,13 +1042,16 @@ func request_construct_undo() -> void:
 func leave_versus() -> void:
 	if link != null:
 		link.close()
+	elif eos_room != null:
+		eos_room.leave()
+	eos_room = null
 	VersusLaunch.clear()
 	get_tree().change_scene_to_file("res://src/main.tscn")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \
 			and event.physical_keycode == KEY_ESCAPE:
-		get_tree().quit(0)
+		leave_versus()
 
 # ---------------------------------------------------------------------- paint
 func _draw() -> void:
@@ -936,7 +1061,7 @@ func _draw() -> void:
 	_heads()
 	_strikes()
 
-## How many each runner is carrying, over their head. Pips, not a number: what
+## How many stars each runner is carrying, over their head. Pips, not a number: what
 ## you need at a glance is "more than them". World space, which is why it lives
 ## here and not in the HUD.
 func _heads() -> void:
@@ -949,9 +1074,17 @@ func _heads() -> void:
 		var pitch := 12.0
 		var x0 := centre.x - pitch * float(held - 1) * 0.5
 		for k in range(held):
-			var at := Vector2(x0 + pitch * float(k), y)
-			draw_circle(at, 4.5, COL_COIN)
-			draw_arc(at, 4.5, 0.0, TAU, 10, Color(0.25, 0.18, 0.04, 0.9), 1.2)
+			_star_shape(Vector2(x0 + pitch * float(k), y), 6.0, COL_COIN)
+
+func _star_shape(at: Vector2, r: float, fill: Color) -> void:
+	var pts := PackedVector2Array()
+	for k in range(10):
+		var rr := r if k % 2 == 0 else r * 0.45
+		var a := -PI * 0.5 + float(k) * TAU / 10.0
+		pts.append(at + Vector2(cos(a), sin(a)) * rr)
+	draw_colored_polygon(pts, fill)
+	pts.append(pts[0])
+	draw_polyline(pts, COL_COIN_EDGE, 1.5)
 
 func _builds() -> void:
 	for i in range(_built.size()):
@@ -989,8 +1122,7 @@ func _coins() -> void:
 			if left <= 90:
 				fill.a = 0.35 + 0.65 * absf(sin(float(left) * 0.25))
 		if not Balance.USE_3D:
-			draw_circle(at, 11.0, fill)
-			draw_arc(at, 11.0, 0.0, TAU, 16, COL_COIN_EDGE, 2.0)
+			_star_shape(at, 14.0, fill)
 		if c.has("pickup_tick") and world_tick() < int(c["pickup_tick"]):
 			draw_arc(at, 15.0, 0.0, TAU, 16, Color(1, 1, 1, 0.35), 1.0)
 

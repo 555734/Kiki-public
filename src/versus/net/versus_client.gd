@@ -27,12 +27,20 @@ var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 ## The last world the host described. Everything the scene draws that is not
 ## the local runner comes from here.
 var world_tick: int = 0
-var phase: int = VersusMatch.Phase.PLAYING
+var phase: int = VersusProtocol.PHASE_WAITING
 var winner: int = -1
 var coins: Array = []
 var runners: Array = []
 var builds: Array = []
 var world_revision: int = -1
+## Which match in this room the snapshots describe, and ticks of "3, 2, 1"
+## left before it starts. `epoch_changes` counts rematches so the scene can
+## reset its own runner exactly once for each.
+var epoch: int = 0
+var countdown: int = 0
+var epoch_changes: int = 0
+## Which seats the host says are taken (bit per seat).
+var seat_mask: int = 0
 ## True once a snapshot has ever arrived. Before that there is nothing to draw
 ## and the scene should say "waiting" rather than draw an empty world.
 var seen_world: bool = false
@@ -54,6 +62,10 @@ func start(link: VersusTransport, wanted_seat: int = -1,
 	seen_world = false
 	world_revision = -1
 	world_tick = 0
+	epoch = 0
+	countdown = 0
+	epoch_changes = 0
+	phase = VersusProtocol.PHASE_WAITING
 	builds.clear()
 	coins.clear()
 	runners.clear()
@@ -150,28 +162,61 @@ func _take_post() -> void:
 
 func _absorb(payload: PackedByteArray) -> void:
 	var s := VersusProtocol.read_snapshot(payload)
-	# Older than what we already have. Snapshots are unreliable and jitter
-	# reorders them, so a late one must not undo a newer one.
 	var next_tick := int(s["tick"])
 	var next_phase := int(s["phase"])
-	if not seen_world or next_phase != phase:
-		diagnostic.emit("SNAPSHOT tick=%d phase=%d (was=%d) coins=%d" % [
-			next_tick, next_phase, phase, s["coins"].size()])
-	# START may follow a waiting snapshot at the same game tick (zero), because
-	# the match clock is intentionally stopped while waiting. Never suppress
-	# that transition; equally, do not let a delayed waiting packet undo START.
-	if seen_world and (next_tick < world_tick or (next_tick == world_tick \
-			and (next_phase == phase or (phase != 2 and next_phase == 2)))):
+	var next_epoch := int(s["epoch"])
+	var next_countdown := int(s["countdown"])
+	if not seen_world or next_phase != phase or next_epoch != epoch:
+		diagnostic.emit("SNAPSHOT epoch=%d tick=%d phase=%d (was=%d) coins=%d" % [
+			next_epoch, next_tick, next_phase, phase, s["coins"].size()])
+	var new_match := seen_world and next_epoch != epoch
+	if new_match:
+		# A rematch restarts the tick from zero. Only a NEWER epoch counts;
+		# a late packet from the match before must still be refused.
+		var ahead := (next_epoch - epoch) & 0xFF
+		if ahead == 0 or ahead >= 128:
+			stale_dropped += 1
+			return
+	elif seen_world and _is_stale(next_tick, next_phase, next_countdown):
+		# Snapshots are unreliable and jitter reorders them, so a late one
+		# must not undo a newer one.
 		stale_dropped += 1
 		return
-	world_tick = int(s["tick"])
-	phase = int(s["phase"])
+	if new_match:
+		epoch_changes += 1
+	epoch = next_epoch
+	countdown = next_countdown
+	seat_mask = int(s["seat_mask"])
+	world_tick = next_tick
+	phase = next_phase
 	winner = int(s["winner"])
 	runners = s["runners"]
 	coins = s["coins"]
 	builds = s["builds"]
 	world_revision = int(s["world_revision"])
 	seen_world = true
+
+## Before the match the tick does not move, so "newer" there means further
+## along WAITING -> COUNTDOWN (counting down) -> PLAYING -> OVER.
+func _is_stale(next_tick: int, next_phase: int, next_countdown: int) -> bool:
+	if next_tick != world_tick:
+		return next_tick < world_tick
+	var was := _phase_order(phase)
+	var now := _phase_order(next_phase)
+	if now != was:
+		return now < was
+	if next_phase == VersusProtocol.PHASE_COUNTDOWN:
+		return next_countdown >= countdown
+	# The same pre-match or finished state again: nothing to learn, except
+	# while waiting, where who has arrived is still changing.
+	return next_phase != VersusProtocol.PHASE_WAITING
+
+static func _phase_order(p: int) -> int:
+	match p:
+		VersusProtocol.PHASE_WAITING: return 0
+		VersusProtocol.PHASE_COUNTDOWN: return 1
+		VersusMatch.Phase.PLAYING: return 2
+		_: return 3
 
 ## The collision world the host says exists, including whatever the guardians
 ## have built. A client needs it so its own runner stands on the same platforms

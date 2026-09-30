@@ -155,18 +155,18 @@ run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/arena_motion_
 step "boot the real stage headlessly"
 run_checked "$GODOT" --headless --path . --quit-after 240
 
-step "do the 1-1 coin match's rules hold"
-# The ledger is the whole of it: coins are neither created nor destroyed, and
+step "do the 2v2 star match's rules hold"
+# The ledger is the whole of it: stars are neither created nor destroyed, and
 # the score is derived from who holds what rather than counted separately. Also
-# measures the slice of 1-1 the mode is played on -- that both ends are open
-# pits, that every coin point has a floor under it, and that neither runner
-# starts nearer the middle coin than the other.
+# measures the arena built from 1-1's pieces -- that it is mirror-symmetric and
+# walled, that every star point has a floor under it, that seven held wins --
+# and that nothing on the versus path checks the purchase.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_probe.tscn
 
-step "does the 1-1 coin match actually play"
+step "does the 2v2 star match actually play"
 # The rules probe drives the rules with made-up observations and proves nothing
 # about the scene you launch. This builds the real thing -- two real Runners on
-# real 1-1 collision -- and walks one into the other. It caught three wiring
+# the real arena collision -- and walks one into the other. It caught three wiring
 # bugs the rules probe could not see, including nobody being able to touch a
 # coin for the first second of every match.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_play_probe.tscn
@@ -183,6 +183,12 @@ step "can both online runners move using real touch events"
 # Separate viewports and actual input dispatch catch an unused hub stealing
 # touches; writing intent fields directly cannot exercise that failure.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_touch_probe.tscn
+
+step "does a four-player room start, play, end and rematch"
+# Two runners and two guardians, four real scenes: the waiting room, the host's
+# start button, the countdown on every screen, a platform on all four, a win on
+# all four, and a rematch every screen follows.
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_team_probe.tscn
 
 step "boot the coin battle headlessly"
 # Not part of the cooperative launch path: run/main_scene is untouched and the

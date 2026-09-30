@@ -1,5 +1,5 @@
 extends Node
-## Do the 1-1 coin match's rules hold?
+## Do the 2v2 star match's rules hold? (The ledger calls stars coins.)
 ##
 ## The rules are a pure function of observations (VersusMatch.step), so they can
 ## be driven here with no runners, no physics server and no window -- which is
@@ -7,16 +7,12 @@ extends Node
 ## will rely on.
 ##
 ## Two things are checked that nothing else can check: that the coin ledger is
-## conserved on every tick of a long match, and that the slice of 1-1 the mode
-## is played on is actually a fair arena.
+## conserved on every tick of a long match, and that the arena built from
+## 1-1's pieces is actually a fair one.
 
 var failures: Array[String] = []
 var _current: String = ""
 
-## What 1-1 shipped with when the circuit's extra enemies were placed against
-## it. Written down rather than derived, so a change to 1-1 is a failure here
-## and not a silent re-balance of the versus circuit.
-const ONE_ONE_ENEMIES: int = 20
 
 func check(ok: bool, label: String) -> void:
 	if ok:
@@ -28,8 +24,8 @@ func check(ok: bool, label: String) -> void:
 func _ready() -> void:
 	_test_the_stage()
 	_test_random_spawns()
-	_test_the_loop()
-	_test_the_enemies()
+	_test_the_rules()
+	_test_free_for_everyone()
 	await _test_the_map()
 	_test_conservation()
 	_test_stealing()
@@ -37,7 +33,7 @@ func _ready() -> void:
 
 	print("versus probe: %d checks failed" % failures.size())
 	if failures.is_empty():
-		print("the 1-1 coin match holds")
+		print("the 2v2 star match holds")
 		get_tree().quit(0)
 	else:
 		for f in failures:
@@ -45,67 +41,102 @@ func _ready() -> void:
 		get_tree().quit(1)
 
 # ------------------------------------------------------------------ the stage
-## The match is played on 1-1 itself, so what has to be checked is not the
-## shape of an arena -- it is that the coins, the starts and the respawns
-## landed somewhere sensible ON that stage, and that they were DERIVED from it
-## rather than written down beside it.
+## The arena is a competition map, so what has to hold is fairness: the two
+## halves mirror each other, every star point is over floor, the starts face
+## each other from opposite ends, and nothing gets out past the walls.
 func _test_the_stage() -> void:
 	_current = "the stage"
 	Stage.use(Stage.Which.GREENFIELD)
 	var world := _world()
+	var w := VersusStageData.WIDTH
+
+	check(w >= 2400.0 and w <= 4000.0,
+		"the arena is a few screens wide, not a course (%.0fpx)" % w)
+	check(Level01Data.ground()[-1].end.x == 16700.0,
+		"cooperative 1-1 still has its complete original ground")
+
+	# Mirror symmetry of every solid thing: floors, walls, blocks, conduits.
+	var solids: Array[Rect2] = VersusStageData.collision_rects()
+	var unmatched := 0
+	for r in solids:
+		var twin := Rect2(w - r.end.x, r.position.y, r.size.x, r.size.y)
+		var found := false
+		for o in solids:
+			if o.position.is_equal_approx(twin.position) and o.size.is_equal_approx(twin.size):
+				found = true
+				break
+		if not found:
+			unmatched += 1
+	check(unmatched == 0, "the arena is left-right symmetric (%d unmatched)" % unmatched)
 
 	var points := VersusStageData.coin_points()
-	check(points.size() >= 20,
-		"coins are spread the length of 1-1 (%d points)" % points.size())
-
-	# Every one has to be over ground. A coin generated above a gap falls into
-	# the pit the moment it appears and the match quietly loses it.
+	check(points.size() >= 12, "stars have many places to appear (%d points)" % points.size())
 	var homeless: Array[Vector2] = []
 	for p in points:
-		if world.floor_below(p, 260.0) == INF:
+		if world.floor_below(p, 120.0) == INF \
+				or world.overlaps(Rect2(p - Vector2(12, 12), Vector2(24, 24))):
 			homeless.append(p)
 	check(homeless.is_empty(),
-		"every coin point has 1-1's floor under it (%d without)" % homeless.size())
-
-	# And spread out: a dozen coins on top of each other is one coin.
+		"every star point is clear of solids with floor under it (%d bad)" % homeless.size())
 	var closest := INF
 	for i in range(points.size()):
 		for k in range(i + 1, points.size()):
 			closest = minf(closest, points[i].distance_to(points[k]))
-	check(closest > 120.0,
-		"and no two are within 120px of each other (closest %.0f)" % closest)
-
-	var span := 0.0
+	check(closest >= 50.0, "and no two share a spot (closest %.0f)" % closest)
+	var left := 0
+	var right := 0
 	for p in points:
-		span = maxf(span, p.x)
-	print("    %d coin points, reaching x=%.0f of 1-1's %.0f"
-		% [points.size(), span, Level01Data.goal().x])
-	check(span > VersusStageData.STEP_FROM * 0.8 and span < VersusStageData.STEP_FROM,
-		"they reach the far end of the stage, not just the start")
-	check(VersusStageData.LOOP_SPAN == 13000.0,
-		"versus circuit is shortened from 19000px to 13000px")
-	check(Level01Data.ground()[-1].end.x == 16700.0,
-		"cooperative 1-1 still has its complete original ground")
+		if p.x < w * 0.5 - 1.0:
+			left += 1
+		elif p.x > w * 0.5 + 1.0:
+			right += 1
+	check(left == right, "as many star points on each half (%d / %d)" % [left, right])
+	var in_home := 0
+	for p in points:
+		if p.x < VersusStageData.STAR_HOME_CLEAR or p.x > w - VersusStageData.STAR_HOME_CLEAR:
+			in_home += 1
+	check(in_home == 0, "no star point in front of either team's start")
 
-	# Both runners start together, on the ground, at 1-1's own start. Neither
-	# gets a head start: the whole stage is ahead of both of them.
 	var starts := VersusStageData.start_positions()
-	check(absf(starts[0].x - starts[1].x) < 80.0
-			and starts[0].y == starts[1].y,
-		"the two runners start side by side")
+	var facings := VersusStageData.start_facing()
+	check(is_equal_approx(starts[0].x, w - starts[1].x) and starts[0].y == starts[1].y,
+		"the two teams start at mirrored ends")
+	check(facings[0] == 1 and facings[1] == -1, "facing each other")
 	for i in range(2):
-		check(world.floor_below(starts[i], 400.0) < INF,
-			"runner %d starts over ground" % (i + 1))
+		check(world.floor_below(starts[i], 60.0) < INF,
+			"team %s starts on the ground" % ["A", "B"][i])
+		check(VersusStageData.respawn_for(i, Vector2(1600.0, 0.0)) == starts[i],
+			"and comes back at its own start")
 
-	# Respawn is 1-1's own checkpoint behind you, not the start of the stage.
-	var late := Vector2(11000.0, 0.0)
-	var back := VersusStageData.respawn_for(0, late)
-	check(back.x > 8000.0 and back.x < late.x,
-		"dying at x=11000 sends you to the checkpoint behind you (%.0f)" % back.x)
-	check(VersusStageData.respawn_for(0, Vector2(100.0, 0.0)) == Stage.start(),
-		"and dying before the first one sends you to the start")
+	# Walls: nothing gets out sideways.
+	var wall_l := world.overlaps(Rect2(Vector2(-20.0, 200.0), Vector2(10.0, 10.0)))
+	var wall_r := world.overlaps(Rect2(Vector2(w + 10.0, 200.0), Vector2(10.0, 10.0)))
+	var wall_high := world.overlaps(Rect2(Vector2(-20.0, -1000.0), Vector2(10.0, 10.0)))
+	check(wall_l and wall_r and wall_high, "both ends are walled, and walled high")
+	check(VersusStageData.extra_enemies().is_empty(), "the arena has no enemies")
+	check(VersusStageData.wrap_x(-500.0) > 0.0 and VersusStageData.wrap_x(w + 500.0) < w,
+		"a star knocked against a wall stays inside the field")
 
-# -------------------------------------------------------------------- the loop
+	# Everything is reachable: every block top is within a held jump of
+	# something below it (the runner's measured held jump is ~133px).
+	var tops: Array[Rect2] = VersusStageData.floors()
+	var blocks: Array[Rect2] = VersusStageData.solid_decor()
+	var unreachable := 0
+	for b in blocks:
+		var best := INF
+		for s in tops + blocks:
+			if s == b:
+				continue
+			if s.position.y <= b.position.y:
+				continue
+			var horizontal := maxf(0.0, maxf(s.position.x - b.end.x, b.position.x - s.end.x))
+			if horizontal > 220.0:
+				continue
+			best = minf(best, s.position.y - b.position.y)
+		if best > 125.0:
+			unreachable += 1
+	check(unreachable == 0, "every block row is one jump above something (%d not)" % unreachable)
+
 func _test_random_spawns() -> void:
 	_current = "random spawns"
 	var world := ArenaStage.new(VersusStageData.collision_rects())
@@ -118,6 +149,7 @@ func _test_random_spawns() -> void:
 	var same := true
 	var different := 0
 	var regions: Dictionary = {}
+	var heights: Dictionary = {}
 	var previous := Vector2(INF, INF)
 	var safe := true
 	var repeats := 0
@@ -126,19 +158,20 @@ func _test_random_spawns() -> void:
 		same = same and p == replay._free_point()
 		if p != other._free_point():
 			different += 1
-		regions[int(p.x / (VersusStageData.STEP_FROM / 4.0))] = true
+		regions[int(p.x / (VersusStageData.WIDTH / 4.0))] = true
+		heights[int(p.y / 100.0)] = true
 		if p.distance_to(previous) < 48.0:
 			repeats += 1
 		previous = p
-		safe = safe and p.x < VersusStageData.STEP_FROM \
+		safe = safe and VersusStageData.in_bounds(p) \
 			and world.floor_below(p, 80.0) != INF \
 			and not world.overlaps(Rect2(p - Vector2(12, 12), Vector2(24, 24)))
 	check(same, "same host seed reproduces the spawn sequence")
-	check(different > 90, "different match seeds change actual spawn positions")
-	check(regions.size() == 4, "random spawns reach all four quarters of the course")
-	check(repeats == 0, "successive spawns do not repeat the same region")
-	check(safe, "all random spawns are clear of solids and above retained ground")
-	# Exercise actual top-up, not only the selector, with existing loose coins.
+	check(different > 80, "different match seeds change actual spawn positions (%d)" % different)
+	check(regions.size() == 4, "random stars reach all four quarters of the arena")
+	check(heights.size() >= 3, "and several heights, block tops included (%d)" % heights.size())
+	check(repeats == 0, "successive stars do not repeat the same spot")
+	check(safe, "all random stars are clear of solids and above floor")
 	var actors := _seats()
 	for actor in actors:
 		actor.alive = false
@@ -148,218 +181,45 @@ func _test_random_spawns() -> void:
 	for coin in first.ledger.coins:
 		if coin.state == ArenaCoin.State.WORLD:
 			loose.append(coin.position)
-	check(loose.size() == VersusRules.ON_FIELD, "random top-up keeps three loose coins")
-	check(first.ledger.conserved(), "random top-up preserves the 18-coin ledger")
+	check(loose.size() == VersusRules.ON_FIELD,
+		"random top-up keeps %d stars loose" % VersusRules.ON_FIELD)
+	check(first.ledger.conserved(),
+		"random top-up preserves the %d-star ledger" % VersusRules.COIN_TOTAL)
 
-## Is the circuit actually seamless, and does the match measure around it?
-func _test_the_loop() -> void:
-	_current = "the loop"
-	Stage.use(Stage.Which.GREENFIELD)
-	# TWO laps, which is what the game builds either side of the join. One lap
-	# alone stops at LOOP_TO and the plateau you walk onto belongs to the next
-	# one -- the first version of this check asked a one-lap world what was
-	# under x=17425 and was told, correctly, nothing.
-	var two: Array[Rect2] = []
-	for lap in [0, 1]:
-		for r in VersusStageData.lap_ground():
-			two.append(Rect2(r.position
-				+ Vector2(VersusStageData.LOOP_SPAN * float(lap), 0.0), r.size))
-	var world := ArenaStage.new(two)
+func _test_the_rules() -> void:
+	_current = "the rules"
+	check(VersusRules.WIN_AT == 7, "seven stars held wins")
+	check(VersusRules.COIN_TOTAL > VersusRules.WIN_AT,
+		"there are more stars than it takes to win (%d)" % VersusRules.COIN_TOTAL)
 
-	# The join has to be FLAT. Walk the surface from 1-1's last ledge, across
-	# the steps this mode adds, onto the next lap's plateau, and measure every
-	# change in height along the way.
-	var surface: Array[float] = []
-	var gaps := 0
-	var x := VersusStageData.STEP_FROM - 100.0
-	while x <= VersusStageData.LOOP_TO + 400.0:
-		var top := world.floor_below(Vector2(x, -200.0), 1400.0)
-		if top == INF:
-			gaps += 1
-		else:
-			surface.append(top)
-		x += 25.0
-	check(gaps == 0, "there is ground the whole way across the join (%d holes)" % gaps)
-	if surface.size() < 2:
-		return
-	var worst := 0.0
-	for i in range(1, surface.size()):
-		worst = maxf(worst, absf(surface[i] - surface[i - 1]))
-	print("    biggest step across the join: %.0fpx" % worst)
-	check(worst <= 60.0,
-		"nothing on the join is more than a 60px step (worst %.0f)" % worst)
-
-	# And the last step meets the next lap's plateau at exactly the same
-	# height, so wrapping happens on level ground.
-	var before := world.floor_below(
-		Vector2(VersusStageData.LOOP_TO - 40.0, -200.0), 1400.0)
-	var after := world.floor_below(
-		Vector2(VersusStageData.LOOP_TO + 40.0, -200.0), 1400.0)
-	check(is_equal_approx(before, after),
-		"the two ends of the lap are the same height (%.0f and %.0f)"
-			% [before, after])
-
-	# Wrapping is idempotent and lands inside one lap.
-	for probe_x in [-40000.0, -1600.1, 0.0, 17399.9, 17400.0, 40000.0]:
-		var once := VersusStageData.wrap_x(probe_x)
-		check(once >= VersusStageData.LOOP_FROM and once < VersusStageData.LOOP_TO,
-			"wrap_x(%.0f) lands inside the lap (%.0f)" % [probe_x, once])
-		check(is_equal_approx(VersusStageData.wrap_x(once), once),
-			"and wrapping it again changes nothing")
-
-	# The point of a loop: two runners either side of the join are next to each
-	# other, not eighteen thousand pixels apart.
-	var east := Vector2(VersusStageData.LOOP_TO - 10.0, 200.0)
-	var west := Vector2(VersusStageData.LOOP_FROM + 10.0, 200.0)
-	var seen := VersusStageData.nearest_image(west, east)
-	check(absf(seen.x - east.x) < 40.0,
-		"across the join, 20px apart reads as 20px (%.0f)" % absf(seen.x - east.x))
-	check(is_equal_approx(seen.y, west.y), "and the height is untouched")
-	# ...and it still gets ordinary distances right.
-	var near := Vector2(5000.0, 200.0)
-	check(VersusStageData.nearest_image(near, Vector2(5100.0, 200.0)) == near,
-		"a pair in the middle of the lap is left alone")
-
-	# A strike across the join has to land.
-	var m := _fresh()
-	var seats := _seats()
-	_park(seats, 0, east)
-	_park(seats, 1, west)
-	seats[0].facing = 1
-	_give(m, 1, [0])
-	m.step(seats)
-	seats[0].strike_seq += 1
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 6):
-		m.step(seats)
-	check(_held_of(m, 1, [0]) == 0,
-		"and a strike across the join takes the coin")
-
-# ----------------------------------------------------------------- the enemies
-## The extra enemies the circuit gets: are they standing on it, are they spread,
-## and did any of them leak into the cooperative stage?
-func _test_the_enemies() -> void:
-	_current = "the enemies"
-	Stage.use(Stage.Which.GREENFIELD)
-	var before := Stage.enemies().size()
-	var in_play := VersusStageData.circuit_enemies().size()
-	var extra := VersusStageData.extra_enemies()
-	print("    1-1 has %d enemies, %d of them inside the shorter circuit; it adds %d"
-		% [before, in_play, extra.size()])
-	check(extra.size() >= 8 and extra.size() <= 14,
-		"the circuit adds about ten enemies (%d)" % extra.size())
-
-	# The cooperative stage is untouched, checked against a NUMBER rather than
-	# against itself. The first version of this compared Stage.enemies().size()
-	# to a variable read from Stage.enemies() two lines earlier, so it could
-	# never fail -- a negative control that added an enemy to 1-1 sailed past
-	# it while the cooperative suite caught the same change three times over.
-	# The extras are placed by topping up whatever 1-1 leaves thin, so if 1-1's
-	# own population changes they need re-measuring, and this is what says so.
-	check(before == ONE_ONE_ENEMIES,
-		"and 1-1 itself still has exactly %d enemies (%d) -- the extras were "
-			% [ONE_ONE_ENEMIES, before] + "measured against that number")
-
-	var world := ArenaStage.new(VersusStageData.lap_ground())
-	var floating := 0
-	var buried := 0
-	var in_the_seam := 0
-	var at_the_start := 0
-	var turrets := 0
-	for e in extra:
-		var at: Vector2 = e["pos"]
-		var kind := String(e["type"])
-		if kind == "turret":
-			turrets += 1
-		# Against STEP_FROM and against written-down margins, NOT against the
-		# constants the placement reads. A negative control that widened
-		# EXTRA_SEAM_MARGIN until enemies stood past the join sailed past the
-		# first version of this, because it moved the check by exactly as much
-		# as it moved the placement. STEP_FROM is VersusLevelBuilder's own cut
-		# line: anything at or past it is freed before anybody sees it.
-		if at.x > VersusStageData.STEP_FROM - 200.0:
-			in_the_seam += 1
-		if at.x < 300.0:
-			at_the_start += 1
-		var top := world.floor_below(Vector2(at.x, -400.0), 1600.0)
-		if top == INF:
-			floating += 1
-			continue
-		if kind == "walker":
-			# The seating rule 1-1 uses: feet on the ledge, half a body above it.
-			var feet := at.y + VersusStageData.WALKER_FEET
-			if absf(feet - top) > 2.0:
-				buried += 1
-		elif at.y > top:
-			# A flyer below the floor it was hung from is inside the ground.
-			buried += 1
-
-	check(floating == 0, "every one of them has floor beneath it (%d without)" % floating)
-	check(buried == 0, "and is seated on it rather than in it (%d wrong)" % buried)
-	check(in_the_seam == 0, "none of them is at the join (%d)" % in_the_seam)
-	check(at_the_start == 0, "nor on top of the start (%d)" % at_the_start)
-	# Turrets read "the runner" singular as a range gate, so two machines would
-	# disagree about whether one is firing. Deliberately none.
-	check(turrets == 0, "and none of them is a turret (%d)" % turrets)
-
-	# Evenly, measured. Every bucket of the circuit that a runner plays through
-	# has to have something in it once the extras are added.
-	var counts: Dictionary = {}
-	var last := int(VersusStageData.extra_clear_seam() / VersusStageData.EXTRA_BUCKET)
-	for b in range(0, last + 1):
-		counts[b] = 0
-	for e in VersusStageData.circuit_enemies() + extra:
-		var at: Vector2 = e.get("pos", Vector2.ZERO)
-		var b := int(floor(at.x / VersusStageData.EXTRA_BUCKET))
-		if counts.has(b):
-			counts[b] = int(counts[b]) + 1
-	var empty := 0
-	var thinnest := 999
-	for b in counts.keys():
-		thinnest = mini(thinnest, int(counts[b]))
-		if int(counts[b]) == 0:
-			empty += 1
-	print("    thinnest %.0fpx stretch of the circuit now holds %d"
-		% [VersusStageData.EXTRA_BUCKET, thinnest])
-	check(empty == 0, "no stretch of the circuit is empty (%d empty)" % empty)
-	# Every stretch topped up to the target, not merely "not empty". Two of the
-	# ideal spots on this circuit sit over 1-1's gaps; before the placement was
-	# allowed to step off a gap and look for floor, the two stretches they were
-	# meant to fill stayed exactly as thin as they had been.
-	# Three, written down, not read from EXTRA_PER_BUCKET -- lowering the knob
-	# should fail this, not move it.
-	check(thinnest >= 3,
-		"and every one of them is topped up to three (thinnest %d)" % thinnest)
-
-	# Stepping off a gap is only safe if it cannot step INTO somebody. Measured
-	# against every enemy on the circuit, 1-1's own included.
-	var crowded := 0
-	var closest := 1e9
-	for e in extra:
-		var at: Vector2 = e["pos"]
-		for other in VersusStageData.circuit_enemies() + extra:
-			if other == e:
-				continue
-			var gap := absf(Vector2(other["pos"]).x - at.x)
-			closest = minf(closest, gap)
-			# 200px written down here rather than read from EXTRA_APART, for
-			# the same reason as the seam: a check that reads the constant it
-			# is checking cannot fail when that constant is wrong.
-			if gap < 200.0:
-				crowded += 1
-	print("    closest two enemies on the circuit stand %.0fpx apart" % closest)
-	check(crowded == 0, "no new enemy is standing within 200px of another (%d)"
-		% crowded)
-
-	# Same list every time, on every machine: nothing about these goes over the
-	# wire, so four machines agreeing depends on them being derived, not drawn.
-	var again := VersusStageData.extra_enemies()
-	var same := again.size() == extra.size()
-	if same:
-		for i in range(extra.size()):
-			if Vector2(again[i]["pos"]) != Vector2(extra[i]["pos"]) \
-					or String(again[i]["type"]) != String(extra[i]["type"]):
-				same = false
-	check(same, "and asking twice gives the same enemies in the same places")
+## Versus is free: a player who has not bought the full version can make a
+## room, join one and play all of it. Asserted on the code itself, so a gate
+## added anywhere on the versus path later fails here by name.
+func _test_free_for_everyone() -> void:
+	_current = "free for everyone"
+	var paths := [
+		"res://src/ui/versus_panel.gd",
+		"res://src/net/eos/eos_versus_lobby.gd",
+		"res://src/versus/net/versus_eos_transport.gd",
+		"res://src/versus/net/versus_host.gd",
+		"res://src/versus/net/versus_client.gd",
+		"res://src/versus/versus_main.gd",
+		"res://src/versus/versus_hud.gd",
+		"res://src/versus/versus_controls.gd",
+	]
+	var gated: Array[String] = []
+	for path in paths:
+		var code := FileAccess.get_file_as_string(path)
+		for word in ["Entitlement.", "can_host(", "can_play(which", "is_free("]:
+			if code.contains(word):
+				gated.append("%s uses %s" % [path.get_file(), word])
+	check(gated.is_empty(), "nothing on the versus path checks the purchase (%s)" % ", ".join(gated))
+	var menu := FileAccess.get_file_as_string("res://src/ui/net_panel.gd")
+	var entry := menu.find("func _on_versus()")
+	check(entry >= 0, "the stage screen has a versus entry")
+	var body := menu.substr(entry, menu.find("\nfunc ", entry + 1) - entry)
+	check(not body.contains("Entitlement"), "and it opens without a purchase check")
+	check(not menu.contains("_locked_actions.append(versus"), "and it is never locked")
 
 # --------------------------------------------------------------------- the map
 ## The map is data the HUD draws, so its CONTENTS can be checked here without
@@ -372,9 +232,9 @@ func _test_the_map() -> void:
 	for i in range(40):
 		await get_tree().physics_frame
 	var m: VersusMatch = arena.match_rules
-	ArenaCoin.to_world(m.ledger.get_coin(0), Vector2(9000.0, 200.0), m.tick,
+	ArenaCoin.to_world(m.ledger.get_coin(0), Vector2(2600.0, 300.0), m.tick,
 		Vector2.ZERO, 0)
-	ArenaCoin.to_world(m.ledger.get_coin(1), Vector2(200.0, 300.0), m.tick,
+	ArenaCoin.to_world(m.ledger.get_coin(1), Vector2(700.0, 300.0), m.tick,
 		Vector2.ZERO, 0)
 	await get_tree().physics_frame
 
@@ -384,20 +244,35 @@ func _test_the_map() -> void:
 	for mark in marks:
 		kinds[String(mark["kind"])] = int(kinds.get(String(mark["kind"]), 0)) + 1
 		var f := float(mark["x01"])
-		if f < 0.0 or f > 1.0:
+		var g := float(mark["y01"])
+		if f < 0.0 or f > 1.0 or g < 0.0 or g > 1.0:
 			outside += 1
 	check(kinds.has("you") and int(kinds["you"]) == 1, "the map shows you, once")
 	check(kinds.has("them") and int(kinds["them"]) == 1, "and the other runner")
-	check(int(kinds.get("coin", 0)) >= 2,
-		"and every coin on the ground (%d)" % int(kinds.get("coin", 0)))
-	check(outside == 0, "with everything placed inside the bar (%d outside)" % outside)
+	check(int(kinds.get("star", 0)) >= 2,
+		"and every star on the ground (%d)" % int(kinds.get("star", 0)))
+	check(outside == 0, "with everything placed inside the map (%d outside)" % outside)
 
-	# A coin at the far end of the lap must not read as being at the near end.
-	var far := VersusStageData.lap_fraction(VersusStageData.STEP_FROM - 200.0)
+	var far := VersusStageData.lap_fraction(VersusStageData.WIDTH - 200.0)
 	var near := VersusStageData.lap_fraction(200.0)
-	check(far > near + 0.5,
-		"the far end of the lap is drawn far along the bar (%.2f vs %.2f)"
-			% [far, near])
+	check(far > near + 0.8,
+		"the far end is drawn at the far side of the map (%.2f vs %.2f)" % [far, near])
+	check(VersusStageData.height_fraction(VersusStageData.FLOOR_TOP) >
+			VersusStageData.height_fraction(180.0),
+		"and a block top is drawn above the floor")
+
+	# The far star is off screen from team A's start, so it gets an edge arrow
+	# pointing right; the other runner, at the far end, gets one too.
+	var arrows: Array = arena.offscreen_marks()
+	var right_star := false
+	var them := false
+	for mark in arrows:
+		if String(mark["kind"]) == "star" and Vector2(mark["dir"]).x > 0.5:
+			right_star = true
+		if String(mark["kind"]) == "them" and Vector2(mark["dir"]).x > 0.5:
+			them = true
+	check(right_star, "an off-screen star gets an edge arrow pointing at it")
+	check(them, "and so does the other team's runner, at the far end")
 	arena.queue_free()
 	await get_tree().physics_frame
 
@@ -455,10 +330,10 @@ func _test_stealing() -> void:
 	# rather than to the attacker.
 	var m := _fresh()
 	var seats := _seats()
-	# On 1-1's ledge at x=7840..8500, clear of any generated coin point so the
-	# spawner does not hand these runners coins the test did not.
-	_park(seats, 0, Vector2(8000.0, 200.0))
-	_park(seats, 1, Vector2(8045.0, 200.0))
+	# In team A's home strip, where no star is ever generated, so the spawner
+	# does not hand these runners stars the test did not.
+	_park(seats, 0, Vector2(200.0, 377.0))
+	_park(seats, 1, Vector2(245.0, 377.0))
 	seats[0].facing = 1
 	_give(m, 1, [0, 1, 2])
 	m.step(seats)
@@ -476,10 +351,10 @@ func _test_stealing() -> void:
 	# Nothing to take from an empty-handed victim, and no crash.
 	m = _fresh()
 	seats = _seats()
-	# On 1-1's ledge at x=7840..8500, clear of any generated coin point so the
-	# spawner does not hand these runners coins the test did not.
-	_park(seats, 0, Vector2(8000.0, 200.0))
-	_park(seats, 1, Vector2(8045.0, 200.0))
+	# In team A's home strip, where no star is ever generated, so the spawner
+	# does not hand these runners stars the test did not.
+	_park(seats, 0, Vector2(200.0, 377.0))
+	_park(seats, 1, Vector2(245.0, 377.0))
 	m.step(seats)
 	seats[0].strike_seq += 1
 	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
@@ -490,10 +365,10 @@ func _test_stealing() -> void:
 	# saved up for the moment they recover.
 	m = _fresh()
 	seats = _seats()
-	# On 1-1's ledge at x=7840..8500, clear of any generated coin point so the
-	# spawner does not hand these runners coins the test did not.
-	_park(seats, 0, Vector2(8000.0, 200.0))
-	_park(seats, 1, Vector2(8045.0, 200.0))
+	# In team A's home strip, where no star is ever generated, so the spawner
+	# does not hand these runners stars the test did not.
+	_park(seats, 0, Vector2(200.0, 377.0))
+	_park(seats, 1, Vector2(245.0, 377.0))
 	_give(m, 1, [0])
 	seats[0].can_act = false
 	seats[0].strike_seq += 1
@@ -508,8 +383,8 @@ func _test_stealing() -> void:
 	# Death returns the whole hand and destroys none of it.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 0, Vector2(7360.0, 200.0))
-	_park(seats, 1, Vector2(8200.0, 200.0))
+	_park(seats, 0, Vector2(150.0, 377.0))
+	_park(seats, 1, Vector2(3050.0, 377.0))
 	m.step(seats)
 	_give(m, 0, [0, 1, 2, 3])
 	m.note_death(0)
@@ -531,10 +406,10 @@ func _test_stealing() -> void:
 	# without this a runner could be stripped while they were untouchable.
 	m = _fresh()
 	seats = _seats()
-	# On 1-1's ledge at x=7840..8500, clear of any generated coin point so the
-	# spawner does not hand these runners coins the test did not.
-	_park(seats, 0, Vector2(8000.0, 200.0))
-	_park(seats, 1, Vector2(8045.0, 200.0))
+	# In team A's home strip, where no star is ever generated, so the spawner
+	# does not hand these runners stars the test did not.
+	_park(seats, 0, Vector2(200.0, 377.0))
+	_park(seats, 1, Vector2(245.0, 377.0))
 	seats[0].facing = 1
 	seats[1].invulnerable = true
 	_give(m, 1, [0])
@@ -550,8 +425,8 @@ func _test_winning() -> void:
 	_current = "winning"
 	var m := _fresh()
 	var seats := _seats()
-	_park(seats, 0, Vector2(6650.0, 160.0))
-	_park(seats, 1, Vector2(8170.0, 200.0))
+	_park(seats, 0, Vector2(200.0, 377.0))
+	_park(seats, 1, Vector2(3000.0, 377.0))
 	m.step(seats)
 	var ids: Array = []
 	for i in range(VersusRules.WIN_AT - 1):
