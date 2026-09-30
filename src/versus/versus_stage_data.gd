@@ -86,47 +86,146 @@ static func floors() -> Array[Rect2]:
 			out.append(r)
 	return out
 
-## Decor, in 1-1's own vocabulary. "blocks" and "conduit" are solid (read back
-## by solid_decor below, the same way Level01Data does it); the rest is scenery.
-static func decor() -> Array[Dictionary]:
+# ------------------------------------------------------------------- themes
+## Which stage's art the arena is painted in. The SHAPE never changes with it:
+## every rectangle anything collides with, every star point and every start
+## is the same in all three, so no stage is better for anybody and the wire
+## never has to carry geometry. Only what is drawn differs.
+const THEMES: Array[int] = [Stage.Which.GREENFIELD, Stage.Which.HORROR,
+	Stage.Which.SKYWARD_RUINS]
+static var theme: int = Stage.Which.GREENFIELD
+
+## Paint the arena as `which` from now on. Also points Stage at it, which is
+## what the sky, the terrain painter and the 3D view all read.
+static func use_theme(which: int) -> void:
+	theme = which if THEMES.has(which) else Stage.Which.GREENFIELD
+	Stage.use(theme)
+
+static func theme_label(which: int) -> String:
+	match which:
+		Stage.Which.HORROR: return "1-2 うつろな村外れ"
+		Stage.Which.SKYWARD_RUINS: return "1-3 天空の遺跡"
+		_: return "1-1 みどりの草原"
+
+## The conduits, one either side, as the rectangle they occupy.
+const PIPE_SIZE := Vector2(46.0, 92.0)
+const PIPE_X: float = 560.0
+## How thick a floor is painted in 1-3, where the ground is floating islands.
+const ISLAND_THICKNESS: float = 150.0
+
+## Everything solid besides the floors and walls: the block rows and the two
+## conduits. The same in every theme.
+static func solid_decor() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for row in _block_rows():
+		out.append(Rect2(row["pos"], Vector2(BLOCK_CELL * float(row["count"]), BLOCK_CELL)))
+	for x in [PIPE_X, WIDTH - PIPE_X]:
+		out.append(Rect2(x - PIPE_SIZE.x * 0.5, FLOOR_TOP - PIPE_SIZE.y,
+			PIPE_SIZE.x, PIPE_SIZE.y))
+	return out
+
+## The block rows as {pos (top left), count}, mirrored.
+static func _block_rows() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for b in _LEFT_BLOCKS:
-		out.append({"type": "blocks", "pos": Vector2(b[0], b[1]),
-			"count": int(b[2]), "cell": BLOCK_CELL})
 		var width := BLOCK_CELL * float(b[2])
-		out.append({"type": "blocks", "pos": Vector2(WIDTH - b[0] - width, b[1]),
-			"count": int(b[2]), "cell": BLOCK_CELL})
+		out.append({"pos": Vector2(b[0], b[1]), "count": int(b[2])})
+		out.append({"pos": Vector2(WIDTH - b[0] - width, b[1]), "count": int(b[2])})
 	for b in _CENTRE_BLOCKS:
-		out.append({"type": "blocks", "pos": Vector2(b[0], b[1]),
-			"count": int(b[2]), "cell": BLOCK_CELL})
-	var pipe := Vector2(62, 88)
-	out.append({"type": "conduit", "pos": Vector2(560, FLOOR_TOP), "size": pipe})
-	out.append({"type": "conduit", "pos": Vector2(WIDTH - 560, FLOOR_TOP), "size": pipe})
-	out.append({"type": "tree", "pos": Vector2(60, FLOOR_TOP)})
-	out.append({"type": "tree", "pos": Vector2(WIDTH - 60, FLOOR_TOP)})
-	out.append({"type": "signpost", "pos": Vector2(260, FLOOR_TOP)})
-	out.append({"type": "signpost", "pos": Vector2(WIDTH - 260, FLOOR_TOP), "flip": true})
-	out.append({"type": "flowers", "pos": Vector2(960, STEP_TOP)})
-	out.append({"type": "flowers", "pos": Vector2(WIDTH - 960, STEP_TOP)})
-	out.append({"type": "flowers", "pos": Vector2(1400, FLOOR_TOP)})
-	out.append({"type": "flowers", "pos": Vector2(WIDTH - 1400, FLOOR_TOP)})
+		out.append({"pos": Vector2(b[0], b[1]), "count": int(b[2])})
+	return out
+
+## The slabs the terrain painter draws. 1-1 and 1-2 draw the collision floors
+## and walls themselves, down to the ground's base. 1-3 is islands in the sky:
+## each floor is drawn as an island of its own thickness, the block rows and
+## conduits become small islands, and the walls are drawn as stacked columns
+## (see decor) because an island painting has no body to stretch.
+static func painted_slabs() -> Array[Rect2]:
+	if theme != Stage.Which.SKYWARD_RUINS:
+		return ground()
+	var out: Array[Rect2] = []
+	for f in floors():
+		out.append(Rect2(f.position, Vector2(f.size.x, ISLAND_THICKNESS)))
+	out.append_array(solid_decor())
+	return out
+
+## Scenery and solid pieces in the current theme's own vocabulary. Solid kinds
+## are drawn exactly over solid_decor()'s rectangles; everything else is
+## scenery and collides with nothing.
+static func decor() -> Array[Dictionary]:
+	match theme:
+		Stage.Which.HORROR:
+			return _decor_horror()
+		Stage.Which.SKYWARD_RUINS:
+			return _decor_sky()
+		_:
+			return _decor_greenfield()
+
+static func _pairs(out: Array[Dictionary], kind: String, x: float, top: float,
+		extra: Dictionary = {}) -> void:
+	var left := {"type": kind, "pos": Vector2(x, top)}
+	left.merge(extra)
+	var right := left.duplicate()
+	right["pos"] = Vector2(WIDTH - x, top)
+	right["flip"] = not bool(extra.get("flip", false))
+	out.append(left)
+	out.append(right)
+
+static func _decor_greenfield() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for row in _block_rows():
+		out.append({"type": "blocks", "pos": row["pos"], "count": row["count"],
+			"cell": BLOCK_CELL})
+	for x in [PIPE_X, WIDTH - PIPE_X]:
+		out.append({"type": "conduit", "pos": Vector2(x, FLOOR_TOP), "size": PIPE_SIZE})
+	_pairs(out, "tree", 60.0, FLOOR_TOP)
+	_pairs(out, "signpost", 260.0, FLOOR_TOP)
+	_pairs(out, "flowers", 960.0, STEP_TOP)
+	_pairs(out, "flowers", 1400.0, FLOOR_TOP)
 	out.append({"type": "fence", "pos": Vector2(WIDTH * 0.5 - 100.0, FLOOR_TOP),
 		"width": 200.0})
 	return out
 
-static func solid_decor() -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for d in decor():
-		match String(d.get("type", "")):
-			"conduit":
-				var size: Vector2 = d.get("size", Vector2(90, 76))
-				var base: Vector2 = d["pos"]
-				out.append(Rect2(base.x - size.x * 0.5, base.y - size.y, size.x, size.y))
-			"blocks":
-				var cell: float = float(d.get("cell", BLOCK_CELL))
-				var n: int = int(d.get("count", 3))
-				var at: Vector2 = d["pos"]
-				out.append(Rect2(at.x, at.y, cell * float(n), cell))
+## 1-2: the same rows as crumbling ruin blocks, the conduits as two-block
+## stacks, and the village's graves, lanterns, banners and cart.
+static func _decor_horror() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for row in _block_rows():
+		out.append({"type": "ruin_blocks", "pos": row["pos"], "count": row["count"],
+			"cell": BLOCK_CELL})
+	for x in [PIPE_X, WIDTH - PIPE_X]:
+		for k in range(2):
+			out.append({"type": "ruin_blocks", "count": 1, "cell": BLOCK_CELL,
+				"pos": Vector2(x - PIPE_SIZE.x * 0.5, FLOOR_TOP - PIPE_SIZE.y + BLOCK_CELL * k)})
+	_pairs(out, "lantern", 70.0, FLOOR_TOP, {"scale": 0.8})
+	_pairs(out, "grave", 250.0, FLOOR_TOP, {"scale": 0.72})
+	_pairs(out, "banner", 800.0, STEP_TOP)
+	_pairs(out, "roots", 1150.0, STEP_TOP)
+	_pairs(out, "puddle", 700.0, FLOOR_TOP)
+	_pairs(out, "cart", 1380.0, FLOOR_TOP)
+	out.append({"type": "fence", "pos": Vector2(WIDTH * 0.5 - 100.0, FLOOR_TOP),
+		"width": 200.0})
+	return out
+
+## 1-3: islands (painted_slabs) with the ruins' trees, bushes, columns and an
+## arch; the walls are columns stacked to the top of the field.
+static func _decor_sky() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	_pairs(out, "tree", 70.0, FLOOR_TOP, {"size": Vector2(200, 230)})
+	_pairs(out, "sign", 260.0, FLOOR_TOP, {"size": Vector2(80, 90)})
+	_pairs(out, "bush", 960.0, STEP_TOP, {"size": Vector2(80, 60)})
+	_pairs(out, "flowers", 1400.0, FLOOR_TOP, {"size": Vector2(70, 50)})
+	_pairs(out, "tree_tall", 1100.0, STEP_TOP, {"size": Vector2(100, 200)})
+	out.append({"type": "arch", "pos": Vector2(WIDTH * 0.5, FLOOR_TOP),
+		"size": Vector2(220, 220)})
+	var column := Vector2(80.0, 190.0)
+	var y := GROUND_BASE
+	while y > WALL_TOP:
+		out.append({"type": "ruin_column", "pos": Vector2(LEFT - column.x * 0.5, y),
+			"size": column})
+		out.append({"type": "ruin_column", "pos": Vector2(RIGHT + column.x * 0.5, y),
+			"size": column})
+		y -= column.y - 10.0
 	return out
 
 ## Kept for the callers that used to ask for a lap: the arena IS the whole map.

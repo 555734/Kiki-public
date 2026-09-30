@@ -16,7 +16,7 @@ func build() -> void:
 	add_child(_static_root)
 
 	_terrain = preload("res://src/render/terrain.gd").new()
-	_terrain.slabs = VersusStageData.ground()
+	_terrain.slabs = VersusStageData.painted_slabs()
 	_static_root.add_child(_terrain)
 	_build_ground_bodies()
 

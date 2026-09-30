@@ -19,6 +19,8 @@ signal diagnostic(message: String)
 var transport: VersusTransport = null
 var seat: int = -1
 var seed_value: int = 0
+## The host's arena theme (a Stage.Which), or -1 until the WELCOME.
+var stage: int = -1
 var connected: bool = false
 var refused: bool = false
 var refusal_reason: String = ""
@@ -56,6 +58,7 @@ func start(link: VersusTransport, wanted_seat: int = -1,
 	room_mode = selected_mode
 	transport = link
 	seat = -1
+	stage = -1
 	connected = false
 	refused = false
 	refusal_reason = ""
@@ -139,7 +142,7 @@ func _take_post() -> void:
 		var payload: PackedByteArray = packet["payload"]
 		match VersusProtocol.kind_of(payload):
 			VersusProtocol.Msg.WELCOME:
-				if payload.size() != 7:
+				if payload.size() != 8:
 					diagnostic.emit("WELCOME unexpected bytes=%d" % payload.size())
 					continue
 				var w := VersusProtocol.read_welcome(payload)
@@ -150,6 +153,7 @@ func _take_post() -> void:
 					continue
 				seat = int(w["seat"])
 				seed_value = int(w["seed"])
+				stage = int(w["stage"])
 				connected = true
 				diagnostic.emit("WELCOME confirmed seat=%d seed=%d mode=%d" % [
 					seat, seed_value, room_mode])

@@ -67,6 +67,11 @@ func _test_the_wire() -> void:
 		"and all five of its yes/no answers")
 	check(back["hp"] == 2 and back["strike_seq"] == 77,
 		"and the health and the strike count")
+	var w := VersusProtocol.read_welcome(VersusProtocol.welcome(5, 99, 2,
+		Stage.Which.SKYWARD_RUINS))
+	check(w["seat"] == 5 and w["seed"] == 99 and w["room_mode"] == 2
+			and w["stage"] == Stage.Which.SKYWARD_RUINS,
+		"a welcome carries the chair, the seed, the mode and the host's stage")
 
 	var runners: Array = []
 	for i in range(2):

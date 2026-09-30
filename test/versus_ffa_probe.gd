@@ -25,6 +25,9 @@ class FfaScene extends "res://src/versus/versus_main.gd":
 		room_mode = VersusRoster.RoomMode.FREE_FOR_ALL
 		room_code = "345678"
 		_seat = 0 if mode == Mode.HOST else -1
+		# The host picked 1-2; the guests start in the default and must
+		# follow it from the WELCOME.
+		_theme = Stage.Which.HORROR if mode == Mode.HOST else Stage.Which.GREENFIELD
 		_set_local_team()
 	func _open_link(_as_host: bool) -> void:
 		var test_link := TestLink.new()
@@ -61,6 +64,7 @@ func _ready() -> void:
 	panel._update_mode()
 	check(panel._room_mode() == VersusRoster.RoomMode.TEAM_SPLIT and panel._seat.visible,
 		"and 2対2 still asks which chair")
+	check(panel._stage.item_count == 3, "and offers 1-1, 1-2 and 1-3")
 	panel.queue_free()
 	links = VersusLoopback.mesh(PEOPLE, 0.04)
 	for i in range(PEOPLE):
@@ -88,6 +92,11 @@ func _ready() -> void:
 			and s.controls.duel and s.runners.size() == 8
 	check(ready, "each person drives their own one of eight runners, build palette included")
 	check(host.can_start(), "three people is enough to start")
+	var followed := true
+	for sc in scenes:
+		followed = followed and sc.theme() == Stage.Which.HORROR
+	check(followed and Stage.current() == Stage.Which.HORROR,
+		"every guest repainted the arena as the host's 1-2")
 	var hidden := true
 	for i in range(PEOPLE, 8):
 		hidden = hidden and not scenes[1].runners[i].visible

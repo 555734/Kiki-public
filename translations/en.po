@@ -1023,3 +1023,24 @@ msgstr "%d stars"
 
 msgid "スターを さきに %d こ"
 msgstr "First to hold %d stars"
+
+msgid "ステージ："
+msgstr "Stage: "
+
+msgid "1-1 みどりの草原"
+msgstr "1-1 Greenfield Plains"
+
+msgid "1-2 うつろな村外れ"
+msgstr "1-2 The Hollow Outskirts"
+
+msgid "1-3 天空の遺跡"
+msgstr "1-3 The Skyward Ruins"
+
+msgid "無料版でも すべて あそべます（ステージも すべて）"
+msgstr "Fully playable in the free version, every stage included"
+
+msgid "部屋に入る人は ステージを えらばなくても、部屋を作った人の ステージになります"
+msgstr "Joining players play on the stage the room's creator chose"
+
+msgid "こうげきを うけると スターを 1こ おとす。"
+msgstr "A hit knocks one star loose."

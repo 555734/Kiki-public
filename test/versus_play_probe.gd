@@ -124,6 +124,29 @@ func _test_striking() -> void:
 	await _test_the_pit()
 	await _test_the_walls()
 	_test_no_enemies()
+	await _test_repaint()
+
+## Repainting as 1-3 mid-scene (what a guest does on the WELCOME) changes the
+## art and nothing a runner stands on.
+func _test_repaint() -> void:
+	_current = "repaint as 1-3"
+	var r: Runner = arena.runners[0]
+	r.global_position = VersusStageData.start_positions()[0]
+	r.velocity = Vector2.ZERO
+	await _tick(20)
+	arena._apply_theme(Stage.Which.SKYWARD_RUINS)
+	await _tick(30)
+	check(Stage.current() == Stage.Which.SKYWARD_RUINS and arena.theme() == Stage.Which.SKYWARD_RUINS,
+		"the arena is now painted as 1-3")
+	check(r.on_ground() and r.global_position.y < VersusStageData.kill_y(),
+		"and the runner is still standing on the same floor")
+	var before := r.global_position.x
+	for i in range(30):
+		arena.input.hubs[0].drive_runner(1.0, 0.0, false, false)
+		await get_tree().physics_frame
+	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
+	check(r.global_position.x > before + 50.0, "and can walk on it")
+	arena._apply_theme(Stage.Which.GREENFIELD)
 
 ## The arena is built from 1-1's pieces but not from its course: no enemy of
 ## 1-1's is in the scene, so no machine simulates one the others do not see.

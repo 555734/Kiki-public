@@ -27,6 +27,7 @@ func _ready() -> void:
 	_test_the_rules()
 	_test_free_for_everyone()
 	_test_many_sides()
+	_test_themes()
 	await _test_the_map()
 	_test_conservation()
 	_test_stealing()
@@ -282,6 +283,58 @@ func _test_many_sides() -> void:
 	m.step(seats)
 	check(m.phase == VersusMatch.Phase.OVER and m.winner == 2,
 		"seven held by one person wins it for that person")
+
+## 1-1, 1-2 and 1-3 are the same arena painted three ways. Nothing anybody
+## collides with, no star point and no start may differ between them, or the
+## stage choice would change the match and the guests (who repaint when the
+## WELCOME arrives) would briefly disagree with the host about the world.
+func _test_themes() -> void:
+	_current = "stage themes"
+	VersusStageData.use_theme(Stage.Which.GREENFIELD)
+	var solids := VersusStageData.collision_rects()
+	var points := VersusStageData.coin_points()
+	var starts := VersusStageData.start_positions()
+	for which in VersusStageData.THEMES:
+		VersusStageData.use_theme(which)
+		var name := VersusStageData.theme_label(which)
+		check(Stage.current() == which, "%s: the stage art switches with it" % name)
+		check(VersusStageData.collision_rects() == solids
+				and VersusStageData.coin_points() == points
+				and VersusStageData.start_positions() == starts,
+			"%s: every collision rectangle, star point and start is the same" % name)
+		# Every floor's walkable top is painted, at exactly its height.
+		var painted := VersusStageData.painted_slabs()
+		var bare := 0
+		for f in VersusStageData.floors():
+			var covered := false
+			for p in painted:
+				if is_equal_approx(p.position.y, f.position.y) \
+						and p.position.x <= f.position.x + 0.5 and p.end.x >= f.end.x - 0.5:
+					covered = true
+			if not covered:
+				bare += 1
+		check(bare == 0, "%s: every floor is painted at its own height (%d bare)" % [name, bare])
+		# Every solid block row and conduit is drawn as something.
+		var hidden := 0
+		for r in VersusStageData.solid_decor():
+			var drawn := false
+			for p in painted:
+				if p.encloses(r):
+					drawn = true
+			for d in VersusStageData.decor():
+				var kind := String(d["type"])
+				var at: Vector2 = d["pos"]
+				if kind in ["blocks", "ruin_blocks"]:
+					var cell := float(d.get("cell", 46.0))
+					if Rect2(at, Vector2(cell * float(d.get("count", 1)), cell)).intersects(r):
+						drawn = true
+				elif kind == "conduit" and r.has_point(at - Vector2(0, 2)):
+					drawn = true
+			if not drawn:
+				hidden += 1
+		check(hidden == 0, "%s: every solid piece is visible (%d invisible)" % [name, hidden])
+		check(VersusStageData.decor().size() >= 8, "%s: and it has its own scenery" % name)
+	VersusStageData.use_theme(Stage.Which.GREENFIELD)
 
 ## Versus is free: a player who has not bought the full version can make a
 ## room, join one and play all of it. Asserted on the code itself, so a gate

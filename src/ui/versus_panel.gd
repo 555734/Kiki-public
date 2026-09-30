@@ -23,6 +23,9 @@ const JOIN_SEATS := [
 var _code: LineEdit = null
 var _seat: OptionButton = null
 var _mode: OptionButton = null
+## Which stage's art the arena is painted in. Used when making a room and for
+## the one-device test; a guest is shown the host's choice automatically.
+var _stage: OptionButton = null
 var _status: Label = null
 var _rules: Label = null
 var _host_button: Button = null
@@ -68,9 +71,18 @@ func _ready() -> void:
 	box.add_child(_mode)
 	_rules = _title("", 16, Color(1.0, 0.85, 0.35))
 	box.add_child(_rules)
-	box.add_child(_title("こうげきを うけると スターを 1こ おとす。ステージは 1-1 の くさはら。",
+	_stage = OptionButton.new()
+	for which in VersusStageData.THEMES:
+		_stage.add_item(tr("ステージ：") + tr(VersusStageData.theme_label(which)), which)
+	_stage.selected = 0
+	_stage.custom_minimum_size = Vector2(0, 50)
+	_stage.add_theme_font_size_override("font_size", 18)
+	box.add_child(_stage)
+	box.add_child(_title("こうげきを うけると スターを 1こ おとす。",
 		14, Color(0.72, 0.85, 0.95)))
-	box.add_child(_title("無料版でも すべて あそべます", 14, Color(0.60, 0.92, 0.70)))
+	box.add_child(_title("無料版でも すべて あそべます（ステージも すべて）", 14, Color(0.60, 0.92, 0.70)))
+	box.add_child(_title("部屋に入る人は ステージを えらばなくても、部屋を作った人の ステージになります",
+		13, Color(0.72, 0.85, 0.95)))
 
 	box.add_child(_spacer(6))
 	_host_button = _button("＋  部屋を作る", _on_host)
@@ -171,6 +183,9 @@ func _go(how: int, code: String, seat: int) -> void:
 	VersusLaunch.room_mode = _room_mode() if how != VersusLaunch.How.SOLO \
 		else VersusRoster.RoomMode.TEAM_SPLIT
 	VersusLaunch.link = VersusLaunch.Link.EOS
+	# A guest paints whatever the host chose; the WELCOME says which.
+	VersusLaunch.stage = _stage.get_item_id(_stage.selected) \
+		if how != VersusLaunch.How.JOIN else Stage.Which.GREENFIELD
 	get_tree().change_scene_to_file("res://src/versus/versus_main.tscn")
 
 # ------------------------------------------------------------------- widgets

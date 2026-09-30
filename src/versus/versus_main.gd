@@ -129,7 +129,8 @@ func _ready() -> void:
 		for r in runners:
 			r.set_physics_process(false)
 	if Balance.USE_3D:
-		add_child(load("res://src/render/three/world_view.gd").new())
+		_world_view = load("res://src/render/three/world_view.gd").new()
+		add_child(_world_view)
 
 var _layer: CanvasLayer = null
 
@@ -175,6 +176,7 @@ func _read_command_line() -> void:
 		_seat = clampi(VersusLaunch.seat, 0, 3)
 		room_mode = VersusLaunch.room_mode
 		use_eos = VersusLaunch.link == VersusLaunch.Link.EOS
+		_theme = VersusLaunch.stage
 		if not VersusLaunch.relay.is_empty():
 			_relay = VersusLaunch.relay
 	else:
@@ -191,6 +193,8 @@ func _read_command_line() -> void:
 				room_mode = VersusRoster.RoomMode.DUEL_COMBINED
 			elif arg == "--versus-ffa":
 				room_mode = VersusRoster.RoomMode.FREE_FOR_ALL
+			elif arg.begins_with("--versus-stage="):
+				_theme = int(arg.split("=", true, 1)[1])
 			elif arg.begins_with("--versus-relay="):
 				_relay = arg.split("=", true, 1)[1]
 	if mode == Mode.HOST:
@@ -238,10 +242,51 @@ func _collision_rects() -> Array[Rect2]:
 ## See VersusLevelBuilder: nothing of 1-1's course -- no enemy, no hazard --
 ## is built, so there is nothing each machine would simulate on its own.
 func _build_world() -> void:
-	Stage.use(Stage.Which.GREENFIELD)
+	if VersusLaunch.previous_stage < 0:
+		VersusLaunch.previous_stage = Stage.current()
+	VersusStageData.use_theme(_theme)
 	level = preload("res://src/versus/versus_level_builder.gd").new()
 	level.name = "Level"
 	add_child(level)
+
+## Which stage's art this arena is painted in. A guest starts in the default
+## and switches when the host's WELCOME says otherwise.
+var _theme: int = Stage.Which.GREENFIELD
+var _sky: Node = null
+var _world_view: Node = null
+
+## Repaint the arena as another stage. Only pictures change: every collision
+## rectangle, star point and start is the same in every theme, so the runners,
+## the match and the network carry on untouched.
+func _apply_theme(which: int) -> void:
+	if which == _theme and which == Stage.current():
+		return
+	_theme = which
+	VersusStageData.use_theme(which)
+	_debug("THEME stage=%d" % which)
+	var old_level := level
+	remove_child(old_level)
+	old_level.queue_free()
+	level = preload("res://src/versus/versus_level_builder.gd").new()
+	level.name = "Level"
+	add_child(level)
+	move_child(level, 0)
+	level.runner = runners[maxi(local_team, 0)]
+	level.input_hub = input.hubs[0]
+	level.build()
+	if _sky != null:
+		_sky.queue_free()
+	_sky = preload("res://src/render/sky.gd").new()
+	_sky.name = "Sky"
+	_sky.camera = _camera
+	add_child(_sky)
+	if _world_view != null:
+		_world_view.queue_free()
+		_world_view = load("res://src/render/three/world_view.gd").new()
+		add_child(_world_view)
+
+func theme() -> int:
+	return _theme
 
 func _finish_world() -> void:
 	level.runner = runners[maxi(local_team, 0)]
@@ -257,10 +302,10 @@ func _build_camera() -> void:
 	add_child(_camera)
 	_camera.make_current()
 
-	var sky := preload("res://src/render/sky.gd").new()
-	sky.name = "Sky"
-	sky.camera = _camera
-	add_child(sky)
+	_sky = preload("res://src/render/sky.gd").new()
+	_sky.name = "Sky"
+	_sky.camera = _camera
+	add_child(_sky)
 
 ## Follows YOUR runner, with the same lead and the same smoothing the
 ## cooperative camera uses -- a guardian is reading the road ahead of their own
@@ -613,6 +658,7 @@ func _network_ready() -> void:
 		host = VersusHost.new()
 		host.diagnostic.connect(_debug)
 		host.start(link, ArenaStage.new(_collision_rects()), 0, room_mode)
+		host.stage = _theme
 		match_rules = host.match_rules
 		_debug("HOST ready: peer=%d roster=%s" % [
 			link.local_peer(), host.roster.describe()])
@@ -737,6 +783,8 @@ func _tick_host(seqs: Array[int]) -> void:
 func _tick_client(seqs: Array[int]) -> void:
 	if client == null:
 		return
+	if client.connected and client.stage >= 0 and client.stage != _theme:
+		_apply_theme(client.stage)
 	if _seat < 0 and client.connected and client.seat >= 0:
 		_take_seat(client.seat)
 	if client.epoch_changes != _seen_epoch_changes:
@@ -1111,7 +1159,11 @@ func leave_versus() -> void:
 	elif eos_room != null:
 		eos_room.leave()
 	eos_room = null
+	# Back to the co-op stage that was selected before versus.
+	if VersusLaunch.previous_stage >= 0:
+		Stage.use(VersusLaunch.previous_stage)
 	VersusLaunch.clear()
+	VersusLaunch.previous_stage = -1
 	get_tree().change_scene_to_file("res://src/main.tscn")
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -25,6 +25,8 @@ var match_rules: VersusMatch = null
 var world: ArenaStage = null
 
 var seed_value: int = 0
+## Which stage's art the arena is painted in; told to every guest.
+var stage: int = Stage.Which.GREENFIELD
 var tick: int = 0
 ## False until the match is under way: while people are still arriving, and
 ## through the countdown. Nothing is scored and no star appears before it.
@@ -263,7 +265,7 @@ func _on_hello(from: int, payload: PackedByteArray) -> void:
 		from, seat, roster.peers_filled(), roster.describe()])
 	transport.send_to(from, VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,
-		VersusProtocol.welcome(seat, seed_value, roster.room_mode))
+		VersusProtocol.welcome(seat, seed_value, roster.room_mode, stage))
 	out_events.append({"kind": "seated", "seat": seat, "peer": from})
 
 func _on_input(from: int, payload: PackedByteArray) -> void:

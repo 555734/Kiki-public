@@ -31,7 +31,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 6 # Free-for-all rooms of up to eight; 2v2 star arena.
+const VERSION: int = 7 # Arena theme (1-1/1-2/1-3) in WELCOME; free-for-all rooms.
 
 ## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
 ## the host only; the rules engine never enters them.
@@ -90,19 +90,24 @@ static func read_hello(payload: PackedByteArray) -> Dictionary:
 	return {"version": b.get_u16(), "wanted_seat": b.get_8(),
 		"room_mode": b.get_u8()}
 
+## `stage` is which stage's art the host's arena is painted in (a
+## Stage.Which). The shape is the same in every theme, so this is only ever a
+## repaint on the guest's side.
 static func welcome(seat: int, match_seed: int,
-		room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> PackedByteArray:
+		room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT,
+		stage: int = Stage.Which.GREENFIELD) -> PackedByteArray:
 	var b := _buf(Msg.WELCOME)
 	b.put_u8(seat)
 	b.put_u32(match_seed)
 	b.put_u8(room_mode)
+	b.put_u8(stage)
 	return b.data_array
 
 static func read_welcome(payload: PackedByteArray) -> Dictionary:
 	var b := reader(payload)
 	b.get_u8()
 	return {"seat": b.get_u8(), "seed": b.get_u32(),
-		"room_mode": b.get_u8()}
+		"room_mode": b.get_u8(), "stage": b.get_u8()}
 
 static func full(reason: String = "") -> PackedByteArray:
 	var out := _buf(Msg.FULL).data_array
