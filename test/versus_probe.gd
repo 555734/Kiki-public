@@ -26,6 +26,7 @@ func _ready() -> void:
 	_test_random_spawns()
 	_test_the_rules()
 	_test_free_for_everyone()
+	_test_many_sides()
 	await _test_the_map()
 	_test_conservation()
 	_test_stealing()
@@ -191,6 +192,96 @@ func _test_the_rules() -> void:
 	check(VersusRules.WIN_AT == 7, "seven stars held wins")
 	check(VersusRules.COIN_TOTAL > VersusRules.WIN_AT,
 		"there are more stars than it takes to win (%d)" % VersusRules.COIN_TOTAL)
+
+## みんなで: eight sides, most of them empty or far away. A strike reaches
+## everyone in front of it, two strikes on one runner cost one star, the first
+## PERSON to seven wins, and an empty chair never takes part.
+func _test_many_sides() -> void:
+	_current = "free-for-all"
+	var starts := VersusStageData.start_positions()
+	check(starts.size() == 8, "there are eight starts")
+	var world := _world()
+	var mirrored := true
+	var grounded := true
+	var closest := INF
+	for i in range(starts.size()):
+		grounded = grounded and world.floor_below(starts[i], 60.0) < INF \
+			and not world.overlaps(Rect2(starts[i] - Balance.RUNNER_SIZE * 0.5, Balance.RUNNER_SIZE))
+		if i % 2 == 0:
+			mirrored = mirrored and is_equal_approx(starts[i].x, VersusStageData.WIDTH - starts[i + 1].x) \
+				and starts[i].y == starts[i + 1].y
+		for k in range(i + 1, starts.size()):
+			closest = minf(closest, starts[i].distance_to(starts[k]))
+	check(grounded, "every start stands on floor, inside nothing")
+	check(mirrored, "and they come in mirrored pairs")
+	check(closest > 200.0, "and nobody starts on top of anybody (closest %.0f)" % closest)
+
+	var numbers := VersusRules.numbers_for(VersusRoster.RoomMode.FREE_FOR_ALL, 8)
+	check(int(numbers["on_field"]) == 5 and VersusRules.ffa_on_field(2) == 2
+			and VersusRules.ffa_on_field(3) == 3,
+		"loose stars grow with the room (2 for two people, 5 for eight)")
+	var m := VersusMatch.new()
+	m.setup(world, 777, 8, numbers)
+	var seats: Array = []
+	for i in range(8):
+		var seat := VersusMatch.Seat.new()
+		seat.team = i
+		seat.position = starts[i]
+		seat.alive = i < 3       # three people in an eight-chair room
+		seat.can_act = seat.alive
+		seats.append(seat)
+	# Two victims side by side in front of one attacker, in the home strip
+	# where no star is generated.
+	seats[0].position = Vector2(150.0, 377.0)
+	seats[0].facing = 1
+	seats[1].position = Vector2(195.0, 377.0)
+	seats[2].position = Vector2(205.0, 377.0)
+	_give(m, 1, [0, 1])
+	_give(m, 2, [2, 3])
+	m.step(seats)
+	seats[0].strike_seq += 1
+	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
+		m.step(seats)
+	check(_held_of(m, 1, [0, 1]) == 1 and _held_of(m, 2, [2, 3]) == 1,
+		"one strike reaches both runners in front of it, one star each")
+	check(m.ledger.conserved(), "with the twenty-star ledger balanced")
+
+	# Two attackers, one victim, the same instant: one star, not two.
+	m = VersusMatch.new()
+	m.setup(world, 778, 8, numbers)
+	for s in seats:
+		s.strike_seq = 0
+	seats[0].position = Vector2(150.0, 377.0)
+	seats[0].facing = 1
+	seats[1].position = Vector2(195.0, 377.0)
+	seats[2].position = Vector2(240.0, 377.0)
+	seats[2].facing = -1
+	_give(m, 1, [0, 1, 2])
+	m.step(seats)
+	seats[0].strike_seq += 1
+	seats[2].strike_seq += 1
+	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
+		m.step(seats)
+	check(_held_of(m, 1, [0, 1, 2]) == 2,
+		"two strikes landing together on one runner cost one star")
+
+	# Seven held by one person wins; an empty chair never picks anything up.
+	m = VersusMatch.new()
+	m.setup(world, 779, 8, numbers)
+	var empty_took := false
+	for t in range(400):
+		m.step(seats)
+		for c in m.ledger.coins:
+			if c.state == ArenaCoin.State.HELD and c.owner >= 3:
+				empty_took = true
+	check(not empty_took, "empty chairs never pick a star up")
+	var ids: Array = []
+	for i in range(VersusRules.FFA_WIN_AT):
+		ids.append(10 + i)
+	_give(m, 2, ids)
+	m.step(seats)
+	check(m.phase == VersusMatch.Phase.OVER and m.winner == 2,
+		"seven held by one person wins it for that person")
 
 ## Versus is free: a player who has not bought the full version can make a
 ## room, join one and play all of it. Asserted on the code itself, so a gate

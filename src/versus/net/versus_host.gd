@@ -51,6 +51,12 @@ var out_events: Array[Dictionary] = []
 const SNAPSHOT_EVERY: int = 2       ## 30Hz over 60Hz physics, as the co-op does
 ## How many guardian constructs can exist at once, across both teams.
 const MAX_BUILDS: int = 12
+## Eight builders share one arena in a free-for-all, so a few more stand.
+const FFA_MAX_BUILDS: int = 16
+
+func max_builds() -> int:
+	return FFA_MAX_BUILDS if roster.room_mode == VersusRoster.RoomMode.FREE_FOR_ALL \
+		else MAX_BUILDS
 var _since_snapshot: int = 0
 
 func start(link: VersusTransport, collision: ArenaStage,
@@ -61,8 +67,9 @@ func start(link: VersusTransport, collision: ArenaStage,
 	seed_value = match_seed if match_seed != 0 \
 		else int(Time.get_ticks_usec() & 0x7fffffff)
 	match_rules = VersusMatch.new()
-	match_rules.setup(world, seed_value)
 	roster = VersusRoster.new(selected_mode)
+	match_rules.setup(world, seed_value, roster.side_count(),
+		VersusRules.numbers_for(selected_mode, 2))
 	# Nobody plays until the host says so (TEAM_SPLIT) or the other player has
 	# reported in (DUEL). Starting the moment the room opened handed the host
 	# free stars while the others were still typing the code.
@@ -102,7 +109,8 @@ func restart_match(ticks: int = VersusRules.COUNTDOWN_TICKS) -> bool:
 		return false
 	seed_value = int(Time.get_ticks_usec() & 0x7fffffff)
 	match_rules = VersusMatch.new()
-	match_rules.setup(world_without_builds(), seed_value)
+	match_rules.setup(world_without_builds(), seed_value, roster.side_count(),
+		VersusRules.numbers_for(roster.room_mode, roster.peers_filled()))
 	builds.clear()
 	world_revision += 1
 	_rebuild_world()
@@ -114,6 +122,10 @@ func restart_match(ticks: int = VersusRules.COUNTDOWN_TICKS) -> bool:
 	return true
 
 func _begin_countdown(ticks: int) -> void:
+	# How many stars lie loose depends on how many are playing, which is
+	# only known now.
+	match_rules.on_field = int(VersusRules.numbers_for(roster.room_mode,
+		roster.peers_filled())["on_field"])
 	countdown = maxi(ticks, 0)
 	if countdown == 0:
 		playing = true
@@ -154,8 +166,8 @@ func step(local: VersusMatch.Seat) -> void:
 		return
 
 	var observed: Array = []
-	for team in range(2):
-		var seat := VersusRoster.runner_seat(team)
+	for team in range(match_rules.sides):
+		var seat := roster.side_runner_seat(team)
 		observed.append(_seat_for(seat, team))
 
 	match_rules.step(observed)
@@ -170,12 +182,12 @@ func step(local: VersusMatch.Seat) -> void:
 ## Where a team's runner is, as far as the host knows: its last report, or
 ## its start if it has not reported yet.
 func reported_runner(team: int) -> VersusMatch.Seat:
-	return _seat_for(VersusRoster.runner_seat(team), team)
+	return _seat_for(roster.side_runner_seat(team), team)
 
 ## Bit N set when seat N is taken.
 func seat_mask() -> int:
 	var mask := 0
-	for seat in range(VersusRoster.SEATS):
+	for seat in range(roster.seat_count()):
 		if roster.peer_at(seat) != -1:
 			mask |= 1 << seat
 	return mask
@@ -210,6 +222,14 @@ func _take_post() -> void:
 				diagnostic.emit("BYE peer=%d" % from)
 				var vacated := roster.vacate(from)
 				_reported.erase(vacated)
+				# Whatever the leaver was holding goes back into play rather
+				# than staying in an empty chair's hand for the rest of the
+				# match.
+				if vacated >= 0 and roster.is_runner(vacated):
+					var side := roster.side_of(vacated)
+					if side < match_rules.sides:
+						match_rules.return_hand(side)
+						match_rules.seats[side].alive = false
 				if roster.room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
 					playing = false
 
@@ -255,10 +275,10 @@ func _on_input(from: int, payload: PackedByteArray) -> void:
 	# peer is. Otherwise anyone on the link can report a position for anyone.
 	if not roster.owns_seat(from, seat):
 		return
-	if VersusRoster.role_of(seat) != VersusRoster.Role.RUNNER:
+	if not roster.is_runner(seat):
 		return
 	var s := VersusMatch.Seat.new()
-	s.team = VersusRoster.team_of(seat)
+	s.team = roster.side_of(seat)
 	s.position = m["position"]
 	s.facing = int(m["facing"])
 	s.alive = bool(m["alive"])
@@ -283,7 +303,7 @@ func _on_command(from: int, payload: PackedByteArray) -> void:
 	var seat := int(c["seat"])
 	if not roster.owns_seat(from, seat):
 		return
-	if VersusRoster.role_of(seat) != VersusRoster.Role.GUARDIAN:
+	if not roster.can_build(seat):
 		return
 	var slot := int(c["slot"])
 	if slot == 0:
@@ -296,13 +316,13 @@ func _on_command(from: int, payload: PackedByteArray) -> void:
 ## platform is a real floor for both teams the moment it appears, not a picture
 ## on one screen.
 func place_build(seat: int, at: Vector2, slot: int = 1) -> bool:
-	if VersusRoster.role_of(seat) != VersusRoster.Role.GUARDIAN or slot not in [1, 2]:
+	if not roster.can_build(seat) or slot not in [1, 2]:
 		return false
 	if is_nan(at.x) or is_nan(at.y) or is_inf(at.x) or is_inf(at.y):
 		return false
 	if not VersusStageData.in_bounds(at):
 		return false
-	if builds.size() >= MAX_BUILDS:
+	if builds.size() >= max_builds():
 		# A cap, so two guardians cannot pave the arena between them. The oldest
 		# goes, which also makes a platform a temporary thing to plan around
 		# rather than a permanent change to the map.
@@ -340,7 +360,7 @@ func _rebuild_world() -> void:
 
 func _broadcast_snapshot() -> void:
 	var runners: Array = []
-	for team in range(2):
+	for team in range(match_rules.sides):
 		# Before play the rules have not adopted anyone's position yet, so
 		# describe what each runner last reported (or its start).
 		var s: VersusMatch.Seat = match_rules.seats[team] if playing \

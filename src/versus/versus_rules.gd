@@ -64,3 +64,37 @@ const CAMERA_ZOOM: float = 1.2
 ## corner of the map for the rest of the match.
 const STALE_TICKS: int = 600
 const RECYCLE_TICKS: int = 45
+
+# ------------------------------------------------------------ free-for-all
+## みんなで: every person one character, everyone against everyone, two to
+## eight of them. The first PERSON holding this many wins.
+const FFA_WIN_AT: int = 7
+## More stars in the pool than 2v2: with eight hands holding some, seven has
+## to stay reachable for one of them.
+const FFA_COIN_TOTAL: int = 20
+## Loose stars grow with the room: two for two or three people, up to five
+## for eight, so nobody spends a match with nothing to go for.
+static func ffa_on_field(players: int) -> int:
+	return clampi(1 + int(ceil(float(players) / 2.0)), 2, 5)
+
+## The numbers a match is set up with, for a mode and a head count.
+static func numbers_for(room_mode: int, players: int) -> Dictionary:
+	if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
+		return {"win_at": FFA_WIN_AT, "coin_total": FFA_COIN_TOTAL,
+			"on_field": ffa_on_field(players)}
+	return {"win_at": WIN_AT, "coin_total": COIN_TOTAL, "on_field": ON_FIELD}
+
+## One colour per chair in a free-for-all. Picked to stay apart from each
+## other and from 1-1's green and sky: blue, orange, pink, yellow, violet,
+## teal, red, white.
+const PLAYER_COLOURS: Array = [
+	Color(0.30, 0.74, 1.0), Color(1.0, 0.55, 0.26), Color(1.0, 0.45, 0.78),
+	Color(1.0, 0.88, 0.25), Color(0.66, 0.50, 1.0), Color(0.25, 0.88, 0.72),
+	Color(0.95, 0.25, 0.28), Color(0.94, 0.95, 0.98),
+]
+
+## A side's colour in this mode: a team's in 2v2 and 1v1, a person's here.
+static func colour_of(room_mode: int, side: int) -> Color:
+	if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
+		return PLAYER_COLOURS[clampi(side, 0, PLAYER_COLOURS.size() - 1)]
+	return ArenaRules.TEAM_COLOURS[clampi(side, 0, 1)]

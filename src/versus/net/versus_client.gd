@@ -97,7 +97,7 @@ func step(local, wanted_seat: int = -1) -> void:
 			_say_hello(wanted_seat)
 		return
 
-	if local != null and VersusRoster.role_of(seat) == VersusRoster.Role.RUNNER:
+	if local != null and VersusRoster.is_runner_in(room_mode, seat):
 		var s: VersusMatch.Seat = local
 		transport.send_to(VersusTransport.HOST_PEER,
 			VersusTransport.Channel.INPUT,
@@ -111,8 +111,8 @@ func step(local, wanted_seat: int = -1) -> void:
 func request_build(at: Vector2, slot: int = 1) -> void:
 	if not connected:
 		return
-	var guardian_seat := seat + 1 if room_mode == VersusRoster.RoomMode.DUEL_COMBINED else seat
-	if VersusRoster.role_of(guardian_seat) != VersusRoster.Role.GUARDIAN:
+	var guardian_seat := VersusRoster.build_seat_in(room_mode, seat)
+	if not VersusRoster.can_build_in(room_mode, guardian_seat):
 		return
 	transport.send_to(VersusTransport.HOST_PEER,
 		VersusTransport.Channel.COMMAND,
@@ -124,8 +124,8 @@ func request_build(at: Vector2, slot: int = 1) -> void:
 func request_undo() -> void:
 	if not connected:
 		return
-	var guardian_seat := seat + 1 if room_mode == VersusRoster.RoomMode.DUEL_COMBINED else seat
-	if VersusRoster.role_of(guardian_seat) != VersusRoster.Role.GUARDIAN:
+	var guardian_seat := VersusRoster.build_seat_in(room_mode, seat)
+	if not VersusRoster.can_build_in(room_mode, guardian_seat):
 		return
 	transport.send_to(VersusTransport.HOST_PEER,
 		VersusTransport.Channel.COMMAND,

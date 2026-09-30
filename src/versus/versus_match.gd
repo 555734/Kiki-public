@@ -66,6 +66,16 @@ var world: ArenaStage = null
 var combat: Array[ArenaCombat.CombatState] = []
 var seats: Array[Seat] = []
 
+## How many sides: two teams in 2v2 and 1v1, one per chair (eight) in a
+## free-for-all. An empty chair is a side whose runner is never alive, so it
+## is never hit, never picks up and never wins.
+var sides: int = 2
+## The numbers this match plays to (VersusRules for 2v2; the FFA_ ones for a
+## free-for-all, with the loose-star count set from how many are playing).
+var win_at: int = VersusRules.WIN_AT
+var coin_total: int = VersusRules.COIN_TOTAL
+var on_field: int = VersusRules.ON_FIELD
+
 ## Ticks until the next coin is allowed to appear.
 var _spawn_in: int = 0
 var _next_strike_id: int = 1
@@ -76,19 +86,26 @@ var _last_spawn_point := Vector2(INF, INF)
 ## Each is {"kind": ..., ...}: "hurt" (side), "died" (side), "pickup", "drop".
 var events: Array[Dictionary] = []
 
-func setup(collision: ArenaStage, match_seed: int = 20260920) -> void:
+func setup(collision: ArenaStage, match_seed: int = 20260920,
+		side_count: int = 2, numbers: Dictionary = {}) -> void:
 	world = collision
 	_rng.seed = match_seed
-	ledger = ArenaCoin.Ledger.new(VersusRules.COIN_TOTAL)
+	sides = maxi(side_count, 2)
+	win_at = int(numbers.get("win_at", VersusRules.WIN_AT))
+	coin_total = int(numbers.get("coin_total", VersusRules.COIN_TOTAL))
+	on_field = int(numbers.get("on_field", VersusRules.ON_FIELD))
+	ledger = ArenaCoin.Ledger.new(coin_total)
 	combat.clear()
 	seats.clear()
-	for i in range(2):
+	for i in range(sides):
 		combat.append(ArenaCombat.CombatState.new())
 		# No respawn invulnerability at the whistle: it also forbids acting, and
 		# starting a match unable to move is not what it is for.
 		combat[i].respawn_invuln = 0
 		var s := Seat.new()
 		s.team = i
+		# Nobody is in the match until the scene says so.
+		s.alive = i < 2
 		seats.append(s)
 	phase = Phase.PLAYING
 	tick = 0
@@ -115,7 +132,7 @@ func step(incoming: Array) -> void:
 	var delta := 1.0 / 60.0
 
 	# 1. adopt what the scene observed, and run the timers
-	for i in range(2):
+	for i in range(sides):
 		seats[i].position = incoming[i].position
 		seats[i].facing = incoming[i].facing
 		seats[i].can_act = incoming[i].can_act
@@ -130,7 +147,7 @@ func step(incoming: Array) -> void:
 		combat[i].hitstun = 0 if seats[i].can_act else 2
 
 	# 2. strikes begin
-	for i in range(2):
+	for i in range(sides):
 		if not seats[i].alive:
 			continue
 		if ArenaCombat.try_attack(combat[i], incoming[i].strike_seq, 0.0,
@@ -160,38 +177,50 @@ func step(incoming: Array) -> void:
 # --------------------------------------------------------------------- hits
 func _gather_hits() -> Array:
 	var out: Array = []
-	for a in range(2):
+	for a in range(sides):
 		if not seats[a].alive:
 			continue
 		var box := _strike_box(a)
 		if box.size == Vector2.ZERO:
 			continue
-		var v := 1 - a
-		if not seats[v].alive:
-			continue
-		var victim_at := seats[v].position
-		# The victim's own invulnerability, as the game reports it. Asking the
-		# combat state instead would be asking a second opinion: Runner is the
-		# one that will refuse the damage, so it has to be the one that decides
-		# whether the coin comes off.
-		if seats[v].invulnerable or combat[v].invulnerable():
-			continue
-		if combat[a].hit_this_attack.has(v):
-			continue
-		if not box.intersects(_body_at(victim_at), false):
-			continue
-		# Not through a floor. A strike from one ledge at a runner standing on
-		# the next has to actually reach.
-		if not world.line_clear(seats[a].position, victim_at):
-			continue
-		out.append({"attacker": a, "victim": v, "dir": combat[a].attack_dir})
+		for v in range(sides):
+			if v != a:
+				_try_hit(out, a, v, box)
 	return out
 
+## Would a's live strike box land on v this tick? Appends the hit if so.
+func _try_hit(out: Array, a: int, v: int, box: Rect2) -> void:
+	if not seats[v].alive:
+		return
+	var victim_at := seats[v].position
+	# The victim's own invulnerability, as the game reports it. Asking the
+	# combat state instead would be asking a second opinion: Runner is the
+	# one that will refuse the damage, so it has to be the one that decides
+	# whether the coin comes off.
+	if seats[v].invulnerable or combat[v].invulnerable():
+		return
+	if combat[a].hit_this_attack.has(v):
+		return
+	if not box.intersects(_body_at(victim_at), false):
+		return
+	# Not through a floor. A strike from one ledge at a runner standing on
+	# the next has to actually reach.
+	if not world.line_clear(seats[a].position, victim_at):
+		return
+	out.append({"attacker": a, "victim": v, "dir": combat[a].attack_dir})
+
 func _resolve_hits(hits: Array) -> void:
+	# One hit per victim per tick: two swings landing on the same runner in
+	# the same instant cost one star, not two. Both attackers still spend the
+	# swing on that victim.
+	var struck: Dictionary = {}
 	for h in hits:
 		var v: int = h["victim"]
 		var a: int = h["attacker"]
 		combat[a].hit_this_attack.append(v)
+		if struck.has(v):
+			continue
+		struck[v] = true
 		# The victim's swing is interrupted, so its remaining active frames do
 		# not land on a later tick. A trade is deliberately still a trade: both
 		# shapes were gathered above, from the same instant, before either was
@@ -237,7 +266,7 @@ func return_hand(side: int) -> void:
 		events.append({"kind": "return", "coin": r.coin_id, "side": side})
 
 func _resolve_falls() -> void:
-	for i in range(2):
+	for i in range(sides):
 		if not seats[i].alive:
 			continue
 		if VersusStageData.in_bounds(seats[i].position):
@@ -275,7 +304,7 @@ func _top_up() -> void:
 	if _spawn_in > 0:
 		_spawn_in -= 1
 		return
-	if ledger.count_in(ArenaCoin.State.WORLD) >= VersusRules.ON_FIELD:
+	if ledger.count_in(ArenaCoin.State.WORLD) >= on_field:
 		return
 	var r := ledger.next_unspawned()
 	if r == null:
@@ -327,7 +356,7 @@ func _resolve_pickups() -> void:
 			continue
 		var best := -1
 		var best_d := INF
-		for i in range(2):
+		for i in range(sides):
 			if not seats[i].alive or not seats[i].can_act:
 				continue
 			if not ArenaCoin.can_take(c, i, tick):
@@ -370,8 +399,8 @@ func _distance_to_body(at: Vector2, side: int) -> float:
 func _check_win() -> void:
 	if phase != Phase.PLAYING:
 		return
-	for team in range(2):
-		if score(team) >= VersusRules.WIN_AT:
+	for team in range(sides):
+		if score(team) >= win_at:
 			phase = Phase.OVER
 			winner = team
 			events.append({"kind": "win", "team": team})

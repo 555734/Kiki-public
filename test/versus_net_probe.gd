@@ -37,6 +37,7 @@ func _ready() -> void:
 	_test_build_revisions()
 	_test_start_and_rematch()
 	_test_eos_peer_ids()
+	_test_free_for_all()
 
 	print("versus net probe: %d checks failed" % failures.size())
 	if failures.is_empty():
@@ -729,3 +730,127 @@ func _test_eos_peer_ids() -> void:
 	check(VersusProtocol.bye(255).size() == 2
 			and VersusProtocol.kind_of(VersusProtocol.bye(255)) == VersusProtocol.Msg.BYE,
 		"a dropped client is reported to the host as a BYE")
+
+# ------------------------------------------------------------- free-for-all
+## みんなで: eight people in one room, each their own side, through a lossy
+## link. Chairs are handed out by the host, a ninth person is turned away,
+## every screen derives every person's stars exactly as the host does, each
+## builds from their own chair and nobody else's, and someone leaving gives
+## their stars back.
+func _test_free_for_all() -> void:
+	_current = "free-for-all"
+	var ffa := VersusRoster.RoomMode.FREE_FOR_ALL
+	var mesh := VersusLoopback.mesh(9, 0.03, 0.04, 0.01, 8888)
+	var host := VersusHost.new()
+	host.start(mesh[0], _world(), 1357, ffa)
+	check(not host.request_start(0), "one person cannot start a free-for-all")
+	var clients: Array[VersusClient] = []
+	for i in range(1, 9):
+		var c := VersusClient.new()
+		c.start(mesh[i], -1, ffa)
+		clients.append(c)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 97531
+	var delta := 1.0 / 60.0
+	for t in range(90):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_ffa_seat(0, t))
+		for i in range(clients.size()):
+			var c := clients[i]
+			clients[i].step(_ffa_seat(c.seat, t) if c.connected else null)
+	var seated: Dictionary = {}
+	var refused := 0
+	for c in clients:
+		if c.connected:
+			seated[c.seat] = true
+		elif c.refused:
+			refused += 1
+	check(seated.size() == 7 and not seated.has(0),
+		"seven guests get chairs 1-7 of their own (%d)" % seated.size())
+	check(refused == 1, "and a ninth person is told the room is full")
+	check(host.roster.can_play() and host.seat_mask() == 0xFF,
+		"eight chairs taken, and the room can start")
+	check(host.request_start(0), "the host starts it")
+
+	var truth: Dictionary = {}
+	var compared := 0
+	var disagreed := false
+	var best := 0
+	for t in range(1500):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_ffa_seat(0, t))
+		var row: Array = []
+		for side in range(8):
+			row.append(host.match_rules.score(side))
+			best = maxi(best, host.match_rules.score(side))
+		truth[host.match_rules.tick] = row
+		for c in clients:
+			c.step(_ffa_seat(c.seat, t) if c.connected else null)
+			if not c.connected or not c.seen_world or not truth.has(c.world_tick):
+				continue
+			var was: Array = truth[c.world_tick]
+			compared += 1
+			for side in range(8):
+				if c.score(side) != int(was[side]):
+					disagreed = true
+		if host.match_rules.phase != VersusMatch.Phase.PLAYING:
+			break
+	print("    %d comparisons, most stars held by anyone %d" % [compared, best])
+	check(best > 0 and compared > 1000, "stars changed hands among eight people")
+	check(not disagreed, "and every screen derived every person's stars as the host did")
+	check(host.match_rules.sides == 8 and host.match_rules.coin_total == VersusRules.FFA_COIN_TOTAL
+			and host.match_rules.on_field == VersusRules.ffa_on_field(8),
+		"the match was set up for eight sides and eight people's stars")
+	check(host.match_rules.ledger.conserved(), "with the ledger balanced")
+
+	# Building: each person from their own chair, never somebody else's.
+	var builder: VersusClient = null
+	for c in clients:
+		if c.connected:
+			builder = c
+			break
+	var before := host.builds.size()
+	builder.request_build(Vector2(1230.0, 150.0), 1)
+	var other_seat := (builder.seat % 7) + 1
+	mesh[clients.find(builder) + 1].send_to(0, VersusTransport.Channel.COMMAND,
+		VersusTransport.Reliability.RELIABLE,
+		VersusProtocol.command(other_seat, 0, 1, Vector2(1970.0, 150.0)))
+	for t in range(20):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_ffa_seat(0, t))
+		for c in clients:
+			c.step(null)
+	check(host.builds.size() == before + 1
+			and int(host.builds[host.builds.size() - 1]["seat"]) == builder.seat,
+		"a person builds from their own chair, and a forged chair is ignored")
+	check(host.place_build(0, Vector2(1600.0, 120.0), 2),
+		"the host player builds too")
+
+	# Leaving hands the stars back.
+	var leaver := builder.seat
+	ArenaCoin.to_held(host.match_rules.ledger.get_coin(19), leaver)
+	mesh[clients.find(builder) + 1].send_to(0, VersusTransport.Channel.CONTROL,
+		VersusTransport.Reliability.RELIABLE, VersusProtocol.bye(255))
+	for t in range(10):
+		for m in mesh:
+			m.advance(delta)
+		host.step(_ffa_seat(0, t))
+	check(host.roster.peer_at(leaver) == -1, "someone who leaves frees their chair")
+	check(host.match_rules.ledger.held_by(leaver).is_empty(),
+		"and the stars they held go back into play")
+
+## A person in a free-for-all standing on the star points in turn, offset by
+## their chair so eight of them are not all in one place.
+func _ffa_seat(seat: int, t: int) -> VersusMatch.Seat:
+	var s := VersusMatch.Seat.new()
+	s.team = seat
+	var points := VersusStageData.coin_points()
+	s.position = points[(int(t / 70) + seat * 3) % points.size()]
+	s.facing = 1 if seat % 2 == 0 else -1
+	s.alive = true
+	s.can_act = true
+	s.strike_seq = int(t / 300) if seat == 1 else 0
+	return s

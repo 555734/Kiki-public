@@ -69,14 +69,20 @@ func _star(at: Vector2, r: float, fill: Color, edge: Color = COL_STAR_EDGE) -> v
 ## Both teams' held stars as a row of seven slots each, along the top. Read
 ## from the ledger every frame; on a client the total is derived from the
 ## host's stars for the same reason.
+func _ffa() -> bool:
+	return arena.room_mode == VersusRoster.RoomMode.FREE_FOR_ALL
+
 func _scoreboard() -> void:
+	if _ffa():
+		_ranking()
+		return
 	var font := _font()
 	var w := _view().x
 	var panel := Rect2(Vector2(w * 0.5 - 330.0, 8.0), Vector2(660.0, 66.0))
 	draw_rect(panel, COL_PANEL)
 
 	for team in range(2):
-		var colour: Color = ArenaRules.TEAM_COLOURS[team]
+		var colour: Color = arena.colour_of(team)
 		var held: int = arena.score(team)
 		var label_x := panel.position.x + (14.0 if team == 0 else panel.size.x - 74.0)
 		draw_string(font, Vector2(label_x, panel.position.y + 42.0),
@@ -102,6 +108,50 @@ func _scoreboard() -> void:
 		line += "   ·   " + String(arena.status)
 	draw_string(font, panel.position + Vector2(0.0, 60.0), line,
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 14, COL_DIM)
+
+## Free-for-all: everyone in the room, most stars first, one row each. Seven star slots per row, so "how close is anybody to
+## winning" is a glance down the column.
+func _ranking() -> void:
+	var font := _font()
+	var rows: Array[Dictionary] = []
+	for line in arena.seat_lines():
+		if not bool(line["taken"]):
+			continue
+		var side := int(line["team"])
+		rows.append({"side": side, "held": arena.score(side), "you": bool(line["you"])})
+	rows.sort_custom(func(a, b):
+		if int(a["held"]) != int(b["held"]):
+			return int(a["held"]) > int(b["held"])
+		return int(a["side"]) < int(b["side"]))
+	# Top centre, two columns of four: clear of the 戻る button top left and
+	# the map top right, and never taller than four rows.
+	var w := _view().x
+	var col_w := 300.0
+	var panel := Rect2(Vector2(w * 0.5 - col_w, 6.0),
+		Vector2(col_w * 2.0, 24.0 + 24.0 * float(mini(rows.size(), 4))))
+	draw_rect(panel, COL_PANEL)
+	draw_string(font, panel.position + Vector2(0.0, 18.0),
+		TranslationServer.translate("スターを さきに %d こ") % VersusRules.FFA_WIN_AT,
+		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 14, COL_DIM)
+	for i in range(rows.size()):
+		var row: Dictionary = rows[i]
+		var side := int(row["side"])
+		var x := panel.position.x + col_w * float(i / 4)
+		var y := panel.position.y + 22.0 + 24.0 * float(i % 4)
+		var colour := arena.colour_of(side) as Color
+		if bool(row["you"]):
+			draw_rect(Rect2(Vector2(x + 2.0, y), Vector2(col_w - 4.0, 22.0)),
+				Color(1, 1, 1, 0.12))
+		draw_circle(Vector2(x + 16.0, y + 11.0), 7.0, colour)
+		draw_string(font, Vector2(x + 28.0, y + 17.0),
+			("P%d" % (side + 1)) + (TranslationServer.translate("（あなた）") if bool(row["you"]) else ""),
+			HORIZONTAL_ALIGNMENT_LEFT, 110.0, 15, COL_INK)
+		for k in range(VersusRules.FFA_WIN_AT):
+			var at := Vector2(x + 140.0 + float(k) * 21.0, y + 11.0)
+			if k < int(row["held"]):
+				_star(at, 8.0, COL_STAR)
+			else:
+				_star(at, 8.0, Color(1, 1, 1, 0.10), Color(1, 1, 1, 0.30))
 
 ## The whole arena in miniature, top right: the floors, every runner and every
 ## loose star. The field is small enough to fit in one glance, and this is the
@@ -132,11 +182,11 @@ func _map() -> void:
 			"star":
 				_star(at, 5.0, COL_STAR)
 			"them":
-				var them: Color = ArenaRules.TEAM_COLOURS[int(mark["team"])]
+				var them: Color = arena.colour_of(int(mark["team"]))
 				draw_circle(at, 5.0, them)
 				draw_arc(at, 5.0, 0.0, TAU, 10, Color(0, 0, 0, 0.7), 1.5)
 			"you":
-				var you: Color = ArenaRules.TEAM_COLOURS[int(mark["team"])]
+				var you: Color = arena.colour_of(int(mark["team"]))
 				draw_circle(at, 6.5, you)
 				draw_arc(at, 6.5, 0.0, TAU, 12, COL_INK, 2.0)
 
@@ -158,7 +208,7 @@ func _edge_arrows() -> void:
 		var at := centre + dir * minf(tx, ty)
 		var kind := String(mark["kind"])
 		var fill: Color = COL_STAR if kind == "star" \
-			else ArenaRules.TEAM_COLOURS[int(mark["team"])]
+			else arena.colour_of(int(mark["team"]))
 		var size := 13.0 if kind == "star" else 18.0
 		var side := dir.orthogonal()
 		var tip := at + dir * size
@@ -184,7 +234,8 @@ func _waiting() -> void:
 		Vector2(600.0, 250.0))
 	draw_rect(panel, COL_PANEL)
 	draw_rect(panel, COL_DIM, false, 2.0)
-	var title := TranslationServer.translate("2対2 スターたいせん")
+	var title := TranslationServer.translate("みんなで スターたいせん") if _ffa() \
+		else TranslationServer.translate("2対2 スターたいせん")
 	draw_string(font, panel.position + Vector2(0.0, 44.0), title,
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 30, COL_INK)
 	var code := String(arena.room_code)
@@ -197,13 +248,17 @@ func _waiting() -> void:
 		2: "Bチーム ランナー", 3: "Bチーム ガーディアン",
 	}
 	var lines: Array[Dictionary] = arena.seat_lines()
+	if _ffa():
+		_ffa_seats(panel, lines)
 	for line in lines:
+		if _ffa():
+			break
 		var seat := int(line["seat"])
 		var col := seat / 2
 		var row := seat % 2
 		var at := panel.position + Vector2(40.0 + float(col) * 280.0,
 			120.0 + float(row) * 30.0)
-		var colour: Color = ArenaRules.TEAM_COLOURS[int(line["team"])]
+		var colour: Color = arena.colour_of(int(line["team"]))
 		draw_circle(at + Vector2(8.0, -6.0), 7.0,
 			colour if bool(line["taken"]) else Color(1, 1, 1, 0.15))
 		var text := TranslationServer.translate(names[seat])
@@ -216,9 +271,26 @@ func _waiting() -> void:
 		String(arena.waiting_detail()), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 17,
 		COL_INK)
 	draw_string(font, panel.position + Vector2(0.0, 234.0),
-		TranslationServer.translate("ランナーは スターを あつめて、ガーディアンは 足場と壁で たすける"),
+		TranslationServer.translate("ひとり1キャラ。はしって、足場と壁も じぶんで つくる") if _ffa()
+			else TranslationServer.translate("ランナーは スターを あつめて、ガーディアンは 足場と壁で たすける"),
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 14, COL_DIM)
 	_debug_trace()
+
+## Eight chairs in two rows of four: who is here, in their colour.
+func _ffa_seats(panel: Rect2, lines: Array[Dictionary]) -> void:
+	var font := _font()
+	for line in lines:
+		var seat := int(line["seat"])
+		var at := panel.position + Vector2(36.0 + float(seat % 4) * 138.0,
+			120.0 + float(seat / 4) * 30.0)
+		var taken := bool(line["taken"])
+		draw_circle(at + Vector2(8.0, -6.0), 7.0,
+			arena.colour_of(seat) if taken else Color(1, 1, 1, 0.15))
+		var text := "P%d" % (seat + 1)
+		if bool(line["you"]):
+			text += TranslationServer.translate("（あなた）")
+		draw_string(font, at + Vector2(22.0, 0.0), text,
+			HORIZONTAL_ALIGNMENT_LEFT, 120.0, 17, COL_INK if taken else COL_DIM)
 
 ## Deliberately legible in a screenshot: users can report what the link said,
 ## not just a generic 'waiting' state. Editor builds only.
@@ -272,12 +344,17 @@ func _result() -> void:
 	draw_rect(panel, COL_PANEL)
 	draw_rect(panel, COL_DIM, false, 2.0)
 	var who: int = arena.winner()
-	var tint: Color = ArenaRules.TEAM_COLOURS[who] if who >= 0 else COL_INK
-	draw_string(font, panel.position + Vector2(0.0, 70.0),
-		TranslationServer.translate("%s チームの かち") % ("A" if who == 0 else "B"),
+	var tint: Color = arena.colour_of(who) if who >= 0 else COL_INK
+	var headline := TranslationServer.translate("%s チームの かち") % ("A" if who == 0 else "B")
+	var line := "%d  -  %d" % [arena.score(0), arena.score(1)]
+	if _ffa():
+		headline = TranslationServer.translate("P%d の かち") % (who + 1)
+		if who == arena.local_team:
+			headline = TranslationServer.translate("あなたの かち！")
+		line = TranslationServer.translate("スター %d こ") % arena.score(who)
+	draw_string(font, panel.position + Vector2(0.0, 70.0), headline,
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 40, tint)
-	draw_string(font, panel.position + Vector2(0.0, 118.0),
-		"%d  -  %d" % [arena.score(0), arena.score(1)],
+	draw_string(font, panel.position + Vector2(0.0, 118.0), line,
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 28, COL_INK)
 	var note := "ホストが「もういちど」を押すと 再戦します" if not arena.is_host() \
 		else "「もういちど」で 同じメンバーで再戦"

@@ -154,13 +154,32 @@ static func height_fraction(y: float) -> float:
 static func kill_y() -> float:
 	return Level01Data.KILL_Y
 
-## Team A on the left, team B on the right, facing each other. Symmetric, so
-## neither side starts nearer the middle.
-static func start_positions() -> Array[Vector2]:
-	return [Vector2(160.0, FLOOR_TOP - 26.0), Vector2(WIDTH - 160.0, FLOOR_TOP - 26.0)]
+## Where each side starts, in side order: team A / B (or players 1 and 2) at
+## the two ends, then players 3-8 in mirrored pairs -- on the steps, beside
+## the conduits, and either side of the middle. Every left start has its
+## mirror image on the right, so no seat is nearer the middle than its twin.
+## The 2v2 and 1v1 modes only ever use the first two.
+const _LEFT_STARTS := [
+	[160.0, FLOOR_TOP],
+	[960.0, STEP_TOP],
+	[440.0, FLOOR_TOP],
+	[1440.0, FLOOR_TOP],
+]
 
+static func start_positions() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for p in _LEFT_STARTS:
+		out.append(Vector2(p[0], p[1] - 26.0))
+		out.append(Vector2(WIDTH - p[0], p[1] - 26.0))
+	return out
+
+## Left starts face right, right starts face left: towards the middle.
 static func start_facing() -> Array[int]:
-	return [1, -1]
+	var out: Array[int] = []
+	for i in range(_LEFT_STARTS.size()):
+		out.append(1)
+		out.append(-1)
+	return out
 
 ## Where stars may appear. Every surface a runner can stand on, sampled about
 ## every 180px, 40px above it -- the floors, the steps and the tops of the
@@ -192,11 +211,12 @@ static func coin_points() -> Array[Vector2]:
 			out.append(Vector2(x, s.position.y - 40.0))
 	return out
 
-## A runner who is out comes back at their own team's start. The field is
+## A runner who is out comes back at their own side's start. The field is
 ## small enough that this is a few seconds from anywhere, and it is the one
 ## place guaranteed not to be where the other team is standing.
 static func respawn_for(team: int, _from: Vector2 = Vector2.ZERO) -> Vector2:
-	return start_positions()[clampi(team, 0, 1)]
+	var starts := start_positions()
+	return starts[clampi(team, 0, starts.size() - 1)]
 
 ## Nothing extra: the arena has no enemies. Every machine would have had to
 ## simulate them independently (docs/versus-1v1-network-plan.md section 2),

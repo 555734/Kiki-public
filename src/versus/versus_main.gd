@@ -16,12 +16,12 @@ const COL_COIN_EDGE := Color(0.62, 0.45, 0.10)
 ## Drawn nearly solid: the first version was translucent and vanished against
 ## 1-1's bright grass, which made a platform something you found by walking
 ## into it.
-static func build_fill(team: int) -> Color:
-	var c: Color = ArenaRules.TEAM_COLOURS[team]
+func build_fill(team: int) -> Color:
+	var c: Color = colour_of(team)
 	return Color(c.r, c.g, c.b, 0.80)
 
-static func build_edge(team: int) -> Color:
-	var c: Color = ArenaRules.TEAM_COLOURS[team]
+func build_edge(team: int) -> Color:
+	var c: Color = colour_of(team)
 	return Color(minf(1.0, c.r + 0.35), minf(1.0, c.g + 0.35),
 		minf(1.0, c.b + 0.35), 1.0)
 
@@ -64,16 +64,23 @@ var _built_body: StaticBody2D = null
 var _built: Array[Rect2] = []
 var _built_revision: int = -1
 var _build_owner: Array[int] = []
-var _respawn_in := [0, 0]
+## How many sides this match has: 2 for 2v2 and 1v1, 8 chairs in a
+## free-for-all (a solo test on one machine is always 2).
+var sides: int = 2
+var _respawn_in: Array[int] = []
 ## Where each runner was when it died, so it comes back at the checkpoint
 ## behind THAT rather than behind wherever its corpse drifted to.
-var _died_at := [Vector2.ZERO, Vector2.ZERO]
+var _died_at: Array[Vector2] = []
 var _seat: int = VersusRoster.SEAT_A_RUNNER
 
 func _ready() -> void:
 	process_physics_priority = 100
 	z_index = 5
 	_read_command_line()
+	sides = VersusRoster.sides_for(room_mode) if mode != Mode.SOLO else 2
+	for i in range(sides):
+		_respawn_in.append(0)
+		_died_at.append(Vector2.ZERO)
 	if OS.has_feature("editor"):
 		_start_debug_log()
 	_build_world()
@@ -103,11 +110,8 @@ func _ready() -> void:
 		_debug_copy_button.pressed.connect(_copy_debug_log)
 		layer.add_child(_debug_copy_button)
 	_build_menu(layer)
-	if mode != Mode.SOLO and local_team >= 0:
-		controls = preload("res://src/versus/versus_controls.gd").new()
-		controls.arena = self
-		controls.duel = room_mode == VersusRoster.RoomMode.DUEL_COMBINED
-		layer.add_child(controls)
+	_layer = layer
+	_build_controls()
 
 	match mode:
 		Mode.SOLO:
@@ -118,14 +122,43 @@ func _ready() -> void:
 		Mode.CLIENT:
 			_open_link(false)
 
-	if room_mode != VersusRoster.RoomMode.DUEL_COMBINED \
+	if room_mode == VersusRoster.RoomMode.TEAM_SPLIT \
 			and VersusRoster.role_of(_seat) == VersusRoster.Role.GUARDIAN:
 		_build_guardian()
-	if room_mode == VersusRoster.RoomMode.DUEL_COMBINED and mode != Mode.SOLO:
+	if combined() and mode != Mode.SOLO:
 		for r in runners:
 			r.set_physics_process(false)
 	if Balance.USE_3D:
 		add_child(load("res://src/render/three/world_view.gd").new())
+
+var _layer: CanvasLayer = null
+
+## The on-screen buttons for a runner: attack, back, and in the combined
+## modes the build palette. Made when this machine knows which runner it
+## drives, which in a free-for-all is only once the host has seated it.
+func _build_controls() -> void:
+	if controls != null or mode == Mode.SOLO or local_team < 0:
+		return
+	controls = preload("res://src/versus/versus_controls.gd").new()
+	controls.arena = self
+	controls.duel = combined()
+	_layer.add_child(controls)
+
+## A free-for-all guest learns its chair from the WELCOME. From here on it
+## drives that runner exactly as if it had asked for it.
+func _take_seat(seat: int) -> void:
+	_seat = seat
+	_set_local_team()
+	if local_team < 0 or local_team >= sides:
+		return
+	var r := runners[local_team]
+	r.input_hub = input.hubs[0]
+	r.global_position = VersusStageData.start_positions()[local_team]
+	r.facing = VersusStageData.start_facing()[local_team]
+	level.runner = r
+	_camera.global_position = r.global_position
+	_build_controls()
+	_debug("SEATED as P%d" % (seat + 1))
 
 func _read_command_line() -> void:
 	# The start screen first: on a phone there is no command line, and needing
@@ -153,17 +186,39 @@ func _read_command_line() -> void:
 				mode = Mode.CLIENT
 				room_code = arg.split("=", true, 1)[1].to_upper()
 			elif arg.begins_with("--versus-seat="):
-				_seat = clampi(int(arg.split("=", true, 1)[1]), 0, 3)
+				_seat = clampi(int(arg.split("=", true, 1)[1]), 0, 7)
 			elif arg == "--versus-duel":
 				room_mode = VersusRoster.RoomMode.DUEL_COMBINED
+			elif arg == "--versus-ffa":
+				room_mode = VersusRoster.RoomMode.FREE_FOR_ALL
 			elif arg.begins_with("--versus-relay="):
 				_relay = arg.split("=", true, 1)[1]
 	if mode == Mode.HOST:
 		_seat = VersusRoster.SEAT_A_RUNNER
 	elif mode == Mode.CLIENT and room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
 		_seat = VersusRoster.SEAT_B_RUNNER
-	local_team = VersusRoster.team_of(_seat) \
-		if VersusRoster.role_of(_seat) == VersusRoster.Role.RUNNER else -1
+	elif mode == Mode.CLIENT and room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
+		# The host hands out chairs in a free-for-all; until it does, this
+		# machine drives nobody. _on_seated fills it in from the WELCOME.
+		_seat = -1
+	_set_local_team()
+
+func _set_local_team() -> void:
+	if _seat < 0:
+		local_team = -1
+		return
+	local_team = VersusRoster.side_of_in(room_mode, _seat) \
+		if VersusRoster.is_runner_in(room_mode, _seat) else -1
+
+## One person, one character: the runner and the builder are the same player
+## (1v1 and the free-for-all), as opposed to the 2v2 split.
+func combined() -> bool:
+	return room_mode == VersusRoster.RoomMode.DUEL_COMBINED \
+		or room_mode == VersusRoster.RoomMode.FREE_FOR_ALL
+
+## A side's colour: a team's in 2v2/1v1, a person's in a free-for-all.
+func colour_of(side: int) -> Color:
+	return VersusRules.colour_of(room_mode, side)
 
 var _relay: String = Balance.DEFAULT_RELAY
 
@@ -231,7 +286,7 @@ func _view_team() -> int:
 	if local_team >= 0:
 		return local_team
 	# A guardian watches their own team's runner.
-	return VersusRoster.team_of(_seat)
+	return VersusRoster.team_of(maxi(_seat, 0))
 
 func _process(delta: float) -> void:
 	if _camera != null:
@@ -267,7 +322,7 @@ func _build_runners() -> void:
 	runners.clear()
 	var starts := VersusStageData.start_positions()
 	var facings := VersusStageData.start_facing()
-	for i in range(2):
+	for i in range(sides):
 		var r := Runner.new()
 		r.name = "Runner%d" % i
 		r.global_position = starts[i]
@@ -283,13 +338,17 @@ func _build_runners() -> void:
 		# tinting both would have made neither of them the one people know.
 		# Which team you are is told by the ring at your feet, not by a wash
 		# over the art.
-		if r.visual != null and i == 1:
+		if r.visual != null and i == 1 and room_mode != VersusRoster.RoomMode.FREE_FOR_ALL:
 			r.visual.modulate = Color(0.46, 0.78, 1.35)
+		elif r.visual != null and i > 0:
+			# Eight people need eight looks: player 1 is Lira as she is, the
+			# rest are washed towards their own colour.
+			r.visual.modulate = Color.WHITE.lerp(colour_of(i), 0.6) * Color(1.25, 1.25, 1.25)
 		runners.append(r)
 	_apply_puppets()
 
 func _apply_puppets() -> void:
-	for i in range(2):
+	for i in range(sides):
 		var mine := mode == Mode.SOLO or i == local_team
 		runners[i].set_physics_process(mine)
 
@@ -497,7 +556,7 @@ func _open_link(as_host: bool) -> void:
 var _link_error: String = ""
 
 func _open_eos(as_host: bool) -> void:
-	var room := EosVersusLobby.new()
+	var room := EosVersusLobby.new(room_mode)
 	eos_room = room
 	if as_host:
 		room.room_code = room_code if EosVersusLobby.valid_code(room_code) \
@@ -605,9 +664,10 @@ func _update_activity() -> void:
 	var active := can_move()
 	if local_team >= 0 and runners[local_team].is_physics_processing() != active:
 		runners[local_team].set_physics_process(active)
-	for i in range(2):
+	for i in range(sides):
 		if i != local_team:
-			runners[i].visible = not waiting() and _seat_taken(VersusRoster.runner_seat(i))
+			runners[i].visible = not waiting() \
+				and _seat_taken(VersusRoster.runner_seat_in(room_mode, i))
 
 func can_move() -> bool:
 	if mode == Mode.SOLO:
@@ -668,14 +728,17 @@ func _tick_host(seqs: Array[int]) -> void:
 	host.step(_observe(0, seqs[0]) if live else _idle(0, seqs[0]))
 	match_rules = host.match_rules
 	_sync_builds(host.builds, host.world_revision)
-	# The other runner is wherever its own machine says it is.
-	var other := host.reported_runner(1)
-	_place_puppet(1, other.position, other.facing)
+	# Everyone else is wherever their own machine says they are.
+	for i in range(1, sides):
+		var other := host.reported_runner(i)
+		_place_puppet(i, other.position, other.facing)
 	_apply_events(host.out_events)
 
 func _tick_client(seqs: Array[int]) -> void:
 	if client == null:
 		return
+	if _seat < 0 and client.connected and client.seat >= 0:
+		_take_seat(client.seat)
 	if client.epoch_changes != _seen_epoch_changes:
 		# A rematch: the host has started over, so this machine's own runner
 		# goes back to its start too, and whatever was built is gone.
@@ -695,7 +758,7 @@ func _tick_client(seqs: Array[int]) -> void:
 	client.step(mine, _seat)
 	_sync_builds_from_snapshot(client.builds, client.world_revision)
 	# Everyone the host describes and this machine does not own.
-	for i in range(2):
+	for i in range(sides):
 		if i == local_team:
 			continue
 		if client.runners.size() > i:
@@ -793,7 +856,7 @@ func map_marks() -> Array[Dictionary]:
 		out.append({"kind": "star", "team": -1, "world": at,
 			"x01": VersusStageData.lap_fraction(at.x),
 			"y01": VersusStageData.height_fraction(at.y)})
-	for i in range(2):
+	for i in range(sides):
 		if not runners[i].visible:
 			continue
 		var at: Vector2 = runners[i].global_position
@@ -874,6 +937,8 @@ func waiting_detail() -> String:
 		if host == null:
 			return TranslationServer.translate("部屋を準備中…")
 		if not host.roster.can_play():
+			if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
+				return TranslationServer.translate("2人以上そろうと始められます（最大8人）")
 			return TranslationServer.translate("両チームのランナーがそろうと始められます")
 		return TranslationServer.translate("そろったら「スタート」を押してください")
 	if mode == Mode.CLIENT:
@@ -902,9 +967,9 @@ func link_error() -> String:
 ## still waiting for.
 func seat_lines() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for seat in range(VersusRoster.SEATS):
-		out.append({"seat": seat, "team": VersusRoster.team_of(seat),
-			"runner": VersusRoster.role_of(seat) == VersusRoster.Role.RUNNER,
+	for seat in range(VersusRoster.seats_for(room_mode)):
+		out.append({"seat": seat, "team": VersusRoster.side_of_in(room_mode, seat),
+			"runner": VersusRoster.is_runner_in(room_mode, seat),
 			"taken": _seat_taken(seat), "you": seat == _seat})
 	return out
 
@@ -951,7 +1016,7 @@ func _start_solo() -> void:
 func _reset_bodies() -> void:
 	var starts := VersusStageData.start_positions()
 	var facings := VersusStageData.start_facing()
-	for i in range(2):
+	for i in range(sides):
 		runners[i].respawn(starts[i])
 		runners[i].facing = facings[i]
 		runners[i].velocity = Vector2.ZERO
@@ -981,7 +1046,7 @@ func _owns(side: int) -> bool:
 ## two this file creates and missed 1-1's spike strip, which the runner detects
 ## and dies to entirely on its own.
 func _catch_deaths() -> void:
-	for i in range(2):
+	for i in range(sides):
 		if not _owns(i):
 			continue
 		_catch_death(i)
@@ -1008,7 +1073,7 @@ func _begin_respawn(side: int) -> void:
 	_respawn_in[side] = VersusRules.RESPAWN_TICKS
 
 func _apply_respawns() -> void:
-	for i in range(2):
+	for i in range(sides):
 		if _respawn_in[i] <= 0:
 			continue
 		_respawn_in[i] -= 1
@@ -1018,24 +1083,25 @@ func _apply_respawns() -> void:
 		runners[i].respawn(VersusStageData.respawn_for(i, _died_at[i]))
 		runners[i].facing = VersusStageData.start_facing()[i]
 
-## In combined mode the same peer owns its team's Runner and Guardian seats.
+## In combined modes one person is both runner and builder: in a duel they own
+## their team's guardian chair too, in a free-for-all they build from their own.
 ## The host's own commands take the identical place_build / undo_build path.
 func request_construct(slot: int, at: Vector2) -> void:
-	if room_mode != VersusRoster.RoomMode.DUEL_COMBINED or waiting() \
-			or phase() == VersusMatch.Phase.OVER:
+	if not combined() or waiting() or countdown_ticks() > 0 \
+			or phase() == VersusMatch.Phase.OVER or _seat < 0:
 		return
 	if slot not in [1, 2]:
 		return
 	if mode == Mode.HOST and host != null:
-		host.place_build(VersusRoster.SEAT_A_GUARDIAN, at, slot)
+		host.place_build(VersusRoster.build_seat_in(room_mode, _seat), at, slot)
 	elif mode == Mode.CLIENT and client != null:
 		client.request_build(at, slot)
 
 func request_construct_undo() -> void:
-	if room_mode != VersusRoster.RoomMode.DUEL_COMBINED or waiting():
+	if not combined() or waiting() or _seat < 0:
 		return
 	if mode == Mode.HOST and host != null:
-		host.undo_build(VersusRoster.SEAT_A_GUARDIAN)
+		host.undo_build(VersusRoster.build_seat_in(room_mode, _seat))
 	elif mode == Mode.CLIENT and client != null:
 		client.request_undo()
 
@@ -1065,7 +1131,7 @@ func _draw() -> void:
 ## you need at a glance is "more than them". World space, which is why it lives
 ## here and not in the HUD.
 func _heads() -> void:
-	for i in range(2):
+	for i in range(sides):
 		var held := held_by(i)
 		if held <= 0:
 			continue
@@ -1088,7 +1154,7 @@ func _star_shape(at: Vector2, r: float, fill: Color) -> void:
 
 func _builds() -> void:
 	for i in range(_built.size()):
-		var team := VersusRoster.team_of(_build_owner[i]) \
+		var team := VersusRoster.side_of_in(room_mode, _build_owner[i]) \
 			if i < _build_owner.size() else 0
 		# A dark outline under the bright one. Team A's colour is a sky blue and
 		# 1-1's sky is behind half the arena, so a platform drawn in it alone
@@ -1104,7 +1170,7 @@ func _builds() -> void:
 			Color(1, 1, 1, 0.75), 3.0)
 
 func _markers() -> void:
-	for i in range(2):
+	for i in range(sides):
 		if _respawn_in[i] > 0:
 			continue
 		var at: Vector2 = runners[i].global_position \
@@ -1130,14 +1196,14 @@ func _coins() -> void:
 ## fight is about whether eight frames was enough warning.
 func _strikes() -> void:
 	if match_rules == null:
-		for i in range(2):
+		for i in range(sides):
 			if client == null or client.runners.size() <= i:
 				continue
 			var r: Dictionary = client.runners[i]
 			if int(r["combat_phase"]) == ArenaCombat.Phase.ACTIVE:
 				_strike_box_at(r["position"], int(r["combat_dir"]))
 		return
-	for i in range(2):
+	for i in range(sides):
 		var c := match_rules.combat[i]
 		var at: Vector2 = runners[i].global_position
 		if c.phase == ArenaCombat.Phase.STARTUP:

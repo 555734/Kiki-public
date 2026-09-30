@@ -1,5 +1,7 @@
 extends Control
-## The 2v2 スターたいせん screen: make a room, or pick a seat and join one.
+## The スターたいせん screen: choose みんなで (one character each, two to
+## eight people, everyone for themselves) or 2対2 (runner and guardian split
+## between two people per team), then make a room or join one.
 ##
 ## Free for everyone. Nothing here -- and nothing in the match -- reads
 ## Entitlement: a player who has not bought the full version can make a room,
@@ -20,7 +22,12 @@ const JOIN_SEATS := [
 
 var _code: LineEdit = null
 var _seat: OptionButton = null
+var _mode: OptionButton = null
 var _status: Label = null
+var _rules: Label = null
+var _host_button: Button = null
+## Only the 2v2 asks which chair; in みんなで the host hands them out.
+var _team_only: Array[Control] = []
 
 func _ready() -> void:
 	# ...and_offsets_, not set_anchors_preset alone: a Control made in code has
@@ -48,21 +55,31 @@ func _ready() -> void:
 	box.add_theme_constant_override("separation", 10)
 	centre.add_child(box)
 
-	box.add_child(_title("⚔  2対2 スターたいせん", 32, Color(1, 1, 1)))
-	box.add_child(_title("ランナーと ガーディアンの 2人チームで たたかう（最大4人）",
-		16, Color(0.72, 0.85, 0.95)))
-	box.add_child(_title(TranslationServer.translate("ランダムに でてくる スターを さきに %d こ もったチームの かち")
-		% VersusRules.WIN_AT, 16, Color(1.0, 0.85, 0.35)))
+	box.add_child(_title("⚔  スターたいせん", 32, Color(1, 1, 1)))
+	_mode = OptionButton.new()
+	_mode.add_item("みんなで：ひとり1キャラの 個人戦（2〜8人）",
+		VersusRoster.RoomMode.FREE_FOR_ALL)
+	_mode.add_item("2対2：ランナーと ガーディアンを 2人で分担（最大4人）",
+		VersusRoster.RoomMode.TEAM_SPLIT)
+	_mode.selected = 0
+	_mode.custom_minimum_size = Vector2(0, 52)
+	_mode.add_theme_font_size_override("font_size", 18)
+	_mode.item_selected.connect(func(_i: int) -> void: _update_mode())
+	box.add_child(_mode)
+	_rules = _title("", 16, Color(1.0, 0.85, 0.35))
+	box.add_child(_rules)
 	box.add_child(_title("こうげきを うけると スターを 1こ おとす。ステージは 1-1 の くさはら。",
 		14, Color(0.72, 0.85, 0.95)))
 	box.add_child(_title("無料版でも すべて あそべます", 14, Color(0.60, 0.92, 0.70)))
 
 	box.add_child(_spacer(6))
-	box.add_child(_button("＋  部屋を作る（Aチームのランナー）", _on_host))
+	_host_button = _button("＋  部屋を作る", _on_host)
+	box.add_child(_host_button)
 
 	box.add_child(_spacer(4))
 	box.add_child(_title("友達の部屋に入る", 18, Color(1, 1, 1)))
 	_seat = OptionButton.new()
+	_team_only.append(_seat)
 	for entry in JOIN_SEATS:
 		_seat.add_item(entry[1], entry[0])
 	_seat.selected = 0
@@ -101,6 +118,23 @@ func _ready() -> void:
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(620, 44)
 	box.add_child(_status)
+	_update_mode()
+
+func _room_mode() -> int:
+	return _mode.get_item_id(_mode.selected)
+
+func _update_mode() -> void:
+	var ffa := _room_mode() == VersusRoster.RoomMode.FREE_FOR_ALL
+	for c in _team_only:
+		c.visible = not ffa
+	if ffa:
+		_rules.text = tr("ランダムに でてくる スターを さきに %d こ もった人の かち。はしって、足場と壁も じぶんで つくる") \
+			% VersusRules.FFA_WIN_AT
+		_host_button.text = tr("＋  部屋を作る（2〜8人）")
+	else:
+		_rules.text = tr("ランダムに でてくる スターを さきに %d こ もったチームの かち") \
+			% VersusRules.WIN_AT
+		_host_button.text = tr("＋  部屋を作る（Aチームのランナー）")
 
 ## Digits only, and never more than six: a phone's full keyboard is what most
 ## people get even when a number pad was asked for.
@@ -122,7 +156,9 @@ func _on_join() -> void:
 	if not EosVersusLobby.valid_code(code):
 		_status.text = tr("ルーム番号は 6けたの 数字です")
 		return
-	_go(VersusLaunch.How.JOIN, code, _seat.get_item_id(_seat.selected))
+	var seat := -1 if _room_mode() == VersusRoster.RoomMode.FREE_FOR_ALL \
+		else _seat.get_item_id(_seat.selected)
+	_go(VersusLaunch.How.JOIN, code, seat)
 
 func _on_solo() -> void:
 	_go(VersusLaunch.How.SOLO, "", VersusRoster.SEAT_A_RUNNER)
@@ -132,7 +168,8 @@ func _go(how: int, code: String, seat: int) -> void:
 	VersusLaunch.code = code
 	VersusLaunch.relay = ""
 	VersusLaunch.seat = seat
-	VersusLaunch.room_mode = VersusRoster.RoomMode.TEAM_SPLIT
+	VersusLaunch.room_mode = _room_mode() if how != VersusLaunch.How.SOLO \
+		else VersusRoster.RoomMode.TEAM_SPLIT
 	VersusLaunch.link = VersusLaunch.Link.EOS
 	get_tree().change_scene_to_file("res://src/versus/versus_main.tscn")
 

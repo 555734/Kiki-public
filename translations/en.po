@@ -984,3 +984,42 @@ msgstr "Back"
 
 msgid "たいせんが 中断されました"
 msgstr "The match was interrupted"
+
+msgid "この番号は別のモードの部屋です"
+msgstr "That code is a room of the other mode"
+
+msgid "⚔  スターたいせん"
+msgstr "⚔  Star Battle"
+
+msgid "みんなで：ひとり1キャラの 個人戦（2〜8人）"
+msgstr "Everyone: one character each, every player for themselves (2-8)"
+
+msgid "2対2：ランナーと ガーディアンを 2人で分担（最大4人）"
+msgstr "2v2: runner and guardian split between two people (up to 4)"
+
+msgid "ランダムに でてくる スターを さきに %d こ もった人の かち。はしって、足場と壁も じぶんで つくる"
+msgstr "Stars appear at random. The first player holding %d wins. Run, and build your own platforms and walls"
+
+msgid "＋  部屋を作る（2〜8人）"
+msgstr "+  Create a room (2-8 players)"
+
+msgid "2人以上そろうと始められます（最大8人）"
+msgstr "You can start once 2 or more have joined (up to 8)"
+
+msgid "みんなで スターたいせん"
+msgstr "Star Battle: Everyone"
+
+msgid "ひとり1キャラ。はしって、足場と壁も じぶんで つくる"
+msgstr "One character each: run, and build your own platforms and walls"
+
+msgid "P%d の かち"
+msgstr "P%d wins"
+
+msgid "あなたの かち！"
+msgstr "You win!"
+
+msgid "スター %d こ"
+msgstr "%d stars"
+
+msgid "スターを さきに %d こ"
+msgstr "First to hold %d stars"

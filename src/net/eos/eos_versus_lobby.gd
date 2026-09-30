@@ -1,6 +1,7 @@
 class_name EosVersusLobby
 extends RefCounted
-## The four-person EOS lobby the 2v2 star match is played in.
+## The EOS lobby a star match is played in: four people for 2v2, up to eight
+## for the free-for-all.
 ##
 ## A sibling of EosCoopLobby rather than a wider one. The co-op lobby is two
 ## members by contract -- `remote_puid()` returns THE other player, and host
@@ -23,10 +24,28 @@ signal room_code_chosen(code: String)
 
 const CODE_LENGTH := EosCoopLobby.CODE_LENGTH
 const MAX_MEMBERS := 4
+const FFA_MAX_MEMBERS := 8
 const BUCKET := "melos-versus"
 const EOS_PATH := EosCoopLobby.EOS_PATH
 const MODE_ATTRIBUTE := "mode"
 const MODE_VALUE := "versus2v2"
+const FFA_MODE_VALUE := "versusffa8"
+
+## Which versus mode this lobby is for. A code only ever finds a room of the
+## mode it was typed into, so a 2v2 client can never sit down in an
+## eight-person room it has no chairs for.
+var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
+
+func _init(mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> void:
+	room_mode = mode
+
+func mode_value() -> String:
+	return FFA_MODE_VALUE if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL \
+		else MODE_VALUE
+
+func max_members() -> int:
+	return FFA_MAX_MEMBERS if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL \
+		else MAX_MEMBERS
 
 var lobby = null
 var room_code: String = ""
@@ -63,7 +82,7 @@ func _open_lobby(lobbies) -> bool:
 	var opts = eos.Lobby.CreateLobbyOptions.new()
 	opts.bucket_id = BUCKET
 	opts.disable_host_migration = true
-	opts.max_lobby_members = MAX_MEMBERS
+	opts.max_lobby_members = max_members()
 	opts.enable_rtc_room = false
 	opts.allow_invites = false
 	opts.enable_join_by_id = false
@@ -74,7 +93,7 @@ func _open_lobby(lobbies) -> bool:
 		return _fail("EOSルームを作れませんでした")
 	lobby.call("add_attribute", "room_code", room_code)
 	lobby.call("add_attribute", "protocol", VersusProtocol.VERSION)
-	lobby.call("add_attribute", MODE_ATTRIBUTE, MODE_VALUE)
+	lobby.call("add_attribute", MODE_ATTRIBUTE, mode_value())
 	lobby.call("add_attribute", "build", Balance.BUILD_ID)
 	lobby.call("add_attribute", "started", 0)
 	lobby.call("add_attribute", EosCoopLobby.ROOM_KIND_ATTRIBUTE,
@@ -96,6 +115,13 @@ func join_room(code: String) -> bool:
 		return _fail("ルームを検索できませんでした")
 	var matches: Array = found
 	if matches.size() != 1:
+		# Is it a room of the other versus mode? Worth saying so, because
+		# "not found" for a code your friend is looking at is baffling.
+		var any = await lobbies.call("search_by_attribute_async", [
+			{"key": "room_code", "value": code},
+			{"key": "protocol", "value": VersusProtocol.VERSION}])
+		if any != null and (any as Array).size() > 0:
+			return _fail("この番号は別のモードの部屋です")
 		return _fail("そのルーム番号は見つかりません（アプリのバージョンも確認してください）")
 	var candidate = matches[0]
 	if EosCoopLobby._attribute_int(candidate, "started", 0) != 0:
@@ -176,7 +202,7 @@ func _search_attrs(code: String) -> Array[Dictionary]:
 	return [
 		{"key": "room_code", "value": code},
 		{"key": "protocol", "value": VersusProtocol.VERSION},
-		{"key": MODE_ATTRIBUTE, "value": MODE_VALUE},
+		{"key": MODE_ATTRIBUTE, "value": mode_value()},
 	]
 
 func _lobbies():

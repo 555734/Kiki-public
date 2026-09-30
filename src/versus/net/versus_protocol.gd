@@ -31,7 +31,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 5 # 2v2 star arena, countdown and rematch epoch.
+const VERSION: int = 6 # Free-for-all rooms of up to eight; 2v2 star arena.
 
 ## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
 ## the host only; the rules engine never enters them.
@@ -203,9 +203,9 @@ static func snapshot(tick: int, phase: int, winner: int, runners: Array,
 	b.put_u32(world_revision)
 	b.put_u8(epoch & 0xFF)
 	b.put_u16(clampi(countdown, 0, 0xFFFF))
-	# Which of the four chairs are taken, one bit each, so every screen can
+	# Which chairs (up to eight) are taken, one bit each, so every screen can
 	# show who the room is still waiting for.
-	b.put_u8(seat_mask & 0x0F)
+	b.put_u8(seat_mask & 0xFF)
 
 	b.put_u8(runners.size())
 	for r in runners:

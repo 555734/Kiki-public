@@ -20,11 +20,17 @@ extends RefCounted
 ## is the whole reason they are different numbers.
 
 enum Role { RUNNER, GUARDIAN }
-enum RoomMode { TEAM_SPLIT, DUEL_COMBINED }
+## TEAM_SPLIT: 2v2, a runner and a guardian per team, one person per chair.
+## DUEL_COMBINED: 1v1, each person holds their team's two chairs.
+## FREE_FOR_ALL: every person is one character -- runner and builder at once --
+## on a side of their own, two to eight of them.
+enum RoomMode { TEAM_SPLIT, DUEL_COMBINED, FREE_FOR_ALL }
 
 var room_mode: int = RoomMode.TEAM_SPLIT
 
 const SEATS: int = 4
+## Chairs in a free-for-all room. Also the most sides any match has.
+const FFA_SEATS: int = 8
 const SEAT_A_RUNNER: int = 0
 const SEAT_A_GUARDIAN: int = 1
 const SEAT_B_RUNNER: int = 2
@@ -35,8 +41,56 @@ var occupants: Array[int] = []
 
 func _init(selected_mode: int = RoomMode.TEAM_SPLIT) -> void:
 	room_mode = selected_mode
-	for i in range(SEATS):
+	for i in range(seat_count()):
 		occupants.append(-1)
+
+# ------------------------------------------------ mode-aware seat questions
+## The static team_of/role_of/runner_seat below are the 4-chair answers the
+## team and duel modes were built on, and stay exactly that. These ask the
+## same questions of THIS room, whatever its mode.
+static func seats_for(mode: int) -> int:
+	return FFA_SEATS if mode == RoomMode.FREE_FOR_ALL else SEATS
+
+static func sides_for(mode: int) -> int:
+	return FFA_SEATS if mode == RoomMode.FREE_FOR_ALL else 2
+
+static func side_of_in(mode: int, seat: int) -> int:
+	return seat if mode == RoomMode.FREE_FOR_ALL else team_of(seat)
+
+static func is_runner_in(mode: int, seat: int) -> bool:
+	return mode == RoomMode.FREE_FOR_ALL or role_of(seat) == Role.RUNNER
+
+static func runner_seat_in(mode: int, side: int) -> int:
+	return side if mode == RoomMode.FREE_FOR_ALL else runner_seat(side)
+
+## The seat a person's build commands carry. In a free-for-all it is their own
+## chair; in a duel it is their team's guardian chair; in a team room only a
+## guardian builds, from their own.
+static func build_seat_in(mode: int, seat: int) -> int:
+	if mode == RoomMode.DUEL_COMBINED and role_of(seat) == Role.RUNNER:
+		return seat + 1
+	return seat
+
+static func can_build_in(mode: int, seat: int) -> bool:
+	return mode == RoomMode.FREE_FOR_ALL or role_of(seat) == Role.GUARDIAN
+
+func seat_count() -> int:
+	return seats_for(room_mode)
+
+func side_count() -> int:
+	return sides_for(room_mode)
+
+func side_of(seat: int) -> int:
+	return side_of_in(room_mode, seat)
+
+func is_runner(seat: int) -> bool:
+	return is_runner_in(room_mode, seat)
+
+func side_runner_seat(side: int) -> int:
+	return runner_seat_in(room_mode, side)
+
+func can_build(seat: int) -> bool:
+	return can_build_in(room_mode, seat)
 
 static func team_of(seat: int) -> int:
 	return 0 if seat < 2 else 1
@@ -63,6 +117,17 @@ func seat_peer(peer_id: int, wanted: int = -1) -> int:
 	var already := seat_of(peer_id)
 	if already >= 0:
 		return already
+	if room_mode == RoomMode.FREE_FOR_ALL:
+		# Nobody picks a chair: the host has 0, and everyone else gets the
+		# lowest free one. A full room says so.
+		if wanted == 0 and occupants[0] == -1:
+			occupants[0] = peer_id
+			return 0
+		for i in range(1, seat_count()):
+			if occupants[i] == -1:
+				occupants[i] = peer_id
+				return i
+		return -1
 	if room_mode == RoomMode.DUEL_COMBINED:
 		if wanted != SEAT_A_RUNNER and wanted != SEAT_B_RUNNER:
 			return -1
@@ -73,34 +138,34 @@ func seat_peer(peer_id: int, wanted: int = -1) -> int:
 		return wanted
 	# A requested chair is authoritative; never silently assign a different
 	# actor after the client created its local Runner/Guardian.
-	if wanted >= 0 and wanted < SEATS and occupants[wanted] != -1:
+	if wanted >= 0 and wanted < seat_count() and occupants[wanted] != -1:
 		return -1
-	if wanted >= 0 and wanted < SEATS and occupants[wanted] == -1:
+	if wanted >= 0 and wanted < seat_count() and occupants[wanted] == -1:
 		occupants[wanted] = peer_id
 		return wanted
 	if wanted >= 0:
 		return -1
-	for i in range(SEATS):
+	for i in range(seat_count()):
 		if occupants[i] == -1:
 			occupants[i] = peer_id
 			return i
 	return -1
 
 func seat_of(peer_id: int) -> int:
-	for i in range(SEATS):
+	for i in range(seat_count()):
 		if occupants[i] == peer_id:
 			return i
 	return -1
 
 func owns_seat(peer_id: int, seat: int) -> bool:
-	return seat >= 0 and seat < SEATS and occupants[seat] == peer_id
+	return seat >= 0 and seat < seat_count() and occupants[seat] == peer_id
 
 func peer_at(seat: int) -> int:
-	return occupants[seat] if seat >= 0 and seat < SEATS else -1
+	return occupants[seat] if seat >= 0 and seat < seat_count() else -1
 
 func vacate(peer_id: int) -> int:
 	var seat := seat_of(peer_id)
-	for i in range(SEATS):
+	for i in range(seat_count()):
 		if occupants[i] == peer_id:
 			occupants[i] = -1
 	return seat
@@ -120,17 +185,22 @@ func filled() -> int:
 	return n
 
 func is_full() -> bool:
-	return filled() == SEATS
+	return filled() == seat_count()
 
 ## Both runners have to be present for a match to mean anything; a missing
 ## guardian is a team playing without their builder, which is a handicap rather
 ## than a broken match.
+##
+## A free-for-all needs two people, whoever they are.
 func can_play() -> bool:
+	if room_mode == RoomMode.FREE_FOR_ALL:
+		return peers_filled() >= 2
 	return peer_at(SEAT_A_RUNNER) != -1 and peer_at(SEAT_B_RUNNER) != -1
 
 func describe() -> String:
 	var parts: Array[String] = []
-	for i in range(SEATS):
-		parts.append("%s=%s" % [seat_name(i),
+	for i in range(seat_count()):
+		parts.append("%s=%s" % [seat_name(i) if room_mode != RoomMode.FREE_FOR_ALL
+			else "P%d" % (i + 1),
 			"-" if occupants[i] == -1 else str(occupants[i])])
 	return ", ".join(parts)
