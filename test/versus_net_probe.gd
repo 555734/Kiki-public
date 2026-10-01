@@ -477,9 +477,9 @@ func _test_build_revisions() -> void:
 	Stage.use(Stage.Which.GREENFIELD)
 	var arena := VersusStageData.collision_rects()
 	var connector := ArenaStage.new(arena)
-	check(connector.overlaps(Rect2(Vector2(-30, 200), Vector2(10, 10)))
-			and connector.overlaps(Rect2(Vector2(VersusStageData.WIDTH + 20, 200), Vector2(10, 10))),
-		"the host and client collision factory includes both end walls")
+	check(connector.floor_below(Vector2(-20, 300), 200.0) < INF
+			and connector.floor_below(Vector2(VersusStageData.WIDTH + 20, 300), 200.0) < INF,
+		"the host and client collision factory has floor on both sides of the join")
 	check(connector.floor_below(Vector2(VersusStageData.WIDTH * 0.5, 40), 500.0) < INF,
 		"and the block stack in the middle")
 	var mesh := VersusLoopback.mesh(2)

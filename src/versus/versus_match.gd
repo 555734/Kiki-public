@@ -192,7 +192,9 @@ func _gather_hits() -> Array:
 func _try_hit(out: Array, a: int, v: int, box: Rect2) -> void:
 	if not seats[v].alive:
 		return
-	var victim_at := seats[v].position
+	# Measured to the nearest lap: across the join the victim is a few pixels
+	# away, not a whole field.
+	var victim_at := VersusStageData.nearest_image(seats[v].position, seats[a].position)
 	# The victim's own invulnerability, as the game reports it. Asking the
 	# combat state instead would be asking a second opinion: Runner is the
 	# one that will refuse the damage, so it has to be the one that decides
@@ -286,6 +288,8 @@ func _step_coins(delta: float) -> void:
 	for c in ledger.coins:
 		if c.state == ArenaCoin.State.WORLD:
 			ArenaCoin.step_physics(c, world, delta)
+			# A star bouncing over the join stays in lap 0.
+			c.position.x = VersusStageData.wrap_x(c.position.x)
 			if not VersusStageData.in_bounds(c.position):
 				ArenaCoin.to_recycle(c, tick)
 			elif tick - c.world_since >= VersusRules.STALE_TICKS:
@@ -389,7 +393,7 @@ func _strike_box(side: int) -> Rect2:
 
 ## To the body, not to the centre: the rule is "within 20px of the runner".
 func _distance_to_body(at: Vector2, side: int) -> float:
-	var b := _body_at(seats[side].position)
+	var b := _body_at(VersusStageData.nearest_image(seats[side].position, at))
 	var nearest := Vector2(
 		clampf(at.x, b.position.x, b.position.x + b.size.x),
 		clampf(at.y, b.position.y, b.position.y + b.size.y))

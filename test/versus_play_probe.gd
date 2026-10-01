@@ -188,20 +188,35 @@ func _test_the_pit() -> void:
 	check(r.global_position.distance_to(VersusStageData.start_positions()[0]) < 80.0,
 		"at its own team's start")
 
-## Nobody leaves the field sideways: running into an end wall stops you.
+## The two ends are one: run off the right edge and come in at the left,
+## with the camera following without a jump, and the other way round.
 func _test_the_walls() -> void:
-	_current = "the walls"
+	_current = "the join"
 	var r: Runner = arena.runners[0]
-	r.global_position = Vector2(120.0, 360.0)
-	r.velocity = Vector2.ZERO
-	for i in range(90):
-		arena.input.hubs[0].drive_runner(-1.0, 0.0, i % 20 < 10, true)
-		await get_tree().physics_frame
-	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
-	await _tick(30)
-	check(r.global_position.x > VersusStageData.LEFT,
-		"running and jumping at the left wall stays inside (x=%.0f)" % r.global_position.x)
-	check(r.global_position.y < VersusStageData.kill_y(), "and on the ground")
+	var w := VersusStageData.WIDTH
+	for dir in [1.0, -1.0]:
+		r.global_position = Vector2(w - 150.0 if dir > 0 else 150.0, 370.0)
+		r.velocity = Vector2.ZERO
+		await _tick(30)
+		var crossed := false
+		var cam_jump := 0.0
+		var last_cam: Vector2 = arena._camera.get_screen_center_position()
+		for i in range(90):
+			arena.input.hubs[0].drive_runner(dir, 0.0, false, false)
+			await get_tree().physics_frame
+			var cam: Vector2 = arena._camera.get_screen_center_position()
+			# Moved by a whole lap is the same picture: measure round the loop.
+			var step := fposmod(cam.x - last_cam.x + w * 0.5, w) - w * 0.5
+			cam_jump = maxf(cam_jump, absf(step))
+			last_cam = cam
+			if (dir > 0 and r.global_position.x < 400.0) or (dir < 0 and r.global_position.x > w - 400.0):
+				crossed = true
+		arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
+		check(crossed and r.global_position.x >= 0.0 and r.global_position.x < w,
+			"running %s across the join comes in at the other end (x=%.0f)"
+				% ["right" if dir > 0 else "left", r.global_position.x])
+		check(cam_jump < 40.0, "and the picture never jumps (largest step %.0fpx)" % cam_jump)
+		check(r.on_ground(), "and the runner is still on the ground")
 
 	# A block row is one held jump up: a jump from the floor beside the first
 	# row rises clear of its top. The scene's own keyboard poll is paused for

@@ -11,6 +11,8 @@ enum Mode { SOLO, HOST, CLIENT }
 
 const COL_COIN := Color(1.0, 0.82, 0.29)
 const COL_COIN_EDGE := Color(0.62, 0.45, 0.10)
+## A loose star's drawn radius. Big enough to read across a phone screen.
+const STAR_RADIUS: float = 26.0
 ## A guardian's construct, in its own team's colour. Read off the shared team
 ## palette rather than restated, so a platform is unmistakably one side's.
 ## Drawn nearly solid: the first version was translucent and vanished against
@@ -88,10 +90,19 @@ func _ready() -> void:
 	input = VersusInput.new()
 	input.name = "VersusInput"
 	add_child(input)
-	input.make_hubs(self, mode == Mode.SOLO)
+	# A one-device test on a phone is one player with touch controls against
+	# a standing practice partner; on a desktop it stays two players on one
+	# keyboard (WASD+F and the arrows).
+	touch_solo = mode == Mode.SOLO and _wants_touch()
+	input.make_hubs(self, mode == Mode.SOLO and not touch_solo)
 
 	_build_runners()
 	_finish_world()
+	_overlay = Node2D.new()
+	_overlay.name = "Overlay"
+	_overlay.z_index = 20
+	_overlay.draw.connect(_draw_overlay)
+	add_child(_overlay)
 	_build_camera()
 
 	# In a CanvasLayer, because the camera moves now: the scoreboard belongs to
@@ -131,16 +142,28 @@ func _ready() -> void:
 	_add_world_view()
 
 var _layer: CanvasLayer = null
+var _overlay: Node2D = null
+## The solo test on a touch screen: P1 on touch, P2 stands still.
+var touch_solo: bool = false
+
+func _wants_touch() -> bool:
+	return _touch_device()
+
+static func _touch_device() -> bool:
+	return OS.has_feature("android") or OS.has_feature("ios") \
+		or DisplayServer.is_touchscreen_available()
 
 ## The on-screen buttons for a runner: attack, back, and in the combined
 ## modes the build palette. Made when this machine knows which runner it
 ## drives, which in a free-for-all is only once the host has seated it.
 func _build_controls() -> void:
-	if controls != null or mode == Mode.SOLO or local_team < 0:
+	if controls != null or local_team < 0:
+		return
+	if mode == Mode.SOLO and not touch_solo:
 		return
 	controls = preload("res://src/versus/versus_controls.gd").new()
 	controls.arena = self
-	controls.duel = combined()
+	controls.duel = combined() or mode == Mode.SOLO
 	_layer.add_child(controls)
 
 ## A free-for-all guest learns its chair from the WELCOME. From here on it
@@ -323,12 +346,6 @@ func _update_camera(delta: float) -> void:
 	var lead := clampf(who.velocity.x / Balance.RUNNER_RUN_SPEED, -1.0, 1.0) \
 		* Balance.CAMERA_LOOKAHEAD
 	var target := who.global_position + Vector2(lead, -40.0)
-	# Never past the walls: beyond them is nothing to look at, and the space is
-	# better spent on the part of the field the other team might be in.
-	var half := get_viewport_rect().size.x * 0.5 / _camera.zoom.x
-	var lo := VersusStageData.LEFT - 120.0 + half
-	var hi := VersusStageData.RIGHT + 120.0 - half
-	target.x = clampf(target.x, lo, hi) if lo < hi else VersusStageData.WIDTH * 0.5
 	var t := clampf(delta * Balance.CAMERA_SMOOTH, 0.0, 1.0)
 	_camera.global_position = _camera.global_position.lerp(target, t)
 
@@ -360,13 +377,45 @@ func _refresh_ground() -> void:
 		add_child(_built_body)
 	for child in _built_body.get_children():
 		child.queue_free()
-	for rect in _built:
+	# One lap either side as well, so a platform on the join is solid from
+	# whichever side it is reached.
+	for rect in _built_laps():
 		var shape := CollisionShape2D.new()
 		var box := RectangleShape2D.new()
 		box.size = rect.size
 		shape.shape = box
 		shape.position = rect.position + rect.size * 0.5
 		_built_body.add_child(shape)
+
+func _built_laps() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for lap in VersusStageData.LAPS:
+		for r in _built:
+			out.append(Rect2(r.position + Vector2(VersusStageData.WIDTH * float(lap), 0.0), r.size))
+	return out
+
+## Where to draw something canonical (in lap 0): the copy nearest the camera.
+func _near(at: Vector2) -> Vector2:
+	return VersusStageData.nearest_image(at, _camera.global_position) \
+		if _camera != null else at
+
+## Bring this machine's own runners back into the middle lap when they run
+## off one end. The world is periodic, so moving a runner by exactly one lap
+## puts it somewhere identical; the camera moves by the same amount in the
+## same frame, so nothing on screen jumps. Velocity, the jump in progress and
+## the stars in hand all carry straight through.
+func _wrap_bodies() -> void:
+	for i in range(sides):
+		if not _owns(i):
+			continue
+		var r := runners[i]
+		var was := r.global_position.x
+		var now := VersusStageData.wrap_x(was)
+		if is_equal_approx(was, now):
+			continue
+		r.global_position.x = now
+		if i == _view_team() and _camera != null:
+			_camera.global_position.x += now - was
 
 func _build_runners() -> void:
 	runners.clear()
@@ -735,7 +784,8 @@ func _mark_started() -> void:
 		eos_room.mark_started()
 
 func _redraw() -> void:
-	queue_redraw()
+	if _overlay != null:
+		_overlay.queue_redraw()
 	hud.queue_redraw()
 
 func _observe(i: int, seq: int) -> VersusMatch.Seat:
@@ -760,11 +810,14 @@ func _idle(i: int, seq: int) -> VersusMatch.Seat:
 	return s
 
 func _tick_solo(seqs: Array[int]) -> void:
+	_wrap_bodies()
 	if phase() == VersusMatch.Phase.OVER:
 		return
 	_apply_respawns()
 	_catch_deaths()
-	match_rules.step([_observe(0, seqs[0]), _observe(1, seqs[1])])
+	# The touch test's partner never swings: one strike count drives both
+	# hubs' sequences on a phone, and it must not be P2's.
+	match_rules.step([_observe(0, seqs[0]), _observe(1, 0 if touch_solo else seqs[1])])
 	_apply_events(match_rules.events)
 
 func _tick_host(seqs: Array[int]) -> void:
@@ -773,6 +826,7 @@ func _tick_host(seqs: Array[int]) -> void:
 	# The host keeps stepping in every phase: it is also the post office, and
 	# a host that stopped at the result screen stopped answering everyone.
 	var live := host.playing and phase() == VersusMatch.Phase.PLAYING
+	_wrap_bodies()
 	if live:
 		_apply_respawns()
 		_catch_deaths()
@@ -800,6 +854,7 @@ func _tick_client(seqs: Array[int]) -> void:
 		_built_revision = -1
 	var mine = null
 	if local_team >= 0:
+		_wrap_bodies()
 		if can_move():
 			_apply_respawns()
 			_catch_deaths_local()
@@ -826,7 +881,7 @@ func _tick_client(seqs: Array[int]) -> void:
 ## steppy. A big jump is snapped, because that is a respawn rather than a walk.
 func _place_puppet(i: int, at: Vector2, facing: int) -> void:
 	var r := runners[i]
-	var here := at
+	var here := _near(at)
 	if r.global_position.distance_to(here) > 240.0:
 		r.global_position = here
 	else:
@@ -940,7 +995,7 @@ func offscreen_marks() -> Array[Dictionary]:
 		return out
 	var inner := view.grow(-24.0)
 	for mark in map_marks():
-		var at: Vector2 = mark["world"]
+		var at: Vector2 = _near(mark["world"])
 		if inner.has_point(at):
 			continue
 		var centre := view.get_center()
@@ -1062,6 +1117,9 @@ func rematch() -> void:
 
 # ---------------------------------------------------------------- lives, deaths
 func _start_solo() -> void:
+	_built.clear()
+	_build_owner.clear()
+	_refresh_ground()
 	match_rules.setup(ArenaStage.new(_collision_rects()),
 		int(Time.get_ticks_usec() & 0x7fffffff))
 	_reset_bodies()
@@ -1140,6 +1198,9 @@ func _apply_respawns() -> void:
 ## their team's guardian chair too, in a free-for-all they build from their own.
 ## The host's own commands take the identical place_build / undo_build path.
 func request_construct(slot: int, at: Vector2) -> void:
+	if mode == Mode.SOLO:
+		_solo_construct(slot, at)
+		return
 	if not combined() or waiting() or countdown_ticks() > 0 \
 			or phase() == VersusMatch.Phase.OVER or _seat < 0:
 		return
@@ -1150,7 +1211,33 @@ func request_construct(slot: int, at: Vector2) -> void:
 	elif mode == Mode.CLIENT and client != null:
 		client.request_build(at, slot)
 
+## The one-device test has no host, so a platform is placed here: the same
+## sizes, the same cap and the same lap-0 storage as VersusHost.place_build.
+func _solo_construct(slot: int, at: Vector2) -> void:
+	if slot not in [1, 2] or phase() == VersusMatch.Phase.OVER \
+			or not VersusStageData.in_bounds(at):
+		return
+	var size: Vector2 = Balance.WALL_SIZE if slot == 2 else Balance.PLATFORM_SIZE
+	at = Vector2(VersusStageData.wrap_x(at.x), at.y)
+	if _built.size() >= VersusHost.MAX_BUILDS:
+		_built.pop_front()
+		_build_owner.pop_front()
+	_built.append(Rect2(at - size * 0.5, size))
+	_build_owner.append(VersusRoster.SEAT_A_GUARDIAN)
+	_solo_world_changed()
+
+func _solo_world_changed() -> void:
+	_built_revision += 1
+	_refresh_ground()
+	match_rules.world = ArenaStage.new(_collision_rects())
+
 func request_construct_undo() -> void:
+	if mode == Mode.SOLO:
+		if not _built.is_empty():
+			_built.pop_back()
+			_build_owner.pop_back()
+			_solo_world_changed()
+		return
 	if not combined() or waiting() or _seat < 0:
 		return
 	if mode == Mode.HOST and host != null:
@@ -1177,7 +1264,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		leave_versus()
 
 # ---------------------------------------------------------------------- paint
-func _draw() -> void:
+## Stars, platforms, rings and strikes go on an overlay above the scenery:
+## drawn on the arena itself they sat underneath its children -- the level's
+## ground, trees and signposts -- and a star behind a tree was a star nobody
+## could see.
+func _draw_overlay() -> void:
 	_builds()
 	_markers()
 	_coins()
@@ -1194,10 +1285,10 @@ func _heads() -> void:
 			continue
 		var centre: Vector2 = runners[i].global_position
 		var y := centre.y - Balance.RUNNER_SIZE.y * 0.5 - 18.0
-		var pitch := 12.0
+		var pitch := 18.0
 		var x0 := centre.x - pitch * float(held - 1) * 0.5
 		for k in range(held):
-			_star_shape(Vector2(x0 + pitch * float(k), y), 6.0, COL_COIN)
+			_star_shape(Vector2(x0 + pitch * float(k), y), 9.0, COL_COIN)
 
 func _star_shape(at: Vector2, r: float, fill: Color) -> void:
 	var pts := PackedVector2Array()
@@ -1205,9 +1296,9 @@ func _star_shape(at: Vector2, r: float, fill: Color) -> void:
 		var rr := r if k % 2 == 0 else r * 0.45
 		var a := -PI * 0.5 + float(k) * TAU / 10.0
 		pts.append(at + Vector2(cos(a), sin(a)) * rr)
-	draw_colored_polygon(pts, fill)
+	_overlay.draw_colored_polygon(pts, fill)
 	pts.append(pts[0])
-	draw_polyline(pts, COL_COIN_EDGE, 1.5)
+	_overlay.draw_polyline(pts, COL_COIN_EDGE, maxf(1.5, r * 0.12))
 
 func _builds() -> void:
 	for i in range(_built.size()):
@@ -1217,13 +1308,14 @@ func _builds() -> void:
 		# 1-1's sky is behind half the arena, so a platform drawn in it alone
 		# disappeared into the background -- something you found by walking into
 		# it rather than by looking.
-		draw_rect(_built[i].grow(2.0), Color(0.06, 0.07, 0.10, 0.85), false, 5.0)
-		draw_rect(_built[i], build_fill(team))
-		draw_rect(_built[i], build_edge(team), false, 3.0)
+		var box := Rect2(_near(_built[i].position), _built[i].size)
+		_overlay.draw_rect(box.grow(2.0), Color(0.06, 0.07, 0.10, 0.85), false, 5.0)
+		_overlay.draw_rect(box, build_fill(team))
+		_overlay.draw_rect(box, build_edge(team), false, 3.0)
 		# A highlight along the top, so which side of it you can stand on is
 		# obvious from across the arena.
-		draw_line(_built[i].position + Vector2(0.0, 1.5),
-			_built[i].position + Vector2(_built[i].size.x, 1.5),
+		_overlay.draw_line(box.position + Vector2(0.0, 1.5),
+			box.position + Vector2(box.size.x, 1.5),
 			Color(1, 1, 1, 0.75), 3.0)
 
 func _markers() -> void:
@@ -1232,22 +1324,22 @@ func _markers() -> void:
 			continue
 		var at: Vector2 = runners[i].global_position \
 			+ Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5)
-		draw_arc(at, 17.0, 0.0, TAU, 20, build_edge(i), 3.0)
+		_overlay.draw_arc(at, 17.0, 0.0, TAU, 20, build_edge(i), 3.0)
 
 func _coins() -> void:
 	for c in coins():
 		if int(c["state"]) != ArenaCoin.State.WORLD:
 			continue
-		var at: Vector2 = c["position"]
+		var at: Vector2 = _near(c["position"])
 		var fill := COL_COIN
 		if c.has("world_since"):
 			var left := VersusRules.STALE_TICKS - (world_tick() - int(c["world_since"]))
 			if left <= 90:
 				fill.a = 0.35 + 0.65 * absf(sin(float(left) * 0.25))
 		if _world_view == null:
-			_star_shape(at, 14.0, fill)
+			_star_shape(at, STAR_RADIUS, fill)
 		if c.has("pickup_tick") and world_tick() < int(c["pickup_tick"]):
-			draw_arc(at, 15.0, 0.0, TAU, 16, Color(1, 1, 1, 0.35), 1.0)
+			_overlay.draw_arc(at, STAR_RADIUS + 4.0, 0.0, TAU, 20, Color(1, 1, 1, 0.45), 2.0)
 
 ## The strike while it is live, and the wind-up before it. Both shown: the whole
 ## fight is about whether eight frames was enough warning.
@@ -1258,13 +1350,13 @@ func _strikes() -> void:
 				continue
 			var r: Dictionary = client.runners[i]
 			if int(r["combat_phase"]) == ArenaCombat.Phase.ACTIVE:
-				_strike_box_at(r["position"], int(r["combat_dir"]))
+				_strike_box_at(_near(r["position"]), int(r["combat_dir"]))
 		return
 	for i in range(sides):
 		var c := match_rules.combat[i]
 		var at: Vector2 = runners[i].global_position
 		if c.phase == ArenaCombat.Phase.STARTUP:
-			draw_arc(at + Vector2(float(c.attack_dir) * 22.0, 0.0), 7.0,
+			_overlay.draw_arc(at + Vector2(float(c.attack_dir) * 22.0, 0.0), 7.0,
 				0.0, TAU, 12, Color(1, 1, 1, 0.45), 2.0)
 		elif c.phase == ArenaCombat.Phase.ACTIVE:
 			_strike_box_at(at, c.attack_dir)
@@ -1272,5 +1364,5 @@ func _strikes() -> void:
 func _strike_box_at(at: Vector2, dir: int) -> void:
 	var mid := Vector2(at.x + float(dir) * VersusRules.STRIKE_REACH, at.y)
 	var box := Rect2(mid - VersusRules.STRIKE_SIZE * 0.5, VersusRules.STRIKE_SIZE)
-	draw_rect(box, Color(1.0, 0.95, 0.70, 0.30))
-	draw_rect(box, Color(1.0, 0.95, 0.70, 0.85), false, 2.0)
+	_overlay.draw_rect(box, Color(1.0, 0.95, 0.70, 0.30))
+	_overlay.draw_rect(box, Color(1.0, 0.95, 0.70, 0.85), false, 2.0)

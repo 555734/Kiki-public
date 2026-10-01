@@ -21,11 +21,13 @@ class_name VersusStageData
 const WIDTH: float = 3200.0
 const LEFT: float = 0.0
 const RIGHT: float = WIDTH
-## The end walls. Tall enough that no jump, wall kick or guardian platform gets
-## a runner over them: a runner outside the field would be a runner nobody can
-## reach, holding stars nobody can take back.
-const WALL_THICKNESS: float = 360.0
-const WALL_TOP: float = -1400.0
+## The field is a loop: x=WIDTH is x=0. Both ends are floor at the same
+## height, so the join is one continuous stretch of ground and running off
+## either edge brings you in at the other without a step, a wall or a cut.
+## Everything that measures a distance does it to the nearest lap
+## (nearest_image), and everything solid exists one lap either side too, so
+## a runner standing on the join has floor under both feet.
+const LAPS: Array[int] = [-1, 0, 1]
 ## Tops of the three floor heights, and the base 1-1 draws every slab down to.
 const FLOOR_TOP: float = 400.0
 const STEP_TOP: float = 330.0
@@ -61,18 +63,15 @@ const BLOCK_CELL: float = 46.0
 static func _mirror_span(x0: float, x1: float) -> Vector2:
 	return Vector2(WIDTH - x1, WIDTH - x0)
 
-## Solid ground, the walls included.
+## Solid ground, one lap of it.
 static func ground() -> Array[Rect2]:
 	var out: Array[Rect2] = []
-	out.append(Rect2(LEFT - WALL_THICKNESS, WALL_TOP, WALL_THICKNESS,
-		GROUND_BASE - WALL_TOP))
 	for f in _LEFT_FLOORS:
 		out.append(_slab(f[0], f[1], f[2]))
 	for i in range(_LEFT_FLOORS.size() - 1, -1, -1):
 		var f: Array = _LEFT_FLOORS[i]
 		var m := _mirror_span(f[0], f[1])
 		out.append(_slab(m.x, m.y, f[2]))
-	out.append(Rect2(RIGHT, WALL_TOP, WALL_THICKNESS, GROUND_BASE - WALL_TOP))
 	return out
 
 static func _slab(x0: float, x1: float, top: float) -> Rect2:
@@ -142,6 +141,26 @@ static func _block_rows() -> Array[Dictionary]:
 ## each floor is drawn as an island of its own thickness, the block rows and
 ## conduits become small islands, and the walls are drawn as stacked columns
 ## (see decor) because an island painting has no body to stretch.
+## The floors as painted: the two end floors are one stretch of ground across
+## the join, so they are drawn as one piece reaching into the next lap rather
+## than two pieces meeting at x=0 -- an island painting (1-3) has rounded
+## ends, and two of them touching left a visible notch at the join.
+static func painted_floors() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var first: Rect2 = Rect2()
+	for f in floors():
+		if is_equal_approx(f.position.x, LEFT):
+			first = f
+	for f in floors():
+		if is_equal_approx(f.position.x, LEFT) and first.size.x > 0.0:
+			continue
+		if is_equal_approx(f.end.x, RIGHT) and first.size.x > 0.0 \
+				and is_equal_approx(f.position.y, first.position.y):
+			out.append(Rect2(f.position, Vector2(f.size.x + first.size.x, f.size.y)))
+		else:
+			out.append(f)
+	return out
+
 static func painted_slabs() -> Array[Rect2]:
 	if theme == Stage.Which.SEA or theme == Stage.Which.SWAMP:
 		# The coast's rocks and the marsh's stones are drawn standing in the
@@ -149,14 +168,14 @@ static func painted_slabs() -> Array[Rect2]:
 		# and wrong for a floating row a runner can walk under. The rows are
 		# painted as that stage's own ground instead: thin slabs of sand or
 		# mud, exactly their collision rectangle.
-		var slabs := ground()
+		var slabs := painted_floors()
 		for row in _block_rows():
 			slabs.append(Rect2(row["pos"], Vector2(BLOCK_CELL * float(row["count"]), BLOCK_CELL)))
 		return slabs
 	if theme != Stage.Which.SKYWARD_RUINS:
-		return ground()
+		return painted_floors()
 	var out: Array[Rect2] = []
-	for f in floors():
+	for f in painted_floors():
 		out.append(Rect2(f.position, Vector2(f.size.x, ISLAND_THICKNESS)))
 	out.append_array(solid_decor())
 	return out
@@ -255,7 +274,7 @@ static func _decor_swamp() -> Array[Dictionary]:
 	return out
 
 ## 1-3: islands (painted_slabs) with the ruins' trees, bushes, columns and an
-## arch; the walls are columns stacked to the top of the field.
+## arch.
 static func _decor_sky() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	_pairs(out, "tree", 70.0, FLOOR_TOP, {"size": Vector2(200, 230)})
@@ -265,14 +284,6 @@ static func _decor_sky() -> Array[Dictionary]:
 	_pairs(out, "tree_tall", 1100.0, STEP_TOP, {"size": Vector2(100, 200)})
 	out.append({"type": "arch", "pos": Vector2(WIDTH * 0.5, FLOOR_TOP),
 		"size": Vector2(220, 220)})
-	var column := Vector2(80.0, 190.0)
-	var y := GROUND_BASE
-	while y > WALL_TOP:
-		out.append({"type": "ruin_column", "pos": Vector2(LEFT - column.x * 0.5, y),
-			"size": column})
-		out.append({"type": "ruin_column", "pos": Vector2(RIGHT + column.x * 0.5, y),
-			"size": column})
-		y -= column.y - 10.0
 	return out
 
 ## Kept for the callers that used to ask for a lap: the arena IS the whole map.
@@ -283,15 +294,16 @@ static func lap_ground() -> Array[Rect2]:
 ## rather than a wrap; the walls already stop a runner, so it only ever matters
 ## for a star knocked loose right against one.
 static func wrap_x(x: float) -> float:
-	return clampf(x, LEFT + 12.0, RIGHT - 12.0)
+	return LEFT + fposmod(x - LEFT, WIDTH)
 
 ## No lap, so every point has exactly one image.
-static func nearest_image(of: Vector2, _seen_from: Vector2) -> Vector2:
-	return of
+static func nearest_image(of: Vector2, seen_from: Vector2) -> Vector2:
+	var dx := fposmod(of.x - seen_from.x + WIDTH * 0.5, WIDTH) - WIDTH * 0.5
+	return Vector2(seen_from.x + dx, of.y)
 
 ## Where `x` sits across the field, as 0..1. For the map.
 static func lap_fraction(x: float) -> float:
-	return clampf((x - MAP_RECT.position.x) / MAP_RECT.size.x, 0.0, 1.0)
+	return clampf((wrap_x(x) - MAP_RECT.position.x) / MAP_RECT.size.x, 0.0, 1.0)
 
 ## Where `y` sits in the map's height, as 0..1 (0 = top).
 static func height_fraction(y: float) -> float:
@@ -300,31 +312,27 @@ static func height_fraction(y: float) -> float:
 static func kill_y() -> float:
 	return Level01Data.KILL_Y
 
-## Where each side starts, in side order: team A / B (or players 1 and 2) at
-## the two ends, then players 3-8 in mirrored pairs -- on the steps, beside
-## the conduits, and either side of the middle. Every left start has its
-## mirror image on the right, so no seat is nearer the middle than its twin.
-## The 2v2 and 1v1 modes only ever use the first two.
-const _LEFT_STARTS := [
-	[160.0, FLOOR_TOP],
-	[960.0, STEP_TOP],
-	[440.0, FLOOR_TOP],
-	[1440.0, FLOOR_TOP],
+## Where each side starts, in side order. On a loop "fair" means evenly
+## round it: the two 2v2 starts are exactly half a lap apart (x=800 and 2400,
+## both on the steps), and the other six free-for-all starts are mirrored
+## pairs on floor, no two closer than 280px either way round.
+const _STARTS := [
+	[800.0, STEP_TOP, 1], [2400.0, STEP_TOP, -1],
+	[200.0, FLOOR_TOP, 1], [3000.0, FLOOR_TOP, -1],
+	[1400.0, FLOOR_TOP, 1], [1800.0, FLOOR_TOP, -1],
+	[460.0, FLOOR_TOP, 1], [2740.0, FLOOR_TOP, -1],
 ]
 
 static func start_positions() -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	for p in _LEFT_STARTS:
+	for p in _STARTS:
 		out.append(Vector2(p[0], p[1] - 26.0))
-		out.append(Vector2(WIDTH - p[0], p[1] - 26.0))
 	return out
 
-## Left starts face right, right starts face left: towards the middle.
 static func start_facing() -> Array[int]:
 	var out: Array[int] = []
-	for i in range(_LEFT_STARTS.size()):
-		out.append(1)
-		out.append(-1)
+	for p in _STARTS:
+		out.append(int(p[2]))
 	return out
 
 ## Where stars may appear. Every surface a runner can stand on, sampled about
@@ -333,10 +341,6 @@ static func start_facing() -> Array[int]:
 ## ._free_point), adds a small sideways jitter, and refuses a point that is
 ## inside something solid or has no floor under it.
 ##
-## The strip right in front of each team's start is left out, so a star never
-## appears in one team's lap; the first steps of a match are a race to the
-## middle, not a gift.
-const STAR_HOME_CLEAR: float = 360.0
 const STAR_PITCH: float = 180.0
 
 static func coin_points() -> Array[Vector2]:
@@ -352,8 +356,6 @@ static func coin_points() -> Array[Vector2]:
 		for k in range(n):
 			var x := (from + to) * 0.5 if n == 1 \
 				else from + (to - from) * float(k) / float(n - 1)
-			if x < LEFT + STAR_HOME_CLEAR or x > RIGHT - STAR_HOME_CLEAR:
-				continue
 			out.append(Vector2(x, s.position.y - 40.0))
 	return out
 
@@ -370,14 +372,18 @@ static func respawn_for(team: int, _from: Vector2 = Vector2.ZERO) -> Vector2:
 static func extra_enemies() -> Array[Dictionary]:
 	return []
 
-## Still in the match: above the kill plane and between the walls.
+## Still in the match: above the kill plane. A loop has no sides to leave by.
 static func in_bounds(at: Vector2) -> bool:
-	return at.y < kill_y() and at.x > LEFT - 4.0 and at.x < RIGHT + 4.0
+	return at.y < kill_y()
 
 ## The one authoritative collision representation of the arena. Scene runners,
 ## host star physics and remote star physics must all use it.
 static func collision_rects(constructs: Array[Rect2] = []) -> Array[Rect2]:
-	var out: Array[Rect2] = ground()
-	out.append_array(solid_decor())
-	out.append_array(constructs)
+	var one: Array[Rect2] = ground()
+	one.append_array(solid_decor())
+	one.append_array(constructs)
+	var out: Array[Rect2] = []
+	for lap in LAPS:
+		for r in one:
+			out.append(Rect2(r.position + Vector2(WIDTH * float(lap), 0.0), r.size))
 	return out

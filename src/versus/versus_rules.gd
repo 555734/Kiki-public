@@ -36,7 +36,9 @@ const DROP_LOCKOUT_TICKS: int = ArenaRules.DROP_LOCKOUT_TICKS
 const DROP_OWNER_LOCKOUT_TICKS: int = ArenaRules.DROP_OWNER_LOCKOUT_TICKS
 
 ## Distance from a coin's centre to a runner's body.
-const PICKUP_RADIUS: float = 20.0
+## Matched to the star's drawn size (26px radius): a star you are visibly
+## touching is a star you take.
+const PICKUP_RADIUS: float = 30.0
 
 ## The strike. Same 8/4/14 shape as the arena's, because it was chosen to be
 ## readable rather than to be fast: eight frames is enough warning to answer.

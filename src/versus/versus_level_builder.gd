@@ -16,12 +16,12 @@ func build() -> void:
 	add_child(_static_root)
 
 	_terrain = preload("res://src/render/terrain.gd").new()
-	_terrain.slabs = VersusStageData.painted_slabs()
+	_terrain.slabs = _laps_of_slabs(VersusStageData.painted_slabs())
 	_static_root.add_child(_terrain)
 	_build_ground_bodies()
 
 	_decor = preload("res://src/render/decor.gd").new()
-	_decor.items = VersusStageData.decor()
+	_decor.items = _laps_of_decor(VersusStageData.decor())
 	_static_root.add_child(_decor)
 
 	# 1-4's sea and 1-5's poison lie below every floor, so the pits open
@@ -53,10 +53,34 @@ func _build_ground_bodies() -> void:
 func _build_kill_plane() -> void:
 	var pit := Hazard.new()
 	pit.draw_spikes = false
-	pit.span = Vector2(VersusStageData.WIDTH + 2.0 * VersusStageData.WALL_THICKNESS + 800.0, 200)
+	pit.span = Vector2(VersusStageData.WIDTH * 3.0 + 800.0, 200)
 	pit.global_position = Vector2(VersusStageData.WIDTH * 0.5,
 		VersusStageData.kill_y() + 100.0)
 	_static_root.add_child(pit)
+
+## The field is a loop, so it is painted three times -- the lap you are in
+## and one either side -- and the join is never an edge on screen. A runner
+## is always brought back into the middle lap (versus_main._wrap_bodies), so
+## the outer two only ever show what is just across the join.
+static func _laps_of_slabs(one: Array[Rect2]) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for lap in VersusStageData.LAPS:
+		for r in one:
+			out.append(Rect2(r.position + Vector2(VersusStageData.WIDTH * float(lap), 0.0), r.size))
+	return out
+
+static func _laps_of_decor(one: Array[Dictionary]) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for lap in VersusStageData.LAPS:
+		var shift := Vector2(VersusStageData.WIDTH * float(lap), 0.0)
+		for d in one:
+			var copy: Dictionary = d.duplicate()
+			copy["pos"] = Vector2(d["pos"]) + shift
+			if d.has("rect"):
+				var r: Rect2 = d["rect"]
+				copy["rect"] = Rect2(r.position + shift, r.size)
+			out.append(copy)
+	return out
 
 func _build_arena_water() -> void:
 	var sea := preload("res://src/render/sea_water.gd").new()

@@ -82,9 +82,15 @@ func _ready() -> void:
 		_touch(i, 0, at, false)
 		await _ticks(30)
 		check(is_zero_approx(scene.input.hubs[0].move_axis), "peer %d releases stick" % i)
-		check(scenes[1 - i].runners[i].global_position.distance_to(
+		check(VersusStageData.nearest_image(scenes[1 - i].runners[i].global_position,
+			scene.runners[i].global_position).distance_to(
 			scene.runners[i].global_position) < 3.0,
 			"peer %d movement reaches the other screen" % i)
+		# Jump from open floor: the start is on the steps, and a walk to the
+		# right ends under a block row.
+		scene.runners[i].global_position = Vector2(250.0 if i == 0 else 2950.0, 370.0)
+		scene.runners[i].velocity = Vector2.ZERO
+		await _ticks(20)
 		var jump_at: Vector2 = layout["jump"]["center"]
 		var y: float = scene.runners[i].global_position.y
 		_touch(i, 1, jump_at, true)

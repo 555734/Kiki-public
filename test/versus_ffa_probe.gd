@@ -124,8 +124,10 @@ func _ready() -> void:
 	await _ticks(10)
 	check(body.global_position.distance_to(before) > 20.0,
 		"P3 walks with a real touch (%.0fpx)" % body.global_position.distance_to(before))
-	check(host.runners[2].global_position.distance_to(body.global_position) < 40.0
-			and scenes[1].runners[2].global_position.distance_to(body.global_position) < 40.0,
+	# Compared round the loop: P2's camera is half a lap away, so it draws P3
+	# in the copy just across the join -- the near one, which is the point.
+	check(_loop_distance(host.runners[2].global_position, body.global_position) < 40.0
+			and _loop_distance(scenes[1].runners[2].global_position, body.global_position) < 40.0,
 		"and both other screens see P3 there")
 	var build_at: Vector2 = p3.controls._circles()["build"]
 	_touch(2, 1, build_at, true)
@@ -166,6 +168,9 @@ func _ready() -> void:
 	views.clear()
 	print("versus ffa probe: %d checks failed" % failures.size())
 	get_tree().quit(0 if failures.is_empty() else 1)
+
+static func _loop_distance(a: Vector2, b: Vector2) -> float:
+	return VersusStageData.nearest_image(a, b).distance_to(b)
 
 func _stick_at(dir: float) -> Vector2:
 	var layout := ControlLayout.layout("runner", Vector2(1280, 720), false)

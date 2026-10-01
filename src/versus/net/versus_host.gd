@@ -324,6 +324,8 @@ func place_build(seat: int, at: Vector2, slot: int = 1) -> bool:
 		return false
 	if not VersusStageData.in_bounds(at):
 		return false
+	# Stored in lap 0; every machine draws and collides it in all three.
+	at = Vector2(VersusStageData.wrap_x(at.x), at.y)
 	if builds.size() >= max_builds():
 		# A cap, so two guardians cannot pave the arena between them. The oldest
 		# goes, which also makes a platform a temporary thing to plan around

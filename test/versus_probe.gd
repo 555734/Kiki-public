@@ -45,7 +45,7 @@ func _ready() -> void:
 # ------------------------------------------------------------------ the stage
 ## The arena is a competition map, so what has to hold is fairness: the two
 ## halves mirror each other, every star point is over floor, the starts face
-## each other from opposite ends, and nothing gets out past the walls.
+## each other half a lap apart, and the two ends join without a seam.
 func _test_the_stage() -> void:
 	_current = "the stage"
 	Stage.use(Stage.Which.GREENFIELD)
@@ -93,16 +93,13 @@ func _test_the_stage() -> void:
 		elif p.x > w * 0.5 + 1.0:
 			right += 1
 	check(left == right, "as many star points on each half (%d / %d)" % [left, right])
-	var in_home := 0
-	for p in points:
-		if p.x < VersusStageData.STAR_HOME_CLEAR or p.x > w - VersusStageData.STAR_HOME_CLEAR:
-			in_home += 1
-	check(in_home == 0, "no star point in front of either team's start")
 
 	var starts := VersusStageData.start_positions()
 	var facings := VersusStageData.start_facing()
 	check(is_equal_approx(starts[0].x, w - starts[1].x) and starts[0].y == starts[1].y,
-		"the two teams start at mirrored ends")
+		"the two teams start at mirrored places")
+	check(is_equal_approx(absf(starts[1].x - starts[0].x), w * 0.5),
+		"exactly half a lap apart, the same distance either way round")
 	check(facings[0] == 1 and facings[1] == -1, "facing each other")
 	for i in range(2):
 		check(world.floor_below(starts[i], 60.0) < INF,
@@ -110,14 +107,38 @@ func _test_the_stage() -> void:
 		check(VersusStageData.respawn_for(i, Vector2(1600.0, 0.0)) == starts[i],
 			"and comes back at its own start")
 
-	# Walls: nothing gets out sideways.
-	var wall_l := world.overlaps(Rect2(Vector2(-20.0, 200.0), Vector2(10.0, 10.0)))
-	var wall_r := world.overlaps(Rect2(Vector2(w + 10.0, 200.0), Vector2(10.0, 10.0)))
-	var wall_high := world.overlaps(Rect2(Vector2(-20.0, -1000.0), Vector2(10.0, 10.0)))
-	check(wall_l and wall_r and wall_high, "both ends are walled, and walled high")
+	# The join: x=WIDTH is x=0, and it is one continuous floor.
+	var join_l := world.floor_below(Vector2(w - 20.0, 300.0), 200.0)
+	var join_r := world.floor_below(Vector2(w + 20.0, 300.0), 200.0)
+	var join_0 := world.floor_below(Vector2(-20.0, 300.0), 200.0)
+	check(join_l == join_r and join_r == join_0 and join_l < INF,
+		"the two ends meet in one level floor, with collision on both sides of the join")
 	check(VersusStageData.extra_enemies().is_empty(), "the arena has no enemies")
-	check(VersusStageData.wrap_x(-500.0) > 0.0 and VersusStageData.wrap_x(w + 500.0) < w,
-		"a star knocked against a wall stays inside the field")
+	check(is_equal_approx(VersusStageData.wrap_x(-500.0), w - 500.0)
+			and is_equal_approx(VersusStageData.wrap_x(w + 500.0), 500.0),
+		"walking off either end comes back in at the other")
+	var across := VersusStageData.nearest_image(Vector2(10.0, 0.0), Vector2(w - 10.0, 0.0))
+	check(is_equal_approx(across.x, w + 10.0),
+		"and two runners either side of the join are 20px apart, not a field apart")
+	# A strike across the join lands, and a star across it can be taken.
+	var m := _fresh()
+	var seats := _seats()
+	_park(seats, 0, Vector2(w - 20.0, 377.0))
+	_park(seats, 1, Vector2(20.0, 377.0))
+	seats[0].facing = 1
+	_give(m, 1, [0])
+	m.step(seats)
+	seats[0].strike_seq += 1
+	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
+		m.step(seats)
+	check(_held_of(m, 1, [0]) == 0, "a strike across the join lands")
+	var star := m.ledger.get_coin(5)
+	ArenaCoin.to_world(star, Vector2(8.0, 377.0), m.tick, Vector2.ZERO, 0)
+	seats[0].position = Vector2(w - 8.0, 377.0)
+	seats[1].position = Vector2(1600.0, 377.0)
+	m.step(seats)
+	check(star.state == ArenaCoin.State.HELD and star.owner == 0,
+		"and a star just across it is picked up")
 
 	# Everything is reachable: every block top is within a held jump of
 	# something below it (the runner's measured held jump is ~133px).
@@ -308,9 +329,11 @@ func _test_themes() -> void:
 		for f in VersusStageData.floors():
 			var covered := false
 			for p in painted:
-				if is_equal_approx(p.position.y, f.position.y) \
-						and p.position.x <= f.position.x + 0.5 and p.end.x >= f.end.x - 0.5:
-					covered = true
+				for lap in VersusStageData.LAPS:
+					var q := Rect2(p.position + Vector2(VersusStageData.WIDTH * float(lap), 0.0), p.size)
+					if is_equal_approx(q.position.y, f.position.y) \
+							and q.position.x <= f.position.x + 0.5 and q.end.x >= f.end.x - 0.5:
+						covered = true
 			if not covered:
 				bare += 1
 		check(bare == 0, "%s: every floor is painted at its own height (%d bare)" % [name, bare])
@@ -411,18 +434,21 @@ func _test_the_map() -> void:
 			VersusStageData.height_fraction(180.0),
 		"and a block top is drawn above the floor")
 
-	# The far star is off screen from team A's start, so it gets an edge arrow
-	# pointing right; the other runner, at the far end, gets one too.
+	# Off-screen things get an edge arrow pointing the SHORT way round the
+	# loop: from team A's start (x=800) the star at x=2600 is 1,400px to the
+	# left across the join, not 1,800px to the right. The other runner, half a
+	# lap away, gets an arrow too.
 	var arrows: Array = arena.offscreen_marks()
 	var right_star := false
 	var them := false
 	for mark in arrows:
-		if String(mark["kind"]) == "star" and Vector2(mark["dir"]).x > 0.5:
+		if String(mark["kind"]) == "star" and Vector2(mark["dir"]).x < -0.5 \
+				and float(mark["distance"]) < 1500.0:
 			right_star = true
-		if String(mark["kind"]) == "them" and Vector2(mark["dir"]).x > 0.5:
+		if String(mark["kind"]) == "them":
 			them = true
-	check(right_star, "an off-screen star gets an edge arrow pointing at it")
-	check(them, "and so does the other team's runner, at the far end")
+	check(right_star, "an off-screen star gets an edge arrow, the short way round")
+	check(them, "and so does the other team's runner, half a lap away")
 	arena.queue_free()
 	await get_tree().physics_frame
 
