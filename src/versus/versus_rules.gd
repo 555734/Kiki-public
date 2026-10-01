@@ -119,3 +119,7 @@ const HIT_IMMUNE_TICKS: int = 60
 ## body, and the host compares two such reports.
 const BUMP_REACH: float = 12.0
 const BUMP_KNOCK := Vector2(420.0, -200.0)
+## Where a shot comes from, relative to what it hits: high and to the left,
+## exactly the line co-op draws its tracer along (Guardian.tracer_origin).
+## Anything solid on that line -- a platform held overhead -- takes the shot.
+const SHOT_FROM := Vector2(-160.0, -520.0)

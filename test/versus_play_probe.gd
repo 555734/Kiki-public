@@ -103,17 +103,19 @@ func _test_striking() -> void:
 	var victim: Runner = arena.runners[1]
 	var attacker: Runner = arena.runners[0]
 
-	# A real stomp: drop the attacker onto the victim's head.
-	# On open floor: x=1600 has the block stack over it.
-	victim.global_position = Vector2(1420.0, 370.0)
+	# A real stomp: drop the attacker onto the victim's head, on the open
+	# top of 1-1's middle hill -- far enough from the block stack over
+	# x=1554..1646 that the falling runner does not catch its ledge instead.
+	victim.global_position = _standing(1440.0)
 	victim.velocity = Vector2.ZERO
 	await _tick(20)
 	_clear_field(m)
 	var coin := m.ledger.get_coin(0)
 	ArenaCoin.to_held(coin, 1)
 	var hp_before := victim.hp
-	attacker.global_position = victim.global_position + Vector2(0.0, -120.0)
-	attacker.velocity = Vector2.ZERO
+	# respawn, not a bare move: the walk earlier can leave it hanging off a
+	# ledge, and a hanging runner moved elsewhere goes on hanging in the air.
+	attacker.respawn(victim.global_position + Vector2(0.0, -120.0))
 	var bounced := false
 	for i in range(40):
 		await get_tree().physics_frame
@@ -169,7 +171,7 @@ func _test_striking() -> void:
 	var coin4 := m.ledger.get_coin(3)
 	ArenaCoin.to_held(coin3, 1)
 	ArenaCoin.to_held(coin4, 0)
-	victim.global_position = Vector2(1420.0, 370.0)
+	victim.global_position = _standing(1500.0)
 	attacker.global_position = victim.global_position + Vector2(-90.0, 0.0)
 	attacker.velocity = Vector2.ZERO
 	await _tick(20)
@@ -193,8 +195,8 @@ func _test_striking() -> void:
 	_test_no_enemies()
 	await _test_repaint()
 
-## Repainting as 1-3 mid-scene (what a guest does on the WELCOME) changes the
-## art and nothing a runner stands on.
+## Switching to 1-3 mid-scene (what a guest does on the WELCOME) brings in
+## that stage's own ground and art, and puts the runner at its start.
 func _test_repaint() -> void:
 	_current = "repaint as 1-3"
 	var r: Runner = arena.runners[0]
@@ -206,7 +208,9 @@ func _test_repaint() -> void:
 	check(Stage.current() == Stage.Which.SKYWARD_RUINS and arena.theme() == Stage.Which.SKYWARD_RUINS,
 		"the arena is now painted as 1-3")
 	check(r.on_ground() and r.global_position.y < VersusStageData.kill_y(),
-		"and the runner is still standing on the same floor")
+		"and the runner is standing on 1-3's ground")
+	check(r.global_position.distance_to(VersusStageData.start_positions()[0]) < 40.0,
+		"at 1-3's own start")
 	var before := r.global_position.x
 	for i in range(30):
 		arena.input.hubs[0].drive_runner(1.0, 0.0, false, false)
@@ -219,7 +223,7 @@ func _test_repaint() -> void:
 	check(Stage.current() == Stage.Which.SWAMP and arena._world_view == null
 			and arena.level.find_child("PoisonWater", true, false) != null,
 		"repainted as 1-5: 2D, with the poison marsh under the pits")
-	check(r.on_ground(), "and the runner is still standing")
+	check(r.on_ground(), "and the runner is standing on 1-5's ground")
 	arena._apply_theme(Stage.Which.GREENFIELD)
 
 ## The arena is built from 1-1's pieces but not from its course: no enemy of
@@ -245,7 +249,8 @@ func _test_the_pit() -> void:
 	var r: Runner = arena.runners[0]
 	_give_to(m, 0, [1, 2])
 	check(_held_of(m, 0, [1, 2]) == 2, "the runner is carrying the two stars")
-	r.global_position = Vector2(1230.0, 500.0)
+	# Down the middle of 1-1's pit (x 1220..1360), below its edges.
+	r.global_position = Vector2(1290.0, 500.0)
 	r.velocity = Vector2.ZERO
 	await _tick(60)
 	check(m.ledger.count_held_by(0) == 0, "falling into a pit costs the whole hand")
@@ -262,12 +267,14 @@ func _test_the_walls() -> void:
 	var r: Runner = arena.runners[0]
 	var w := VersusStageData.WIDTH
 	for dir in [1.0, -1.0]:
-		r.global_position = Vector2(w - 150.0 if dir > 0 else 150.0, 370.0)
+		r.global_position = _standing(w - 150.0 if dir > 0 else 150.0)
 		r.velocity = Vector2.ZERO
 		await _tick(30)
 		var crossed := false
 		var cam_jump := 0.0
 		var last_cam: Vector2 = arena._camera.get_screen_center_position()
+		var last_scroll: float = arena._sky.scroll()
+		var sky_jump := 0.0
 		for i in range(90):
 			arena.input.hubs[0].drive_runner(dir, 0.0, false, false)
 			await get_tree().physics_frame
@@ -276,6 +283,9 @@ func _test_the_walls() -> void:
 			var step := fposmod(cam.x - last_cam.x + w * 0.5, w) - w * 0.5
 			cam_jump = maxf(cam_jump, absf(step))
 			last_cam = cam
+			# The backdrop is NOT measured round the loop: it never wraps.
+			sky_jump = maxf(sky_jump, absf(arena._sky.scroll() - last_scroll))
+			last_scroll = arena._sky.scroll()
 			if (dir > 0 and r.global_position.x < 400.0) or (dir < 0 and r.global_position.x > w - 400.0):
 				crossed = true
 		arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
@@ -283,6 +293,7 @@ func _test_the_walls() -> void:
 			"running %s across the join comes in at the other end (x=%.0f)"
 				% ["right" if dir > 0 else "left", r.global_position.x])
 		check(cam_jump < 40.0, "and the picture never jumps (largest step %.0fpx)" % cam_jump)
+		check(sky_jump < 40.0, "nor does the backdrop behind it (largest step %.0fpx)" % sky_jump)
 		check(r.on_ground(), "and the runner is still on the ground")
 
 	# A block row is one held jump up: a jump from the floor beside the first
@@ -290,7 +301,7 @@ func _test_the_walls() -> void:
 	# this, or it would release the jump between the probe's frames and a
 	# held jump would measure as a string of taps.
 	var row: Rect2 = VersusStageData.solid_decor()[0]
-	r.global_position = Vector2(row.position.x - 90.0, VersusStageData.FLOOR_TOP - 24.0)
+	r.global_position = _standing(row.position.x - 90.0)
 	r.velocity = Vector2.ZERO
 	await _tick(6)
 	arena.set_physics_process(false)
@@ -313,6 +324,10 @@ func _clear_field(m: VersusMatch) -> void:
 		if c.state == ArenaCoin.State.WORLD:
 			ArenaCoin.to_recycle(c, m.tick)
 	m._spawn_in = 100000
+
+## On the floor at x: the stage has hills, so "the floor" has no one height.
+func _standing(x: float) -> Vector2:
+	return Vector2(x, VersusStageData.top_at(x) - 26.0)
 
 func _held_of(m: VersusMatch, side: int, ids: Array) -> int:
 	var n := 0

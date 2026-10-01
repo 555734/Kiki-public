@@ -119,6 +119,9 @@ func _ready() -> void:
 	await _ticks(10)
 	var moved: float = b_runner.runners[1].global_position.distance_to(before)
 	check(moved > 20.0, "team B's runner walks from a real touch (%.0fpx)" % moved)
+	# The walk can end off the edge of 1-1's hilltop; compare once landed,
+	# not mid-fall with the host a few frames behind.
+	await _ticks(40)
 	check(host.runners[1].global_position.distance_to(
 			b_runner.runners[1].global_position) < 40.0,
 		"and the host sees it there")
@@ -196,7 +199,7 @@ func _ready() -> void:
 	get_tree().quit(0 if failures.is_empty() else 1)
 
 func _touch_stick(peer: int, pressed: bool) -> void:
-	var layout := ControlLayout.layout("runner", Vector2(1280, 720), false)
+	var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
 	var stick: Dictionary = layout["stick"]
 	# Team B starts at the right wall facing left, so it walks left.
 	var at: Vector2 = stick["center"] - Vector2(float(stick["radius"]) * 0.7, 0)

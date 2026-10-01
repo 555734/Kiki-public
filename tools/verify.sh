@@ -190,13 +190,16 @@ step "does a four-player room start, play, end and rematch"
 # all four, and a rematch every screen follows.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_team_probe.tscn
 
-step "can one phone try versus: touch buttons, a standing partner, building"
+step "can one phone try versus: touch buttons, a standing partner, platforms and the rifle"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_solo_probe.tscn
 
 step "does a free-for-all room of odd size play, one character each"
 # Three people as three real scenes: chairs handed out by the host, walking and
 # building from one screen, one person's win everywhere, and a rematch.
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_ffa_probe.tscn
+
+step "can a runner cross every climb and pit of every versus stage, both ways"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_reach_probe.tscn
 
 step "boot the coin battle headlessly"
 # Not part of the cooperative launch path: run/main_scene is untouched and the

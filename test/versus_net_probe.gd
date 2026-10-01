@@ -377,11 +377,11 @@ func _test_the_guardian() -> void:
 	check(guard.connected and guard.seat == VersusRoster.SEAT_A_GUARDIAN,
 		"the guardian is seated")
 
-	# Over the arena's left pit, where there is no floor at all.
-	var over_the_gap := Vector2(1230.0, 150.0)
+	# Over 1-1's pit (x 1220..1360), where there is no floor at all.
+	var over_the_gap := Vector2(1290.0, 150.0)
 	# Asked from above the platform: floor_below finds surfaces BELOW the point,
 	# and a point inside the slab it just built sees nothing under it.
-	var looking_down := Vector2(1230.0, 60.0)
+	var looking_down := Vector2(1290.0, 60.0)
 	check(host.world.floor_below(looking_down, 500.0) == INF,
 		"there is no floor over the gap to begin with")
 	guard.request_build(over_the_gap)
@@ -627,7 +627,9 @@ func _moving_seat(team: int, t: int, rng: RandomNumberGenerator) -> VersusMatch.
 	var s := VersusMatch.Seat.new()
 	s.team = team
 	var points := VersusStageData.coin_points()
-	var i := (int(t / 90) + team * 3) % points.size()
+	# Hops every 30 ticks, so in a 2400-tick match each runner stands on
+	# most of the star points and meets the one loose star now and then.
+	var i := (int(t / 30) + team * 3) % points.size()
 	s.position = points[i]
 	s.facing = 1 if team == 0 else -1
 	s.alive = true
@@ -827,7 +829,7 @@ func _test_free_for_all() -> void:
 			builder = c
 			break
 	var before := host.builds.size()
-	builder.request_build(Vector2(1230.0, 150.0), 1)
+	builder.request_build(Vector2(1290.0, 150.0), 1)
 	var other_seat := (builder.seat % 7) + 1
 	mesh[clients.find(builder) + 1].send_to(0, VersusTransport.Channel.COMMAND,
 		VersusTransport.Reliability.RELIABLE,

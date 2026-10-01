@@ -65,7 +65,9 @@ var _countdown_latched: bool = false
 var runner_on_left: bool = true
 
 ## "" offline (two players share the screen and the divider matters), or
-## "runner" / "guardian" online, where the local player owns the whole display.
+## "runner" / "guardian" online, where the local player owns the whole display,
+## or "versus": one person playing both in the star battle, with only the
+## stick on the left (ControlLayout "versus").
 ## The touch router consults this before the divider: a runner playing alone
 ## should not be confined to the left 30% just because a guardian used to sit
 ## there.
@@ -448,6 +450,10 @@ func owns_guardian_controls() -> bool:
 ## encounter was aimed at a crosshair that was not on screen yet. On the
 ## runner's device it stays conditional -- there, the reticle is news about
 ## somebody else, and news that has not arrived should not be drawn.
+## A finger is on the world right now, drawing a platform or aiming.
+func aiming() -> bool:
+	return _aim_finger >= 0
+
 func shows_guardian_cursor() -> bool:
 	return owns_guardian_controls() or remote_aim
 
@@ -631,7 +637,7 @@ func _touch_down(index: int, position: Vector2) -> void:
 ## so building behind the runner mostly failed. Now only a margin round the
 ## runner's controls stays theirs; the rest of that third is the guardian's.
 func _clear_of_runner_controls(position: Vector2, size: Vector2, mirrored: bool) -> bool:
-	var places := ControlLayout.layout("shared", size, mirrored)
+	var places := ControlLayout.layout(layout_mode(), size, mirrored)
 	for id in ["stick", "jump", "ping"]:
 		if not places.has(id):
 			continue
@@ -681,6 +687,8 @@ func layout_mode() -> String:
 		return "runner"
 	if solo_role == "guardian":
 		return "guardian"
+	if solo_role == "versus":
+		return "versus"
 	return "shared"
 
 func _route_guardian_only(index: int, position: Vector2, size: Vector2,

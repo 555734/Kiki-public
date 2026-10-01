@@ -33,13 +33,27 @@ func _ready() -> void:
 	await _ticks(60)
 	check(scene.touch_solo and scene.controls != null and scene.guardian != null,
 		"a phone's solo test has on-screen buttons and a rifle")
-	var shared := ControlLayout.layout("shared", Vector2(1280, 720), false)
+	var versus := ControlLayout.layout("versus", Vector2(1280, 720), false)
 	var drawn: Dictionary = scene.controls.places()
+	check(scene.input.hubs[0].layout_mode() == "versus" and drawn.keys().size() == 4,
+		"one person, one layout: the versus buttons (%s)" % str(drawn.keys()))
 	var same := true
 	for id in ["stick", "jump", "slot_1", "slot_3"]:
-		same = same and drawn.has(id) and shared.has(id) \
-			and Vector2(drawn[id]["center"]).is_equal_approx(shared[id]["center"])
-	check(same, "the stick, jump, platform and shot buttons sit exactly where one-device 1-1 has them")
+		same = same and drawn.has(id) and versus.has(id) \
+			and Vector2(drawn[id]["center"]).is_equal_approx(versus[id]["center"])
+	check(same, "drawn exactly where the touches land")
+	check(Vector2(drawn["stick"]["center"]).x < 640.0, "the stick on the left")
+	var right_side := true
+	for id in ["jump", "slot_1", "slot_3"]:
+		right_side = right_side and Vector2(drawn[id]["center"]).x > 640.0
+	check(right_side, "and jump, platform and shot all on the right")
+	var apart := true
+	for a in ["jump", "slot_1", "slot_3"]:
+		for b in ["jump", "slot_1", "slot_3"]:
+			if a < b:
+				apart = apart and Vector2(drawn[a]["center"]).distance_to(drawn[b]["center"]) \
+					> float(drawn[a]["radius"]) + float(drawn[b]["radius"])
+	check(apart, "without overlapping each other")
 	check(not drawn.has("slot_2") and not drawn.has("slot_4") and not drawn.has("attack"),
 		"and there is no wall, warp or close-range attack button")
 	var abilities: Array = scene.guardian.abilities.keys()
@@ -49,7 +63,7 @@ func _ready() -> void:
 	var me: Runner = scene.runners[0]
 	var partner: Runner = scene.runners[1]
 	var partner_at := partner.global_position
-	var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
+	var layout := versus
 	var stick: Dictionary = layout["stick"]
 	var right: Vector2 = stick["center"] + Vector2(float(stick["radius"]) * 0.7, 0)
 	var before := me.global_position.x
@@ -59,7 +73,8 @@ func _ready() -> void:
 	await _ticks(10)
 	check(me.global_position.x > before + 40.0,
 		"the stick walks P1 (%.0fpx)" % (me.global_position.x - before))
-	me.global_position = Vector2(250.0, 370.0)
+	# Open sky over x=60: further in, 1-1's first block row is overhead.
+	me.global_position = Vector2(60.0, VersusStageData.top_at(60.0) - 26.0)
 	me.velocity = Vector2.ZERO
 	await _ticks(20)
 	var y := me.global_position.y
@@ -76,13 +91,19 @@ func _ready() -> void:
 	# on the right of the screen and the co-op hologram appears there.
 	var g: Guardian = scene.guardian
 	check(g.active_slot == 1, "the platform is chosen first, as in 1-1")
-	var from := Vector2(900.0, 300.0)   # in the air above the floor
+	# In open air ahead of P1 and above the ground, wherever that is now.
+	var from: Vector2 = view.get_canvas_transform() * (me.global_position + Vector2(260.0, -150.0))
 	await _drag(6, from, from + Vector2(160.0, 0.0))
 	await _ticks(6)
 	var platforms: Array = g.holograms_of(Hologram.Kind.PLATFORM)
 	check(platforms.size() == 1, "tracing on the right draws a platform (%d)" % platforms.size())
-	check(scene._holos.size() == 1 and scene._holos.values()[0]["copies"].size() == 2,
-		"with a copy a lap either way, so the loop has it too")
+	# Near the left end, so its copy just across the join (a lap on) is
+	# built; the one a lap back is too far out to ever be seen.
+	var entry: Dictionary = scene._holos.values()[0] if scene._holos.size() == 1 else {}
+	var copies: Array = entry.get("copies", [])
+	check(copies.size() == 1 and (copies[0] as Node2D).global_position.x
+			> (entry["main"] as Node2D).global_position.x + VersusStageData.WIDTH - 1.0,
+		"with its copy across the join, so the loop has it too")
 
 	# Shooting: choose the rifle, then tap the partner on the right.
 	await _ticks(10)
@@ -94,7 +115,8 @@ func _ready() -> void:
 	var star: ArenaCoin.Record = m.ledger.get_coin(0)
 	ArenaCoin.to_held(star, 1)
 	var held_before := m.ledger.held_by(1).size()
-	partner.global_position = me.global_position + Vector2(330.0, 0.0)
+	var partner_x := me.global_position.x + 330.0
+	partner.global_position = Vector2(partner_x, VersusStageData.top_at(partner_x) - 26.0)
 	partner.velocity = Vector2.ZERO
 	await _ticks(20)
 	var shot_button: Vector2 = layout["slot_3"]["center"]
@@ -109,6 +131,23 @@ func _ready() -> void:
 	Events.shot_fired.connect(count_shot)
 	var on_screen: Vector2 = view.get_canvas_transform() * partner.global_position
 	check(on_screen.x > 1280.0 * ControlLayout.DIVIDER, "the partner is on the right of the screen")
+	# The platform drawn above is over the partner's head: cover from a shot
+	# that comes down from the sky.
+	check(not g.holograms_of(Hologram.Kind.PLATFORM).is_empty() and not scene.shot_clear(1),
+		"the platform drawn earlier is over the partner's head")
+	_touch(5, on_screen, true)
+	_touch(5, on_screen, false)
+	await _ticks(4)
+	check(shots[0] == 0 and m.ledger.held_by(1).size() == held_before,
+		"so a shot at them is stopped by it, and costs them nothing")
+	# Out from under it -- the platform runs out -- the same shot hits.
+	for i in range(int(Balance.PLATFORM_LIFETIME * 60.0) + 60):
+		if g.holograms_of(Hologram.Kind.PLATFORM).is_empty():
+			break
+		await get_tree().physics_frame
+	await _ticks(4)
+	check(scene.shot_clear(1), "when the platform is gone they are in the open")
+	on_screen = view.get_canvas_transform() * partner.global_position
 	_touch(5, on_screen, true)
 	_touch(5, on_screen, false)
 	await _ticks(4)

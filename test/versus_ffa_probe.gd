@@ -137,12 +137,13 @@ func _ready() -> void:
 	var star := hm.ledger.get_coin(3)
 	ArenaCoin.to_held(star, 0)
 	var held_before := hm.ledger.held_by(0).size()
-	var target_pos: Vector2 = body.global_position + Vector2(320.0, 0.0)
+	# P1 stands in the open (no block row overhead: that would be cover).
+	var target_pos := _open_spot(host, body.global_position.x + 320.0)
 	host.runners[0].global_position = target_pos
 	host.runners[0].velocity = Vector2.ZERO
 	await _ticks(30)
 	var on_screen: Vector2 = views[2].get_canvas_transform() * p3._near(p3.runners[0].global_position)
-	var slot_3: Vector2 = ControlLayout.layout("shared", Vector2(1280, 720), false)["slot_3"]["center"]
+	var slot_3: Vector2 = ControlLayout.layout("versus", Vector2(1280, 720), false)["slot_3"]["center"]
 	_touch(2, 2, slot_3, true)
 	_touch(2, 2, slot_3, false)
 	await _ticks(3)
@@ -167,11 +168,12 @@ func _ready() -> void:
 	ArenaCoin.to_held(hm.ledger.get_coin(2), 2)
 	var p2 = scenes[1]
 	var p3_body: Runner = p3.runners[2]
-	p3_body.global_position = Vector2(1420.0, 370.0)
+	# Both on 1-1's middle hill (x 1360..1600), clear of its block stack.
+	p3_body.global_position = Vector2(1500.0, VersusStageData.top_at(1500.0) - 26.0)
 	p3_body.velocity = Vector2.ZERO
-	p2.runners[1].global_position = Vector2(1330.0, 370.0)
+	p2.runners[1].global_position = Vector2(1410.0, VersusStageData.top_at(1410.0) - 26.0)
 	p2.runners[1].velocity = Vector2.ZERO
-	host.runners[0].global_position = Vector2(400.0, 370.0)
+	host.runners[0].global_position = Vector2(400.0, VersusStageData.top_at(400.0) - 26.0)
 	await _ticks(30)
 	var felt: int = p2.bumps_felt + p3.bumps_felt
 	var closest := INF
@@ -224,8 +226,19 @@ func _ready() -> void:
 static func _loop_distance(a: Vector2, b: Vector2) -> float:
 	return VersusStageData.nearest_image(a, b).distance_to(b)
 
+## Floor near x with open sky over it (nothing a shot from above would hit).
+func _open_spot(scene, x: float) -> Vector2:
+	for dx in [0.0, -40.0, 40.0, -80.0, 80.0, -120.0, 120.0]:
+		var top := VersusStageData.top_at(x + dx)
+		if top == INF:
+			continue
+		var p := Vector2(VersusStageData.wrap_x(x + dx), top - 26.0)
+		if scene.line_clear(p + VersusRules.SHOT_FROM, p):
+			return p
+	return Vector2(VersusStageData.wrap_x(x), VersusStageData.top_at(x) - 26.0)
+
 func _stick_at(dir: float) -> Vector2:
-	var layout := ControlLayout.layout("runner", Vector2(1280, 720), false)
+	var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
 	var stick: Dictionary = layout["stick"]
 	return stick["center"] + Vector2(float(stick["radius"]) * 0.7 * dir, 0)
 

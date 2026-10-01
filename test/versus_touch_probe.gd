@@ -70,15 +70,22 @@ func _ready() -> void:
 			"peer %d unused hub cannot consume touch" % i)
 		check(scene.level._dynamic.get_child_count() == 0,
 			"peer %d builds the arena without 1-1's pickups or enemies" % i)
-		var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
+		var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
 		var stick: Dictionary = layout["stick"]
 		var at: Vector2 = stick["center"] + Vector2(float(stick["radius"]) * 0.7, 0)
+		# From the flat home ground, where a walk right meets no step.
+		var start_x := 60.0 if i == 0 else VersusStageData.WIDTH - 60.0
+		scene.runners[i].global_position = Vector2(start_x, VersusStageData.top_at(start_x) - 26.0)
+		scene.runners[i].velocity = Vector2.ZERO
+		await _ticks(10)
 		var before: Vector2 = scene.runners[i].global_position
 		_touch(i, 0, at, true)
 		await _ticks(30)
 		check(scene.input.hubs[0].move_axis > 0.2, "peer %d touch reaches its own hub" % i)
-		check(scene.runners[i].global_position.x > before.x + 20,
-			"peer %d actually walks from viewport touch" % i)
+		# Round the loop: peer 1 starts just short of the join and crosses it.
+		var walked := fposmod(scene.runners[i].global_position.x - before.x, VersusStageData.WIDTH)
+		check(walked > 20.0 and walked < VersusStageData.WIDTH * 0.5,
+			"peer %d actually walks from viewport touch (%.0fpx)" % [i, walked])
 		_touch(i, 0, at, false)
 		await _ticks(30)
 		check(is_zero_approx(scene.input.hubs[0].move_axis), "peer %d releases stick" % i)
@@ -88,7 +95,9 @@ func _ready() -> void:
 			"peer %d movement reaches the other screen" % i)
 		# Jump from open floor: the start is on the steps, and a walk to the
 		# right ends under a block row.
-		scene.runners[i].global_position = Vector2(250.0 if i == 0 else 2950.0, 370.0)
+		# Open sky over the home ground (further in, a block row is overhead).
+		var home_x := 60.0 if i == 0 else VersusStageData.WIDTH - 60.0
+		scene.runners[i].global_position = Vector2(home_x, VersusStageData.top_at(home_x) - 26.0)
 		scene.runners[i].velocity = Vector2.ZERO
 		await _ticks(20)
 		var jump_at: Vector2 = layout["jump"]["center"]
@@ -110,15 +119,14 @@ func _ready() -> void:
 		var star := m.ledger.get_coin(5 + i)
 		ArenaCoin.to_held(star, 1 - i)
 		await _ticks(8)
+		# Bring them on screen, standing in the open: a shot is aimed at what
+		# you can see, and a block row overhead would be cover.
+		var pos := _open_spot(scene, scene.runners[i].global_position.x + 300.0)
+		other.global_position = pos
+		scenes[1 - i].runners[1 - i].global_position = VersusStageData.nearest_image(pos,
+			scenes[1 - i].runners[1 - i].global_position)
+		await _ticks(20)
 		var on_screen: Vector2 = views[i].get_canvas_transform() * scene._near(other.global_position)
-		var visible := on_screen.x > 1280.0 * ControlLayout.DIVIDER and on_screen.x < 1280.0
-		if not visible:
-			# Bring them on screen first: a shot is aimed at what you can see.
-			var pos: Vector2 = scene.runners[i].global_position + Vector2(300.0, 0.0)
-			other.global_position = pos
-			scenes[1 - i].runners[1 - i].global_position = pos
-			await _ticks(20)
-			on_screen = views[i].get_canvas_transform() * scene._near(other.global_position)
 		var held_before := m.ledger.held_by(1 - i).size()
 		# 1-1's way: the 射撃 button chooses the rifle, a tap fires it.
 		_touch(i, 2, layout["slot_3"]["center"], true)
@@ -138,7 +146,7 @@ func _ready() -> void:
 		await _ticks(10)
 	# A platform traced on peer 1's screen is on peer 0's too, solid, and
 	# goes when it expires on peer 1.
-	var shared := ControlLayout.layout("shared", Vector2(1280, 720), false)
+	var shared := ControlLayout.layout("versus", Vector2(1280, 720), false)
 	var b_scene = scenes[1]
 	_touch(1, 2, shared["slot_1"]["center"], true)
 	_touch(1, 2, shared["slot_1"]["center"], false)
@@ -182,7 +190,7 @@ func _ready() -> void:
 			check(runner.state != Runner.State.DEAD and scenes[i]._respawn_in[i] == 0,
 				"peer %d death %d respawns without a death echo loop" % [i, attempt])
 			check(not runner.is_invulnerable(), "peer %d respawn blinking expires" % i)
-			var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
+			var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
 			var at: Vector2 = layout["stick"]["center"] + Vector2(40, 0)
 			var before: float = runner.global_position.x
 			_touch(i, 0, at, true)
@@ -224,6 +232,17 @@ func _drag(peer: int, finger: int, from: Vector2, to: Vector2) -> void:
 		views[peer].push_input(e, true)
 		await get_tree().physics_frame
 	_touch(peer, finger, to, false)
+
+## Floor near x with open sky over it (nothing a shot from above would hit).
+func _open_spot(scene, x: float) -> Vector2:
+	for dx in [0.0, -40.0, 40.0, -80.0, 80.0, -120.0, 120.0]:
+		var top := VersusStageData.top_at(x + dx)
+		if top == INF:
+			continue
+		var p := Vector2(x + dx, top - 26.0)
+		if scene.line_clear(p + VersusRules.SHOT_FROM, p):
+			return p
+	return Vector2(x, VersusStageData.top_at(x) - 26.0)
 
 func _near_to(at: Vector2, to: Vector2) -> Vector2:
 	return VersusStageData.nearest_image(at, to)

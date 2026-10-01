@@ -11,7 +11,12 @@ func _draw() -> void:
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
 
-	draw_texture_rect(sky.gradient(), Rect2(Vector2.ZERO, view), false)
+	# Every painted backdrop is opaque and, with the strip below it, reaches
+	# the bottom of the screen; when it also reaches the top, the gradient
+	# under it would be a whole screen of fill nobody sees (most of what this
+	# layer cost on a phone).
+	if Stage.world_3d() or not _panorama_covers(view):
+		draw_texture_rect(sky.gradient(), Rect2(Vector2.ZERO, view), false)
 	if Stage.world_3d():
 		_three_background(view,scroll,t)
 		return
@@ -192,6 +197,12 @@ static var _floor_cache: Dictionary = {}
 ## mirroring makes the seam match by construction, which for scenery this soft
 ## is invisible. Only the copies actually on screen are emitted, so a 16,000px
 ## stage costs the same two draws as a 900px one.
+func _panorama_covers(view: Vector2) -> bool:
+	if not Balance.USE_TEXTURES or Art.tex("parallax") == null:
+		return false
+	var h := view.y * PANORAMA_SCALE
+	return _base(view, PANORAMA_RATE) - h * PANORAMA_HORIZON <= 0.0
+
 func _panorama(view: Vector2, offset: float) -> bool:
 	var t := Art.tex("parallax")
 	if not Balance.USE_TEXTURES or t == null:

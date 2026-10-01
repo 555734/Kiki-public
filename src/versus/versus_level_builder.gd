@@ -15,14 +15,28 @@ func build() -> void:
 	_static_root.name = "Static"
 	add_child(_static_root)
 
-	_terrain = preload("res://src/render/terrain.gd").new()
-	_terrain.slabs = _laps_of_slabs(VersusStageData.painted_slabs())
-	_static_root.add_child(_terrain)
+	# Painted in chunks rather than as one picture: a canvas item is culled
+	# as a whole, so one item spanning the loop and its margins was drawn in
+	# full every frame (1-5's ground alone was ~600 draw calls). Chunks off
+	# screen are skipped by the renderer.
+	var slabs := _laps_of_slabs(VersusStageData.painted_slabs())
+	for chunk in _chunks(slabs.size(), func(i: int) -> float: return slabs[i].get_center().x):
+		var terrain := preload("res://src/render/terrain.gd").new()
+		for i in chunk:
+			terrain.slabs.append(slabs[i])
+		_static_root.add_child(terrain)
+		if _terrain == null:
+			_terrain = terrain
 	_build_ground_bodies()
 
-	_decor = preload("res://src/render/decor.gd").new()
-	_decor.items = _laps_of_decor(VersusStageData.decor())
-	_static_root.add_child(_decor)
+	var items := _laps_of_decor(VersusStageData.decor())
+	for chunk in _chunks(items.size(), func(i: int) -> float: return Vector2(items[i]["pos"]).x):
+		var decor := preload("res://src/render/decor.gd").new()
+		for i in chunk:
+			decor.items.append(items[i])
+		_static_root.add_child(decor)
+		if _decor == null:
+			_decor = decor
 
 	# 1-4's sea and 1-5's poison lie below every floor, so the pits open
 	# onto water. Drawn exactly as the stages draw it, with foam where a floor
@@ -35,6 +49,23 @@ func build() -> void:
 	_dynamic = Node2D.new()
 	_dynamic.name = "Dynamic"
 	add_child(_dynamic)
+
+## Indices 0..count-1 grouped by which CHUNK-wide band of x they fall in.
+const CHUNK := 800.0
+
+static func _chunks(count: int, x_of: Callable) -> Array:
+	var bands: Dictionary = {}
+	for i in range(count):
+		var band := int(floor(float(x_of.call(i)) / CHUNK))
+		if not bands.has(band):
+			bands[band] = []
+		bands[band].append(i)
+	var keys := bands.keys()
+	keys.sort()
+	var out: Array = []
+	for k in keys:
+		out.append(bands[k])
+	return out
 
 func _build_ground_bodies() -> void:
 	var body := StaticBody2D.new()
@@ -58,15 +89,19 @@ func _build_kill_plane() -> void:
 		VersusStageData.kill_y() + 100.0)
 	_static_root.add_child(pit)
 
-## The field is a loop, so it is painted three times -- the lap you are in
-## and one either side -- and the join is never an edge on screen. A runner
-## is always brought back into the middle lap (versus_main._wrap_bodies), so
-## the outer two only ever show what is just across the join.
+## The field is a loop, so it is painted past both ends -- the lap you are
+## in and LAP_MARGIN of the next one either side -- and the join is never an
+## edge on screen. A runner is always brought back into the middle lap
+## (versus_main._wrap_bodies), so the margins only ever show what is just
+## across the join.
 static func _laps_of_slabs(one: Array[Rect2]) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for lap in VersusStageData.LAPS:
 		for r in one:
-			out.append(Rect2(r.position + Vector2(VersusStageData.WIDTH * float(lap), 0.0), r.size))
+			var built := VersusStageData.clip_to_built(
+				Rect2(r.position + Vector2(VersusStageData.WIDTH * float(lap), 0.0), r.size))
+			if built.size.x > 0.0:
+				out.append(built)
 	return out
 
 static func _laps_of_decor(one: Array[Dictionary]) -> Array[Dictionary]:
@@ -74,6 +109,12 @@ static func _laps_of_decor(one: Array[Dictionary]) -> Array[Dictionary]:
 	for lap in VersusStageData.LAPS:
 		var shift := Vector2(VersusStageData.WIDTH * float(lap), 0.0)
 		for d in one:
+			var at: float = Vector2(d["pos"]).x + shift.x
+			# Scenery is a few hundred px wide at most; past the margin and
+			# that, it can never be on screen.
+			if at < VersusStageData.LEFT - VersusStageData.LAP_MARGIN - 300.0 \
+					or at > VersusStageData.RIGHT + VersusStageData.LAP_MARGIN + 300.0:
+				continue
 			var copy: Dictionary = d.duplicate()
 			copy["pos"] = Vector2(d["pos"]) + shift
 			if d.has("rect"):

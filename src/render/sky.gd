@@ -21,6 +21,10 @@ const LAYERS := [
 ]
 
 var camera: Camera2D = null
+## Added to the camera's x for scrolling. Versus is a loop: when the camera
+## is carried back a whole lap the backdrop must not jump with it, so the
+## arena takes the lap off here and the parallax runs on unbroken.
+var scroll_offset: float = 0.0
 
 var _canvas: Control = null
 var _gradient: GradientTexture2D = null
@@ -80,7 +84,7 @@ func time() -> float:
 	return _time
 
 func scroll() -> float:
-	return camera.global_position.x if camera != null else 0.0
+	return (camera.global_position.x if camera != null else 0.0) + scroll_offset
 
 func vertical() -> float:
 	return camera.global_position.y if camera != null else REFERENCE_CAM_Y

@@ -33,7 +33,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 8 # Co-op platforms and shots; runner bumps.
+const VERSION: int = 9 # Each stage its own ground; cover from platforms.
 
 ## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
 ## the host only; the rules engine never enters them.

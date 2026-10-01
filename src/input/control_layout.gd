@@ -24,6 +24,9 @@ const PATH := "user://controls.cfg"
 ##   shared   -- two people, one screen: runner keeps the left edge
 ##   runner   -- the runner alone, both thumbs
 ##   guardian -- the guardian alone, both thumbs
+##   versus   -- one person playing both (the star battle): the stick alone
+##               on the left, jump and both tools on the right
+## MODES lists the ones the layout editor offers; versus is not one of them.
 const MODES := ["shared", "runner", "guardian"]
 
 ## Fraction of the width reserved for the runner when the screen is shared.
@@ -68,6 +71,16 @@ const GUARDIAN_RIGHT := {}
 ## Saved guardian layouts from earlier versions are dropped once so the new
 ## defaults take effect (v2: two buttons; v3: both on the left).
 const GUARDIAN_LAYOUT_VERSION := 3
+
+## One person playing runner and guardian together in versus: the left thumb
+## only steers, and everything that is pressed is under the right thumb --
+## jump in the corner, the shot above it and the platform beside it, so the
+## right thumb rolls from jumping to a tool without the left letting go.
+const VERSUS_RIGHT := {
+	"jump":   Vector3(0.12, 0.17, 0.110),
+	"slot_3": Vector3(0.13, 0.43, 0.090),
+	"slot_1": Vector3(0.36, 0.15, 0.090),
+}
 
 ## The runner alone has the whole screen, so their actions go to the far corner
 ## and are held with the other thumb.
@@ -130,6 +143,13 @@ static func layout(mode: String, view: Vector2, mirrored: bool = false) -> Dicti
 				"radius": d.z * u, "kind": "button"}
 		for id in GUARDIAN_RIGHT:
 			var d: Vector3 = GUARDIAN_RIGHT[id]
+			out[id] = {"center": Vector2(right.x - d.x * u, right.y - d.y * u),
+				"radius": d.z * u, "kind": "button"}
+	elif mode == "versus":
+		# The stick stays exactly where the shared screen has it; the jump
+		# that sits beside it there moves to the right with the tools.
+		for id in VERSUS_RIGHT:
+			var d: Vector3 = VERSUS_RIGHT[id]
 			out[id] = {"center": Vector2(right.x - d.x * u, right.y - d.y * u),
 				"radius": d.z * u, "kind": "button"}
 	elif mode == "shared":

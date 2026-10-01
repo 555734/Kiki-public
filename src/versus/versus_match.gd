@@ -101,6 +101,15 @@ var _shot_ready: Dictionary = {}
 ## Events raised between ticks (a shot arrives whenever the tap does); they
 ## are reported with the next tick's.
 var _carry: Array[Dictionary] = []
+## Whether nothing solid -- ground or a platform -- lies on the straight line
+## between two points (Callable(from, to) -> bool). The scene supplies it,
+## because platforms are physics bodies; without one, every line is clear.
+## A shot falls from above (VersusRules.SHOT_FROM) and a stomp comes down
+## from the stomper, so a platform over your head is cover from both.
+var line_clear: Callable = Callable()
+
+func clear_between(from: Vector2, to: Vector2) -> bool:
+	return not line_clear.is_valid() or bool(line_clear.call(from, to))
 
 func setup(collision: ArenaStage, match_seed: int = 20260920,
 		side_count: int = 2, numbers: Dictionary = {}) -> void:
@@ -208,8 +217,10 @@ func shoot(side: int, at: Vector2) -> int:
 	for v in range(sides):
 		if v == side or not seats[v].alive or immune(v):
 			continue
-		var d := VersusStageData.nearest_image(seats[v].position, at).distance_to(at)
-		if d <= VersusRules.SHOT_ASSIST_RADIUS and d < best_d:
+		var image := VersusStageData.nearest_image(seats[v].position, at)
+		var d := image.distance_to(at)
+		if d <= VersusRules.SHOT_ASSIST_RADIUS and d < best_d \
+				and clear_between(image + VersusRules.SHOT_FROM, image):
 			best = v
 			best_d = d
 	_carry.append({"kind": "shot", "side": side, "at": at, "hit": best})
@@ -244,7 +255,9 @@ func _resolve_stomps() -> void:
 		for v in range(sides):
 			if v == a or not seats[v].alive or immune(v):
 				continue
-			if is_stomp(seats[a].position, seats[a].velocity, seats[v].position):
+			if is_stomp(seats[a].position, seats[a].velocity, seats[v].position) \
+					and clear_between(seats[a].position,
+						VersusStageData.nearest_image(seats[v].position, seats[a].position)):
 				hits.append([v, a])
 	for h in hits:
 		if not immune(h[0]):

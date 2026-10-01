@@ -1,10 +1,9 @@
 extends Control
-## The on-screen buttons, drawn exactly where co-op 1-1's one-device layout
-## puts them (ControlLayout "shared"): the stick and the jump under the left
-## thumb, the platform and shot buttons on the right, and the right of the
+## The on-screen buttons (ControlLayout "versus"): the stick alone under the
+## left thumb; jump, platform and shot under the right; and the rest of the
 ## screen is where you draw a platform or tap to shoot, whichever is chosen.
-## A 2v2 guardian has the guardian layout (the same two tools). The chosen one
-## is ringed in gold, as the choice sticks until the other is pressed.
+## A 2v2 guardian has the guardian layout (the same two tools). The chosen
+## tool is ringed in gold, as the choice sticks until the other is pressed.
 ##
 ## Drawing only. The touches themselves are the InputHub's and the Guardian's,
 ## the same code that handles them in co-op, so a button here is exactly where
@@ -18,14 +17,22 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+## Redrawn only when what it shows changes -- the chosen tool or the screen
+## size -- not every frame: the buttons are still most of the time.
+var _shown := ""
+
 func _process(_delta: float) -> void:
-	queue_redraw()
+	var now := "%s|%d|%s" % [_size(), arena.guardian.active_slot \
+		if arena != null and arena.guardian != null else -1,
+		hub.layout_mode() if hub != null else ""]
+	if now != _shown:
+		_shown = now
+		queue_redraw()
 
 func _size() -> Vector2:
 	return get_viewport_rect().size
 
-## The controls on screen, as id -> {center, radius}. 1-1's shared layout:
-## the wall and warp slots of the co-op layout are not in versus.
+## The controls on screen, as id -> {center, radius}.
 func places() -> Dictionary:
 	if hub == null:
 		return {}

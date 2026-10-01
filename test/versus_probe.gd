@@ -31,6 +31,7 @@ func _ready() -> void:
 	await _test_the_map()
 	_test_conservation()
 	_test_stealing()
+	_test_cover()
 	_test_winning()
 
 	print("versus probe: %d checks failed" % failures.size())
@@ -46,16 +47,85 @@ func _ready() -> void:
 ## The arena is a competition map, so what has to hold is fairness: the two
 ## halves mirror each other, every star point is over floor, the starts face
 ## each other half a lap apart, and the two ends join without a seam.
+## Every stage's ground, checked by the same rules.
 func _test_the_stage() -> void:
 	_current = "the stage"
-	Stage.use(Stage.Which.GREENFIELD)
-	var world := _world()
 	var w := VersusStageData.WIDTH
-
 	check(w >= 2400.0 and w <= 4000.0,
 		"the arena is a few screens wide, not a course (%.0fpx)" % w)
 	check(Level01Data.ground()[-1].end.x == 16700.0,
 		"cooperative 1-1 still has its complete original ground")
+	var shapes: Array = []
+	for which in VersusStageData.THEMES:
+		VersusStageData.use_theme(which)
+		_current = "the stage %s" % VersusStageData.theme_label(which)
+		shapes.append(VersusStageData.collision_rects())
+		_stage_shape()
+	var distinct := {}
+	for shape in shapes:
+		distinct[str(shape)] = true
+	_current = "the stage"
+	check(distinct.size() == VersusStageData.THEMES.size(),
+		"every stage has its own ground (%d different of %d)"
+			% [distinct.size(), VersusStageData.THEMES.size()])
+	VersusStageData.use_theme(Stage.Which.GREENFIELD)
+
+## The rules a stage's ground keeps: fair, joined, reachable, not flat.
+func _stage_shape() -> void:
+	var world := _world()
+	var w := VersusStageData.WIDTH
+	var gy := VersusStageData.top_at(0.0) - 23.0
+
+	# Hills, not a table: the highest and lowest ground differ by a lot, and
+	# there are at least four heights to stand at.
+	var heights := VersusStageData.surface_tops()
+	check(heights.size() >= 4, "it has %d ground heights (want 4 or more)" % heights.size())
+	check(heights[-1] - heights[0] >= 150.0,
+		"and %.0fpx between its highest and lowest ground" % (heights[-1] - heights[0]))
+	# Every step up is one jump, every pit a hop.
+	var floors := VersusStageData.floors()
+	floors.sort_custom(func(a: Rect2, b: Rect2) -> bool: return a.position.x < b.position.x)
+	var too_high := 0
+	var too_wide := 0
+	for i in range(floors.size()):
+		var a: Rect2 = floors[i]
+		var b: Rect2 = floors[(i + 1) % floors.size()]
+		var gap := fposmod(b.position.x - a.end.x, w)
+		if gap > w * 0.5:
+			gap = 0.0
+		var rise := a.position.y - b.position.y
+		var fall := b.position.y - a.position.y
+		if maxf(rise, fall) > 80.0 or (gap > 0.0 and maxf(rise, fall) > 40.0):
+			too_high += 1
+		if gap > 140.0:
+			too_wide += 1
+	check(too_high == 0, "every step is one jump, and a pit is never also a climb (%d not)" % too_high)
+	check(too_wide == 0, "every pit is a hop (%d too wide)" % too_wide)
+	# A row of blocks is something to jump onto, never a wall: whatever is
+	# under it leaves a runner room to walk beneath.
+	var low_rows := 0
+	for r in VersusStageData.solid_decor():
+		if r.size.y > VersusStageData.BLOCK_CELL + 1.0:
+			continue   # a conduit stands on the ground on purpose
+		for x in [r.position.x + 2.0, r.get_center().x, r.end.x - 2.0]:
+			var under := VersusStageData.top_at(x)
+			if under != INF and under - r.end.y < Balance.RUNNER_SIZE.y + 10.0:
+				low_rows += 1
+				break
+	check(low_rows == 0, "a runner can walk under every row of blocks (%d too low)" % low_rows)
+	# Nor is a row ever right over a take-off: the jump would hit it.
+	var over_edges := 0
+	for r in VersusStageData.solid_decor():
+		if r.size.y > VersusStageData.BLOCK_CELL + 1.0:
+			continue
+		for f in floors:
+			for edge in [f.position.x, f.end.x]:
+				if VersusStageData.top_at(edge - 1.0) == VersusStageData.top_at(edge + 1.0):
+					continue   # two halves of one floor (the join, the middle)
+				if edge > r.position.x - 80.0 and edge < r.end.x + 80.0 \
+						and f.position.y > r.end.y and f.position.y - r.end.y < 200.0:
+					over_edges += 1
+	check(over_edges == 0, "no row of blocks hangs over a step or a pit's edge (%d do)" % over_edges)
 
 	# Mirror symmetry of every solid thing: floors, walls, blocks, conduits.
 	var solids: Array[Rect2] = VersusStageData.collision_rects()
@@ -124,17 +194,17 @@ func _test_the_stage() -> void:
 	var m := _fresh()
 	var seats := _seats()
 	# 80px apart across it: closer would be a bump, which is its own rule.
-	_park(seats, 0, Vector2(w - 60.0, 377.0))
-	_park(seats, 1, Vector2(20.0, 377.0))
+	_park(seats, 0, Vector2(w - 60.0, gy))
+	_park(seats, 1, Vector2(20.0, gy))
 	_give(m, 1, [0])
 	m.step(seats)
 	_clear_field(m)
-	check(m.shoot(0, Vector2(w + 20.0, 377.0)) == 1 and _held_of(m, 1, [0]) == 0,
+	check(m.shoot(0, Vector2(w + 20.0, gy)) == 1 and _held_of(m, 1, [0]) == 0,
 		"a shot across the join hits")
 	var star := m.ledger.get_coin(5)
-	ArenaCoin.to_world(star, Vector2(8.0, 377.0), m.tick, Vector2.ZERO, 0)
-	seats[0].position = Vector2(w - 8.0, 377.0)
-	seats[1].position = Vector2(1600.0, 377.0)
+	ArenaCoin.to_world(star, Vector2(8.0, gy), m.tick, Vector2.ZERO, 0)
+	seats[0].position = Vector2(w - 8.0, gy)
+	seats[1].position = Vector2(1600.0, VersusStageData.top_at(1600.0) - 23.0)
 	m.step(seats)
 	check(star.state == ArenaCoin.State.HELD and star.owner == 0,
 		"and a star just across it is picked up")
@@ -299,24 +369,14 @@ func _test_many_sides() -> void:
 	check(m.phase == VersusMatch.Phase.OVER and m.winner == 2,
 		"seven held by one person wins it for that person")
 
-## 1-1, 1-2 and 1-3 are the same arena painted three ways. Nothing anybody
-## collides with, no star point and no start may differ between them, or the
-## stage choice would change the match and the guests (who repaint when the
-## WELCOME arrives) would briefly disagree with the host about the world.
+## Each stage is painted in its own art: every floor at its height, every
+## solid piece drawn as something, its own scenery, its water below.
 func _test_themes() -> void:
 	_current = "stage themes"
-	VersusStageData.use_theme(Stage.Which.GREENFIELD)
-	var solids := VersusStageData.collision_rects()
-	var points := VersusStageData.coin_points()
-	var starts := VersusStageData.start_positions()
 	for which in VersusStageData.THEMES:
 		VersusStageData.use_theme(which)
 		var name := VersusStageData.theme_label(which)
 		check(Stage.current() == which, "%s: the stage art switches with it" % name)
-		check(VersusStageData.collision_rects() == solids
-				and VersusStageData.coin_points() == points
-				and VersusStageData.start_positions() == starts,
-			"%s: every collision rectangle, star point and start is the same" % name)
 		# Every floor's walkable top is painted, at exactly its height.
 		var painted := VersusStageData.painted_slabs()
 		var bare := 0
@@ -354,7 +414,7 @@ func _test_themes() -> void:
 		check(hidden == 0, "%s: every solid piece is visible (%d invisible)" % [name, hidden])
 		check(VersusStageData.decor().size() >= 8, "%s: and it has its own scenery" % name)
 		if Stage.water_y() != INF:
-			check(Stage.water_y() > VersusStageData.FLOOR_TOP + 40.0
+			check(Stage.water_y() > VersusStageData.surface_tops()[-1] + 40.0
 					and Stage.water_y() < VersusStageData.kill_y(),
 				"%s: its water lies below every floor and above the kill line" % name)
 	VersusStageData.use_theme(Stage.Which.GREENFIELD)
@@ -500,12 +560,12 @@ func _test_stealing() -> void:
 	# rather than to the shooter.
 	var m := _fresh()
 	var seats := _seats()
-	_park(seats, 0, Vector2(1400.0, 377.0))
-	_park(seats, 1, Vector2(1800.0, 377.0))
+	_park(seats, 0, _on(1400.0))
+	_park(seats, 1, _on(1800.0))
 	_give(m, 1, [0, 1, 2])
 	m.step(seats)
 	_clear_field(m)
-	check(m.shoot(0, Vector2(1790.0, 380.0)) == 1, "a shot within reach of the aim hits")
+	check(m.shoot(0, _on(1790.0)) == 1, "a shot within reach of the aim hits")
 	check(_held_of(m, 1, [0, 1, 2]) == 2, "a hit costs the victim one star")
 	check(_held_of(m, 0, [0, 1, 2]) == 0, "and the shooter is not handed it")
 	check(m.ledger.count_in(ArenaCoin.State.WORLD) == 1, "it is the one star on the ground")
@@ -520,27 +580,27 @@ func _test_stealing() -> void:
 	for t in range(VersusRules.SHOT_COOLDOWN_TICKS + VersusRules.HIT_IMMUNE_TICKS + 2):
 		m.step(seats)
 	check(m.ledger.count_in(ArenaCoin.State.WORLD) == 1, "the star is still loose")
-	m.shoot(0, Vector2(1800.0, 377.0))
+	m.shoot(0, _on(1800.0))
 	check(_held_of(m, 1, [0, 1, 2]) == 2 and m.ledger.count_in(ArenaCoin.State.WORLD) == 1,
 		"so a second hit costs nothing: one star on the field at a time")
 
 	# Out of reach misses; a hit runner is briefly untouchable.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 0, Vector2(1400.0, 377.0))
-	_park(seats, 1, Vector2(1800.0, 377.0))
+	_park(seats, 0, _on(1400.0))
+	_park(seats, 1, _on(1800.0))
 	_give(m, 1, [0])
 	m.step(seats)
 	_clear_field(m)
-	check(m.shoot(0, Vector2(1800.0 + VersusRules.SHOT_ASSIST_RADIUS + 30.0, 377.0)) == -1,
+	check(m.shoot(0, _on(1800.0) + Vector2(VersusRules.SHOT_ASSIST_RADIUS + 30.0, 0.0)) == -1,
 		"a shot beyond the aim assist misses")
 	check(_held_of(m, 1, [0]) == 1, "and costs nothing")
 
 	# Stomp: falling feet on a head.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 1, Vector2(1800.0, 377.0))
-	_park(seats, 0, Vector2(1800.0, 377.0 - Balance.RUNNER_SIZE.y))
+	_park(seats, 1, _on(1800.0))
+	_park(seats, 0, _on(1800.0) - Vector2(0.0, Balance.RUNNER_SIZE.y))
 	seats[0].velocity = Vector2(0.0, 300.0)
 	_give(m, 1, [0])
 	_clear_field(m)
@@ -554,8 +614,8 @@ func _test_stealing() -> void:
 	# Standing side by side, or rising through somebody, is not a stomp.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 1, Vector2(1800.0, 377.0))
-	_park(seats, 0, Vector2(1800.0, 377.0 - Balance.RUNNER_SIZE.y))
+	_park(seats, 1, _on(1800.0))
+	_park(seats, 0, _on(1800.0) - Vector2(0.0, Balance.RUNNER_SIZE.y))
 	seats[0].velocity = Vector2(0.0, -300.0)
 	_give(m, 1, [0])
 	m.step(seats)
@@ -564,8 +624,8 @@ func _test_stealing() -> void:
 	# The old close-range strike does nothing now.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 0, Vector2(1755.0, 377.0))
-	_park(seats, 1, Vector2(1800.0, 377.0))
+	_park(seats, 0, _on(1755.0))
+	_park(seats, 1, _on(1800.0))
 	seats[0].facing = 1
 	_give(m, 1, [0])
 	m.step(seats)
@@ -577,14 +637,14 @@ func _test_stealing() -> void:
 	# Bump: bodies touching side by side. Both drop, even with one loose.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 0, Vector2(1400.0, 377.0))
-	_park(seats, 1, Vector2(1800.0, 377.0))
+	_park(seats, 0, _on(1400.0))
+	_park(seats, 1, _on(1800.0))
 	m.step(seats)
 	_clear_field(m)
 	_give(m, 0, [0, 1])
 	_give(m, 1, [2, 3])
 	ArenaCoin.to_world(m.ledger.get_coin(6), Vector2(600.0, 300.0), m.tick, Vector2.ZERO, 0)
-	seats[0].position = Vector2(1800.0 - Balance.RUNNER_SIZE.x - 1.0, 377.0)
+	seats[0].position = _on(1800.0) - Vector2(Balance.RUNNER_SIZE.x + 1.0, 0.0)
 	m.step(seats)
 	var bumps := {}
 	for e in m.events:
@@ -601,20 +661,20 @@ func _test_stealing() -> void:
 		"once: still touching the next tick costs nothing more")
 	check(m.ledger.conserved(), "with the ledger balanced")
 	# Apart, or one on the other's head, is not a bump.
-	check(not VersusMatch.is_bump(Vector2(1700.0, 377.0), Vector2(1800.0, 377.0)),
+	check(not VersusMatch.is_bump(_on(1700.0), _on(1800.0)),
 		"100px apart is not a bump")
-	check(not VersusMatch.is_bump(Vector2(1800.0, 377.0 - Balance.RUNNER_SIZE.y),
-			Vector2(1800.0, 377.0)),
+	check(not VersusMatch.is_bump(_on(1800.0) - Vector2(0.0, Balance.RUNNER_SIZE.y),
+			_on(1800.0)),
 		"standing on a head is not a bump")
 	check(VersusMatch.is_bump(Vector2(VersusStageData.WIDTH - 10.0, 377.0),
-			Vector2(15.0, 377.0)),
+			_on(15.0)),
 		"and a bump across the join counts")
 
 	# Death: one star back on the field (if it has room), the rest to the pool.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 0, Vector2(1400.0, 377.0))
-	_park(seats, 1, Vector2(1800.0, 377.0))
+	_park(seats, 0, _on(1400.0))
+	_park(seats, 1, _on(1800.0))
 	m.step(seats)
 	_clear_field(m)
 	_give(m, 0, [0, 1, 2, 3])
@@ -622,6 +682,51 @@ func _test_stealing() -> void:
 	check(_held_of(m, 0, [0, 1, 2, 3]) == 0, "dying empties the hand")
 	check(m.ledger.count_in(ArenaCoin.State.WORLD) == 1, "one of them is back on the field")
 	check(m.ledger.conserved(), "with the ledger still balanced")
+
+## A platform over your head is cover. The rules ask the scene whether the
+## line is clear (VersusMatch.line_clear); here a stand-in says where the
+## "platform" is, so the rule itself is what is tested.
+func _test_cover() -> void:
+	_current = "cover"
+	var m := _fresh()
+	var seats := _seats()
+	_park(seats, 0, _on(1400.0))
+	_park(seats, 1, _on(1800.0))
+	_give(m, 1, [0, 1])
+	m.step(seats)
+	_clear_field(m)
+	var asked: Array = []
+	m.line_clear = func(from: Vector2, to: Vector2) -> bool:
+		asked.append([from, to])
+		return false
+	check(m.shoot(0, _on(1800.0)) == -1 and _held_of(m, 1, [0, 1]) == 2,
+		"a shot at someone under cover misses and costs them nothing")
+	check(not asked.is_empty() and Vector2(asked[0][0]).is_equal_approx(
+			Vector2(asked[0][1]) + VersusRules.SHOT_FROM),
+		"and the line it asked about comes down from above, as 1-1's shot does")
+	m.line_clear = func(_from: Vector2, _to: Vector2) -> bool: return true
+	for t in range(VersusRules.SHOT_COOLDOWN_TICKS + 1):
+		m.step(seats)
+	check(m.shoot(0, _on(1800.0)) == 1, "in the open the same shot hits")
+
+	# A stomp through a platform is no stomp.
+	m = _fresh()
+	seats = _seats()
+	_park(seats, 1, _on(1800.0))
+	_park(seats, 0, _on(1800.0) - Vector2(0.0, Balance.RUNNER_SIZE.y))
+	seats[0].velocity = Vector2(0.0, 300.0)
+	_give(m, 1, [0])
+	_clear_field(m)
+	m.line_clear = func(_from: Vector2, _to: Vector2) -> bool: return false
+	m.step(seats)
+	check(_held_of(m, 1, [0]) == 1, "landing on a platform over someone's head is not a stomp")
+	m.line_clear = func(_from: Vector2, _to: Vector2) -> bool: return true
+	m.step(seats)
+	check(_held_of(m, 1, [0]) == 0, "without the platform it is")
+
+## Standing on the floor at x (the stage's ground has hills now).
+func _on(x: float) -> Vector2:
+	return Vector2(x, VersusStageData.top_at(x) - 23.0)
 
 ## Put every loose star back in the pool, so a test starts with none on the
 ## field (the spawner may have placed one).
@@ -659,7 +764,6 @@ func _test_winning() -> void:
 
 # ------------------------------------------------------------------- helpers
 func _world() -> ArenaStage:
-	Stage.use(Stage.Which.GREENFIELD)
 	return ArenaStage.new(VersusStageData.collision_rects())
 
 func _fresh() -> VersusMatch:

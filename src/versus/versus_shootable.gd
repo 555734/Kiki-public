@@ -23,10 +23,12 @@ func _ready() -> void:
 	shape.shape = box
 	add_child(shape)
 
-## Your own runner, a teammate, an empty chair or someone out of play cannot
-## be the rifle's target; the assist skips them rather than wasting the shot.
+## Your own runner, a teammate, an empty chair, someone out of play, or
+## someone under cover (a platform or the ground between them and the sky
+## the shot falls from) cannot be the rifle's target; the assist skips them
+## and the shot lands on nothing.
 func is_shootable_now() -> bool:
-	return arena != null and arena.can_shoot_at(side)
+	return arena != null and arena.can_shoot_at(side) and arena.shot_clear(side)
 
 func take_damage(_amount: int = 1, _source: String = "") -> void:
 	if arena != null:
