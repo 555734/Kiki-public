@@ -78,7 +78,7 @@ func _ready() -> void:
 	_stage.custom_minimum_size = Vector2(0, 50)
 	_stage.add_theme_font_size_override("font_size", 18)
 	box.add_child(_stage)
-	box.add_child(_title("足場と 射撃は 1-1 と おなじ。射撃・踏みつけで 当てると スターを 1こ おとす。ぶつかると ふたりとも おとす。",
+	box.add_child(_title("足場と 射撃は 1-1 と おなじ。射撃・踏みつけで 当てると スターを 1こ おとす。ぶつかると ふたりとも おとす。てきは ふむか うつと たおせる（ふれると スターを おとす）。",
 		14, Color(0.72, 0.85, 0.95)))
 	box.add_child(_title("無料版でも すべて あそべます（ステージも すべて）", 14, Color(0.60, 0.92, 0.70)))
 	box.add_child(_title("部屋に入る人は ステージを えらばなくても、部屋を作った人の ステージになります",

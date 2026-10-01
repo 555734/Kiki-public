@@ -65,9 +65,8 @@ var _countdown_latched: bool = false
 var runner_on_left: bool = true
 
 ## "" offline (two players share the screen and the divider matters), or
-## "runner" / "guardian" online, where the local player owns the whole display,
-## or "versus": one person playing both in the star battle, with only the
-## stick on the left (ControlLayout "versus").
+## "runner" / "guardian" online, where the local player owns the whole display.
+## The star battle's one-person seats use "" too: the same screen as 1-1.
 ## The touch router consults this before the divider: a runner playing alone
 ## should not be confined to the left 30% just because a guardian used to sit
 ## there.
@@ -450,6 +449,11 @@ func owns_guardian_controls() -> bool:
 ## encounter was aimed at a crosshair that was not on screen yet. On the
 ## runner's device it stays conditional -- there, the reticle is news about
 ## somebody else, and news that has not arrived should not be drawn.
+## Show the touch controls before the first touch: for a screen that is only
+## ever built on a touch device (the star battle's buttons).
+func assume_touch() -> void:
+	_has_touch = true
+
 ## A finger is on the world right now, drawing a platform or aiming.
 func aiming() -> bool:
 	return _aim_finger >= 0
@@ -687,8 +691,6 @@ func layout_mode() -> String:
 		return "runner"
 	if solo_role == "guardian":
 		return "guardian"
-	if solo_role == "versus":
-		return "versus"
 	return "shared"
 
 func _route_guardian_only(index: int, position: Vector2, size: Vector2,

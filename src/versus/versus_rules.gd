@@ -123,3 +123,5 @@ const BUMP_KNOCK := Vector2(420.0, -200.0)
 ## exactly the line co-op draws its tracer along (Guardian.tracer_origin).
 ## Anything solid on that line -- a platform held overhead -- takes the shot.
 const SHOT_FROM := Vector2(-160.0, -520.0)
+## How long a defeated enemy stays down before it is back on its patrol.
+const ENEMY_DOWN_TICKS: int = 360

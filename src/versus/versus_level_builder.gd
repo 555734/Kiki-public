@@ -38,6 +38,8 @@ func build() -> void:
 		if _decor == null:
 			_decor = decor
 
+	_build_gimmicks()
+
 	# 1-4's sea and 1-5's poison lie below every floor, so the pits open
 	# onto water. Drawn exactly as the stages draw it, with foam where a floor
 	# or a footing meets it; the kill plane underneath is the arena's own.
@@ -134,6 +136,68 @@ func _build_arena_water() -> void:
 		shore.append(r.end.x)
 	sea.shore_x = shore
 	_static_root.add_child(sea)
+
+## The stage's gimmicks, co-op's own: springs, moving platforms, blinking
+## slabs, columns of air and conveyors. Every one is either local physics
+## (springs, air) or a pure function of Clock.tick (the rest), which the arena
+## keeps on the match's tick -- so every device shows the same thing.
+var _springs: Array = []
+var _updrafts: Array = []
+
+func _build_gimmicks() -> void:
+	var root := Node2D.new()
+	root.name = "Gimmicks"
+	add_child(root)
+	for at in VersusStageData.springs():
+		var pad := preload("res://src/versus/versus_spring.gd").new()
+		pad.global_position = at
+		root.add_child(pad)
+		_springs.append(pad)
+	for m in VersusStageData.movers():
+		var lift := MovingPlatform.new()
+		lift.span = m["span"]
+		lift.travel = m["travel"]
+		lift.position = m["centre"]
+		root.add_child(lift)
+	for b in VersusStageData.blinks():
+		var blink := BlinkBlock.new()
+		blink.span = b["span"]
+		blink.colour = int(b["colour"])
+		blink.position = b["centre"]
+		root.add_child(blink)
+	for u in VersusStageData.updrafts():
+		var air := preload("res://src/versus/versus_updraft.gd").new()
+		air.span = u["span"]
+		# An Updraft stands on its bottom edge.
+		air.position = Vector2(u["centre"].x, u["centre"].y + u["span"].y * 0.5)
+		root.add_child(air)
+		_updrafts.append(air)
+	for b in VersusStageData.belts():
+		var belt := Conveyor.new()
+		belt.span = b["span"]
+		belt.start_direction = int(b["dir"])
+		belt.flip_every = 6.0
+		belt.position = b["centre"]
+		root.add_child(belt)
+
+## The runners this device moves itself ride the springs and the air.
+func set_riders(riders: Array) -> void:
+	for pad in _springs:
+		pad.riders = riders
+	for air in _updrafts:
+		air.riders = riders
+
+## The enemies need the arena to know where (its match tick) and whether (the
+## host's word) they are.
+func add_actors(arena) -> void:
+	var specs := VersusStageData.enemy_specs()
+	for i in range(specs.size()):
+		var foe := preload("res://src/versus/versus_enemy.gd").new()
+		foe.name = "Enemy%d" % i
+		foe.arena = arena
+		foe.id = i
+		foe.spec = specs[i]
+		add_child(foe)
 
 func rebuild_dynamic() -> void:
 	pass # The arena has nothing dynamic of its own.

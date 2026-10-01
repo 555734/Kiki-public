@@ -1,30 +1,54 @@
 extends Control
-## The on-screen buttons (ControlLayout "versus"): the stick alone under the
-## left thumb; jump, platform and shot under the right; and the rest of the
-## screen is where you draw a platform or tap to shoot, whichever is chosen.
-## A 2v2 guardian has the guardian layout (the same two tools). The chosen
-## tool is ringed in gold, as the choice sticks until the other is pressed.
+## The on-screen controls, exactly as 1-1 shows them: the same layout
+## (ControlLayout "shared" -- the stick alone on the left; jump, shot and
+## platform on the right) drawn by the same painter (ControlPainter) the co-op
+## HUD uses. A 2v2 guardian gets the guardian layout, as in co-op.
 ##
 ## Drawing only. The touches themselves are the InputHub's and the Guardian's,
 ## the same code that handles them in co-op, so a button here is exactly where
 ## a press on it lands.
 
 var arena = null
-## The hub whose layout is drawn.
+## The hub whose controls are drawn. `input_hub`/`guardian`/gauge()/
+## slot_pulse()/scope_up() are what ControlPainter asks its source for.
 var hub: InputHub = null
+var input_hub: InputHub:
+	get: return hub
+var guardian: Guardian:
+	get: return arena.guardian if arena != null else null
+
+var _pulse: Dictionary = {}
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Events.ability_used.connect(func(slot: int, _at: Vector2) -> void: _pulse[slot] = 1.0)
+	# The controls are only built on a touch screen: show them from the start
+	# rather than after the first touch, as there is no keyboard to fall back on.
+	if hub != null:
+		hub.assume_touch()
 
-## Redrawn only when what it shows changes -- the chosen tool or the screen
-## size -- not every frame: the buttons are still most of the time.
+func gauge() -> float:
+	return guardian.gauge if guardian != null else Balance.GAUGE_MAX
+
+func slot_pulse(slot: int) -> float:
+	return float(_pulse.get(slot, 0.0))
+
+func scope_up() -> bool:
+	return guardian != null and guardian.scope_active
+
+## Redrawn when what it shows changes -- the thumb on the stick, a held or
+## chosen tool, a press's pulse, the screen size -- not every frame.
 var _shown := ""
 
-func _process(_delta: float) -> void:
-	var now := "%s|%d|%s" % [_size(), arena.guardian.active_slot \
-		if arena != null and arena.guardian != null else -1,
-		hub.layout_mode() if hub != null else ""]
+func _process(delta: float) -> void:
+	for slot in _pulse.keys():
+		_pulse[slot] = maxf(0.0, float(_pulse[slot]) - delta * 3.0)
+		if _pulse[slot] <= 0.0:
+			_pulse.erase(slot)
+	var now := "%s|%s|%d|%d|%s" % [_size(), str(hub.stick_visual()) if hub != null else "",
+		hub.held_slot() if hub != null else -1,
+		guardian.active_slot if guardian != null else -1, str(_pulse)]
 	if now != _shown:
 		_shown = now
 		queue_redraw()
@@ -32,11 +56,11 @@ func _process(_delta: float) -> void:
 func _size() -> Vector2:
 	return get_viewport_rect().size
 
-## The controls on screen, as id -> {center, radius}.
+## The controls on screen, as id -> {center, radius} (for the probes).
 func places() -> Dictionary:
 	if hub == null:
 		return {}
-	var all := ControlLayout.layout(hub.layout_mode(), _size(), false)
+	var all := ControlLayout.layout(hub.layout_mode(), _size(), not hub.runner_on_left)
 	var out: Dictionary = {}
 	for id in ["stick", "jump", "slot_1", "slot_3"]:
 		if all.has(id):
@@ -44,26 +68,6 @@ func places() -> Dictionary:
 	return out
 
 func _draw() -> void:
-	if arena == null:
+	if arena == null or hub == null:
 		return
-	var font := Art.font()
-	var names := {"stick": "移動", "jump": "ジャンプ", "slot_1": "足場", "slot_3": "射撃"}
-	var p := places()
-	var chosen := -1
-	if arena.guardian != null:
-		chosen = arena.guardian.active_slot
-	for id in p:
-		var c: Vector2 = p[id]["center"]
-		var r: float = p[id]["radius"]
-		var fill := Color(0.08, 0.12, 0.21, 0.40)
-		if id == "slot_3":
-			fill = Color(0.45, 0.10, 0.10, 0.55)
-		elif id == "slot_1":
-			fill = Color(0.10, 0.32, 0.45, 0.55)
-		draw_circle(c, r, fill)
-		var on: bool = id == "slot_%d" % chosen
-		draw_arc(c, r, 0.0, TAU, 40,
-			Color(1.0, 0.86, 0.35, 0.95) if on else Color(0.93, 0.95, 0.99, 0.75),
-			4.0 if on else 2.0)
-		draw_string(font, c + Vector2(-r, 6.0), TranslationServer.translate(names[id]),
-			HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, 17, Color.WHITE)
+	ControlPainter.draw_controls(self, self, _size())

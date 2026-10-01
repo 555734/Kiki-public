@@ -199,7 +199,7 @@ func _ready() -> void:
 	get_tree().quit(0 if failures.is_empty() else 1)
 
 func _touch_stick(peer: int, pressed: bool) -> void:
-	var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
+	var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
 	var stick: Dictionary = layout["stick"]
 	# Team B starts at the right wall facing left, so it walks left.
 	var at: Vector2 = stick["center"] - Vector2(float(stick["radius"]) * 0.7, 0)

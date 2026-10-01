@@ -48,15 +48,20 @@ func _draw() -> void:
 					float(item.get("width", 120.0)), bool(item.get("flip", false)))
 			"sea_rock", "sea_pier", "sea_bridge":
 				_sea_footing(String(item["type"]), item["rect"])
+			# Each prop's own bounds in the 2x2 atlas, measured from its
+			# opaque pixels. The cells are NOT the image's quarters: the
+			# willow's roots and the mushroom's moss run past y=512, so a
+			# quarter-cell for the reeds or the boulder carried a strip of
+			# them, drawn as a mossy bar floating in the air above.
 			"swamp_tree":
-				_swamp_prop(Rect2(0, 0, 768, 512), item["pos"],
+				_swamp_prop(Rect2(110, 0, 666, 580), item["pos"],
 					float(item.get("height", 260.0)), bool(item.get("flip", false)))
 			"swamp_mushroom":
-				_swamp_prop(Rect2(768, 0, 768, 512), item["pos"], 120.0)
+				_swamp_prop(Rect2(935, 170, 420, 416), item["pos"], 100.0)
 			"swamp_reeds":
-				_swamp_prop(Rect2(0, 512, 768, 512), item["pos"], 115.0)
+				_swamp_prop(Rect2(250, 592, 368, 426), item["pos"], 100.0)
 			"swamp_boulder":
-				_swamp_prop(Rect2(768, 512, 768, 512), item["pos"], 130.0)
+				_swamp_prop(Rect2(868, 690, 516, 316), item["pos"], 80.0)
 			"swamp_stone", "swamp_bridge":
 				_swamp_footing(String(item["type"]), item["rect"])
 

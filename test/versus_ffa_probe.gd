@@ -143,7 +143,7 @@ func _ready() -> void:
 	host.runners[0].velocity = Vector2.ZERO
 	await _ticks(30)
 	var on_screen: Vector2 = views[2].get_canvas_transform() * p3._near(p3.runners[0].global_position)
-	var slot_3: Vector2 = ControlLayout.layout("versus", Vector2(1280, 720), false)["slot_3"]["center"]
+	var slot_3: Vector2 = ControlLayout.layout("shared", Vector2(1280, 720), false)["slot_3"]["center"]
 	_touch(2, 2, slot_3, true)
 	_touch(2, 2, slot_3, false)
 	await _ticks(3)
@@ -238,7 +238,7 @@ func _open_spot(scene, x: float) -> Vector2:
 	return Vector2(VersusStageData.wrap_x(x), VersusStageData.top_at(x) - 26.0)
 
 func _stick_at(dir: float) -> Vector2:
-	var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
+	var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
 	var stick: Dictionary = layout["stick"]
 	return stick["center"] + Vector2(float(stick["radius"]) * 0.7 * dir, 0)
 

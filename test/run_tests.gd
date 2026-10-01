@@ -2649,21 +2649,22 @@ func _test_every_control_is_reachable_and_separate() -> void:
 		for mode in ControlLayout.MODES:
 			_audit_layout(String(mode), view, "%s %dx%d" % [mode, view.x, view.y])
 
-	# On a shared screen the runner's controls must stay out of the guardian's
-	# half, and the guardian's out of the runner's: there is a second person's
-	# thumb over there.
+	# One device: the left thumb only steers (the stick stays left of the
+	# divider); everything pressed -- jump and both tools -- is under the
+	# right thumb, on the right half.
 	for view in screens:
 		var shared := ControlLayout.layout("shared", view, false)
 		var divider: float = ControlLayout.DIVIDER * view.x
 		check(not shared.has("sprint"), "shared %dx%d: no sprint button" % [view.x, view.y])
-		for id in ["stick", "jump"]:
-			var place: Dictionary = shared[id]
-			var reach: float = float(place["radius"]) \
-				* (ControlLayout.STICK_CAPTURE if id == "stick" else 1.0)
-			check(place["center"].x + reach < divider,
-				"shared %dx%d: the runner's %s stays left of the divider"
-					% [view.x, view.y, id])
+		var stick: Dictionary = shared["stick"]
+		check(stick["center"].x + float(stick["radius"]) * ControlLayout.STICK_CAPTURE < divider,
+			"shared %dx%d: the stick stays left of the divider" % [view.x, view.y])
+		for id in ["jump", "slot_1", "slot_3"]:
+			check(shared.has(id) and shared[id]["center"].x > view.x * 0.5,
+				"shared %dx%d: %s is under the right thumb" % [view.x, view.y, id])
 		for id in ["slot_1", "slot_2", "slot_3", "slot_4", "scope"]:
+			if not shared.has(id):
+				continue
 			check(shared[id]["center"].x - float(shared[id]["radius"]) > divider,
 				"shared %dx%d: the guardian's %s stays right of it"
 					% [view.x, view.y, id])

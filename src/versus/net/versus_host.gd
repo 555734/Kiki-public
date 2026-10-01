@@ -312,6 +312,9 @@ func _on_command(from: int, payload: PackedByteArray) -> void:
 	if slot == 3:
 		shoot(seat, c["at"])
 		return
+	if slot == 4:
+		shoot_enemy(seat, int(round(Vector2(c["at"]).x)))
+		return
 	if not roster.can_build(seat):
 		return
 	if slot == 0:
@@ -348,6 +351,12 @@ func _relay(from: int, payload: PackedByteArray) -> void:
 
 ## A player's shot at `at`, from whichever seat fired it: a runner shoots for
 ## their own side, a 2v2 guardian for their team. Only while playing.
+## `seat`'s rifle hit enemy `id` on their screen (COMMAND slot 4).
+func shoot_enemy(seat: int, id: int) -> bool:
+	if not playing or match_rules.phase != VersusMatch.Phase.PLAYING:
+		return false
+	return match_rules.shoot_enemy(roster.side_of(seat), id)
+
 func shoot(seat: int, at: Vector2) -> int:
 	if not playing or match_rules.phase != VersusMatch.Phase.PLAYING:
 		return -1
@@ -434,6 +443,6 @@ func _broadcast_snapshot() -> void:
 			else VersusProtocol.PHASE_WAITING
 	var payload := VersusProtocol.snapshot(match_rules.tick,
 		phase_to_send, match_rules.winner, runners, coins, gs,
-		world_revision, epoch, countdown, seat_mask())
+		world_revision, epoch, countdown, seat_mask(), match_rules.enemy_down_mask())
 	transport.broadcast(VersusTransport.Channel.SNAPSHOT,
 		VersusTransport.Reliability.UNRELIABLE, payload)

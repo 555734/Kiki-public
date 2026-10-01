@@ -1057,8 +1057,8 @@ msgstr "Team A: Guardian (helps by shooting)"
 msgid "Bチーム：ガーディアン（射撃で たすける）"
 msgstr "Team B: Guardian (helps by shooting)"
 
-msgid "足場と 射撃は 1-1 と おなじ。射撃・踏みつけで 当てると スターを 1こ おとす。ぶつかると ふたりとも おとす。"
-msgstr "Platforms and shots work just as in 1-1. A shot or a stomp knocks one star loose; bumping into someone knocks one out of both of you."
+msgid "足場と 射撃は 1-1 と おなじ。射撃・踏みつけで 当てると スターを 1こ おとす。ぶつかると ふたりとも おとす。てきは ふむか うつと たおせる（ふれると スターを おとす）。"
+msgstr "Platforms and shots work just as in 1-1. A shot or a stomp knocks one star loose; bumping into someone knocks one out of both of you. Stomp or shoot enemies to defeat them (touching one costs a star)."
 
 msgid "ランダムに でてくる スターを さきに %d こ もった人の かち。スターは いつも 1こだけ"
 msgstr "Stars appear at random, one at a time. The first player holding %d wins"

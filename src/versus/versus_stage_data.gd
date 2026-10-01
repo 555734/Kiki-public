@@ -45,7 +45,7 @@ static func clip_to_built(r: Rect2) -> Rect2:
 const GROUND_BASE: float = Level01Data.GROUND_BASE
 ## The region the HUD's map shows. Covers every surface and a jump above the
 ## highest block, and nothing of the empty sky or the ground's skirt.
-const MAP_RECT := Rect2(LEFT, 40.0, WIDTH, 420.0)
+const MAP_RECT := Rect2(LEFT, -120.0, WIDTH, 580.0)
 ## The lowest ground any stage has: the low ground of the original flat
 ## arena, kept for the few things measured against "the floor".
 const FLOOR_TOP: float = 400.0
@@ -54,77 +54,111 @@ const BLOCK_CELL: float = 46.0
 ## Each stage has its own ground (docs/versus-2v2-stars.md). Every layout is
 ## the LEFT half, x in [0, 1600]; the right half is its mirror, so the two
 ## ends meet at x=0/3200 at one height and nobody's side is better.
-##   floors: [x0, x1, top]      -- solid ground drawn down to GROUND_BASE
-##   blocks: [x, top, count]    -- rows of blocks (mirrored)
-##   centre: [x, top, count]    -- rows on the mirror line, listed once
-##   pipes:  [x]                -- a conduit standing on the floor at x
-##   starts: [x, facing]        -- 2v2 uses the first two (half a lap apart)
-## Rules every layout keeps (test/versus_probe.gd checks them, and a runner
-## driven over every step and pit proved them): a step is <= 80px, a pit is
-## <= 140px with its far side no more than 40px higher, every block row is
-## one jump above what is under it and keeps 80px clear of the edges of the
-## floor beneath -- a row over a take-off is a ceiling the jump hits.
+##   floors:    [x0, x1, top]        -- solid ground drawn down to GROUND_BASE
+##   blocks:    [x, top, count]      -- rows of blocks (mirrored); the high
+##                                      ones are the upper tier
+##   centre:    [x, top, count]      -- rows on the mirror line, listed once
+##   obstacles: [x, w, h]            -- a solid piece standing on the floor at
+##                                      x (a conduit, ruin stack, rock, stone)
+##   springs:   [x]                  -- co-op Spring pads on the floor at x
+##   movers:    [x, y, w, dx, dy]    -- co-op MovingPlatform: centre, width,
+##                                      travel (shown the same on every
+##                                      device: Clock.tick). A lift stands
+##                                      on a floor, never in a pit, where
+##                                      it would be in the way of the jump.
+##   blinks:    [x, y, w, colour]    -- co-op BlinkBlock (1-3)
+##   updrafts:  [x, top, bottom, w]  -- co-op Updraft column (1-3)
+##   belts:     [x, top, w]          -- co-op Conveyor on the floor at x (none
+##                                      used: raised, it is a step to trip
+##                                      on; sunk, it fights the floor)
+##   enemies:   [kind, x0, x1, y]    -- VersusEnemies: "walker" patrols the
+##                                      floor whose top is y, "flyer" flies
+##                                      between x0 and x1 around height y
+##   starts:    [x, facing]          -- 2v2 uses the first two (half a lap apart)
+## Rules every layout keeps (test/versus_probe.gd checks them, and
+## versus_reach_probe drives a runner over every step, pit and spring): a step
+## is <= 80px, a pit is <= 140px with its far side no more than 40px higher,
+## every block row can be walked under and, if it is within 200px above a
+## floor, keeps 80px clear of that floor's edges -- a row over a take-off is a
+## ceiling the jump hits. The upper tier is reached by springs and lifts.
 const LAYOUTS := {
-	# 1-1: two rolling hills. Up from the low ground to a hilltop with a row
-	# over it, down into a valley, across a small pit to the middle hill.
+	# 1-1: two rolling hills, and a sky bridge over the middle. A spring on
+	# each shoulder of the middle hill throws you up to it; a cloud platform
+	# drifts between the hilltop and the bridge.
 	Stage.Which.GREENFIELD: {
 		"floors": [
 			[0.0, 380.0, 400.0], [380.0, 620.0, 330.0], [620.0, 900.0, 250.0],
 			[900.0, 1080.0, 330.0], [1080.0, 1220.0, 400.0], [1360.0, 1600.0, 370.0],
 		],
-		"blocks": [[160.0, 290.0, 3], [714.0, 140.0, 2]],
-		"centre": [[1554.0, 260.0, 2]],
-		"pipes": [1000.0],
-		"starts": [[800.0, 1], [200.0, 1], [1450.0, 1], [500.0, 1]],
+		"blocks": [[160.0, 290.0, 3], [714.0, 140.0, 2], [1180.0, 120.0, 4]],
+		"centre": [[1485.0, 100.0, 5]],
+		"obstacles": [[1000.0, 46.0, 92.0]],
+		"springs": [1420.0],
+		"movers": [[990.0, 170.0, 100.0, 120.0, 0.0]],
+		"enemies": [["walker", 30.0, 260.0, 400.0], ["flyer", 1050.0, 1340.0, 220.0]],
+		"starts": [[800.0, 1], [300.0, 1], [1490.0, 1], [520.0, 1]],
 	},
-	# 1-2: a village of cliffs. Up two ledges to a high plateau, then down
-	# across two pits to the square in the middle, under a roof of ruin blocks.
+	# 1-2: a village of cliffs. Up two ledges to a high plateau with a
+	# spring to the rooftops above it, across two pits to the square, where
+	# another spring reaches its roof of ruin blocks.
 	Stage.Which.HORROR: {
 		"floors": [
 			[0.0, 300.0, 400.0], [300.0, 500.0, 320.0], [500.0, 820.0, 240.0],
 			[960.0, 1120.0, 270.0], [1260.0, 1600.0, 300.0],
 		],
-		"blocks": [[100.0, 290.0, 2], [610.0, 130.0, 2], [1380.0, 190.0, 3]],
+		"blocks": [[100.0, 290.0, 2], [600.0, 40.0, 3], [1380.0, 190.0, 3]],
 		"centre": [[1531.0, 190.0, 3]],
-		"pipes": [420.0],
-		"starts": [[800.0, 1], [150.0, 1], [1300.0, 1], [400.0, 1]],
+		"obstacles": [[420.0, 46.0, 92.0]],
+		"springs": [560.0, 1320.0],
+		"enemies": [["walker", 985.0, 1095.0, 270.0], ["flyer", 620.0, 900.0, 160.0]],
+		"starts": [[800.0, 1], [150.0, 1], [1450.0, 1], [400.0, 1]],
 	},
-	# 1-3: islands in the sky, higher towards the middle, with a ruin row on
-	# the first and a high one over the middle. Everything between is a fall.
+	# 1-3: islands in the sky, higher towards the middle. A rising column of
+	# air in the first gap catches whoever falls in; blinking slabs bridge
+	# the second; a spring on the middle island reaches the high ruins.
 	Stage.Which.SKYWARD_RUINS: {
 		"floors": [
 			[0.0, 360.0, 380.0], [500.0, 700.0, 345.0], [700.0, 860.0, 280.0],
 			[1000.0, 1180.0, 250.0], [1320.0, 1600.0, 230.0],
 		],
 		"blocks": [[140.0, 270.0, 2]],
-		"centre": [[1531.0, 120.0, 3]],
-		"pipes": [],
+		"centre": [[1508.0, 40.0, 4]],
+		"obstacles": [],
+		"springs": [1360.0],
+		"blinks": [[930.0, 300.0, 100.0, 0]],
+		"updrafts": [[430.0, 250.0, 700.0, 110.0]],
+		"enemies": [["walker", 525.0, 675.0, 345.0], ["flyer", 520.0, 840.0, 200.0]],
 		"starts": [[800.0, 1], [150.0, 1], [1450.0, 1], [1080.0, 1]],
 	},
 	# 1-4: a beach and a big dune. Low sand by the sea at the join, a pit
-	# onto the water, then the dune climbs to its peak in the middle.
+	# onto the water, then the dune climbs to its peak; a spring on the peak
+	# reaches a sea stack above it. Crabs walk the dune, gulls the beach.
 	Stage.Which.SEA: {
 		"floors": [
 			[0.0, 300.0, 410.0], [440.0, 700.0, 400.0], [700.0, 900.0, 330.0],
 			[900.0, 1100.0, 260.0], [1100.0, 1300.0, 210.0], [1300.0, 1600.0, 190.0],
 		],
-		"blocks": [[80.0, 300.0, 2], [520.0, 290.0, 2]],
+		"blocks": [[80.0, 300.0, 2], [520.0, 290.0, 2], [1380.0, 20.0, 3]],
 		"centre": [[1554.0, 80.0, 2]],
-		"pipes": [1000.0],
+		"obstacles": [[1000.0, 100.0, 46.0]],
+		"springs": [1340.0],
+		"enemies": [["walker", 1125.0, 1275.0, 210.0], ["flyer", 100.0, 600.0, 230.0]],
 		"starts": [[800.0, 1], [150.0, 1], [1450.0, 1], [560.0, 1]],
 	},
-	# 1-5: mud and rock over poison. Low mud, rocks rising out of it, three
-	# pits, and a high rock either side of the middle.
+	# 1-5: mud and rock over poison. Rocks rising out of the mud, three pits,
+	# and a spring beside the middle up to the high stones over it.
 	Stage.Which.SWAMP: {
 		"floors": [
 			[0.0, 260.0, 400.0], [400.0, 560.0, 370.0], [560.0, 680.0, 300.0],
-			[680.0, 880.0, 370.0], [1020.0, 1160.0, 340.0], [1160.0, 1300.0, 270.0],
+			[680.0, 880.0, 370.0], [1020.0, 1220.0, 340.0], [1220.0, 1300.0, 270.0],
 			[1440.0, 1600.0, 250.0],
 		],
-		"blocks": [[60.0, 290.0, 2]],
-		"centre": [[1554.0, 140.0, 2]],
-		"pipes": [740.0],
-		"starts": [[800.0, 1], [120.0, 1], [1500.0, 1], [1080.0, 1]],
+		"blocks": [],
+		"centre": [[1531.0, 70.0, 3]],
+		"obstacles": [[730.0, 100.0, 46.0]],
+		"springs": [1480.0],
+		"enemies": [["walker", 425.0, 535.0, 370.0], ["flyer", 300.0, 700.0, 200.0]],
+		"starts": [[800.0, 1], [120.0, 1], [1560.0, 1], [1260.0, 1]],
 	},
 }
 
@@ -228,20 +262,17 @@ static func _make_solid_decor() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for row in _block_rows():
 		out.append(Rect2(row["pos"], Vector2(BLOCK_CELL * float(row["count"]), BLOCK_CELL)))
-	for x in _pipe_xs():
-		out.append(_pipe_rect(x))
+	out.append_array(_obstacles())
 	return out
 
-static func _pipe_xs() -> Array[float]:
-	var out: Array[float] = []
-	for x in layout()["pipes"]:
-		out.append(float(x))
-		out.append(WIDTH - float(x))
+## The obstacles standing on the floor, as rectangles, mirrored.
+static func _obstacles() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for o in layout().get("obstacles", []):
+		for x in [float(o[0]), WIDTH - float(o[0])]:
+			var top := top_at(x)
+			out.append(Rect2(x - float(o[1]) * 0.5, top - float(o[2]), float(o[1]), float(o[2])))
 	return out
-
-static func _pipe_rect(x: float) -> Rect2:
-	var top := top_at(x)
-	return Rect2(x - PIPE_SIZE.x * 0.5, top - PIPE_SIZE.y, PIPE_SIZE.x, PIPE_SIZE.y)
 
 ## The block rows as {pos (top left), count}, mirrored.
 static func _block_rows() -> Array[Dictionary]:
@@ -281,26 +312,29 @@ static func painted_floors() -> Array[Rect2]:
 
 static func painted_slabs() -> Array[Rect2]:
 	if theme == Stage.Which.SEA or theme == Stage.Which.SWAMP:
-		# The coast's rocks and the marsh's stones are drawn standing in the
-		# water, which is right for the conduits (they stand on the ground)
-		# and wrong for a floating row a runner can walk under. The rows are
-		# painted as that stage's own ground instead: thin slabs of sand or
-		# mud, exactly their collision rectangle.
+		# The coast's and the marsh's floating rows are painted as that
+		# stage's own ground: thin slabs of sand or mud, exactly their
+		# collision rectangle.
 		var slabs := painted_floors()
 		for row in _block_rows():
 			slabs.append(Rect2(row["pos"], Vector2(BLOCK_CELL * float(row["count"]), BLOCK_CELL)))
 		return slabs
 	if theme != Stage.Which.SKYWARD_RUINS:
 		return painted_floors()
+	# 1-3: each floor is an island of its own thickness. The rows are NOT
+	# islands -- an island painting hangs far below its top, so a 46px row
+	# drawn as one looked like a tall pillar you could walk through -- they
+	# are ruin blocks, drawn exactly (decor).
 	var out: Array[Rect2] = []
 	for f in painted_floors():
 		out.append(Rect2(f.position, Vector2(f.size.x, ISLAND_THICKNESS)))
-	out.append_array(solid_decor())
 	return out
 
 ## Scenery and solid pieces in the current theme's own vocabulary. Solid kinds
 ## are drawn exactly over solid_decor()'s rectangles; everything else is
-## scenery and collides with nothing.
+## scenery, collides with nothing, and stands wholly on one floor (the probe
+## checks every piece's footprint: no overhang off an edge, nothing that
+## looks like a ledge where there is none).
 static func decor() -> Array[Dictionary]:
 	match theme:
 		Stage.Which.HORROR:
@@ -313,6 +347,16 @@ static func decor() -> Array[Dictionary]:
 			return _decor_swamp()
 		_:
 			return _decor_greenfield()
+
+## The width a piece of scenery covers on the ground, for the placement rule.
+const FOOTPRINT := {
+	"tree": 150.0, "signpost": 60.0, "flowers": 60.0, "fence": 200.0,
+	"lantern": 30.0, "grave": 50.0, "banner": 50.0, "roots": 90.0, "puddle": 90.0,
+	"cart": 120.0, "sea_palm": 120.0, "sea_grass": 110.0, "sea_seaweed": 100.0,
+	"sea_boulder": 120.0, "sea_palm_small": 90.0, "swamp_tree": 196.0,
+	"swamp_reeds": 90.0, "swamp_boulder": 120.0, "swamp_mushroom": 90.0,
+	"sign": 70.0, "arch": 200.0, "grass": 80.0,
+}
 
 ## A piece of scenery at x and its mirror twin, each standing on whatever
 ## floor is under it.
@@ -333,83 +377,139 @@ static func _centre(out: Array[Dictionary], kind: String, half_width: float,
 	item.merge(extra)
 	out.append(item)
 
+static func _rows_as(out: Array[Dictionary], kind: String) -> void:
+	for row in _block_rows():
+		out.append({"type": kind, "pos": row["pos"], "count": row["count"],
+			"cell": BLOCK_CELL})
+
 static func _decor_greenfield() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for row in _block_rows():
-		out.append({"type": "blocks", "pos": row["pos"], "count": row["count"],
-			"cell": BLOCK_CELL})
-	for x in _pipe_xs():
-		out.append({"type": "conduit", "pos": Vector2(x, top_at(x)), "size": PIPE_SIZE})
-	_pairs(out, "tree", 60.0)
-	_pairs(out, "signpost", 300.0)
-	_pairs(out, "flowers", 760.0)
-	_pairs(out, "flowers", 1140.0)
-	_centre(out, "fence", 100.0, {"width": 200.0})
+	_rows_as(out, "blocks")
+	for r in _obstacles():
+		out.append({"type": "conduit", "pos": Vector2(r.get_center().x, r.end.y), "size": r.size})
+	_pairs(out, "tree", 90.0)
+	_pairs(out, "signpost", 340.0)
+	_pairs(out, "flowers", 700.0)
+	_pairs(out, "flowers", 1130.0)
+	_pairs(out, "flowers", 1520.0)
 	return out
 
 ## 1-2: the rows as crumbling ruin blocks, the conduits as two-block stacks,
 ## and the village's graves, lanterns, banners and cart.
 static func _decor_horror() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for row in _block_rows():
-		out.append({"type": "ruin_blocks", "pos": row["pos"], "count": row["count"],
-			"cell": BLOCK_CELL})
-	for x in _pipe_xs():
-		var r := _pipe_rect(x)
-		for k in range(2):
+	_rows_as(out, "ruin_blocks")
+	for r in _obstacles():
+		for k in range(int(round(r.size.y / BLOCK_CELL))):
 			out.append({"type": "ruin_blocks", "count": 1, "cell": BLOCK_CELL,
 				"pos": r.position + Vector2(0.0, BLOCK_CELL * k)})
-	_pairs(out, "lantern", 70.0, {"scale": 0.8})
-	_pairs(out, "grave", 220.0, {"scale": 0.72})
-	_pairs(out, "banner", 700.0)
+	_pairs(out, "lantern", 40.0, {"scale": 0.8})
+	_pairs(out, "grave", 230.0, {"scale": 0.72})
+	_pairs(out, "banner", 760.0)
 	_pairs(out, "roots", 1040.0)
-	_pairs(out, "puddle", 1300.0)
-	_pairs(out, "cart", 1450.0)
-	_centre(out, "fence", 100.0, {"width": 200.0})
+	_pairs(out, "cart", 1330.0)
 	return out
 
-## The conduits as footing art (1-4's rocks, 1-5's stones), which the stages
-## draw standing down into the water -- right for something on the ground.
+## The obstacles as footing art (1-4's rocks, 1-5's stones), fitted to their
+## collision rectangle; anything the painter draws below the top is behind
+## the ground.
 static func _footings(out: Array[Dictionary], kind: String) -> void:
-	for x in _pipe_xs():
-		var r := _pipe_rect(x)
+	for r in _obstacles():
 		out.append({"type": kind, "rect": r, "pos": r.position + Vector2(r.size.x * 0.5, r.size.y)})
 
-## 1-4: a beach and a dune above the sea. Sand floors, the rows and conduits
-## as sea rocks, palms, dune grass, boulders and seaweed.
+## 1-4: a beach and a dune above the sea. Sand floors, the obstacle as a sea
+## rock, palms, dune grass and seaweed.
 static func _decor_sea() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	_footings(out, "sea_rock")
-	_pairs(out, "sea_palm", 70.0, {"height": 280.0})
-	_pairs(out, "sea_grass", 240.0)
-	_pairs(out, "sea_seaweed", 520.0)
-	_pairs(out, "sea_boulder", 620.0, {"width": 120.0})
-	_pairs(out, "sea_palm_small", 800.0, {"height": 180.0})
-	_pairs(out, "sea_grass", 1450.0)
+	_pairs(out, "sea_palm", 230.0, {"height": 260.0})
+	_pairs(out, "sea_seaweed", 640.0)
+	_pairs(out, "sea_palm_small", 780.0, {"height": 170.0})
+	_pairs(out, "sea_grass", 1200.0)
 	return out
 
-## 1-5: mud and rock above poison. The rows and conduits as swamp stones,
-## dead trees, mushrooms, reeds and boulders.
+## 1-5: stone and mud above poison. The obstacle as a swamp stone, dead
+## trees, mushrooms and reeds -- placed clear of every row.
 static func _decor_swamp() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	_footings(out, "swamp_stone")
-	_pairs(out, "swamp_tree", 80.0, {"height": 260.0})
-	_pairs(out, "swamp_reeds", 200.0)
-	_pairs(out, "swamp_boulder", 830.0)
-	_pairs(out, "swamp_mushroom", 1230.0)
-	_pairs(out, "swamp_reeds", 1500.0)
+	_pairs(out, "swamp_tree", 130.0, {"height": 170.0})
+	_pairs(out, "swamp_reeds", 835.0)
+	_pairs(out, "swamp_mushroom", 1075.0)
+	_pairs(out, "swamp_reeds", 1160.0)
 	return out
 
-## 1-3: islands (painted_slabs) with the ruins' trees, bushes, columns and an
-## arch.
+## 1-3: islands (painted_slabs), the rows as grey stone blocks, trees and an
+## arch. Not the ruins' signs, flower beds or grass: their sky paintings
+## stand on little rock pillars, which read as ledges that are not there.
 static func _decor_sky() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	_pairs(out, "tree", 70.0, {"size": Vector2(200, 230)})
-	_pairs(out, "sign", 260.0, {"size": Vector2(80, 90)})
-	_pairs(out, "bush", 560.0, {"size": Vector2(80, 60)})
-	_pairs(out, "tree_tall", 1100.0, {"size": Vector2(100, 200)})
-	_pairs(out, "flowers", 1400.0, {"size": Vector2(70, 50)})
-	_centre(out, "arch", 0.0, {"size": Vector2(220, 220)})
+	_rows_as(out, "blocks")
+	_pairs(out, "tree", 250.0, {"size": Vector2(180, 210)})
+	_centre(out, "arch", 0.0, {"size": Vector2(200, 200)})
+	return out
+
+# ------------------------------------------------------- gimmicks, enemies
+## Everything below is a list of plain dictionaries, mirrored: what the scene
+## builds (VersusLevelBuilder) and what the probes check. Each is placed away
+## from the join, so nothing needs a copy a lap away.
+
+static func springs() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for x in layout().get("springs", []):
+		for at in [float(x), WIDTH - float(x)]:
+			out.append(Vector2(at, top_at(at)))
+	return out
+
+## {centre, span, travel}: travel is mirrored, so the twins move apart and
+## together rather than in step.
+static func movers() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for m in layout().get("movers", []):
+		var span := Vector2(float(m[2]), 26.0)
+		out.append({"centre": Vector2(m[0], m[1]), "span": span, "travel": Vector2(m[3], m[4])})
+		out.append({"centre": Vector2(WIDTH - float(m[0]), m[1]), "span": span,
+			"travel": Vector2(-float(m[3]), m[4])})
+	return out
+
+static func blinks() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for b in layout().get("blinks", []):
+		for x in [float(b[0]), WIDTH - float(b[0])]:
+			out.append({"centre": Vector2(x, b[1]), "span": Vector2(float(b[2]), 26.0),
+				"colour": int(b[3])})
+	return out
+
+## {centre, span} of each rising column of air.
+static func updrafts() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for u in layout().get("updrafts", []):
+		var top := float(u[1])
+		var bottom := float(u[2])
+		for x in [float(u[0]), WIDTH - float(u[0])]:
+			out.append({"centre": Vector2(x, (top + bottom) * 0.5),
+				"span": Vector2(float(u[3]), bottom - top)})
+	return out
+
+## {centre, span, dir} of each conveyor, lying on the floor at its x.
+static func belts() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for b in layout().get("belts", []):
+		for side in [1, -1]:
+			var x := float(b[0]) if side == 1 else WIDTH - float(b[0])
+			out.append({"centre": Vector2(x, float(b[1]) - 13.0),
+				"span": Vector2(float(b[2]), 26.0), "dir": side})
+	return out
+
+## The enemies' patrols (VersusEnemies moves them): {kind, x0, x1, y, phase},
+## the twin starting at the other end so the two halves are never in step.
+static func enemy_specs() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e in layout().get("enemies", []):
+		out.append({"kind": String(e[0]), "x0": float(e[1]), "x1": float(e[2]),
+			"y": float(e[3]), "phase": 0.0})
+		out.append({"kind": String(e[0]), "x0": WIDTH - float(e[2]),
+			"x1": WIDTH - float(e[1]), "y": float(e[3]), "phase": 0.5})
 	return out
 
 ## Kept for the callers that used to ask for a lap: the arena IS the whole map.

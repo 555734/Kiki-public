@@ -108,6 +108,41 @@ var _carry: Array[Dictionary] = []
 ## from the stomper, so a platform over your head is cover from both.
 var line_clear: Callable = Callable()
 
+## The stage's enemies (VersusEnemies moves them; where they are is a pure
+## function of `tick`). Whether each is down is this match's: the tick it gets
+## back up, which the snapshot carries to every guest as a bitmask.
+var enemies: Array[Dictionary] = []
+var _enemy_up_at: Array[int] = []
+
+func enemy_alive(i: int) -> bool:
+	return i >= 0 and i < _enemy_up_at.size() and tick >= _enemy_up_at[i]
+
+## Bit i set: enemy i is down.
+func enemy_down_mask() -> int:
+	var mask := 0
+	for i in range(_enemy_up_at.size()):
+		if not enemy_alive(i):
+			mask |= 1 << i
+	return mask
+
+func _defeat_enemy(i: int, by: int) -> void:
+	_enemy_up_at[i] = tick + VersusRules.ENEMY_DOWN_TICKS
+	events.append({"kind": "enemy_down", "id": i, "by": by})
+
+## `side`'s player's rifle hit enemy `i` on their screen. Down it goes, if it
+## is up and nothing solid is between it and the sky the shot falls from.
+func shoot_enemy(side: int, i: int) -> bool:
+	if phase != Phase.PLAYING or side < 0 or side >= sides or not enemy_alive(i):
+		return false
+	var at := VersusEnemies.position_of(enemies[i], tick)
+	if not clear_between(at + VersusRules.SHOT_FROM, at):
+		return false
+	var before := events.size()
+	_defeat_enemy(i, side)
+	while events.size() > before:
+		_carry.append(events.pop_back())
+	return true
+
 func clear_between(from: Vector2, to: Vector2) -> bool:
 	return not line_clear.is_valid() or bool(line_clear.call(from, to))
 
@@ -135,6 +170,10 @@ func setup(collision: ArenaStage, match_seed: int = 20260920,
 	phase = Phase.PLAYING
 	tick = 0
 	winner = -1
+	enemies = VersusStageData.enemy_specs()
+	_enemy_up_at.clear()
+	for e in enemies:
+		_enemy_up_at.append(0)
 	_spawn_in = 0
 	_last_spawn_point = Vector2(INF, INF)
 	events.clear()
@@ -179,6 +218,7 @@ func step(incoming: Array) -> void:
 
 	# 2-4. stomps, all gathered from the same instant before any is applied
 	_resolve_stomps()
+	_resolve_enemies()
 
 	# 5. anyone who left the stage
 	_resolve_falls()
@@ -271,6 +311,41 @@ func _resolve_stomps() -> void:
 				continue
 			if is_bump(seats[a].position, seats[v].position):
 				_bump(a, v)
+
+## Enemies: landing on one defeats it and bounces you off; touching one any
+## other way costs a star (and the second of immunity any hit gives).
+func _resolve_enemies() -> void:
+	for i in range(enemies.size()):
+		if not enemy_alive(i):
+			continue
+		var body := VersusEnemies.body_of(enemies[i], tick)
+		for a in range(sides):
+			if not seats[a].alive or not seats[a].can_act:
+				continue
+			var at := VersusStageData.nearest_image(seats[a].position, body.get_center())
+			if is_stomp_on(at, seats[a].velocity, body):
+				_defeat_enemy(i, a)
+				events.append({"kind": "bounce", "side": a})
+				break
+			if immune(a) or seats[a].invulnerable:
+				continue
+			if touches_enemy(at, body):
+				var dir := signf(at.x - body.get_center().x)
+				_hit(a, -1, "enemy", dir if dir != 0.0 else 1.0)
+
+## Falling feet arriving on top of `body` (an enemy's).
+static func is_stomp_on(a_pos: Vector2, a_vel: Vector2, body: Rect2) -> bool:
+	if a_vel.y < VersusRules.STOMP_MIN_FALL:
+		return false
+	var feet := a_pos.y + Balance.RUNNER_SIZE.y * 0.5
+	var head := body.position.y
+	return absf(a_pos.x - body.get_center().x) <= body.size.x * 0.5 + Balance.RUNNER_SIZE.x * 0.5 \
+		and feet >= head - 14.0 and feet <= head + 22.0
+
+## A runner's body overlapping `body`, a little forgiving at the edges.
+static func touches_enemy(a_pos: Vector2, body: Rect2) -> bool:
+	var me := Rect2(a_pos - Balance.RUNNER_SIZE * 0.5, Balance.RUNNER_SIZE)
+	return me.grow(-3.0).intersects(body.grow(-4.0))
 
 ## Side by side and touching (the bodies are solid to each other now, so
 ## "touching" is within a few pixels), not one above the other.

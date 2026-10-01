@@ -24,9 +24,6 @@ const PATH := "user://controls.cfg"
 ##   shared   -- two people, one screen: runner keeps the left edge
 ##   runner   -- the runner alone, both thumbs
 ##   guardian -- the guardian alone, both thumbs
-##   versus   -- one person playing both (the star battle): the stick alone
-##               on the left, jump and both tools on the right
-## MODES lists the ones the layout editor offers; versus is not one of them.
 const MODES := ["shared", "runner", "guardian"]
 
 ## Fraction of the width reserved for the runner when the screen is shared.
@@ -40,18 +37,6 @@ static var _loaded: bool = false
 # Offsets from the bottom-RIGHT corner, in units of the screen height, as
 # (dx, dy, radius). The arc runs from the corner up the right-hand edge, which
 # is the path a right thumb takes.
-## Sharing one screen, the guardian only has the right-hand side of it -- the
-## other player's hands are on the left -- so everything stays on one arc.
-##
-## There are no buttons for moving the view. There were, and holding one down
-## was the only way to look at anything, which is tiring in exactly the way a
-## button held down is always tiring. Swiping the world scrolls it instead --
-## the gesture a finger on a map already makes -- so the two buttons are gone
-## and the screen is quieter for it. The keyboard keys still exist for desktop.
-const GUARDIAN_ARC := {
-	"slot_1": Vector3(0.30, 0.22, 0.090),
-	"slot_3": Vector3(0.12, 0.40, 0.100),
-}
 
 ## Alone on a device the guardian has TWO thumbs, so the controls belong under
 ## both of them rather than stacked up one edge. Building goes to the left hand
@@ -72,15 +57,20 @@ const GUARDIAN_RIGHT := {}
 ## defaults take effect (v2: two buttons; v3: both on the left).
 const GUARDIAN_LAYOUT_VERSION := 3
 
-## One person playing runner and guardian together in versus: the left thumb
-## only steers, and everything that is pressed is under the right thumb --
-## jump in the corner, the shot above it and the platform beside it, so the
-## right thumb rolls from jumping to a tool without the left letting go.
-const VERSUS_RIGHT := {
+## One device (the shared screen, and the star battle, which uses it): the
+## left thumb only steers, and everything that is pressed is under the right
+## thumb -- jump in the corner, the shot above it and the platform beside it,
+## so the right thumb rolls from jumping to a tool without the left letting
+## go. (It used to be stick and jump on the left and the two tools on an arc
+## at the right; the star battle tried this arrangement first and it stayed.)
+const SHARED_RIGHT := {
 	"jump":   Vector3(0.12, 0.17, 0.110),
 	"slot_3": Vector3(0.13, 0.43, 0.090),
 	"slot_1": Vector3(0.36, 0.15, 0.090),
 }
+## Saved shared-screen layouts from before the jump moved right are dropped
+## once, so the new arrangement is what everyone gets (v2: jump on the right).
+const SHARED_LAYOUT_VERSION := 2
 
 ## The runner alone has the whole screen, so their actions go to the far corner
 ## and are held with the other thumb.
@@ -134,7 +124,9 @@ static func layout(mode: String, view: Vector2, mirrored: bool = false) -> Dicti
 				out[id] = {"center": Vector2(right.x - d.x * u, right.y - d.y * u),
 					"radius": d.z * u, "kind": "button"}
 		else:
-			out.merge(_shared_runner(view))
+			# The stick, sized as it always was; its old neighbour, the
+			# jump, is with the tools on the right now.
+			out["stick"] = _shared_runner(view)["stick"]
 
 	if mode == "guardian":
 		for id in GUARDIAN_LEFT:
@@ -145,16 +137,9 @@ static func layout(mode: String, view: Vector2, mirrored: bool = false) -> Dicti
 			var d: Vector3 = GUARDIAN_RIGHT[id]
 			out[id] = {"center": Vector2(right.x - d.x * u, right.y - d.y * u),
 				"radius": d.z * u, "kind": "button"}
-	elif mode == "versus":
-		# The stick stays exactly where the shared screen has it; the jump
-		# that sits beside it there moves to the right with the tools.
-		for id in VERSUS_RIGHT:
-			var d: Vector3 = VERSUS_RIGHT[id]
-			out[id] = {"center": Vector2(right.x - d.x * u, right.y - d.y * u),
-				"radius": d.z * u, "kind": "button"}
 	elif mode == "shared":
-		for id in GUARDIAN_ARC:
-			var d: Vector3 = GUARDIAN_ARC[id]
+		for id in SHARED_RIGHT:
+			var d: Vector3 = SHARED_RIGHT[id]
 			out[id] = {"center": Vector2(right.x - d.x * u, right.y - d.y * u),
 				"radius": d.z * u, "kind": "button"}
 
@@ -307,6 +292,7 @@ static func save() -> void:
 		var parts := String(key).split("/")
 		cfg.set_value(parts[0], parts[1], _overrides[key])
 	cfg.set_value("meta", "guardian_layout", GUARDIAN_LAYOUT_VERSION)
+	cfg.set_value("meta", "shared_layout", SHARED_LAYOUT_VERSION)
 	cfg.save(PATH)
 
 static func _ensure_loaded() -> void:
@@ -317,8 +303,10 @@ static func _ensure_loaded() -> void:
 	if cfg.load(PATH) != OK:
 		return
 	var stale_guardian := int(cfg.get_value("meta", "guardian_layout", 1)) < GUARDIAN_LAYOUT_VERSION
+	var stale_shared := int(cfg.get_value("meta", "shared_layout", 1)) < SHARED_LAYOUT_VERSION
 	for section in cfg.get_sections():
-		if section == "meta" or (section == "guardian" and stale_guardian):
+		if section == "meta" or (section == "guardian" and stale_guardian) \
+				or (section == "shared" and stale_shared):
 			continue
 		for key in cfg.get_section_keys(section):
 			var value = cfg.get_value(section, key)

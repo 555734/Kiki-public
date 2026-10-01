@@ -111,6 +111,8 @@ func step(local, wanted_seat: int = -1) -> void:
 
 ## Other players' platforms (and their removals), as relayed by the host,
 ## for the scene to build.
+## Which of the stage's enemies the host has down (bit per enemy).
+var enemy_mask: int = 0
 var holo_inbox: Array[PackedByteArray] = []
 
 ## This player's platform, to the host for everybody else.
@@ -121,6 +123,15 @@ func send_holo(payload: PackedByteArray) -> void:
 
 ## Ask the host to fire at `at`. Slot 3 is the shot, the same number the
 ## co-op rifle has; sent reliably so a tap is never lost.
+## My rifle hit enemy `id` (COMMAND slot 4, the id in at.x).
+func request_enemy_shot(id: int) -> void:
+	if not connected or seat < 0:
+		return
+	transport.send_to(VersusTransport.HOST_PEER,
+		VersusTransport.Channel.COMMAND,
+		VersusTransport.Reliability.RELIABLE,
+		VersusProtocol.command(seat, world_tick, 4, Vector2(float(id), 0.0)))
+
 func request_shot(at: Vector2) -> void:
 	if not connected or seat < 0:
 		return
@@ -213,6 +224,7 @@ func _absorb(payload: PackedByteArray) -> void:
 	epoch = next_epoch
 	countdown = next_countdown
 	seat_mask = int(s["seat_mask"])
+	enemy_mask = int(s["enemy_mask"])
 	world_tick = next_tick
 	phase = next_phase
 	winner = int(s["winner"])

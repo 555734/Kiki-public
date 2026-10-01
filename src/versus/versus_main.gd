@@ -170,6 +170,8 @@ func _build_controls() -> void:
 func _take_seat(seat: int) -> void:
 	_seat = seat
 	_set_local_team()
+	if level != null:
+		level.set_riders(_riders())
 	if local_team < 0 or local_team >= sides:
 		return
 	var r := runners[local_team]
@@ -295,6 +297,8 @@ func _apply_theme(which: int) -> void:
 	level.runner = runners[maxi(local_team, 0)]
 	level.input_hub = input.hubs[0]
 	level.build()
+	level.add_actors(self)
+	level.set_riders(_riders())
 	if _sky != null:
 		_sky.queue_free()
 	var offset: float = _sky.scroll_offset if _sky != null else 0.0
@@ -328,6 +332,84 @@ func _finish_world() -> void:
 	level.runner = runners[maxi(local_team, 0)]
 	level.input_hub = input.hubs[0]
 	level.build()
+	level.add_actors(self)
+	level.set_riders(_riders())
+
+## The runners this device moves itself: both on the keyboard test, its own
+## online. Springs and columns of air throw only these; everyone else's are
+## thrown by their own device.
+func _riders() -> Array:
+	if mode == Mode.SOLO:
+		return runners.duplicate()
+	return [runners[local_team]] if local_team >= 0 and local_team < runners.size() else []
+
+# ---------------------------------------------------------------- the clock
+## Co-op's moving platforms, blinking slabs and conveyors read Clock.tick, and
+## so do the enemies here: kept on the match's tick, every device shows them
+## in the same place. A guest runs its own count forward and is steered to
+## the host's, so they move smoothly between snapshots.
+var _clock: int = 0
+
+func enemy_tick() -> int:
+	return _clock
+
+func _sync_clock() -> void:
+	if match_rules != null:
+		_clock = match_rules.tick
+	elif client != null:
+		_clock += 1
+		if absi(client.world_tick - _clock) > 6:
+			_clock = client.world_tick
+	Clock.tick = _clock
+
+## Whether enemy `i` is up: the match's word (host, solo) or the snapshot's.
+func enemy_alive(i: int) -> bool:
+	if match_rules != null:
+		return match_rules.enemy_alive(i)
+	if client != null:
+		return (client.enemy_mask >> i) & 1 == 0
+	return true
+
+## The co-op rifle hit enemy `id` on this screen; the host decides.
+func report_enemy_hit(id: int) -> void:
+	match mode:
+		Mode.SOLO:
+			if match_rules != null:
+				match_rules.shoot_enemy(0, id)
+		Mode.HOST:
+			if host != null:
+				host.shoot_enemy(_seat, id)
+		Mode.CLIENT:
+			if client != null:
+				client.request_enemy_shot(id)
+
+## A guest hears none of the host's events, so its own runner reacts to an
+## enemy at once, as the host's rule will see it: bounced off a head it lands
+## on, knocked back by one it walks into. The star is still only the host's.
+var _enemy_quiet: int = 0
+
+func _predict_enemies(i: int) -> void:
+	if _enemy_quiet > 0:
+		_enemy_quiet -= 1
+	var me := runners[i]
+	if _respawn_in[i] > 0 or me.state == Runner.State.DEAD:
+		return
+	var specs: Array = match_rules.enemies if match_rules != null else VersusStageData.enemy_specs()
+	for k in range(specs.size()):
+		if not enemy_alive(k):
+			continue
+		var body := VersusEnemies.body_of(specs[k], _clock)
+		var at := VersusStageData.nearest_image(me.global_position, body.get_center())
+		if VersusMatch.is_stomp_on(at, Vector2(me.velocity.x, fall_speed(i)), body):
+			me.velocity.y = VersusRules.STOMP_BOUNCE
+			return
+		if _enemy_quiet == 0 and not me.is_invulnerable() \
+				and VersusMatch.touches_enemy(at, body):
+			var dir := signf(at.x - body.get_center().x)
+			_apply_events([{"kind": "hurt", "side": i, "by": -1,
+				"dir": dir if dir != 0.0 else 1.0, "how": "enemy"}])
+			_enemy_quiet = VersusRules.HIT_IMMUNE_TICKS
+			return
 
 func _build_camera() -> void:
 	_camera = Camera2D.new()
@@ -481,8 +563,8 @@ func _apply_puppets() -> void:
 ## shot). Nothing is routed: the Guardian acts locally, and what the others
 ## need is passed on afterwards (_sync_holograms, report_shot_hit).
 ## A 2v2 guardian seat has the guardian layout; every other seat is one
-## person playing both, with the stick alone on the left and jump, platform
-## and shot on the right (ControlLayout "versus").
+## person playing both on 1-1's one-device screen (ControlLayout "shared"),
+## drawn by the same painter (ControlPainter).
 func _build_shooter() -> void:
 	if guardian != null or _seat < 0:
 		return
@@ -493,7 +575,7 @@ func _build_shooter() -> void:
 		and VersusRoster.role_of(_seat) == VersusRoster.Role.GUARDIAN \
 		and mode != Mode.SOLO
 	hub.scripted = false
-	hub.solo_role = "guardian" if guardian_seat else "versus"
+	hub.solo_role = "guardian" if guardian_seat else ""
 	guardian = Guardian.new()
 	guardian.name = "Guardian"
 	guardian.runner = runners[VersusRoster.team_of(_seat)] if guardian_seat \
@@ -921,6 +1003,7 @@ func _physics_process(_delta: float) -> void:
 
 	var seqs := input.poll()
 	_trace_local_input()
+	_sync_clock()
 
 	if phase() == VersusMatch.Phase.OVER and mode != Mode.CLIENT \
 			and Input.is_physical_key_pressed(KEY_R):
@@ -1130,6 +1213,7 @@ func _tick_client(seqs: Array[int]) -> void:
 	if local_team >= 0 and can_move():
 		_stomp_bounce(local_team)
 		_predict_bump(local_team)
+		_predict_enemies(local_team)
 	_sync_builds_from_snapshot(client.builds, client.world_revision)
 	# Everyone the host describes and this machine does not own.
 	for i in range(sides):
@@ -1449,6 +1533,9 @@ func _apply_events(events: Array) -> void:
 						VersusRules.BUMP_KNOCK.x * float(e["dir"]), VersusRules.BUMP_KNOCK.y))
 					Audio.play("hurt", 4.0, 0.0, 0.7)
 					bumps_felt += 1
+			"enemy_down":
+				Audio.play("hurt", 7.0, 0.0, 0.8)
+				enemies_downed += 1
 			"fell":
 				if _owns(e["side"]):
 					runners[e["side"]].die("fell")
@@ -1477,6 +1564,9 @@ func _predict_bump(i: int) -> void:
 			_apply_events([{"kind": "bump", "side": i, "dir": dir}])
 			_bump_quiet = VersusRules.HIT_IMMUNE_TICKS
 			return
+
+## For the probes: enemies this machine has seen go down (host and solo).
+var enemies_downed: int = 0
 
 ## For the probes: bumps this machine's own runner has been thrown by.
 var bumps_felt: int = 0

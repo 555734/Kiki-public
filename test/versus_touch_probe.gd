@@ -62,6 +62,10 @@ func _ready() -> void:
 		view.add_child(scene)
 		scenes.append(scene)
 	await _ticks(100)
+	# The stage's enemies stay down here: this probe is about touch.
+	var hm: VersusMatch = scenes[0].host.match_rules
+	for i in range(hm._enemy_up_at.size()):
+		hm._enemy_up_at[i] = 1 << 30
 	for i in range(2):
 		var scene = scenes[i]
 		check(not scene.waiting(), "peer %d leaves waiting" % i)
@@ -70,7 +74,7 @@ func _ready() -> void:
 			"peer %d unused hub cannot consume touch" % i)
 		check(scene.level._dynamic.get_child_count() == 0,
 			"peer %d builds the arena without 1-1's pickups or enemies" % i)
-		var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
+		var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
 		var stick: Dictionary = layout["stick"]
 		var at: Vector2 = stick["center"] + Vector2(float(stick["radius"]) * 0.7, 0)
 		# From the flat home ground, where a walk right meets no step.
@@ -146,13 +150,16 @@ func _ready() -> void:
 		await _ticks(10)
 	# A platform traced on peer 1's screen is on peer 0's too, solid, and
 	# goes when it expires on peer 1.
-	var shared := ControlLayout.layout("versus", Vector2(1280, 720), false)
+	var shared := ControlLayout.layout("shared", Vector2(1280, 720), false)
 	var b_scene = scenes[1]
 	_touch(1, 2, shared["slot_1"]["center"], true)
 	_touch(1, 2, shared["slot_1"]["center"], false)
 	await _ticks(3)
 	check(b_scene.guardian.active_slot == 1, "peer 1 chooses the platform with its button")
-	await _drag(1, 4, Vector2(880.0, 300.0), Vector2(1040.0, 300.0))
+	# In open air ahead of and above peer 1's runner, wherever that is.
+	var trace_from: Vector2 = views[1].get_canvas_transform() \
+		* (b_scene.runners[1].global_position + Vector2(150.0, -170.0))
+	await _drag(1, 4, trace_from, trace_from + Vector2(160.0, 0.0))
 	await _ticks(20)
 	var theirs: Array = b_scene.guardian.holograms_of(Hologram.Kind.PLATFORM)
 	check(theirs.size() == 1, "peer 1 traces a platform")
@@ -177,6 +184,24 @@ func _ready() -> void:
 	check(b_scene.guardian.holograms_of(Hologram.Kind.PLATFORM).is_empty()
 			and scenes[0]._holos.is_empty(),
 		"and when it runs out on peer 1 it is gone from peer 0 as well")
+	# The moving platforms and the enemies run on the match's clock: both
+	# devices show them in the same place (a guest a tick or two behind).
+	var worst_mover := 0.0
+	var lifts_a: Array = scenes[0].level.find_children("*", "MovingPlatform", true, false)
+	var lifts_b: Array = scenes[1].level.find_children("*", "MovingPlatform", true, false)
+	for k in range(mini(lifts_a.size(), lifts_b.size())):
+		worst_mover = maxf(worst_mover, (lifts_a[k] as Node2D).global_position.distance_to(
+			(lifts_b[k] as Node2D).global_position))
+	check(not lifts_a.is_empty() and lifts_a.size() == lifts_b.size() and worst_mover < 12.0,
+		"the moving platforms agree on both screens (worst %.1fpx)" % worst_mover)
+	var worst_enemy := 0.0
+	for k in range(VersusStageData.enemy_specs().size()):
+		var a: Vector2 = VersusEnemies.position_of(VersusStageData.enemy_specs()[k], scenes[0].enemy_tick())
+		var b: Vector2 = VersusEnemies.position_of(VersusStageData.enemy_specs()[k], scenes[1].enemy_tick())
+		worst_enemy = maxf(worst_enemy, a.distance_to(b))
+	check(worst_enemy < 12.0, "and so do the enemies (worst %.1fpx)" % worst_enemy)
+	check(scenes[1].enemy_alive(0) == scenes[0].enemy_alive(0),
+		"and whether one is down")
 	# This subscription belongs to _ready, not the first role swap.
 	for i in range(2):
 		for attempt in range(2):
@@ -190,7 +215,7 @@ func _ready() -> void:
 			check(runner.state != Runner.State.DEAD and scenes[i]._respawn_in[i] == 0,
 				"peer %d death %d respawns without a death echo loop" % [i, attempt])
 			check(not runner.is_invulnerable(), "peer %d respawn blinking expires" % i)
-			var layout := ControlLayout.layout("versus", Vector2(1280, 720), false)
+			var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
 			var at: Vector2 = layout["stick"]["center"] + Vector2(40, 0)
 			var before: float = runner.global_position.x
 			_touch(i, 0, at, true)

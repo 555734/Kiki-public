@@ -38,6 +38,7 @@ func _ready() -> void:
 	_test_start_and_rematch()
 	_test_eos_peer_ids()
 	_test_free_for_all()
+	_test_enemies_on_the_wire()
 
 	print("versus net probe: %d checks failed" % failures.size())
 	if failures.is_empty():
@@ -47,6 +48,55 @@ func _ready() -> void:
 		for f in failures:
 			push_error("versus net probe: " + f)
 		get_tree().quit(1)
+
+# ------------------------------------------------------------------ enemies
+## Where an enemy is never travels (it is a function of the tick); whether it
+## is down does, in every snapshot. A guest's rifle hit is a request, and the
+## host decides.
+func _test_enemies_on_the_wire() -> void:
+	_current = "enemies on the wire"
+	var back := VersusProtocol.read_snapshot(VersusProtocol.snapshot(9, 0, -1, [], [], [],
+		0, 0, 0, 0, 0b1010_0000_0000_0000_0000_0000_0000_0101))
+	check(int(back["enemy_mask"]) == 0b1010_0000_0000_0000_0000_0000_0000_0101,
+		"a snapshot carries all 32 enemy bits")
+	var mesh := VersusLoopback.mesh(2, 0.02, 0.0, 0.0, 99)
+	var host := VersusHost.new()
+	host.start(mesh[0], _world(), 2024)
+	var guest := VersusClient.new()
+	guest.start(mesh[1], VersusRoster.SEAT_B_RUNNER)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var delta := 1.0 / 60.0
+	var tick := 0
+	var step := func() -> void:
+		for m in mesh:
+			m.advance(delta)
+		var seat := VersusMatch.Seat.new()
+		seat.team = 0
+		seat.position = VersusStageData.start_positions()[0]
+		seat.alive = true
+		seat.can_act = true
+		host.step(seat)
+		host.request_start(0)
+		var mine := VersusMatch.Seat.new()
+		mine.team = 1
+		mine.position = VersusStageData.start_positions()[1]
+		mine.alive = true
+		mine.can_act = true
+		guest.step(mine)
+	for t in range(300):
+		step.call()
+	check(host.playing and guest.connected, "the match is on (playing=%s)" % host.playing)
+	check(guest.enemy_mask == 0, "every enemy starts up on the guest's screen too")
+	guest.request_enemy_shot(1)
+	for t in range(20):
+		step.call()
+	check(not host.match_rules.enemy_alive(1), "a guest's shot at enemy 1 downs it on the host")
+	check((guest.enemy_mask >> 1) & 1 == 1 and guest.enemy_mask & ~0b10 == 0,
+		"and the guest sees that one down, and only that one (mask %d)" % guest.enemy_mask)
+	for t in range(VersusRules.ENEMY_DOWN_TICKS + 30):
+		step.call()
+	check(guest.enemy_mask == 0, "and back up again when the host says so")
 
 # -------------------------------------------------------------------- format
 ## Everything that goes on the wire has to come back off it unchanged. Checked
@@ -378,10 +428,11 @@ func _test_the_guardian() -> void:
 		"the guardian is seated")
 
 	# Over 1-1's pit (x 1220..1360), where there is no floor at all.
-	var over_the_gap := Vector2(1290.0, 150.0)
+	var over_the_gap := Vector2(1290.0, 260.0)
 	# Asked from above the platform: floor_below finds surfaces BELOW the point,
 	# and a point inside the slab it just built sees nothing under it.
-	var looking_down := Vector2(1290.0, 60.0)
+	# Below 1-1's sky bridge (its row spans the pit at y 120..166).
+	var looking_down := Vector2(1290.0, 200.0)
 	check(host.world.floor_below(looking_down, 500.0) == INF,
 		"there is no floor over the gap to begin with")
 	guard.request_build(over_the_gap)
@@ -829,7 +880,7 @@ func _test_free_for_all() -> void:
 			builder = c
 			break
 	var before := host.builds.size()
-	builder.request_build(Vector2(1290.0, 150.0), 1)
+	builder.request_build(Vector2(1290.0, 260.0), 1)
 	var other_seat := (builder.seat % 7) + 1
 	mesh[clients.find(builder) + 1].send_to(0, VersusTransport.Channel.COMMAND,
 		VersusTransport.Reliability.RELIABLE,

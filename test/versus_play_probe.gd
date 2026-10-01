@@ -34,10 +34,14 @@ func _ready() -> void:
 	_run()
 
 func _run() -> void:
+	# The stage's enemies are held down until _test_enemies: the rules
+	# before it are about the players.
+	_calm(arena.match_rules)
 	_test_standing()
 	await _test_walking()
 	await _test_taking_a_coin()
 	await _test_striking()
+	await _test_enemies()
 
 	print("versus play probe: %d checks failed" % failures.size())
 	if failures.is_empty():
@@ -103,10 +107,10 @@ func _test_striking() -> void:
 	var victim: Runner = arena.runners[1]
 	var attacker: Runner = arena.runners[0]
 
-	# A real stomp: drop the attacker onto the victim's head, on the open
-	# top of 1-1's middle hill -- far enough from the block stack over
-	# x=1554..1646 that the falling runner does not catch its ledge instead.
-	victim.global_position = _standing(1440.0)
+	# A real stomp: drop the attacker onto the victim's head, on 1-1's
+	# hilltop -- clear of the row over it (x 714..806), whose ledge a falling
+	# runner would catch instead, and of the springs on the middle hill.
+	victim.global_position = _standing(650.0)
 	victim.velocity = Vector2.ZERO
 	await _tick(20)
 	_clear_field(m)
@@ -171,7 +175,7 @@ func _test_striking() -> void:
 	var coin4 := m.ledger.get_coin(3)
 	ArenaCoin.to_held(coin3, 1)
 	ArenaCoin.to_held(coin4, 0)
-	victim.global_position = _standing(1500.0)
+	victim.global_position = _standing(860.0)
 	attacker.global_position = victim.global_position + Vector2(-90.0, 0.0)
 	attacker.velocity = Vector2.ZERO
 	await _tick(20)
@@ -324,6 +328,72 @@ func _clear_field(m: VersusMatch) -> void:
 		if c.state == ArenaCoin.State.WORLD:
 			ArenaCoin.to_recycle(c, m.tick)
 	m._spawn_in = 100000
+
+## The real walker on 1-1's home ground: land on it and it goes down and you
+## bounce; stand in its way and it costs you a star.
+func _test_enemies() -> void:
+	_current = "enemies"
+	var m: VersusMatch = arena.match_rules
+	for i in range(m._enemy_up_at.size()):
+		m._enemy_up_at[i] = 0
+	var walker := -1
+	for i in range(m.enemies.size()):
+		if String(m.enemies[i]["kind"]) == "walker" and float(m.enemies[i]["x0"]) < 1600.0:
+			walker = i
+	var r: Runner = arena.runners[0]
+	await _tick(VersusRules.HIT_IMMUNE_TICKS + 10)
+	# Out from under the row over the home ground (x 160..298) -- a runner
+	# dropped there lands on the row -- and where it will be ~24 ticks after
+	# a runner is dropped from 110px above it.
+	var wait := 0
+	while VersusEnemies.body_of(m.enemies[walker], m.tick + wait + 24).end.x > 140.0:
+		wait += 1
+	await _tick(wait)
+	var target := VersusEnemies.body_of(m.enemies[walker], m.tick + 24)
+	r.respawn(Vector2(target.get_center().x, target.position.y - 110.0))
+	var downed_before: int = arena.enemies_downed
+	var bounced := false
+	for i in range(50):
+		await get_tree().physics_frame
+		if r.velocity.y < -300.0:
+			bounced = true
+		if not m.enemy_alive(walker):
+			break
+	check(not m.enemy_alive(walker) and arena.enemies_downed > downed_before,
+		"landing on the walker defeats it")
+	check(bounced, "and bounces the runner off")
+	await _tick(2)
+	var shown: Node2D = arena.level.get_node_or_null("Enemy%d" % walker)
+	check(shown != null and not shown.visible, "and it is gone from the screen")
+	# Back up, then walk into it.
+	m._enemy_up_at[walker] = m.tick
+	await _tick(2)
+	while r.is_invulnerable():
+		await get_tree().physics_frame
+	await _tick(VersusRules.HIT_IMMUNE_TICKS + 2)
+	for c in m.ledger.coins:
+		if c.state == ArenaCoin.State.HELD:
+			ArenaCoin.to_recycle(c, m.tick)
+	m._spawn_in = 100000
+	var star := m.ledger.get_coin(4)
+	ArenaCoin.to_held(star, 0)
+	# Stand in its path, clear of the row, and wait for it.
+	r.respawn(Vector2(80.0, VersusStageData.top_at(80.0) - 26.0))
+	while r.is_invulnerable():
+		await get_tree().physics_frame
+	var lost := false
+	for i in range(420):
+		await get_tree().physics_frame
+		if not (star.state == ArenaCoin.State.HELD and star.owner == 0):
+			lost = true
+			break
+	check(lost, "walking into the walker costs a star")
+	_calm(m)
+
+## Every enemy down for the rest of the run (a tick nobody reaches).
+func _calm(m: VersusMatch) -> void:
+	for i in range(m._enemy_up_at.size()):
+		m._enemy_up_at[i] = 1 << 30
 
 ## On the floor at x: the stage has hills, so "the floor" has no one height.
 func _standing(x: float) -> Vector2:

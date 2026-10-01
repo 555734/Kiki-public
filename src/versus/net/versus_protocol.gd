@@ -23,7 +23,7 @@ enum Msg {
 	WELCOME = 2,     ## host -> client: you are seat N, the match seed is S
 	FULL = 3,        ## host -> client: there is no chair for you
 	INPUT = 10,      ## runner -> host: this is where I am and what I pressed
-	COMMAND = 11,    ## player -> host: slot 3 = "my shot hit whoever is here"
+	COMMAND = 11,    ## player -> host: slot 3 = "my shot hit whoever is here", slot 4 = "my shot hit enemy at.x"
 	HOLO = 12,       ## a player's platform, as the co-op Guardian made it (relayed)
 	UNHOLO = 13,     ## that platform is gone (relayed)
 	SNAPSHOT = 20,   ## host -> everyone: the world
@@ -33,7 +33,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 9 # Each stage its own ground; cover from platforms.
+const VERSION: int = 10 # Upper tiers, gimmicks and enemies (enemy mask, enemy shots).
 
 ## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
 ## the host only; the rules engine never enters them.
@@ -202,7 +202,8 @@ static func read_command(payload: PackedByteArray) -> Dictionary:
 ## than the one it already had. `countdown` is ticks left before PLAYING.
 static func snapshot(tick: int, phase: int, winner: int, runners: Array,
 		coins: Array, builds: Array, world_revision: int = 0,
-		epoch: int = 0, countdown: int = 0, seat_mask: int = 0) -> PackedByteArray:
+		epoch: int = 0, countdown: int = 0, seat_mask: int = 0,
+		enemy_mask: int = 0) -> PackedByteArray:
 	var b := _buf(Msg.SNAPSHOT)
 	b.put_u32(tick)
 	b.put_u8(phase)
@@ -213,6 +214,9 @@ static func snapshot(tick: int, phase: int, winner: int, runners: Array,
 	# Which chairs (up to eight) are taken, one bit each, so every screen can
 	# show who the room is still waiting for.
 	b.put_u8(seat_mask & 0xFF)
+	# Which of the stage's enemies are down, one bit each. Where they are is
+	# a function of the tick (VersusEnemies) and is never sent.
+	b.put_u32(enemy_mask & 0xFFFFFFFF)
 
 	b.put_u8(runners.size())
 	for r in runners:
@@ -246,6 +250,7 @@ static func read_snapshot(payload: PackedByteArray) -> Dictionary:
 	var out := {"tick": b.get_u32(), "phase": b.get_u8(), "winner": b.get_8(),
 		"world_revision": b.get_u32(), "epoch": b.get_u8(),
 		"countdown": b.get_u16(), "seat_mask": b.get_u8()}
+	out["enemy_mask"] = b.get_u32()
 
 	var runners: Array = []
 	var n := b.get_u8()

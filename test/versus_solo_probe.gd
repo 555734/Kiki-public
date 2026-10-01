@@ -33,10 +33,10 @@ func _ready() -> void:
 	await _ticks(60)
 	check(scene.touch_solo and scene.controls != null and scene.guardian != null,
 		"a phone's solo test has on-screen buttons and a rifle")
-	var versus := ControlLayout.layout("versus", Vector2(1280, 720), false)
+	var versus := ControlLayout.layout("shared", Vector2(1280, 720), false)
 	var drawn: Dictionary = scene.controls.places()
-	check(scene.input.hubs[0].layout_mode() == "versus" and drawn.keys().size() == 4,
-		"one person, one layout: the versus buttons (%s)" % str(drawn.keys()))
+	check(scene.input.hubs[0].layout_mode() == "shared" and drawn.keys().size() == 4,
+		"one person, 1-1's one-device layout (%s)" % str(drawn.keys()))
 	var same := true
 	for id in ["stick", "jump", "slot_1", "slot_3"]:
 		same = same and drawn.has(id) and versus.has(id) \
@@ -54,6 +54,11 @@ func _ready() -> void:
 				apart = apart and Vector2(drawn[a]["center"]).distance_to(drawn[b]["center"]) \
 					> float(drawn[a]["radius"]) + float(drawn[b]["radius"])
 	check(apart, "without overlapping each other")
+	for path in ["res://src/ui/hud_canvas.gd", "res://src/versus/versus_controls.gd"]:
+		check(FileAccess.get_file_as_string(path).contains("ControlPainter.draw_controls("),
+			"%s draws its controls with the one shared painter" % path.get_file())
+	check(scene.input.hubs[0].stick_visual()["touch_mode"],
+		"and the stick is showing from the start, as on a phone in 1-1")
 	check(not drawn.has("slot_2") and not drawn.has("slot_4") and not drawn.has("attack"),
 		"and there is no wall, warp or close-range attack button")
 	var abilities: Array = scene.guardian.abilities.keys()
@@ -108,6 +113,10 @@ func _ready() -> void:
 	# Shooting: choose the rifle, then tap the partner on the right.
 	await _ticks(10)
 	var m: VersusMatch = scene.match_rules
+	# The stage's enemies are held down here: the rifle would rather lock
+	# onto 1-1's walker than the partner. They have their own test below.
+	for i in range(m._enemy_up_at.size()):
+		m._enemy_up_at[i] = 1 << 30
 	for c in m.ledger.coins:
 		if c.state == ArenaCoin.State.WORLD:
 			ArenaCoin.to_recycle(c, m.tick)
@@ -155,6 +164,28 @@ func _ready() -> void:
 	check(shots[0] == 1, "tapping the partner fires the co-op rifle, and it hits")
 	check(m.ledger.held_by(1).size() == held_before - 1,
 		"and knocks the partner's star loose")
+
+	# The rifle downs an enemy too: 1-1's walker, in the open (not under the
+	# row over the home ground, which would cover it).
+	for i in range(m._enemy_up_at.size()):
+		m._enemy_up_at[i] = 0
+	var walker := -1
+	for i in range(m.enemies.size()):
+		if String(m.enemies[i]["kind"]) == "walker" and float(m.enemies[i]["x0"]) < 1600.0:
+			walker = i
+	me.global_position = Vector2(300.0, VersusStageData.top_at(300.0) - 26.0)
+	while VersusEnemies.body_of(m.enemies[walker], m.tick).end.x > 140.0 \
+			or VersusEnemies.body_of(m.enemies[walker], m.tick).position.x < 40.0:
+		await get_tree().physics_frame
+	await _ticks(2)
+	var foe: Node2D = scene.level.get_node("Enemy%d" % walker)
+	var foe_on_screen: Vector2 = view.get_canvas_transform() * foe.global_position
+	_touch(5, foe_on_screen, true)
+	_touch(5, foe_on_screen, false)
+	await _ticks(4)
+	check(not m.enemy_alive(walker), "tapping an enemy shoots it down (at %s)" % foe_on_screen)
+	for i in range(m._enemy_up_at.size()):
+		m._enemy_up_at[i] = 1 << 30
 
 	# Picking a star up plays the coin sound.
 	var sounds_before: int = scene.star_sounds_played

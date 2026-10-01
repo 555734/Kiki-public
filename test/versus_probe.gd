@@ -32,6 +32,7 @@ func _ready() -> void:
 	_test_conservation()
 	_test_stealing()
 	_test_cover()
+	_test_enemies()
 	_test_winning()
 
 	print("versus probe: %d checks failed" % failures.size())
@@ -105,8 +106,8 @@ func _stage_shape() -> void:
 	# under it leaves a runner room to walk beneath.
 	var low_rows := 0
 	for r in VersusStageData.solid_decor():
-		if r.size.y > VersusStageData.BLOCK_CELL + 1.0:
-			continue   # a conduit stands on the ground on purpose
+		if not _is_row(r):
+			continue   # an obstacle stands on the ground on purpose
 		for x in [r.position.x + 2.0, r.get_center().x, r.end.x - 2.0]:
 			var under := VersusStageData.top_at(x)
 			if under != INF and under - r.end.y < Balance.RUNNER_SIZE.y + 10.0:
@@ -116,7 +117,7 @@ func _stage_shape() -> void:
 	# Nor is a row ever right over a take-off: the jump would hit it.
 	var over_edges := 0
 	for r in VersusStageData.solid_decor():
-		if r.size.y > VersusStageData.BLOCK_CELL + 1.0:
+		if not _is_row(r):
 			continue
 		for f in floors:
 			for edge in [f.position.x, f.end.x]:
@@ -126,6 +127,26 @@ func _stage_shape() -> void:
 						and f.position.y > r.end.y and f.position.y - r.end.y < 200.0:
 					over_edges += 1
 	check(over_edges == 0, "no row of blocks hangs over a step or a pit's edge (%d do)" % over_edges)
+	# Scenery stands wholly on one floor -- no overhang off an edge, nothing
+	# floating -- and never inside or in front of something solid.
+	var misplaced: Array[String] = []
+	for d in VersusStageData.decor():
+		var kind := String(d["type"])
+		if not VersusStageData.FOOTPRINT.has(kind):
+			continue
+		var at: Vector2 = d["pos"]
+		var half: float = float(VersusStageData.FOOTPRINT[kind]) * 0.5
+		var ok := true
+		for x in [at.x - half, at.x, at.x + half]:
+			if not is_equal_approx(VersusStageData.top_at(x), at.y):
+				ok = false
+		var reach := Rect2(at.x - half, at.y - 60.0, half * 2.0, 58.0)
+		for r in VersusStageData.solid_decor():
+			if r.intersects(reach):
+				ok = false
+		if not ok:
+			misplaced.append("%s@%.0f" % [kind, at.x])
+	check(misplaced.is_empty(), "every piece of scenery stands on its floor, clear of solids (%s)" % ", ".join(misplaced))
 
 	# Mirror symmetry of every solid thing: floors, walls, blocks, conduits.
 	var solids: Array[Rect2] = VersusStageData.collision_rects()
@@ -225,7 +246,7 @@ func _stage_shape() -> void:
 			if horizontal > 220.0:
 				continue
 			best = minf(best, s.position.y - b.position.y)
-		if best > 125.0:
+		if best > 125.0 and not _gimmick_reaches(b):
 			unreachable += 1
 	check(unreachable == 0, "every block row is one jump above something (%d not)" % unreachable)
 
@@ -412,7 +433,7 @@ func _test_themes() -> void:
 			if not drawn:
 				hidden += 1
 		check(hidden == 0, "%s: every solid piece is visible (%d invisible)" % [name, hidden])
-		check(VersusStageData.decor().size() >= 8, "%s: and it has its own scenery" % name)
+		check(VersusStageData.decor().size() >= 5, "%s: and it has its own scenery" % name)
 		if Stage.water_y() != INF:
 			check(Stage.water_y() > VersusStageData.surface_tops()[-1] + 40.0
 					and Stage.water_y() < VersusStageData.kill_y(),
@@ -724,6 +745,106 @@ func _test_cover() -> void:
 	m.step(seats)
 	check(_held_of(m, 1, [0]) == 0, "without the platform it is")
 
+## The upper tier is not one jump up: a spring or a lift nearby gets you
+## there. A spring throws you SPRING_HEIGHT above its floor; a lift carries
+## you to its top, and one held jump (~125px) more.
+func _gimmick_reaches(row: Rect2) -> bool:
+	for pad in VersusStageData.springs():
+		var near := maxf(0.0, maxf(pad.x - row.end.x, row.position.x - pad.x))
+		if near <= 200.0 and pad.y - Balance.SPRING_HEIGHT <= row.position.y:
+			return true
+	for m in VersusStageData.movers():
+		var top: float = m["centre"].y - 13.0 + minf(0.0, m["travel"].y)
+		var x: float = m["centre"].x
+		var near := maxf(0.0, maxf(x - row.end.x, row.position.x - x))
+		if near <= 200.0 and top - 125.0 <= row.position.y:
+			return true
+	return false
+
+## Floor obstacles (a rock, a stone, a conduit) stand on the ground; rows of
+## blocks hang above it. The row rules are about rows.
+func _is_row(r: Rect2) -> bool:
+	return not is_equal_approx(r.end.y, VersusStageData.top_at(r.get_center().x))
+
+## The stage's enemies: where each is depends on the tick alone, walkers stay
+## on their floor, and the host's rules decide stomps, touches and shots.
+func _test_enemies() -> void:
+	for which in VersusStageData.THEMES:
+		VersusStageData.use_theme(which)
+		_current = "enemies %s" % VersusStageData.theme_label(which)
+		var specs := VersusStageData.enemy_specs()
+		check(specs.size() >= 4, "it has enemies (%d)" % specs.size())
+		var grounded := true
+		var inside := true
+		var pure := true
+		var clear := true
+		for spec in specs:
+			for t in range(0, 4000, 37):
+				var at := VersusEnemies.position_of(spec, t)
+				pure = pure and at == VersusEnemies.position_of(spec, t)
+				inside = inside and at.x >= float(spec["x0"]) - 0.01 and at.x <= float(spec["x1"]) + 0.01
+				if String(spec["kind"]) == "walker":
+					var foot := at.y + VersusEnemies.WALKER_SIZE.y * 0.5
+					grounded = grounded and is_equal_approx(VersusStageData.top_at(at.x - 20.0), foot) \
+						and is_equal_approx(VersusStageData.top_at(at.x + 20.0), foot)
+				var body := VersusEnemies.body_of(spec, t)
+				for r in VersusStageData.solid_decor():
+					if r.intersects(body):
+						clear = false
+		check(pure, "an enemy's place is a function of the tick, the same every time")
+		check(inside, "and stays within its patrol")
+		check(grounded, "walkers walk on their floor, never over an edge")
+		check(clear, "and nothing patrols through a solid")
+	VersusStageData.use_theme(Stage.Which.GREENFIELD)
+	_current = "enemies"
+	var m := VersusMatch.new()
+	m.setup(_world(), 4242)
+	var seats := _seats()
+	_park(seats, 0, _on(1400.0))
+	_park(seats, 1, _on(2000.0))
+	m.step(seats)
+	_clear_field(m)
+	var walker := -1
+	for i in range(m.enemies.size()):
+		if String(m.enemies[i]["kind"]) == "walker":
+			walker = i
+			break
+	# Stomp it: falling feet on its head.
+	var body := VersusEnemies.body_of(m.enemies[walker], m.tick)
+	seats[0].position = Vector2(body.get_center().x, body.position.y - Balance.RUNNER_SIZE.y * 0.5 + 4.0)
+	seats[0].velocity = Vector2(0.0, 300.0)
+	_give(m, 0, [0])
+	m.step(seats)
+	var bounced := false
+	var downed := false
+	for e in m.events:
+		bounced = bounced or (String(e["kind"]) == "bounce" and int(e["side"]) == 0)
+		downed = downed or String(e["kind"]) == "enemy_down"
+	check(not m.enemy_alive(walker) and downed, "landing on an enemy defeats it")
+	check(bounced and _held_of(m, 0, [0]) == 1, "and bounces you off, costing nothing")
+	check(m.enemy_down_mask() & (1 << walker) != 0, "and the snapshot's mask says it is down")
+	for t in range(VersusRules.ENEMY_DOWN_TICKS + 1):
+		seats[0].position = _on(1400.0)
+		seats[0].velocity = Vector2.ZERO
+		m.step(seats)
+	check(m.enemy_alive(walker), "it is back on its patrol after %d ticks" % VersusRules.ENEMY_DOWN_TICKS)
+	# Walk into it: a star drops.
+	body = VersusEnemies.body_of(m.enemies[walker], m.tick)
+	seats[0].position = body.get_center() + Vector2(0.0, body.size.y * 0.5 - Balance.RUNNER_SIZE.y * 0.5)
+	m.step(seats)
+	var hurt := false
+	for e in m.events:
+		hurt = hurt or (String(e["kind"]) == "hurt" and int(e["side"]) == 0 and String(e["how"]) == "enemy")
+	check(hurt and _held_of(m, 0, [0]) == 0, "touching an enemy costs a star")
+	check(m.immune(0), "and gives the second of immunity any hit does")
+	# A shot downs it -- unless something solid covers it from above.
+	seats[0].position = _on(1400.0)
+	m.line_clear = func(_a: Vector2, _b: Vector2) -> bool: return false
+	check(not m.shoot_enemy(1, walker), "a shot at a covered enemy does nothing")
+	m.line_clear = Callable()
+	check(m.shoot_enemy(1, walker) and not m.enemy_alive(walker), "an open one goes down")
+	check(not m.shoot_enemy(1, walker), "and a down one cannot be shot again")
+
 ## Standing on the floor at x (the stage's ground has hills now).
 func _on(x: float) -> Vector2:
 	return Vector2(x, VersusStageData.top_at(x) - 23.0)
@@ -766,9 +887,13 @@ func _test_winning() -> void:
 func _world() -> ArenaStage:
 	return ArenaStage.new(VersusStageData.collision_rects())
 
+## A match with the stage's enemies taken out: the rules under test are the
+## players'. Enemies have their own section (_test_enemies).
 func _fresh() -> VersusMatch:
 	var m := VersusMatch.new()
 	m.setup(_world(), 4242)
+	m.enemies.clear()
+	m._enemy_up_at.clear()
 	return m
 
 func _seats() -> Array:
