@@ -4,8 +4,8 @@ App Store Connect と Google Play Console に**そのまま貼れる**文面と�
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.0 / Android versionCode 25
-bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melosgame`
+対象ビルド: version 0.9.0（Android versionCodeはPlay Consoleの直近の値を確認して指定）
+bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
 > **https://555734.github.io/Kiki-public/privacy-policy.html**

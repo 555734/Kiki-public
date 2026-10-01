@@ -1,5 +1,13 @@
 # メロスゲーム
 
+## リポジトリの正式なアプリID
+
+Google Playに登録している現行アプリのパッケージ名は **`com.sasakiful.melos`**。
+ストア用AABは `Android Play` プリセットと手動の `Android Play AAB` Actionで作る。
+`com.sasakiful.melosgame` は以前のPlay登録のIDで、現行の提出先ではない。
+通常のActionsで配布するAPKは実機テスト用で、別のテスト用IDを使う。
+iOSのBundle IDは `com.sasakiful.sidesky`。
+
 ステージ **1-5「THE POISON MARSH」** を追加。毒沼の石足場・木橋・移動筏を渡り、
 3つの広い水路ではガーディアンの足場が必要です。
 構成と検証は [`docs/stage-swamp.md`](docs/stage-swamp.md)。
@@ -282,7 +290,7 @@ Vulkan（Godot mobile）でAstraの3Dステージを使う。Playが端末ごと
 
 | 配布先 | 成果物 | 用途 |
 |---|---|---|
-| Google Play | `side-sky-play.aab` | 本番。application IDは`com.sasakiful.melosgame` |
+| Google Play | `side-sky-play.aab` | 本番。application IDは`com.sasakiful.melos` |
 | GitHub Release | `side-sky-motorola-vulkan.apk` | Motorola実機確認・サイドロード専用 |
 | GitHub Release | `side-sky-gles3.apk` | 比較・診断専用 |
 

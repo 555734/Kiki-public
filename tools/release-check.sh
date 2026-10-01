@@ -96,9 +96,13 @@ case "$ios_bundle" in
 	*) ok "iOS bundle $ios_bundle" ;;
 esac
 play_package=$(sed -n '/^\[preset\.3\.options\]/,/^\[preset\./s/^package\/unique_name="\(.*\)"$/\1/p' export_presets.cfg | head -1)
-[ "$play_package" = "com.sasakiful.melosgame" ] \
+[ "$play_package" = "com.sasakiful.melos" ] \
 	&& ok "Google Play package $play_package" \
-	|| bad "Android Play package must be com.sasakiful.melosgame (got '${play_package:-nothing}')"
+	|| bad "Android Play package must be com.sasakiful.melos (got '${play_package:-nothing}')"
+grep -Fq 'unique_name="com.sasakiful.melos"' tools/build-android-play.sh \
+	&& ! grep -Fq 'inputs.package_name' .github/workflows/android-play.yml \
+	&& ok "Google Play build uses only the current package" \
+	|| bad "Google Play build must not allow switching package IDs"
 grep -Fq '"com.sasakiful.melosgame", "com.sasakiful.melos"' server/signaling/entitlement.js \
 	&& ok "purchase verification covers both Google Play packages" \
 	|| bad "purchase verification must cover both Google Play packages"

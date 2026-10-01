@@ -1,7 +1,7 @@
 # プライバシーポリシー / Privacy Policy — メロスゲーム
 
 最終更新 / Last updated: 2026-09-26
-対象 / Applies to: メロスゲーム (iOS `com.sasakiful.sidesky`, Android `com.sasakiful.melosgame`)
+対象 / Applies to: メロスゲーム (iOS `com.sasakiful.sidesky`, Android 現行 / current `com.sasakiful.melos`, 旧登録 / legacy `com.sasakiful.melosgame`)
 
 ---
 

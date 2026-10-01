@@ -8,7 +8,6 @@ GODOT="${GODOT:-godot}"
 OUT="${OUT:-$PWD/build/android}"
 VERSION_CODE="${VERSION_CODE:?set the Google Play version code explicitly}"
 VERSION_NAME="${VERSION_NAME:-0.2.4}"
-PLAY_PACKAGE="${PLAY_PACKAGE:-com.sasakiful.melosgame}"
 
 : "${GODOT_ANDROID_KEYSTORE_RELEASE_PATH:?set the stable Play upload keystore path}"
 : "${GODOT_ANDROID_KEYSTORE_RELEASE_USER:?set the Play upload key alias}"
@@ -18,10 +17,6 @@ case "$VERSION_CODE" in
 	''|*[!0-9]*) echo "VERSION_CODE must be a positive integer" >&2; exit 1 ;;
 esac
 [ "$VERSION_CODE" -gt 0 ] || { echo "VERSION_CODE must be greater than zero" >&2; exit 1; }
-[[ "$PLAY_PACKAGE" =~ ^com\.sasakiful\.[a-z][a-z0-9.]*$ ]] || {
-	echo "Invalid Play package name: $PLAY_PACKAGE" >&2
-	exit 1
-}
 [ -f "$GODOT_ANDROID_KEYSTORE_RELEASE_PATH" ] || {
 	echo "Play upload keystore not found" >&2
 	exit 1
@@ -51,7 +46,7 @@ trap restore EXIT
 # explicitly because only Play Console knows the last accepted value.
 sed -E -i "/^\[preset\.3\.options\]/,/^\[preset\./ s/^version\/code=.*/version\/code=$VERSION_CODE/" export_presets.cfg
 sed -E -i "/^\[preset\.3\.options\]/,/^\[preset\./ s/^version\/name=.*/version\/name=\"$VERSION_NAME\"/" export_presets.cfg
-sed -E -i "/^\[preset\.3\.options\]/,/^\[preset\./ s/^package\/unique_name=.*/package\/unique_name=\"$PLAY_PACKAGE\"/" export_presets.cfg
+sed -E -i '/^\[preset\.3\.options\]/,/^\[preset\./ s/^package\/unique_name=.*/package\/unique_name="com.sasakiful.melos"/' export_presets.cfg
 sed -E -i 's#renderer/rendering_method.mobile="(mobile|gl_compatibility)"#renderer/rendering_method.mobile="mobile"#' project.godot
 STAMP="${BUILD_STAMP:-play-${VERSION_CODE}}"
 sed -i "s/^const BUILD_ID: String = \"dev\"/const BUILD_ID: String = \"$STAMP\"/" src/autoload/balance.gd
