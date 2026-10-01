@@ -92,7 +92,7 @@ static func floors() -> Array[Rect2]:
 ## is the same in all three, so no stage is better for anybody and the wire
 ## never has to carry geometry. Only what is drawn differs.
 const THEMES: Array[int] = [Stage.Which.GREENFIELD, Stage.Which.HORROR,
-	Stage.Which.SKYWARD_RUINS]
+	Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]
 static var theme: int = Stage.Which.GREENFIELD
 
 ## Paint the arena as `which` from now on. Also points Stage at it, which is
@@ -105,6 +105,8 @@ static func theme_label(which: int) -> String:
 	match which:
 		Stage.Which.HORROR: return "1-2 うつろな村外れ"
 		Stage.Which.SKYWARD_RUINS: return "1-3 天空の遺跡"
+		Stage.Which.SEA: return "1-4 陽光の海岸"
+		Stage.Which.SWAMP: return "1-5 毒の沼地"
 		_: return "1-1 みどりの草原"
 
 ## The conduits, one either side, as the rectangle they occupy.
@@ -141,6 +143,16 @@ static func _block_rows() -> Array[Dictionary]:
 ## conduits become small islands, and the walls are drawn as stacked columns
 ## (see decor) because an island painting has no body to stretch.
 static func painted_slabs() -> Array[Rect2]:
+	if theme == Stage.Which.SEA or theme == Stage.Which.SWAMP:
+		# The coast's rocks and the marsh's stones are drawn standing in the
+		# water, which is right for the conduits (they stand on the ground)
+		# and wrong for a floating row a runner can walk under. The rows are
+		# painted as that stage's own ground instead: thin slabs of sand or
+		# mud, exactly their collision rectangle.
+		var slabs := ground()
+		for row in _block_rows():
+			slabs.append(Rect2(row["pos"], Vector2(BLOCK_CELL * float(row["count"]), BLOCK_CELL)))
+		return slabs
 	if theme != Stage.Which.SKYWARD_RUINS:
 		return ground()
 	var out: Array[Rect2] = []
@@ -158,6 +170,10 @@ static func decor() -> Array[Dictionary]:
 			return _decor_horror()
 		Stage.Which.SKYWARD_RUINS:
 			return _decor_sky()
+		Stage.Which.SEA:
+			return _decor_sea()
+		Stage.Which.SWAMP:
+			return _decor_swamp()
 		_:
 			return _decor_greenfield()
 
@@ -205,6 +221,37 @@ static func _decor_horror() -> Array[Dictionary]:
 	_pairs(out, "cart", 1380.0, FLOOR_TOP)
 	out.append({"type": "fence", "pos": Vector2(WIDTH * 0.5 - 100.0, FLOOR_TOP),
 		"width": 200.0})
+	return out
+
+## The conduits as footing art (1-4's rocks, 1-5's stones), which the stages
+## draw standing down into the water -- right for something on the ground.
+static func _footings(out: Array[Dictionary], kind: String) -> void:
+	for x in [PIPE_X, WIDTH - PIPE_X]:
+		var r := Rect2(x - PIPE_SIZE.x * 0.5, FLOOR_TOP - PIPE_SIZE.y, PIPE_SIZE.x, PIPE_SIZE.y)
+		out.append({"type": kind, "rect": r, "pos": r.position + Vector2(r.size.x * 0.5, r.size.y)})
+
+## 1-4: a beach above the sea. Sand floors, the rows and conduits as sea
+## rocks, palms, dune grass, boulders and seaweed; the pits open onto water.
+static func _decor_sea() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	_footings(out, "sea_rock")
+	_pairs(out, "sea_palm", 70.0, FLOOR_TOP, {"height": 280.0})
+	_pairs(out, "sea_grass", 260.0, FLOOR_TOP)
+	_pairs(out, "sea_palm_small", 1000.0, STEP_TOP, {"height": 180.0})
+	_pairs(out, "sea_boulder", 720.0, FLOOR_TOP, {"width": 120.0})
+	_pairs(out, "sea_seaweed", 1420.0, FLOOR_TOP)
+	return out
+
+## 1-5: stone and mud above poison. The rows and conduits as swamp stones,
+## dead trees, mushrooms, reeds and boulders; the pits open onto the marsh.
+static func _decor_swamp() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	_footings(out, "swamp_stone")
+	_pairs(out, "swamp_tree", 80.0, FLOOR_TOP, {"height": 260.0})
+	_pairs(out, "swamp_reeds", 270.0, FLOOR_TOP)
+	_pairs(out, "swamp_mushroom", 1000.0, STEP_TOP)
+	_pairs(out, "swamp_boulder", 720.0, FLOOR_TOP)
+	_pairs(out, "swamp_reeds", 1430.0, FLOOR_TOP)
 	return out
 
 ## 1-3: islands (painted_slabs) with the ruins' trees, bushes, columns and an

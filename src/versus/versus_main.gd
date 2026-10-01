@@ -128,9 +128,7 @@ func _ready() -> void:
 	if combined() and mode != Mode.SOLO:
 		for r in runners:
 			r.set_physics_process(false)
-	if Balance.USE_3D:
-		_world_view = load("res://src/render/three/world_view.gd").new()
-		add_child(_world_view)
+	_add_world_view()
 
 var _layer: CanvasLayer = null
 
@@ -282,6 +280,13 @@ func _apply_theme(which: int) -> void:
 	add_child(_sky)
 	if _world_view != null:
 		_world_view.queue_free()
+		_world_view = null
+	_add_world_view()
+
+## The 3D view, for the stages co-op draws in 3D (1-3) and only those: 1-1,
+## 1-2, 1-4 and 1-5 are painted 2D stages, here exactly as in co-op.
+func _add_world_view() -> void:
+	if Balance.USE_3D and Stage.world_3d() and _world_view == null:
 		_world_view = load("res://src/render/three/world_view.gd").new()
 		add_child(_world_view)
 
@@ -1239,7 +1244,7 @@ func _coins() -> void:
 			var left := VersusRules.STALE_TICKS - (world_tick() - int(c["world_since"]))
 			if left <= 90:
 				fill.a = 0.35 + 0.65 * absf(sin(float(left) * 0.25))
-		if not Balance.USE_3D:
+		if _world_view == null:
 			_star_shape(at, 14.0, fill)
 		if c.has("pickup_tick") and world_tick() < int(c["pickup_tick"]):
 			draw_arc(at, 15.0, 0.0, TAU, 16, Color(1, 1, 1, 0.35), 1.0)

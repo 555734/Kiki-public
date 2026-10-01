@@ -330,10 +330,16 @@ func _test_themes() -> void:
 						drawn = true
 				elif kind == "conduit" and r.has_point(at - Vector2(0, 2)):
 					drawn = true
+				elif d.has("rect") and Rect2(d["rect"]).encloses(r):
+					drawn = true
 			if not drawn:
 				hidden += 1
 		check(hidden == 0, "%s: every solid piece is visible (%d invisible)" % [name, hidden])
 		check(VersusStageData.decor().size() >= 8, "%s: and it has its own scenery" % name)
+		if Stage.water_y() != INF:
+			check(Stage.water_y() > VersusStageData.FLOOR_TOP + 40.0
+					and Stage.water_y() < VersusStageData.kill_y(),
+				"%s: its water lies below every floor and above the kill line" % name)
 	VersusStageData.use_theme(Stage.Which.GREENFIELD)
 
 ## Versus is free: a player who has not bought the full version can make a

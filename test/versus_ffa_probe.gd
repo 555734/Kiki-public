@@ -64,7 +64,7 @@ func _ready() -> void:
 	panel._update_mode()
 	check(panel._room_mode() == VersusRoster.RoomMode.TEAM_SPLIT and panel._seat.visible,
 		"and 2対2 still asks which chair")
-	check(panel._stage.item_count == 3, "and offers 1-1, 1-2 and 1-3")
+	check(panel._stage.item_count == 5, "and offers 1-1 to 1-5")
 	panel.queue_free()
 	links = VersusLoopback.mesh(PEOPLE, 0.04)
 	for i in range(PEOPLE):

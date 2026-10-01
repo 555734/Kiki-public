@@ -1044,3 +1044,9 @@ msgstr "Joining players play on the stage the room's creator chose"
 
 msgid "こうげきを うけると スターを 1こ おとす。"
 msgstr "A hit knocks one star loose."
+
+msgid "1-4 陽光の海岸"
+msgstr "1-4 The Sunlit Coast"
+
+msgid "1-5 毒の沼地"
+msgstr "1-5 The Poison Marsh"

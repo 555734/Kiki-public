@@ -146,6 +146,13 @@ func _test_repaint() -> void:
 		await get_tree().physics_frame
 	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
 	check(r.global_position.x > before + 50.0, "and can walk on it")
+	check(arena._world_view != null, "1-3 is drawn in 3D, as in co-op")
+	arena._apply_theme(Stage.Which.SWAMP)
+	await _tick(20)
+	check(Stage.current() == Stage.Which.SWAMP and arena._world_view == null
+			and arena.level.find_child("PoisonWater", true, false) != null,
+		"repainted as 1-5: 2D, with the poison marsh under the pits")
+	check(r.on_ground(), "and the runner is still standing")
 	arena._apply_theme(Stage.Which.GREENFIELD)
 
 ## The arena is built from 1-1's pieces but not from its course: no enemy of
