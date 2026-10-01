@@ -103,23 +103,60 @@ func _test_striking() -> void:
 	var victim: Runner = arena.runners[1]
 	var attacker: Runner = arena.runners[0]
 
-	# Stand the attacker next to the victim, facing it.
-	attacker.global_position = victim.global_position + Vector2(-34.0, 0.0)
-	attacker.velocity = Vector2.ZERO
-	attacker.facing = 1
+	# A real stomp: drop the attacker onto the victim's head.
+	# On open floor: x=1600 has the block stack over it.
+	victim.global_position = Vector2(1420.0, 370.0)
+	victim.velocity = Vector2.ZERO
+	await _tick(20)
+	_clear_field(m)
 	var coin := m.ledger.get_coin(0)
 	ArenaCoin.to_held(coin, 1)
 	var hp_before := victim.hp
-	await _tick(2)
-
-	arena.input.pads[0].strike_seq += 1
-	await _tick(VersusRules.STRIKE_STARTUP_TICKS + 4)
-
-	check(coin.state == ArenaCoin.State.WORLD,
-		"a strike knocks the coin out of the other runner")
+	attacker.global_position = victim.global_position + Vector2(0.0, -120.0)
+	attacker.velocity = Vector2.ZERO
+	var bounced := false
+	for i in range(40):
+		await get_tree().physics_frame
+		if attacker.velocity.y < -300.0:
+			bounced = true
+	# Loose, or already caught by the stomper on the way down: either way
+	# it is no longer the victim's.
+	check(not (coin.state == ArenaCoin.State.HELD and coin.owner == 1),
+		"landing on the other runner's head knocks their star loose")
 	check(victim.hp < hp_before,
 		"and costs them health as well (%d -> %d)" % [hp_before, victim.hp])
-	check(m.ledger.conserved(), "the ledger survives a real strike")
+	check(bounced, "and the stomper bounces off")
+	check(m.ledger.conserved(), "the ledger survives a real stomp")
+	# Off the victim's head, or the bounce comes down on it again.
+	attacker.global_position = victim.global_position + Vector2(-400.0, -20.0)
+	attacker.velocity = Vector2.ZERO
+
+	# A shot: the solo test judges it itself. Wait out the stomp's
+	# untouchable second (the runner's own, which is longer than the match's).
+	while victim.is_invulnerable():
+		await get_tree().physics_frame
+	await _tick(VersusRules.HIT_IMMUNE_TICKS + 10)
+	_clear_field(m)
+	var coin2 := m.ledger.get_coin(1)
+	ArenaCoin.to_held(coin2, 1)
+	attacker.global_position = victim.global_position + Vector2(-400.0, 0.0)
+	await _tick(30)
+	arena.request_shot(victim.global_position + Vector2(20.0, -10.0))
+	await _tick(2)
+	check(not (coin2.state == ArenaCoin.State.HELD and coin2.owner == 1),
+		"a shot at the other runner knocks a star loose")
+
+	# The old strike key does nothing.
+	await _tick(VersusRules.HIT_IMMUNE_TICKS + 10)
+	_clear_field(m)
+	var coin3 := m.ledger.get_coin(2)
+	ArenaCoin.to_held(coin3, 1)
+	attacker.global_position = victim.global_position + Vector2(-34.0, 0.0)
+	attacker.facing = 1
+	await _tick(4)
+	arena.input.pads[0].strike_seq += 1
+	await _tick(20)
+	check(coin3.state == ArenaCoin.State.HELD, "a close-range strike no longer takes a star")
 
 	await _test_the_pit()
 	await _test_the_walls()
@@ -238,6 +275,14 @@ func _test_the_walls() -> void:
 	check(peak < row.position.y - 10.0,
 		"a jump from the floor clears the lowest block row (feet %.0f, top %.0f)"
 			% [peak, row.position.y])
+
+## No loose star, and none about to appear: the one-star rule would otherwise
+## keep a hit from knocking anything loose.
+func _clear_field(m: VersusMatch) -> void:
+	for c in m.ledger.coins:
+		if c.state == ArenaCoin.State.WORLD:
+			ArenaCoin.to_recycle(c, m.tick)
+	m._spawn_in = 100000
 
 func _held_of(m: VersusMatch, side: int, ids: Array) -> int:
 	var n := 0

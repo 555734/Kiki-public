@@ -271,8 +271,8 @@ func _waiting() -> void:
 		String(arena.waiting_detail()), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 17,
 		COL_INK)
 	draw_string(font, panel.position + Vector2(0.0, 234.0),
-		TranslationServer.translate("ひとり1キャラ。はしって、足場と壁も じぶんで つくる") if _ffa()
-			else TranslationServer.translate("ランナーは スターを あつめて、ガーディアンは 足場と壁で たすける"),
+		TranslationServer.translate("ひとり1キャラ。右がわを タップで 射撃、頭を 踏んでも こうげき") if _ffa()
+			else TranslationServer.translate("ランナーは スターを あつめて、ガーディアンは 射撃で たすける"),
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 14, COL_DIM)
 	_debug_trace()
 

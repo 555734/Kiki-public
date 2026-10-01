@@ -20,10 +20,9 @@ const WIN_AT: int = 7
 ## while the other team is also holding some and some are still loose, and a
 ## supply of exactly seven would make the last star a coin-flip.
 const COIN_TOTAL: int = 12
-## How many are loose in the world at once. The spawner tops up to this. Two on
-## a three-screen field: enough that both teams have one to go for, few enough
-## that each one is contested.
-const ON_FIELD: int = 2
+## How many are loose in the world at once: exactly one. Everybody is after
+## the same star, and a new one appears only once it has been taken.
+const ON_FIELD: int = 1
 ## Between one coin being taken and the next appearing.
 const SPAWN_GAP_TICKS: int = 45
 
@@ -36,9 +35,9 @@ const DROP_LOCKOUT_TICKS: int = ArenaRules.DROP_LOCKOUT_TICKS
 const DROP_OWNER_LOCKOUT_TICKS: int = ArenaRules.DROP_OWNER_LOCKOUT_TICKS
 
 ## Distance from a coin's centre to a runner's body.
-## Matched to the star's drawn size (26px radius): a star you are visibly
+## Matched to the star's drawn size (44px radius): a star you are visibly
 ## touching is a star you take.
-const PICKUP_RADIUS: float = 30.0
+const PICKUP_RADIUS: float = 48.0
 
 ## The strike. Same 8/4/14 shape as the arena's, because it was chosen to be
 ## readable rather than to be fast: eight frames is enough warning to answer.
@@ -74,10 +73,9 @@ const FFA_WIN_AT: int = 7
 ## More stars in the pool than 2v2: with eight hands holding some, seven has
 ## to stay reachable for one of them.
 const FFA_COIN_TOTAL: int = 20
-## Loose stars grow with the room: two for two or three people, up to five
-## for eight, so nobody spends a match with nothing to go for.
-static func ffa_on_field(players: int) -> int:
-	return clampi(1 + int(ceil(float(players) / 2.0)), 2, 5)
+## One loose star whatever the head count, as in 2v2.
+static func ffa_on_field(_players: int) -> int:
+	return 1
 
 ## The numbers a match is set up with, for a mode and a head count.
 static func numbers_for(room_mode: int, players: int) -> Dictionary:
@@ -100,3 +98,16 @@ static func colour_of(room_mode: int, side: int) -> Color:
 	if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
 		return PLAYER_COLOURS[clampi(side, 0, PLAYER_COLOURS.size() - 1)]
 	return ArenaRules.TEAM_COLOURS[clampi(side, 0, 1)]
+
+# ---------------------------------------------------------------- attacks
+## Shooting: a tap on the right of the screen fires at that point, the way the
+## co-op 1-1 rifle does, with the same aim assist. One shot per this many
+## ticks per player, so a hit is a decision and not a hose.
+const SHOT_ASSIST_RADIUS: float = 110.0
+const SHOT_COOLDOWN_TICKS: int = 24
+## Stomping: landing on a head at least this fast (px/s, downwards).
+const STOMP_MIN_FALL: float = 60.0
+## The bounce a stomp gives the stomper, as a jump velocity.
+const STOMP_BOUNCE: float = -620.0
+## A hit runner is untouchable for this long.
+const HIT_IMMUNE_TICKS: int = 60

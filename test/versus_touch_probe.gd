@@ -70,7 +70,7 @@ func _ready() -> void:
 			"peer %d unused hub cannot consume touch" % i)
 		check(scene.level._dynamic.get_child_count() == 0,
 			"peer %d builds the arena without 1-1's pickups or enemies" % i)
-		var layout := ControlLayout.layout("runner", Vector2(1280, 720), false)
+		var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
 		var stick: Dictionary = layout["stick"]
 		var at: Vector2 = stick["center"] + Vector2(float(stick["radius"]) * 0.7, 0)
 		var before: Vector2 = scene.runners[i].global_position
@@ -98,23 +98,39 @@ func _ready() -> void:
 		check(scene.runners[i].global_position.y < y - 10, "peer %d touch jump works" % i)
 		_touch(i, 1, jump_at, false)
 		await _ticks(50)
-		# Keep the left thumb down while the other thumb opens the build palette.
+		# Keep the left thumb down and shoot the other player with the right:
+		# a tap on them, on the right of the screen.
 		_touch(i, 0, at, true)
-		var build_at: Vector2 = scene.controls._circles()["build"]
-		_touch(i, 2, build_at, true)
-		_touch(i, 2, build_at, false)
-		await _ticks(2)
-		check(scene.controls.palette_open and scene.input.hubs[0].move_axis > 0.2,
-			"peer %d can open building while holding movement" % i)
-		_touch(i, 0, at, false)
-		var world_at := Vector2(640, 180)
-		_touch(i, 3, world_at, true)
-		_touch(i, 3, world_at, false)
+		var other: Runner = scene.runners[1 - i]
+		var m: VersusMatch = scenes[0].host.match_rules
+		for c in m.ledger.coins:
+			if c.state == ArenaCoin.State.WORLD:
+				ArenaCoin.to_recycle(c, m.tick)
+		m._spawn_in = 100000
+		var star := m.ledger.get_coin(5 + i)
+		ArenaCoin.to_held(star, 1 - i)
+		await _ticks(8)
+		var on_screen: Vector2 = views[i].get_canvas_transform() * scene._near(other.global_position)
+		var visible := on_screen.x > 1280.0 * ControlLayout.DIVIDER and on_screen.x < 1280.0
+		if not visible:
+			# Bring them on screen first: a shot is aimed at what you can see.
+			var pos: Vector2 = scene.runners[i].global_position + Vector2(300.0, 0.0)
+			other.global_position = pos
+			scenes[1 - i].runners[1 - i].global_position = pos
+			await _ticks(20)
+			on_screen = views[i].get_canvas_transform() * scene._near(other.global_position)
+		var held_before := m.ledger.held_by(1 - i).size()
+		_touch(i, 3, on_screen, true)
+		_touch(i, 3, on_screen, false)
 		await _ticks(20)
-		check(scenes[0].host.builds.size() == i + 1 and scenes[1].client.builds.size() == i + 1,
-			"peer %d touch construction reaches both screens" % i)
-		_touch(i, 2, build_at, true)
-		_touch(i, 2, build_at, false)
+		check(scene.input.hubs[0].move_axis > 0.2,
+			"peer %d keeps moving while the other thumb shoots" % i)
+		# Counted, not by id: a hit knocks loose the victim's lowest-numbered
+		# star, which may be one they picked up earlier rather than this one.
+		check(m.ledger.held_by(1 - i).size() == held_before - 1,
+			"peer %d shoots the other player by tapping them, and the host takes a star" % i)
+		_touch(i, 0, at, false)
+		await _ticks(10)
 	# This subscription belongs to _ready, not the first role swap.
 	for i in range(2):
 		for attempt in range(2):
@@ -128,7 +144,7 @@ func _ready() -> void:
 			check(runner.state != Runner.State.DEAD and scenes[i]._respawn_in[i] == 0,
 				"peer %d death %d respawns without a death echo loop" % [i, attempt])
 			check(not runner.is_invulnerable(), "peer %d respawn blinking expires" % i)
-			var layout := ControlLayout.layout("runner", Vector2(1280, 720), false)
+			var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
 			var at: Vector2 = layout["stick"]["center"] + Vector2(40, 0)
 			var before: float = runner.global_position.x
 			_touch(i, 0, at, true)

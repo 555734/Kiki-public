@@ -1,35 +1,20 @@
 extends Node
-## Turns a guardian's button press into a request to the host.
+## Turns a player's rifle shot into a request to whoever decides the match.
 ##
-## `Guardian` already has this seam: when `command_router` is set, "ability
-## presses become requests sent to the host instead of executing here"
-## (src/guardian/guardian.gd:20-23). The cooperative client fills it with
-## ClientSession; this fills it with the versus client, and the guardian needs
-## no versus-specific code at all.
-##
-## Three methods, because that is what Guardian calls: request_use,
-## request_undo, request_mark.
+## `Guardian` already has this seam: with `command_router` set, a tap on the
+## world becomes a request instead of executing locally (guardian.gd). Versus
+## gives each player the co-op rifle and nothing else, so the only thing this
+## carries is slot 3, the shot; the arena sends it to the host (or, in the
+## one-device test, judges it itself).
 
-var client: VersusClient = null
+var arena = null
 
-## Slots 1 and 2 are the platform and the wall, and both are rectangles the
-## host can turn into real ground for both teams. Slots 3 and 4 -- the shot and
-## the warp gates -- are not on this wire yet: they are not rectangles, and
-## sending them properly means a message per shape rather than a size. Pressing
-## them is refused rather than silently ignored, so a guardian is told.
 func request_use(slot: int, at: Vector2, _target_id: int) -> void:
-	if client == null:
-		return
-	if slot != 1 and slot != 2:
-		Events.ability_refused.emit("not in this mode yet")
-		return
-	client.request_build(at, slot)
+	if arena != null and slot == 3:
+		arena.request_shot(at)
 
 func request_undo() -> void:
-	if client != null:
-		client.request_undo()
+	pass
 
-func request_mark(at: Vector2, kind: int) -> void:
-	# A ping costs nothing and changes nothing, so it can be shown locally at
-	# once. The host relays it to everyone else.
-	Events.pinged.emit(at, kind, false)
+func request_mark(_at: Vector2, _kind: int) -> void:
+	pass

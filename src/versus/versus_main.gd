@@ -12,7 +12,7 @@ enum Mode { SOLO, HOST, CLIENT }
 const COL_COIN := Color(1.0, 0.82, 0.29)
 const COL_COIN_EDGE := Color(0.62, 0.45, 0.10)
 ## A loose star's drawn radius. Big enough to read across a phone screen.
-const STAR_RADIUS: float = 26.0
+const STAR_RADIUS: float = 44.0
 ## A guardian's construct, in its own team's colour. Read off the shared team
 ## palette rather than restated, so a platform is unmistakably one side's.
 ## Drawn nearly solid: the first version was translucent and vanished against
@@ -133,9 +133,7 @@ func _ready() -> void:
 		Mode.CLIENT:
 			_open_link(false)
 
-	if room_mode == VersusRoster.RoomMode.TEAM_SPLIT \
-			and VersusRoster.role_of(_seat) == VersusRoster.Role.GUARDIAN:
-		_build_guardian()
+	_build_shooter()
 	if combined() and mode != Mode.SOLO:
 		for r in runners:
 			r.set_physics_process(false)
@@ -153,17 +151,17 @@ static func _touch_device() -> bool:
 	return OS.has_feature("android") or OS.has_feature("ios") \
 		or DisplayServer.is_touchscreen_available()
 
-## The on-screen buttons for a runner: attack, back, and in the combined
-## modes the build palette. Made when this machine knows which runner it
-## drives, which in a free-for-all is only once the host has seated it.
+## The on-screen buttons, where co-op 1-1 puts them. Made when this machine
+## knows what it plays, which in a free-for-all is only once the host has
+## seated it.
 func _build_controls() -> void:
-	if controls != null or local_team < 0:
+	if controls != null or _seat < 0:
 		return
 	if mode == Mode.SOLO and not touch_solo:
 		return
 	controls = preload("res://src/versus/versus_controls.gd").new()
 	controls.arena = self
-	controls.duel = combined() or mode == Mode.SOLO
+	controls.hub = input.hubs[0]
 	_layer.add_child(controls)
 
 ## A free-for-all guest learns its chair from the WELCOME. From here on it
@@ -179,6 +177,7 @@ func _take_seat(seat: int) -> void:
 	r.facing = VersusStageData.start_facing()[local_team]
 	level.runner = r
 	_camera.global_position = r.global_position
+	_build_shooter()
 	_build_controls()
 	_debug("SEATED as P%d" % (seat + 1))
 
@@ -358,6 +357,9 @@ func _view_team() -> int:
 func _process(delta: float) -> void:
 	if _camera != null:
 		_update_camera(delta)
+	for t in _tracers:
+		t["ttl"] = float(t["ttl"]) - delta
+	_tracers = _tracers.filter(func(t): return float(t["ttl"]) > 0.0)
 	_refresh_menu()
 	if _debug_copy_button != null:
 		_debug_copy_button.visible = waiting()
@@ -451,24 +453,57 @@ func _apply_puppets() -> void:
 		var mine := mode == Mode.SOLO or i == local_team
 		runners[i].set_physics_process(mine)
 
-## The guardian's own node, with all four tools, aiming with the mouse. Its
-## presses go to the host through the router rather than changing the world
-## here -- the seam Guardian already has for exactly this.
-func _build_guardian() -> void:
+## Every player's way to attack from a distance: the co-op rifle, through the
+## co-op Guardian node, exactly as one-device 1-1 has it -- the right of the
+## screen is where you tap, the shot button is on the right. The rifle is the
+## only tool (no building in versus), and every shot goes to the router, so
+## the host decides what it hit. A 2v2 guardian seat is the rifle alone; every
+## other seat is the runner and the rifle on one screen ("shared" layout).
+func _build_shooter() -> void:
+	if guardian != null or _seat < 0:
+		return
+	if mode == Mode.SOLO and not touch_solo:
+		return
 	var hub: InputHub = input.hubs[0]
+	var guardian_seat := room_mode == VersusRoster.RoomMode.TEAM_SPLIT \
+		and VersusRoster.role_of(_seat) == VersusRoster.Role.GUARDIAN \
+		and mode != Mode.SOLO
 	hub.scripted = false
-	hub.solo_role = "guardian"
+	hub.solo_role = "guardian" if guardian_seat else ""
 	guardian = Guardian.new()
 	guardian.name = "Guardian"
-	guardian.runner = runners[VersusRoster.team_of(_seat)]
+	guardian.runner = runners[clampi(VersusRoster.side_of_in(room_mode, _seat), 0, sides - 1)] \
+		if not guardian_seat else runners[VersusRoster.team_of(_seat)]
 	guardian.input_hub = hub
 	guardian.world_root = self
-	if client != null:
-		var router := preload("res://src/versus/versus_command_router.gd").new()
-		router.client = client
-		add_child(router)
-		guardian.command_router = router
+	var router := preload("res://src/versus/versus_command_router.gd").new()
+	router.arena = self
+	add_child(router)
+	guardian.command_router = router
 	add_child(guardian)
+	# The rifle and nothing else, already chosen: a tap on the world shoots.
+	var rifle = guardian.abilities[3]
+	guardian.abilities = {3: rifle}
+	guardian.active_slot = 3
+
+## The shot, from this machine's player. The host and the one-device test
+## judge it here; a guest sends it. The tracer is drawn at once either way.
+var _tracers: Array[Dictionary] = []
+
+func request_shot(at: Vector2) -> void:
+	if waiting() or countdown_ticks() > 0 or phase() != VersusMatch.Phase.PLAYING:
+		return
+	var from_side := 0 if mode == Mode.SOLO else _view_team()
+	_tracers.append({"from": runners[from_side].global_position, "to": at, "ttl": 0.18})
+	match mode:
+		Mode.SOLO:
+			match_rules.shoot(0, at)
+		Mode.HOST:
+			if host != null:
+				host.shoot(_seat, at)
+		Mode.CLIENT:
+			if client != null:
+				client.request_shot(at)
 
 # ------------------------------------------------------------------ the menu
 ## Real buttons for what the keyboard did before: start, play again, leave.
@@ -509,7 +544,8 @@ func _refresh_menu() -> void:
 	_again_button.visible = over and (mode == Mode.HOST or mode == Mode.SOLO)
 	# Runners have their own 戻る circle during play; a guardian has none.
 	var broken := not link_error().is_empty()
-	_leave_button.visible = pre or over or broken or (local_team < 0 and mode != Mode.SOLO)
+	# Always there: the old 戻る circle went with the attack and build buttons.
+	_leave_button.visible = true
 	var view := get_viewport_rect().size
 	var shown := 0
 	for b in [_start_button, _again_button, _leave_button]:
@@ -517,10 +553,15 @@ func _refresh_menu() -> void:
 			shown += 1
 	_menu.size = Vector2(300, shown * 66)
 	if pre or over or broken:
+		_menu.custom_minimum_size = Vector2(300, 0)
+		_leave_button.custom_minimum_size = Vector2(300, 56)
 		_menu.position = Vector2(view.x * 0.5 - 150.0, view.y * 0.5 + 90.0)
 	else:
-		_menu.position = Vector2(16.0, view.y - _menu.size.y - 16.0)
-		_leave_button.custom_minimum_size = Vector2(160, 48)
+		# Top left during play, clear of the stick and of the scoreboard.
+		_menu.custom_minimum_size = Vector2(130, 0)
+		_leave_button.custom_minimum_size = Vector2(130, 44)
+		_menu.size = Vector2(130, 44)
+		_menu.position = Vector2(16.0, 12.0)
 	_menu.visible = shown > 0
 
 # ----------------------- on-device diagnostic log (also in user://)
@@ -721,11 +762,6 @@ func _network_ready() -> void:
 		client = VersusClient.new()
 		client.diagnostic.connect(_debug)
 		client.start(link, _seat, room_mode)
-		if guardian != null:
-			var router := preload("res://src/versus/versus_command_router.gd").new()
-			router.client = client
-			add_child(router)
-			guardian.command_router = router
 		_debug("JOIN ready: peer=%d" % link.local_peer())
 		status = "room %s" % room_code
 
@@ -800,6 +836,7 @@ func _observe(i: int, seq: int) -> VersusMatch.Seat:
 	s.can_act = s.alive and runners[i].state != Runner.State.HURT
 	s.invulnerable = runners[i].is_invulnerable()
 	s.strike_seq = seq
+	s.velocity = runners[i].velocity
 	return s
 
 ## Before and after play: where the runner stands, alive, and not acting.
@@ -808,6 +845,20 @@ func _idle(i: int, seq: int) -> VersusMatch.Seat:
 	s.alive = true
 	s.can_act = false
 	return s
+
+## A stomp feels like a stomp only if the bounce is immediate, so the
+## stomper's own machine bounces as soon as its feet meet a head; the host
+## judges the hit from the same observation and takes the star.
+func _stomp_bounce(i: int) -> void:
+	var me := runners[i]
+	if not me.is_physics_processing() or _respawn_in[i] > 0:
+		return
+	for j in range(sides):
+		if j == i or not runners[j].visible or _respawn_in[j] > 0:
+			continue
+		if VersusMatch.is_stomp(me.global_position, me.velocity, runners[j].global_position):
+			me.velocity.y = VersusRules.STOMP_BOUNCE
+			return
 
 func _tick_solo(seqs: Array[int]) -> void:
 	_wrap_bodies()
@@ -819,6 +870,8 @@ func _tick_solo(seqs: Array[int]) -> void:
 	# hubs' sequences on a phone, and it must not be P2's.
 	match_rules.step([_observe(0, seqs[0]), _observe(1, 0 if touch_solo else seqs[1])])
 	_apply_events(match_rules.events)
+	for i in range(sides):
+		_stomp_bounce(i)
 
 func _tick_host(seqs: Array[int]) -> void:
 	if host == null:
@@ -831,6 +884,8 @@ func _tick_host(seqs: Array[int]) -> void:
 		_apply_respawns()
 		_catch_deaths()
 	host.step(_observe(0, seqs[0]) if live else _idle(0, seqs[0]))
+	if live:
+		_stomp_bounce(0)
 	match_rules = host.match_rules
 	_sync_builds(host.builds, host.world_revision)
 	# Everyone else is wherever their own machine says they are.
@@ -864,6 +919,8 @@ func _tick_client(seqs: Array[int]) -> void:
 			# match can begin; a HELLO alone says nothing about the body.
 			mine = _idle(local_team, seqs[0])
 	client.step(mine, _seat)
+	if local_team >= 0 and can_move():
+		_stomp_bounce(local_team)
 	_sync_builds_from_snapshot(client.builds, client.world_revision)
 	# Everyone the host describes and this machine does not own.
 	for i in range(sides):
@@ -1144,6 +1201,12 @@ func _apply_events(events: Array) -> void:
 				runners[side].take_damage(1)
 				if runners[side].state == Runner.State.DEAD:
 					_begin_respawn(side)
+			"bounce":
+				# The host's verdict on a stomp. The stomper's own machine has
+				# usually bounced already (_stomp_bounce); doing it again is
+				# harmless, a fresh bounce from the same height.
+				if _owns(e["side"]) and runners[e["side"]].velocity.y > 0.0:
+					runners[e["side"]].velocity.y = VersusRules.STOMP_BOUNCE
 			"fell":
 				if _owns(e["side"]):
 					runners[e["side"]].die("fell")
@@ -1194,57 +1257,6 @@ func _apply_respawns() -> void:
 		runners[i].respawn(VersusStageData.respawn_for(i, _died_at[i]))
 		runners[i].facing = VersusStageData.start_facing()[i]
 
-## In combined modes one person is both runner and builder: in a duel they own
-## their team's guardian chair too, in a free-for-all they build from their own.
-## The host's own commands take the identical place_build / undo_build path.
-func request_construct(slot: int, at: Vector2) -> void:
-	if mode == Mode.SOLO:
-		_solo_construct(slot, at)
-		return
-	if not combined() or waiting() or countdown_ticks() > 0 \
-			or phase() == VersusMatch.Phase.OVER or _seat < 0:
-		return
-	if slot not in [1, 2]:
-		return
-	if mode == Mode.HOST and host != null:
-		host.place_build(VersusRoster.build_seat_in(room_mode, _seat), at, slot)
-	elif mode == Mode.CLIENT and client != null:
-		client.request_build(at, slot)
-
-## The one-device test has no host, so a platform is placed here: the same
-## sizes, the same cap and the same lap-0 storage as VersusHost.place_build.
-func _solo_construct(slot: int, at: Vector2) -> void:
-	if slot not in [1, 2] or phase() == VersusMatch.Phase.OVER \
-			or not VersusStageData.in_bounds(at):
-		return
-	var size: Vector2 = Balance.WALL_SIZE if slot == 2 else Balance.PLATFORM_SIZE
-	at = Vector2(VersusStageData.wrap_x(at.x), at.y)
-	if _built.size() >= VersusHost.MAX_BUILDS:
-		_built.pop_front()
-		_build_owner.pop_front()
-	_built.append(Rect2(at - size * 0.5, size))
-	_build_owner.append(VersusRoster.SEAT_A_GUARDIAN)
-	_solo_world_changed()
-
-func _solo_world_changed() -> void:
-	_built_revision += 1
-	_refresh_ground()
-	match_rules.world = ArenaStage.new(_collision_rects())
-
-func request_construct_undo() -> void:
-	if mode == Mode.SOLO:
-		if not _built.is_empty():
-			_built.pop_back()
-			_build_owner.pop_back()
-			_solo_world_changed()
-		return
-	if not combined() or waiting() or _seat < 0:
-		return
-	if mode == Mode.HOST and host != null:
-		host.undo_build(VersusRoster.build_seat_in(room_mode, _seat))
-	elif mode == Mode.CLIENT and client != null:
-		client.request_undo()
-
 func leave_versus() -> void:
 	if link != null:
 		link.close()
@@ -1269,11 +1281,15 @@ func _unhandled_input(event: InputEvent) -> void:
 ## ground, trees and signposts -- and a star behind a tree was a star nobody
 ## could see.
 func _draw_overlay() -> void:
+	for t in _tracers:
+		var a: Vector2 = _near(t["from"])
+		var b: Vector2 = VersusStageData.nearest_image(t["to"], a)
+		_overlay.draw_line(a, b, Color(1.0, 0.95, 0.6, clampf(float(t["ttl"]) * 5.0, 0.0, 1.0)), 4.0)
+		_overlay.draw_circle(b, 10.0, Color(1.0, 0.85, 0.3, 0.6))
 	_builds()
 	_markers()
 	_coins()
 	_heads()
-	_strikes()
 
 ## How many stars each runner is carrying, over their head. Pips, not a number: what
 ## you need at a glance is "more than them". World space, which is why it lives

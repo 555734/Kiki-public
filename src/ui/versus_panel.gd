@@ -16,8 +16,8 @@ extends Control
 
 const JOIN_SEATS := [
 	[VersusRoster.SEAT_B_RUNNER, "Bチーム：ランナー（はしって スターを とる）"],
-	[VersusRoster.SEAT_A_GUARDIAN, "Aチーム：ガーディアン（足場と壁で たすける）"],
-	[VersusRoster.SEAT_B_GUARDIAN, "Bチーム：ガーディアン（足場と壁で たすける）"],
+	[VersusRoster.SEAT_A_GUARDIAN, "Aチーム：ガーディアン（射撃で たすける）"],
+	[VersusRoster.SEAT_B_GUARDIAN, "Bチーム：ガーディアン（射撃で たすける）"],
 ]
 
 var _code: LineEdit = null
@@ -78,7 +78,7 @@ func _ready() -> void:
 	_stage.custom_minimum_size = Vector2(0, 50)
 	_stage.add_theme_font_size_override("font_size", 18)
 	box.add_child(_stage)
-	box.add_child(_title("こうげきを うけると スターを 1こ おとす。",
+	box.add_child(_title("こうげきは 射撃（右がわを タップ）と 踏みつけ。当たると スターを 1こ おとす。",
 		14, Color(0.72, 0.85, 0.95)))
 	box.add_child(_title("無料版でも すべて あそべます（ステージも すべて）", 14, Color(0.60, 0.92, 0.70)))
 	box.add_child(_title("部屋に入る人は ステージを えらばなくても、部屋を作った人の ステージになります",
@@ -140,7 +140,7 @@ func _update_mode() -> void:
 	for c in _team_only:
 		c.visible = not ffa
 	if ffa:
-		_rules.text = tr("ランダムに でてくる スターを さきに %d こ もった人の かち。はしって、足場と壁も じぶんで つくる") \
+		_rules.text = tr("ランダムに でてくる スターを さきに %d こ もった人の かち。スターは いつも 1こだけ") \
 			% VersusRules.FFA_WIN_AT
 		_host_button.text = tr("＋  部屋を作る（2〜8人）")
 	else:

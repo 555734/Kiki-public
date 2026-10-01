@@ -31,14 +31,23 @@ func _ready() -> void:
 	scene = TouchSolo.new()
 	view.add_child(scene)
 	await _ticks(60)
-	check(scene.touch_solo and scene.controls != null and scene.controls.duel,
-		"a phone's solo test has on-screen buttons, build palette included")
-	check(scene.controls._circles().has("attack") and scene.controls._circles().has("build"),
-		"with attack and build")
+	check(scene.touch_solo and scene.controls != null and scene.guardian != null,
+		"a phone's solo test has on-screen buttons and a rifle")
+	var shared := ControlLayout.layout("shared", Vector2(1280, 720), false)
+	var drawn: Dictionary = scene.controls.places()
+	var same := true
+	for id in ["stick", "jump", "slot_3"]:
+		same = same and drawn.has(id) and shared.has(id) \
+			and Vector2(drawn[id]["center"]).is_equal_approx(shared[id]["center"])
+	check(same, "the stick, jump and shot buttons sit exactly where one-device 1-1 has them")
+	check(not drawn.has("slot_1") and not drawn.has("build") and not drawn.has("attack"),
+		"and there is no build or close-range attack button")
+	check(scene.guardian.abilities.keys() == [3] and scene.guardian.active_slot == 3,
+		"the rifle is the only tool, already chosen")
 	var me: Runner = scene.runners[0]
 	var partner: Runner = scene.runners[1]
 	var partner_at := partner.global_position
-	var layout := ControlLayout.layout("runner", Vector2(1280, 720), false)
+	var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
 	var stick: Dictionary = layout["stick"]
 	var right: Vector2 = stick["center"] + Vector2(float(stick["radius"]) * 0.7, 0)
 	var before := me.global_position.x
@@ -61,34 +70,28 @@ func _ready() -> void:
 	check(partner.global_position.distance_to(partner_at) < 4.0,
 		"and the practice partner stands still")
 
-	# Attack: the partner, holding a star, loses it.
-	partner.global_position = me.global_position + Vector2(36.0, 0.0)
-	me.facing = 1
-	var star: ArenaCoin.Record = scene.match_rules.ledger.get_coin(0)
+	# Shooting: tap the partner on the right of the screen.
+	await _ticks(10)
+	var m: VersusMatch = scene.match_rules
+	for c in m.ledger.coins:
+		if c.state == ArenaCoin.State.WORLD:
+			ArenaCoin.to_recycle(c, m.tick)
+	m._spawn_in = 100000
+	var star: ArenaCoin.Record = m.ledger.get_coin(0)
 	ArenaCoin.to_held(star, 1)
+	var held_before := m.ledger.held_by(1).size()
+	partner.global_position = me.global_position + Vector2(330.0, 0.0)
+	partner.velocity = Vector2.ZERO
+	await _ticks(20)
+	var on_screen: Vector2 = view.get_canvas_transform() * partner.global_position
+	check(on_screen.x > 1280.0 * ControlLayout.DIVIDER, "the partner is on the right of the screen")
+	_touch(5, on_screen, true)
+	_touch(5, on_screen, false)
 	await _ticks(4)
-	var attack_at: Vector2 = scene.controls._circles()["attack"]
-	_touch(2, attack_at, true)
-	_touch(2, attack_at, false)
-	await _ticks(VersusRules.STRIKE_STARTUP_TICKS + 6)
-	check(star.state != ArenaCoin.State.HELD or star.owner != 1,
-		"the attack button knocks a star out of the partner")
-	await _ticks(90)
-
-	# Build: open the palette, tap the world, a platform appears and is solid.
-	var build_at: Vector2 = scene.controls._circles()["build"]
-	_touch(3, build_at, true)
-	_touch(3, build_at, false)
-	await _ticks(2)
-	_touch(4, Vector2(640, 250), true)
-	_touch(4, Vector2(640, 250), false)
-	await _ticks(4)
-	check(scene._built.size() == 1, "tapping the world builds a platform")
-	var r: Rect2 = scene._built[0]
-	check(scene.match_rules.world.floor_below(r.get_center() + Vector2(0, -40), 80.0) < INF,
-		"and it is solid for the match")
-	scene.request_construct_undo()
-	check(scene._built.is_empty(), "and undo takes it back")
+	check(m.ledger.held_by(1).size() == held_before - 1,
+		"tapping the partner shoots, and knocks their star loose")
+	check(not scene._tracers.is_empty(), "and a tracer is drawn")
+	check(scene._built.is_empty(), "nothing was built")
 
 	view.queue_free()
 	await get_tree().process_frame

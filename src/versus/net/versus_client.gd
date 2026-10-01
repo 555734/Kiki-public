@@ -105,9 +105,19 @@ func step(local, wanted_seat: int = -1) -> void:
 		transport.send_to(VersusTransport.HOST_PEER,
 			VersusTransport.Channel.INPUT,
 			VersusTransport.Reliability.UNRELIABLE,
-			VersusProtocol.input(seat, world_tick, s.position, Vector2.ZERO,
+			VersusProtocol.input(seat, world_tick, s.position, s.velocity,
 				s.facing, s.alive, s.can_act, s.invulnerable, false, 0,
 				s.strike_seq))
+
+## Ask the host to fire at `at`. Slot 3 is the shot, the same number the
+## co-op rifle has; sent reliably so a tap is never lost.
+func request_shot(at: Vector2) -> void:
+	if not connected or seat < 0:
+		return
+	transport.send_to(VersusTransport.HOST_PEER,
+		VersusTransport.Channel.COMMAND,
+		VersusTransport.Reliability.RELIABLE,
+		VersusProtocol.command(seat, world_tick, 3, at))
 
 ## Ask the host to build. Sent reliably: a lost platform is a guardian who
 ## spent their gauge on nothing.

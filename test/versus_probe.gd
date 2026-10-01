@@ -125,13 +125,11 @@ func _test_the_stage() -> void:
 	var seats := _seats()
 	_park(seats, 0, Vector2(w - 20.0, 377.0))
 	_park(seats, 1, Vector2(20.0, 377.0))
-	seats[0].facing = 1
 	_give(m, 1, [0])
 	m.step(seats)
-	seats[0].strike_seq += 1
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
-		m.step(seats)
-	check(_held_of(m, 1, [0]) == 0, "a strike across the join lands")
+	_clear_field(m)
+	check(m.shoot(0, Vector2(w + 20.0, 377.0)) == 1 and _held_of(m, 1, [0]) == 0,
+		"a shot across the join hits")
 	var star := m.ledger.get_coin(5)
 	ArenaCoin.to_world(star, Vector2(8.0, 377.0), m.tick, Vector2.ZERO, 0)
 	seats[0].position = Vector2(w - 8.0, 377.0)
@@ -239,9 +237,8 @@ func _test_many_sides() -> void:
 	check(closest > 200.0, "and nobody starts on top of anybody (closest %.0f)" % closest)
 
 	var numbers := VersusRules.numbers_for(VersusRoster.RoomMode.FREE_FOR_ALL, 8)
-	check(int(numbers["on_field"]) == 5 and VersusRules.ffa_on_field(2) == 2
-			and VersusRules.ffa_on_field(3) == 3,
-		"loose stars grow with the room (2 for two people, 5 for eight)")
+	check(int(numbers["on_field"]) == 1 and VersusRules.ON_FIELD == 1,
+		"one star on the field at a time, whatever the head count")
 	var m := VersusMatch.new()
 	m.setup(world, 777, 8, numbers)
 	var seats: Array = []
@@ -252,40 +249,36 @@ func _test_many_sides() -> void:
 		seat.alive = i < 3       # three people in an eight-chair room
 		seat.can_act = seat.alive
 		seats.append(seat)
-	# Two victims side by side in front of one attacker, in the home strip
-	# where no star is generated.
-	seats[0].position = Vector2(150.0, 377.0)
-	seats[0].facing = 1
-	seats[1].position = Vector2(195.0, 377.0)
-	seats[2].position = Vector2(205.0, 377.0)
+	# A shot hits the one runner nearest the aim point, not everybody near it.
+	seats[1].position = Vector2(1500.0, 377.0)
+	seats[2].position = Vector2(1580.0, 377.0)
 	_give(m, 1, [0, 1])
 	_give(m, 2, [2, 3])
 	m.step(seats)
-	seats[0].strike_seq += 1
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
-		m.step(seats)
-	check(_held_of(m, 1, [0, 1]) == 1 and _held_of(m, 2, [2, 3]) == 1,
-		"one strike reaches both runners in front of it, one star each")
+	_clear_field(m)
+	check(m.shoot(0, Vector2(1590.0, 377.0)) == 2, "a shot hits the runner nearest the aim")
+	check(_held_of(m, 2, [2, 3]) == 1 and _held_of(m, 1, [0, 1]) == 2,
+		"that one runner drops one star, nobody else")
 	check(m.ledger.conserved(), "with the twenty-star ledger balanced")
+	check(m.shoot(0, Vector2(1500.0, 377.0)) == -1,
+		"and the same player cannot fire again straight away")
 
-	# Two attackers, one victim, the same instant: one star, not two.
+	# Two stompers landing on one head in the same instant: one star.
 	m = VersusMatch.new()
 	m.setup(world, 778, 8, numbers)
-	for s in seats:
-		s.strike_seq = 0
-	seats[0].position = Vector2(150.0, 377.0)
-	seats[0].facing = 1
-	seats[1].position = Vector2(195.0, 377.0)
-	seats[2].position = Vector2(240.0, 377.0)
-	seats[2].facing = -1
-	_give(m, 1, [0, 1, 2])
+	var victim := Vector2(1500.0, 377.0)
+	seats[2].position = victim
+	seats[2].velocity = Vector2.ZERO
+	for k in [0, 1]:
+		seats[k].position = victim + Vector2(-8.0 + 16.0 * float(k), -Balance.RUNNER_SIZE.y)
+		seats[k].velocity = Vector2(0.0, 400.0)
+	_give(m, 2, [0, 1, 2])
+	_clear_field(m)
 	m.step(seats)
-	seats[0].strike_seq += 1
-	seats[2].strike_seq += 1
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
-		m.step(seats)
-	check(_held_of(m, 1, [0, 1, 2]) == 2,
-		"two strikes landing together on one runner cost one star")
+	check(_held_of(m, 2, [0, 1, 2]) == 2, "two stomps landing together cost one star")
+	for k in [0, 1]:
+		seats[k].velocity = Vector2.ZERO
+		seats[k].position = starts[k]
 
 	# Seven held by one person wins; an empty chair never picks anything up.
 	m = VersusMatch.new()
@@ -501,100 +494,105 @@ func _test_conservation() -> void:
 
 # -------------------------------------------------------------- the stealing
 func _test_stealing() -> void:
-	_current = "stealing"
-	# A strike costs the victim exactly one coin, and it goes to the ground
-	# rather than to the attacker.
+	_current = "shots and stomps"
+	# A shot costs the victim exactly one star, and it goes to the ground
+	# rather than to the shooter.
 	var m := _fresh()
 	var seats := _seats()
-	# In team A's home strip, where no star is ever generated, so the spawner
-	# does not hand these runners stars the test did not.
-	_park(seats, 0, Vector2(200.0, 377.0))
-	_park(seats, 1, Vector2(245.0, 377.0))
-	seats[0].facing = 1
+	_park(seats, 0, Vector2(1400.0, 377.0))
+	_park(seats, 1, Vector2(1800.0, 377.0))
 	_give(m, 1, [0, 1, 2])
 	m.step(seats)
-	seats[0].strike_seq += 1
-	var loose_before := m.ledger.count_in(ArenaCoin.State.WORLD)
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
-		m.step(seats)
-	# Asserted against the three coins the test handed out, not against a global
-	# count: the spawner legitimately adds coins while this runs.
-	check(_held_of(m, 1, [0, 1, 2]) == 2, "a strike costs the victim one coin")
-	check(_held_of(m, 0, [0, 1, 2]) == 0, "and the attacker is not handed it")
-	check(m.ledger.count_in(ArenaCoin.State.WORLD) > loose_before,
-		"it is on the ground for either of them")
-
-	# Nothing to take from an empty-handed victim, and no crash.
-	m = _fresh()
-	seats = _seats()
-	# In team A's home strip, where no star is ever generated, so the spawner
-	# does not hand these runners stars the test did not.
-	_park(seats, 0, Vector2(200.0, 377.0))
-	_park(seats, 1, Vector2(245.0, 377.0))
+	_clear_field(m)
+	check(m.shoot(0, Vector2(1790.0, 380.0)) == 1, "a shot within reach of the aim hits")
+	check(_held_of(m, 1, [0, 1, 2]) == 2, "a hit costs the victim one star")
+	check(_held_of(m, 0, [0, 1, 2]) == 0, "and the shooter is not handed it")
+	check(m.ledger.count_in(ArenaCoin.State.WORLD) == 1, "it is the one star on the ground")
 	m.step(seats)
-	seats[0].strike_seq += 1
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 3):
-		m.step(seats)
-	check(m.ledger.conserved(), "striking an empty-handed runner is legal")
+	var hurt := false
+	for e in m.events:
+		if String(e["kind"]) == "hurt" and int(e["side"]) == 1:
+			hurt = true
+	check(hurt, "and the victim is told it was hurt")
 
-	# A runner who cannot act cannot strike, and the press is spent rather than
-	# saved up for the moment they recover.
+	# Nothing else drops while a star is loose; the victim keeps theirs.
+	for t in range(VersusRules.SHOT_COOLDOWN_TICKS + VersusRules.HIT_IMMUNE_TICKS + 2):
+		m.step(seats)
+	check(m.ledger.count_in(ArenaCoin.State.WORLD) == 1, "the star is still loose")
+	m.shoot(0, Vector2(1800.0, 377.0))
+	check(_held_of(m, 1, [0, 1, 2]) == 2 and m.ledger.count_in(ArenaCoin.State.WORLD) == 1,
+		"so a second hit costs nothing: one star on the field at a time")
+
+	# Out of reach misses; a hit runner is briefly untouchable.
 	m = _fresh()
 	seats = _seats()
-	# In team A's home strip, where no star is ever generated, so the spawner
-	# does not hand these runners stars the test did not.
-	_park(seats, 0, Vector2(200.0, 377.0))
-	_park(seats, 1, Vector2(245.0, 377.0))
+	_park(seats, 0, Vector2(1400.0, 377.0))
+	_park(seats, 1, Vector2(1800.0, 377.0))
 	_give(m, 1, [0])
-	seats[0].can_act = false
-	seats[0].strike_seq += 1
-	for t in range(6):
-		m.step(seats)
-	seats[0].can_act = true
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 6):
-		m.step(seats)
-	check(_held_of(m, 1, [0]) == 1,
-		"a strike pressed while stunned does not fire on recovery")
+	m.step(seats)
+	_clear_field(m)
+	check(m.shoot(0, Vector2(1800.0 + VersusRules.SHOT_ASSIST_RADIUS + 30.0, 377.0)) == -1,
+		"a shot beyond the aim assist misses")
+	check(_held_of(m, 1, [0]) == 1, "and costs nothing")
 
-	# Death returns the whole hand and destroys none of it.
+	# Stomp: falling feet on a head.
 	m = _fresh()
 	seats = _seats()
-	_park(seats, 0, Vector2(150.0, 377.0))
-	_park(seats, 1, Vector2(3050.0, 377.0))
+	_park(seats, 1, Vector2(1800.0, 377.0))
+	_park(seats, 0, Vector2(1800.0, 377.0 - Balance.RUNNER_SIZE.y))
+	seats[0].velocity = Vector2(0.0, 300.0)
+	_give(m, 1, [0])
+	_clear_field(m)
 	m.step(seats)
+	var bounced := false
+	for e in m.events:
+		if String(e["kind"]) == "bounce" and int(e["side"]) == 0:
+			bounced = true
+	check(_held_of(m, 1, [0]) == 0, "landing on a head knocks a star loose")
+	check(bounced, "and the stomper bounces")
+	# Standing side by side, or rising through somebody, is not a stomp.
+	m = _fresh()
+	seats = _seats()
+	_park(seats, 1, Vector2(1800.0, 377.0))
+	_park(seats, 0, Vector2(1800.0, 377.0 - Balance.RUNNER_SIZE.y))
+	seats[0].velocity = Vector2(0.0, -300.0)
+	_give(m, 1, [0])
+	m.step(seats)
+	check(_held_of(m, 1, [0]) == 1, "jumping up through someone is not a stomp")
+
+	# The old close-range strike does nothing now.
+	m = _fresh()
+	seats = _seats()
+	_park(seats, 0, Vector2(1755.0, 377.0))
+	_park(seats, 1, Vector2(1800.0, 377.0))
+	seats[0].facing = 1
+	_give(m, 1, [0])
+	m.step(seats)
+	seats[0].strike_seq += 1
+	for t in range(20):
+		m.step(seats)
+	check(_held_of(m, 1, [0]) == 1, "a close-range strike no longer takes a star")
+
+	# Death: one star back on the field (if it has room), the rest to the pool.
+	m = _fresh()
+	seats = _seats()
+	_park(seats, 0, Vector2(1400.0, 377.0))
+	_park(seats, 1, Vector2(1800.0, 377.0))
+	m.step(seats)
+	_clear_field(m)
 	_give(m, 0, [0, 1, 2, 3])
 	m.note_death(0)
 	check(_held_of(m, 0, [0, 1, 2, 3]) == 0, "dying empties the hand")
-	# Where they WENT, not just that the hand is empty. Conservation alone does
-	# not catch a hand that was quietly left in the dead runner's name -- a
-	# negative control that skipped the return passed that check.
-	var back := 0
-	for id in [0, 1, 2, 3]:
-		var c := m.ledger.get_coin(id)
-		if c.owner == -1 and (c.state == ArenaCoin.State.WORLD
-				or c.state == ArenaCoin.State.RECYCLE_PENDING):
-			back += 1
-	check(back == 4, "and all four are back in play, owned by nobody (%d)" % back)
+	check(m.ledger.count_in(ArenaCoin.State.WORLD) == 1, "one of them is back on the field")
 	check(m.ledger.conserved(), "with the ledger still balanced")
 
-	# Invulnerability refuses the hit, so it cannot cost a coin either. The
-	# game grants a second of it after every hit and after every respawn, so
-	# without this a runner could be stripped while they were untouchable.
-	m = _fresh()
-	seats = _seats()
-	# In team A's home strip, where no star is ever generated, so the spawner
-	# does not hand these runners stars the test did not.
-	_park(seats, 0, Vector2(200.0, 377.0))
-	_park(seats, 1, Vector2(245.0, 377.0))
-	seats[0].facing = 1
-	seats[1].invulnerable = true
-	_give(m, 1, [0])
-	m.step(seats)
-	seats[0].strike_seq += 1
-	for t in range(VersusRules.STRIKE_STARTUP_TICKS + 6):
-		m.step(seats)
-	check(_held_of(m, 1, [0]) == 1,
-		"a strike refused by invulnerability costs no coin")
+## Put every loose star back in the pool, so a test starts with none on the
+## field (the spawner may have placed one).
+func _clear_field(m: VersusMatch) -> void:
+	for c in m.ledger.coins:
+		if c.state == ArenaCoin.State.WORLD:
+			ArenaCoin.to_recycle(c, m.tick)
+	m._spawn_in = 100000
 
 # --------------------------------------------------------------- the ending
 func _test_winning() -> void:

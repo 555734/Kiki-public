@@ -42,6 +42,9 @@ class Seat:
 	## Monotonic count of strike presses, so a tap that is over before the tick
 	## runs is still a strike.
 	var strike_seq: int = 0
+	## What the runner's own machine says its velocity is. Stomping is a
+	## falling body landing on a head, and "falling" is this.
+	var velocity := Vector2.ZERO
 
 	func duplicate_seat() -> Seat:
 		var s := Seat.new()
@@ -52,6 +55,7 @@ class Seat:
 		s.invulnerable = invulnerable
 		s.alive = alive
 		s.strike_seq = strike_seq
+		s.velocity = velocity
 		return s
 
 enum Phase { PLAYING, OVER }
@@ -85,6 +89,18 @@ var _last_spawn_point := Vector2(INF, INF)
 ## Things the scene has to apply this tick. Cleared and refilled every tick.
 ## Each is {"kind": ..., ...}: "hurt" (side), "died" (side), "pickup", "drop".
 var events: Array[Dictionary] = []
+
+## The only two ways to hurt somebody: a shot (VersusMatch.shoot, asked for by
+## a player's tap) and a stomp (a falling runner's feet on a head, judged
+## every tick). There is no close-range strike any more.
+## A hit runner cannot be hit again until this tick: one shot or one stomp
+## costs one star, not one per frame of overlap.
+var _immune_until: Dictionary = {}
+## Per side, the first tick it may shoot again.
+var _shot_ready: Dictionary = {}
+## Events raised between ticks (a shot arrives whenever the tap does); they
+## are reported with the next tick's.
+var _carry: Array[Dictionary] = []
 
 func setup(collision: ArenaStage, match_seed: int = 20260920,
 		side_count: int = 2, numbers: Dictionary = {}) -> void:
@@ -127,6 +143,8 @@ func score(team: int) -> int:
 ## coin returned by a death cannot be caught by the tick that caused it.
 func step(incoming: Array) -> void:
 	events.clear()
+	events.append_array(_carry)
+	_carry.clear()
 	if phase != Phase.PLAYING:
 		return
 	var delta := 1.0 / 60.0
@@ -146,21 +164,12 @@ func step(incoming: Array) -> void:
 		# hitstun from firing the instant the runner recovers.
 		combat[i].hitstun = 0 if seats[i].can_act else 2
 
-	# 2. strikes begin
 	for i in range(sides):
-		if not seats[i].alive:
-			continue
-		if ArenaCombat.try_attack(combat[i], incoming[i].strike_seq, 0.0,
-				seats[i].facing, _next_strike_id):
-			_next_strike_id += 1
-			events.append({"kind": "strike", "side": i})
+		seats[i].velocity = incoming[i].velocity
 		seats[i].strike_seq = incoming[i].strike_seq
 
-	# 3. every live shape, from the same instant
-	var hits := _gather_hits()
-
-	# 4. one hit per victim
-	_resolve_hits(hits)
+	# 2-4. stomps, all gathered from the same instant before any is applied
+	_resolve_stomps()
 
 	# 5. anyone who left the stage
 	_resolve_falls()
@@ -173,6 +182,74 @@ func step(incoming: Array) -> void:
 	# 7. has anybody won
 	tick += 1
 	_check_win()
+
+# -------------------------------------------------------- shots and stomps
+func immune(side: int) -> bool:
+	return tick < int(_immune_until.get(side, -1)) or seats[side].invulnerable
+
+## One hit: the victim loses a star (if none is loose) and is untouchable for
+## a second. `by` is the attacker's side, `how` "shot" or "stomp".
+func _hit(victim: int, by: int, how: String, dir: float) -> void:
+	_immune_until[victim] = tick + VersusRules.HIT_IMMUNE_TICKS
+	events.append({"kind": "hurt", "side": victim, "by": by, "dir": dir, "how": how})
+	_drop_one(victim, dir)
+
+## A shot at `at` from `side`'s player. Hits the nearest other runner within
+## the aim assist of the point, measured the short way round the loop -- the
+## same reach the co-op rifle has. Returns the side hit, or -1.
+func shoot(side: int, at: Vector2) -> int:
+	if phase != Phase.PLAYING or side < 0 or side >= sides:
+		return -1
+	if tick < int(_shot_ready.get(side, 0)):
+		return -1
+	_shot_ready[side] = tick + VersusRules.SHOT_COOLDOWN_TICKS
+	var best := -1
+	var best_d := INF
+	for v in range(sides):
+		if v == side or not seats[v].alive or immune(v):
+			continue
+		var d := VersusStageData.nearest_image(seats[v].position, at).distance_to(at)
+		if d <= VersusRules.SHOT_ASSIST_RADIUS and d < best_d:
+			best = v
+			best_d = d
+	_carry.append({"kind": "shot", "side": side, "at": at, "hit": best})
+	if best >= 0:
+		var from := seats[side].position
+		var dir := signf(VersusStageData.nearest_image(seats[best].position, from).x - from.x)
+		var before := events.size()
+		_hit(best, side, "shot", dir if dir != 0.0 else 1.0)
+		# _hit reports into this tick's list; a shot belongs to the next.
+		while events.size() > before:
+			_carry.append(events.pop_back())
+	return best
+
+## Is `a` landing on `v`'s head this tick? Falling, feet within a band around
+## the top of v's body, and horizontally over it -- all measured to v's
+## nearest image, so a stomp across the join counts.
+static func is_stomp(a_pos: Vector2, a_vel: Vector2, v_pos: Vector2) -> bool:
+	if a_vel.y < VersusRules.STOMP_MIN_FALL:
+		return false
+	var v := VersusStageData.nearest_image(v_pos, a_pos)
+	var half := Balance.RUNNER_SIZE * 0.5
+	var feet := a_pos.y + half.y
+	var head := v.y - half.y
+	return absf(a_pos.x - v.x) <= half.x + 6.0 \
+		and feet >= head - 14.0 and feet <= head + 20.0
+
+func _resolve_stomps() -> void:
+	var hits: Array = []
+	for a in range(sides):
+		if not seats[a].alive or not seats[a].can_act:
+			continue
+		for v in range(sides):
+			if v == a or not seats[v].alive or immune(v):
+				continue
+			if is_stomp(seats[a].position, seats[a].velocity, seats[v].position):
+				hits.append([v, a])
+	for h in hits:
+		if not immune(h[0]):
+			_hit(h[0], h[1], "stomp", 0.0)
+			events.append({"kind": "bounce", "side": h[1]})
 
 # --------------------------------------------------------------------- hits
 func _gather_hits() -> Array:
@@ -244,6 +321,10 @@ func _drop_one(side: int, dir: float) -> void:
 	var held := ledger.held_by(side)
 	if held.is_empty():
 		return
+	# One star on the field at a time: while one is loose, a hit costs the
+	# victim nothing but the second of being stunned.
+	if ledger.count_in(ArenaCoin.State.WORLD) >= on_field:
+		return
 	var r := ledger.get_coin(held[0])
 	# Kept inside the walls, so a star knocked loose against one is not left
 	# somewhere nobody can reach.
@@ -258,9 +339,12 @@ func return_hand(side: int) -> void:
 	var held := ledger.held_by(side)
 	for i in range(held.size()):
 		var r := ledger.get_coin(held[i])
-		var spread := (float(i) - float(held.size() - 1) * 0.5) * 30.0
+		var spread := 0.0
 		var at := seats[side].position + Vector2(spread, -20.0)
-		if VersusStageData.in_bounds(at):
+		# One star on the field at a time: the first goes back into play where
+		# they fell (if the field has room), the rest go back to the pool.
+		var room := ledger.count_in(ArenaCoin.State.WORLD) < on_field
+		if room and VersusStageData.in_bounds(at):
 			ArenaCoin.to_world(r, Vector2(VersusStageData.wrap_x(at.x), at.y), tick,
 				Vector2(spread * 2.0, -260.0), VersusRules.DROP_LOCKOUT_TICKS)
 		else:

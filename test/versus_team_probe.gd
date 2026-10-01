@@ -124,14 +124,25 @@ func _ready() -> void:
 		"and the host sees it there")
 
 	# ---------------------------------------------------------- the guardian
-	check(a_guard.guardian != null and a_guard.guardian.command_router != null,
-		"team A's guardian has a guardian, wired to the host")
-	a_guard.client.request_build(Vector2(1230.0, 250.0), 1)
+	check(a_guard.guardian != null and a_guard.guardian.command_router != null
+			and a_guard.guardian.abilities.keys() == [3],
+		"team A's guardian has the rifle and nothing else, wired to the host")
+	var hm: VersusMatch = host.match_rules
+	for c in hm.ledger.coins:
+		if c.state == ArenaCoin.State.WORLD:
+			ArenaCoin.to_recycle(c, hm.tick)
+	hm._spawn_in = 100000
+	var star := hm.ledger.get_coin(4)
+	ArenaCoin.to_held(star, 1)
+	var held_before := hm.ledger.held_by(1).size()
+	a_guard.request_shot(host.runners[1].global_position)
 	await _ticks(20)
-	var built := true
+	check(hm.ledger.held_by(1).size() == held_before - 1,
+		"team A's guardian shoots team B's runner and the star comes loose")
+	var none_built := true
 	for s in scenes:
-		built = built and s._built.size() == 1
-	check(built, "a guardian's platform appears on all four screens")
+		none_built = none_built and s._built.is_empty()
+	check(none_built, "and nothing is ever built")
 
 	# -------------------------------------------------------------- the end
 	for id in range(VersusRules.WIN_AT):
@@ -163,8 +174,8 @@ func _ready() -> void:
 	for s in scenes:
 		again = again and s.phase() == VersusMatch.Phase.PLAYING and s.can_move()
 	check(again and host.match_rules.tick > 0, "and the second match is on")
-	check(a_guard._leave_button.visible and not b_runner._leave_button.visible,
-		"during play a guardian has a leave button; a runner has its own 戻る")
+	check(a_guard._leave_button.visible and b_runner._leave_button.visible,
+		"during play everyone has a leave button")
 
 	for view in views:
 		view.queue_free()

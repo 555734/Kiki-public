@@ -287,6 +287,7 @@ func _on_input(from: int, payload: PackedByteArray) -> void:
 	s.can_act = bool(m["can_act"])
 	s.invulnerable = bool(m["invulnerable"])
 	s.strike_seq = int(m["strike_seq"])
+	s.velocity = m["velocity"]
 	# The remote scene cannot call our ledger directly. Return its hand once
 	# on the alive -> dead edge, using the reported death position. Repeated
 	# dead observations must not restart combat/respawn state every tick.
@@ -305,13 +306,25 @@ func _on_command(from: int, payload: PackedByteArray) -> void:
 	var seat := int(c["seat"])
 	if not roster.owns_seat(from, seat):
 		return
+	var slot := int(c["slot"])
+	if slot == 3:
+		shoot(seat, c["at"])
+		return
 	if not roster.can_build(seat):
 		return
-	var slot := int(c["slot"])
 	if slot == 0:
 		undo_build(seat)
 		return
 	place_build(seat, c["at"], slot)
+
+## A player's shot at `at`, from whichever seat fired it: a runner shoots for
+## their own side, a 2v2 guardian for their team. Only while playing.
+func shoot(seat: int, at: Vector2) -> int:
+	if not playing or match_rules.phase != VersusMatch.Phase.PLAYING:
+		return -1
+	if is_nan(at.x) or is_nan(at.y) or is_inf(at.x) or is_inf(at.y):
+		return -1
+	return match_rules.shoot(roster.side_of(seat), at)
 
 ## A guardian's platform. The host is the one that decides it exists, and the
 ## collision world everyone's coins and runners use is updated here -- so a
@@ -371,7 +384,7 @@ func _broadcast_snapshot() -> void:
 			else reported_runner(team)
 		var c: ArenaCombat.CombatState = match_rules.combat[team]
 		runners.append({
-			"position": s.position, "velocity": Vector2.ZERO,
+			"position": s.position, "velocity": s.velocity,
 			"facing": s.facing, "alive": s.alive, "can_act": s.can_act,
 			"invulnerable": s.invulnerable, "on_floor": false, "hp": 0,
 			"combat_phase": c.phase, "combat_dir": c.attack_dir,

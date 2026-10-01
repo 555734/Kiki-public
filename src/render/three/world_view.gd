@@ -356,7 +356,7 @@ func _sync_match(delta: float) -> void:
 			model.position=point(f.centre()+Vector2(0,ArenaRules.BODY_SIZE.y/2),12)
 			model.animate(delta,f.motor.velocity,f.motor.grounded,Runner.State.RUN,f.motor.facing)
 	while coin_models.size()<coins.size():
-		var model := Assets.instance("star" if path.ends_with("versus_main.gd") else "coin",Vector2(52,52) if path.ends_with("versus_main.gd") else Vector2(22,22))
+		var model := Assets.instance("star" if path.ends_with("versus_main.gd") else "coin",Vector2(88,88) if path.ends_with("versus_main.gd") else Vector2(22,22))
 		model.scale=MODEL_SCALE
 		world.add_child(model)
 		coin_models.append(model)

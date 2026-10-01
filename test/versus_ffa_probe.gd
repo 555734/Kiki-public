@@ -89,8 +89,8 @@ func _ready() -> void:
 	var ready := true
 	for s in scenes:
 		ready = ready and s.waiting() and s.local_team == s._seat and s.controls != null \
-			and s.controls.duel and s.runners.size() == 8
-	check(ready, "each person drives their own one of eight runners, build palette included")
+			and s.guardian != null and s.runners.size() == 8
+	check(ready, "each person drives their own one of eight runners, with the rifle")
 	check(host.can_start(), "three people is enough to start")
 	var followed := true
 	for sc in scenes:
@@ -111,10 +111,9 @@ func _ready() -> void:
 	for s in scenes:
 		on = on and s.can_move() and s.phase() == VersusMatch.Phase.PLAYING
 	check(on, "then everyone can move")
-	check(host.match_rules.on_field == VersusRules.ffa_on_field(PEOPLE),
-		"with loose stars set for three people (%d)" % host.match_rules.on_field)
+	check(host.match_rules.on_field == 1, "with one star on the field")
 
-	# ----------------------------------------- walking and building, one person
+	# ----------------------------------------- walking and shooting, one person
 	var p3 = scenes[2]
 	var body: Runner = p3.runners[2]
 	var before := body.global_position
@@ -129,18 +128,29 @@ func _ready() -> void:
 	check(_loop_distance(host.runners[2].global_position, body.global_position) < 40.0
 			and _loop_distance(scenes[1].runners[2].global_position, body.global_position) < 40.0,
 		"and both other screens see P3 there")
-	var build_at: Vector2 = p3.controls._circles()["build"]
-	_touch(2, 1, build_at, true)
-	_touch(2, 1, build_at, false)
-	await _ticks(2)
-	check(p3.controls.palette_open, "the same person opens the build palette")
-	_touch(2, 2, Vector2(640, 200), true)
-	_touch(2, 2, Vector2(640, 200), false)
+	# P3 shoots P1 by tapping them on P3's own screen.
+	var hm: VersusMatch = host.match_rules
+	for c in hm.ledger.coins:
+		if c.state == ArenaCoin.State.WORLD:
+			ArenaCoin.to_recycle(c, hm.tick)
+	hm._spawn_in = 100000
+	var star := hm.ledger.get_coin(3)
+	ArenaCoin.to_held(star, 0)
+	var held_before := hm.ledger.held_by(0).size()
+	var target_pos: Vector2 = body.global_position + Vector2(320.0, 0.0)
+	host.runners[0].global_position = target_pos
+	host.runners[0].velocity = Vector2.ZERO
+	await _ticks(30)
+	var on_screen: Vector2 = views[2].get_canvas_transform() * p3._near(p3.runners[0].global_position)
+	_touch(2, 3, on_screen, true)
+	_touch(2, 3, on_screen, false)
 	await _ticks(20)
-	var built := true
+	check(hm.ledger.held_by(0).size() == held_before - 1,
+		"P3 shoots P1 by tapping them, and P1's star comes loose")
+	var none := true
 	for s in scenes:
-		built = built and s._built.size() == 1 and s._build_owner[0] == 2
-	check(built, "and P3's platform appears on every screen, in P3's name")
+		none = none and s._built.is_empty()
+	check(none, "and nobody can build")
 
 	# ------------------------------------------------------------- the end
 	for id in range(VersusRules.FFA_WIN_AT):

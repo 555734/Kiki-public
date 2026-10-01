@@ -1050,3 +1050,24 @@ msgstr "1-4 The Sunlit Coast"
 
 msgid "1-5 毒の沼地"
 msgstr "1-5 The Poison Marsh"
+
+msgid "Aチーム：ガーディアン（射撃で たすける）"
+msgstr "Team A: Guardian (helps by shooting)"
+
+msgid "Bチーム：ガーディアン（射撃で たすける）"
+msgstr "Team B: Guardian (helps by shooting)"
+
+msgid "こうげきは 射撃（右がわを タップ）と 踏みつけ。当たると スターを 1こ おとす。"
+msgstr "Attack by shooting (tap the right side) or stomping. A hit knocks one star loose."
+
+msgid "ランダムに でてくる スターを さきに %d こ もった人の かち。スターは いつも 1こだけ"
+msgstr "Stars appear at random, one at a time. The first player holding %d wins"
+
+msgid "ひとり1キャラ。右がわを タップで 射撃、頭を 踏んでも こうげき"
+msgstr "One character each. Tap the right side to shoot, or stomp on a head"
+
+msgid "ランナーは スターを あつめて、ガーディアンは 射撃で たすける"
+msgstr "Runners collect stars; guardians help by shooting"
+
+msgid "射撃"
+msgstr "Shoot"
