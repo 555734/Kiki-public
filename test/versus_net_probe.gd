@@ -72,6 +72,16 @@ func _test_the_wire() -> void:
 	check(w["seat"] == 5 and w["seed"] == 99 and w["room_mode"] == 2
 			and w["stage"] == Stage.Which.SKYWARD_RUINS,
 		"a welcome carries the chair, the seed, the mode and the host's stage")
+	var path := PackedVector2Array([Vector2(-80, 4), Vector2(0, -6), Vector2(80, 3)])
+	var h := VersusProtocol.read_holo(VersusProtocol.holo(6, 513,
+		Hologram.Kind.PLATFORM, Vector2(2100.5, 240.25), path))
+	check(h["seat"] == 6 and h["holo_id"] == 513 and h["kind"] == Hologram.Kind.PLATFORM
+			and Vector2(h["at"]).distance_to(Vector2(2100.5, 240.25)) < 0.5
+			and h["path"].size() == 3
+			and Vector2(h["path"][2]).distance_to(Vector2(80, 3)) < 0.5,
+		"a platform travels with its owner, id, kind, place and traced shape")
+	var u := VersusProtocol.read_unholo(VersusProtocol.unholo(3, 70))
+	check(u["seat"] == 3 and u["holo_id"] == 70, "and so does its end")
 
 	var runners: Array = []
 	for i in range(2):

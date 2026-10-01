@@ -141,22 +141,52 @@ func _test_striking() -> void:
 	ArenaCoin.to_held(coin2, 1)
 	attacker.global_position = victim.global_position + Vector2(-400.0, 0.0)
 	await _tick(30)
-	arena.request_shot(victim.global_position + Vector2(20.0, -10.0))
+	# The co-op rifle hits what is on the shootable layer; on the solo test
+	# that is the other runner's VersusShootable.
+	var target: Node = victim.get_node("Shootable")
+	check(target.collision_layer == 64 and target.is_shootable_now(),
+		"the other runner is on the rifle's layer, and shootable")
+	check(not attacker.get_node("Shootable").is_shootable_now(),
+		"but your own runner is not")
+	target.take_damage(1, "snipe")
 	await _tick(2)
 	check(not (coin2.state == ArenaCoin.State.HELD and coin2.owner == 1),
 		"a shot at the other runner knocks a star loose")
 
-	# The old strike key does nothing.
+	# Bodies are solid, and walking into someone is a bump: both drop.
+	# (The stomp and the shot cost the victim its health; let it come back.)
 	await _tick(VersusRules.HIT_IMMUNE_TICKS + 10)
+	while arena._respawn_in[1] > 0 or victim.state == Runner.State.DEAD:
+		await get_tree().physics_frame
+	victim.hp = Balance.RUNNER_MAX_HP
 	_clear_field(m)
+	# Empty hands first: a bump drops each runner's first star, which must
+	# be the one under test.
+	for c in m.ledger.coins:
+		if c.state == ArenaCoin.State.HELD:
+			ArenaCoin.to_recycle(c, m.tick)
 	var coin3 := m.ledger.get_coin(2)
+	var coin4 := m.ledger.get_coin(3)
 	ArenaCoin.to_held(coin3, 1)
-	attacker.global_position = victim.global_position + Vector2(-34.0, 0.0)
-	attacker.facing = 1
-	await _tick(4)
-	arena.input.pads[0].strike_seq += 1
+	ArenaCoin.to_held(coin4, 0)
+	victim.global_position = Vector2(1420.0, 370.0)
+	attacker.global_position = victim.global_position + Vector2(-90.0, 0.0)
+	attacker.velocity = Vector2.ZERO
 	await _tick(20)
-	check(coin3.state == ArenaCoin.State.HELD, "a close-range strike no longer takes a star")
+	var felt_before: int = arena.bumps_felt
+	var closest := INF
+	_key(KEY_D, true)
+	for i in range(60):
+		await get_tree().physics_frame
+		closest = minf(closest, absf(victim.global_position.x - attacker.global_position.x))
+	_key(KEY_D, false)
+	check(closest >= Balance.RUNNER_SIZE.x - 3.0,
+		"walking into the other runner stops at their body (closest %.0fpx)" % closest)
+	check(not (coin3.state == ArenaCoin.State.HELD and coin3.owner == 1)
+			and not (coin4.state == ArenaCoin.State.HELD and coin4.owner == 0),
+		"and bumping them knocks a star out of both")
+	check(arena.bumps_felt > felt_before, "and throws them apart")
+	check(m.ledger.conserved(), "the ledger survives a bump")
 
 	await _test_the_pit()
 	await _test_the_walls()
@@ -295,3 +325,10 @@ func _held_of(m: VersusMatch, side: int, ids: Array) -> int:
 func _give_to(m: VersusMatch, side: int, ids: Array) -> void:
 	for id in ids:
 		ArenaCoin.to_held(m.ledger.get_coin(id), side)
+
+func _key(code: Key, pressed: bool) -> void:
+	var e := InputEventKey.new()
+	e.physical_keycode = code
+	e.keycode = code
+	e.pressed = pressed
+	Input.parse_input_event(e)

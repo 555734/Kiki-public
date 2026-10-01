@@ -109,6 +109,16 @@ func step(local, wanted_seat: int = -1) -> void:
 				s.facing, s.alive, s.can_act, s.invulnerable, false, 0,
 				s.strike_seq))
 
+## Other players' platforms (and their removals), as relayed by the host,
+## for the scene to build.
+var holo_inbox: Array[PackedByteArray] = []
+
+## This player's platform, to the host for everybody else.
+func send_holo(payload: PackedByteArray) -> void:
+	if connected:
+		transport.send_to(VersusTransport.HOST_PEER, VersusTransport.Channel.COMMAND,
+			VersusTransport.Reliability.RELIABLE, payload)
+
 ## Ask the host to fire at `at`. Slot 3 is the shot, the same number the
 ## co-op rifle has; sent reliably so a tap is never lost.
 func request_shot(at: Vector2) -> void:
@@ -173,6 +183,8 @@ func _take_post() -> void:
 				diagnostic.emit("REFUSED: " + refusal_reason)
 			VersusProtocol.Msg.SNAPSHOT:
 				_absorb(payload)
+			VersusProtocol.Msg.HOLO, VersusProtocol.Msg.UNHOLO:
+				holo_inbox.append(payload)
 
 func _absorb(payload: PackedByteArray) -> void:
 	var s := VersusProtocol.read_snapshot(payload)

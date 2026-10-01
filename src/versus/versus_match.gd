@@ -250,6 +250,33 @@ func _resolve_stomps() -> void:
 		if not immune(h[0]):
 			_hit(h[0], h[1], "stomp", 0.0)
 			events.append({"kind": "bounce", "side": h[1]})
+	# Bumps: two runners side by side, touching, neither on the other's head.
+	# Both lose a star -- and both stars land, even if one is already loose.
+	for a in range(sides):
+		for v in range(a + 1, sides):
+			if not seats[a].alive or not seats[v].alive or immune(a) or immune(v):
+				continue
+			if is_bump(seats[a].position, seats[v].position):
+				_bump(a, v)
+
+## Side by side and touching (the bodies are solid to each other now, so
+## "touching" is within a few pixels), not one above the other.
+static func is_bump(a_pos: Vector2, v_pos: Vector2) -> bool:
+	var v := VersusStageData.nearest_image(v_pos, a_pos)
+	var size := Balance.RUNNER_SIZE
+	return absf(a_pos.x - v.x) <= size.x + VersusRules.BUMP_REACH \
+		and absf(a_pos.y - v.y) < size.y * 0.5
+
+func _bump(a: int, v: int) -> void:
+	var va := VersusStageData.nearest_image(seats[v].position, seats[a].position)
+	var dir := signf(va.x - seats[a].position.x)
+	if dir == 0.0:
+		dir = 1.0
+	for pair in [[a, -dir], [v, dir]]:
+		var side: int = pair[0]
+		_immune_until[side] = tick + VersusRules.HIT_IMMUNE_TICKS
+		events.append({"kind": "bump", "side": side, "dir": pair[1]})
+		_drop_one(side, pair[1], true)
 
 # --------------------------------------------------------------------- hits
 func _gather_hits() -> Array:
@@ -317,13 +344,14 @@ func _resolve_hits(hits: Array) -> void:
 ## A hit costs exactly one coin, the lowest id held, and it goes to the world
 ## rather than to the attacker: either side can go and get it, which is what
 ## makes chasing it a decision.
-func _drop_one(side: int, dir: float) -> void:
+func _drop_one(side: int, dir: float, force: bool = false) -> void:
 	var held := ledger.held_by(side)
 	if held.is_empty():
 		return
 	# One star on the field at a time: while one is loose, a hit costs the
-	# victim nothing but the second of being stunned.
-	if ledger.count_in(ArenaCoin.State.WORLD) >= on_field:
+	# victim nothing but the second of being stunned. A bump is the exception
+	# (`force`): both runners drop, whatever is already on the ground.
+	if not force and ledger.count_in(ArenaCoin.State.WORLD) >= on_field:
 		return
 	var r := ledger.get_coin(held[0])
 	# Kept inside the walls, so a star knocked loose against one is not left

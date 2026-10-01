@@ -220,6 +220,8 @@ func _take_post() -> void:
 				_on_input(from, payload)
 			VersusProtocol.Msg.COMMAND:
 				_on_command(from, payload)
+			VersusProtocol.Msg.HOLO, VersusProtocol.Msg.UNHOLO:
+				_on_holo(from, payload)
 			VersusProtocol.Msg.BYE:
 				diagnostic.emit("BYE peer=%d" % from)
 				var vacated := roster.vacate(from)
@@ -316,6 +318,33 @@ func _on_command(from: int, payload: PackedByteArray) -> void:
 		undo_build(seat)
 		return
 	place_build(seat, c["at"], slot)
+
+## Platforms are each player's own co-op Guardian's; the host only passes
+## them on, to everybody but the one who built it, and to its own scene.
+## `holo_inbox` is what the host's scene has yet to build or remove.
+var holo_inbox: Array[PackedByteArray] = []
+
+func _on_holo(from: int, payload: PackedByteArray) -> void:
+	if payload.size() < 4:
+		return
+	if not roster.owns_seat(from, int(payload[1])):
+		return
+	holo_inbox.append(payload)
+	_relay(from, payload)
+
+## The host's own platform, out to everybody.
+func send_holo(payload: PackedByteArray) -> void:
+	_relay(transport.local_peer(), payload)
+
+func _relay(from: int, payload: PackedByteArray) -> void:
+	var sent: Dictionary = {}
+	for seat in range(roster.seat_count()):
+		var peer := roster.peer_at(seat)
+		if peer < 0 or peer == from or peer == transport.local_peer() or sent.has(peer):
+			continue
+		sent[peer] = true
+		transport.send_to(peer, VersusTransport.Channel.COMMAND,
+			VersusTransport.Reliability.RELIABLE, payload)
 
 ## A player's shot at `at`, from whichever seat fired it: a runner shoots for
 ## their own side, a 2v2 guardian for their team. Only while playing.

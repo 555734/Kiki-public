@@ -23,7 +23,9 @@ enum Msg {
 	WELCOME = 2,     ## host -> client: you are seat N, the match seed is S
 	FULL = 3,        ## host -> client: there is no chair for you
 	INPUT = 10,      ## runner -> host: this is where I am and what I pressed
-	COMMAND = 11,    ## guardian -> host: build this here
+	COMMAND = 11,    ## player -> host: slot 3 = "my shot hit whoever is here"
+	HOLO = 12,       ## a player's platform, as the co-op Guardian made it (relayed)
+	UNHOLO = 13,     ## that platform is gone (relayed)
 	SNAPSHOT = 20,   ## host -> everyone: the world
 	EVENT = 21,      ## host -> everyone: something worth a noise happened
 	BYE = 30,
@@ -31,7 +33,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 7 # Arena theme (1-1/1-2/1-3) in WELCOME; free-for-all rooms.
+const VERSION: int = 8 # Co-op platforms and shots; runner bumps.
 
 ## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
 ## the host only; the rules engine never enters them.
@@ -280,3 +282,55 @@ static func read_snapshot(payload: PackedByteArray) -> Dictionary:
 			"position": at, "size": size})
 	out["builds"] = builds
 	return out
+
+# ----------------------------------------------------------------- platforms
+## A platform exactly as the co-op Guardian built it: its kind, where, and the
+## traced shape (relative points), so every other device can build the same
+## Hologram. `seat` and `holo_id` name it for the UNHOLO that ends it.
+const HOLO_MAX_POINTS: int = 64
+
+static func holo(seat: int, holo_id: int, kind: int, at: Vector2,
+		path: PackedVector2Array) -> PackedByteArray:
+	var b := _buf(Msg.HOLO)
+	b.put_u8(seat)
+	b.put_u16(holo_id & 0xFFFF)
+	b.put_u8(kind)
+	_put_exact(b, at)
+	var n := mini(path.size(), HOLO_MAX_POINTS)
+	b.put_u8(n)
+	for i in range(n):
+		_put_exact(b, path[i])
+	return b.data_array
+
+static func read_holo(payload: PackedByteArray) -> Dictionary:
+	var b := reader(payload)
+	b.get_u8()
+	var out := {"seat": b.get_u8(), "holo_id": b.get_u16(), "kind": b.get_u8()}
+	out["at"] = _get_exact(b)
+	var n := b.get_u8()
+	var path := PackedVector2Array()
+	for i in range(n):
+		path.append(_get_exact(b))
+	out["path"] = path
+	return out
+
+## A platform is placed in whole floats, not whole pixels: every machine
+## must stand on exactly the same surface. 64 points of 8 bytes still fit
+## well inside the EOS packet.
+static func _put_exact(b: StreamPeerBuffer, at: Vector2) -> void:
+	b.put_float(at.x)
+	b.put_float(at.y)
+
+static func _get_exact(b: StreamPeerBuffer) -> Vector2:
+	return Vector2(b.get_float(), b.get_float())
+
+static func unholo(seat: int, holo_id: int) -> PackedByteArray:
+	var b := _buf(Msg.UNHOLO)
+	b.put_u8(seat)
+	b.put_u16(holo_id & 0xFFFF)
+	return b.data_array
+
+static func read_unholo(payload: PackedByteArray) -> Dictionary:
+	var b := reader(payload)
+	b.get_u8()
+	return {"seat": b.get_u8(), "holo_id": b.get_u16()}

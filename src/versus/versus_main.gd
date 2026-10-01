@@ -357,9 +357,7 @@ func _view_team() -> int:
 func _process(delta: float) -> void:
 	if _camera != null:
 		_update_camera(delta)
-	for t in _tracers:
-		t["ttl"] = float(t["ttl"]) - delta
-	_tracers = _tracers.filter(func(t): return float(t["ttl"]) > 0.0)
+
 	_refresh_menu()
 	if _debug_copy_button != null:
 		_debug_copy_button.visible = waiting()
@@ -434,6 +432,16 @@ func _build_runners() -> void:
 		if mode == Mode.SOLO or i == local_team:
 			r.input_hub = input.hubs[i if mode == Mode.SOLO else 0]
 		add_child(r)
+		# Bodies are solid to each other: walking into someone stops you
+		# (and is a bump, VersusMatch._bump). Only this machine's runner
+		# moves itself, so only its mask matters; the others are puppets.
+		r.collision_mask |= Runner.LAYER_RUNNER
+		# What the co-op rifle looks for (versus_shootable.gd).
+		var target := VersusShootable.new()
+		target.name = "Shootable"
+		target.arena = self
+		target.side = i
+		r.add_child(target)
 		# Team A is Lira exactly as she is. Only the second runner is
 		# recoloured -- the request was the characters already in the game, and
 		# tinting both would have made neither of them the one people know.
@@ -453,12 +461,14 @@ func _apply_puppets() -> void:
 		var mine := mode == Mode.SOLO or i == local_team
 		runners[i].set_physics_process(mine)
 
-## Every player's way to attack from a distance: the co-op rifle, through the
-## co-op Guardian node, exactly as one-device 1-1 has it -- the right of the
-## screen is where you tap, the shot button is on the right. The rifle is the
-## only tool (no building in versus), and every shot goes to the router, so
-## the host decides what it hit. A 2v2 guardian seat is the rifle alone; every
-## other seat is the runner and the rifle on one screen ("shared" layout).
+## Every player's platform and rifle: the co-op Guardian itself, run
+## exactly as one-device 1-1 runs it -- the same gauge, costs, range checks,
+## traced platforms (6s, two at a time), launch triggers, aim assist, tracer
+## and sounds -- with the same two tools 1-1's shared layout has (platform and
+## shot). Nothing is routed: the Guardian acts locally, and what the others
+## need is passed on afterwards (_sync_holograms, report_shot_hit).
+## A 2v2 guardian seat has the guardian layout; every other seat is runner
+## and guardian on one screen ("shared").
 func _build_shooter() -> void:
 	if guardian != null or _seat < 0:
 		return
@@ -472,29 +482,42 @@ func _build_shooter() -> void:
 	hub.solo_role = "guardian" if guardian_seat else ""
 	guardian = Guardian.new()
 	guardian.name = "Guardian"
-	guardian.runner = runners[clampi(VersusRoster.side_of_in(room_mode, _seat), 0, sides - 1)] \
-		if not guardian_seat else runners[VersusRoster.team_of(_seat)]
+	guardian.runner = runners[VersusRoster.team_of(_seat)] if guardian_seat \
+		else runners[clampi(VersusRoster.side_of_in(room_mode, _seat), 0, sides - 1)]
 	guardian.input_hub = hub
 	guardian.world_root = self
-	var router := preload("res://src/versus/versus_command_router.gd").new()
-	router.arena = self
-	add_child(router)
-	guardian.command_router = router
 	add_child(guardian)
-	# The rifle and nothing else, already chosen: a tap on the world shoots.
-	var rifle = guardian.abilities[3]
-	guardian.abilities = {3: rifle}
-	guardian.active_slot = 3
+	# 1-1's shared layout has these two: the platform and the shot.
+	guardian.abilities = {1: guardian.abilities[1], 3: guardian.abilities[3]}
+	# And co-op's world-space cursor: the traced platform's ghost while the
+	# finger is down, the rifle's reticle and lock, and the shot's tracer.
+	var preview := preload("res://src/ui/placement_preview.gd").new()
+	preview.name = "PlacementPreview"
+	preview.guardian = guardian
+	add_child(preview)
 
-## The shot, from this machine's player. The host and the one-device test
-## judge it here; a guest sends it. The tracer is drawn at once either way.
-var _tracers: Array[Dictionary] = []
+## The side whose player this machine's rifle fires for.
+func _my_side() -> int:
+	if mode == Mode.SOLO:
+		return 0
+	return VersusRoster.side_of_in(room_mode, maxi(_seat, 0))
 
-func request_shot(at: Vector2) -> void:
-	if waiting() or countdown_ticks() > 0 or phase() != VersusMatch.Phase.PLAYING:
+## Whether this machine's rifle may lock onto `side`'s runner.
+func can_shoot_at(side: int) -> bool:
+	if side == _my_side() or side < 0 or side >= sides:
+		return false
+	if not runners[side].visible or _respawn_in[side] > 0:
+		return false
+	return not waiting() and countdown_ticks() == 0 \
+		and phase() == VersusMatch.Phase.PLAYING
+
+## The co-op rifle hit `side`'s runner on this screen. The host confirms it
+## against where it has that runner (VersusMatch.shoot) and takes the star.
+func report_shot_hit(side: int) -> void:
+	if not can_shoot_at(side):
 		return
-	var from_side := 0 if mode == Mode.SOLO else _view_team()
-	_tracers.append({"from": runners[from_side].global_position, "to": at, "ttl": 0.18})
+	var at: Vector2 = VersusStageData.wrap_x(runners[side].global_position.x) * Vector2.RIGHT \
+		+ Vector2(0.0, runners[side].global_position.y)
 	match mode:
 		Mode.SOLO:
 			match_rules.shoot(0, at)
@@ -504,6 +527,94 @@ func request_shot(at: Vector2) -> void:
 		Mode.CLIENT:
 			if client != null:
 				client.request_shot(at)
+
+# ------------------------------------------------------------ platforms
+## Every platform on this machine, by "seat:id": the Hologram plus its copies
+## one lap either side (the field is a loop). Own platforms are the
+## Guardian's; the others arrive from the host.
+var _holos: Dictionary = {}
+var _next_holo_id: int = 1
+
+func _sync_holograms() -> void:
+	# Mine: anything new the Guardian made goes out; anything gone is ended.
+	if guardian != null and _seat >= 0:
+		var mine: Dictionary = {}
+		for holo in guardian.holograms_of(Hologram.Kind.PLATFORM):
+			if not is_instance_valid(holo) or holo.is_queued_for_deletion():
+				continue
+			if not holo.has_meta("vs_id"):
+				holo.set_meta("vs_id", _next_holo_id)
+				_next_holo_id = (_next_holo_id % 0xFFFF) + 1
+				var payload := VersusProtocol.holo(_seat, int(holo.get_meta("vs_id")),
+					int(holo.kind), Vector2(VersusStageData.wrap_x(holo.global_position.x),
+						holo.global_position.y), holo.path)
+				_send_holo(payload)
+				_holos["%d:%d" % [_seat, int(holo.get_meta("vs_id"))]] = {
+					"main": holo, "copies": _lap_copies(holo.kind, holo.global_position, holo.path)}
+			mine["%d:%d" % [_seat, int(holo.get_meta("vs_id"))]] = true
+		for key in _holos.keys():
+			if String(key).begins_with("%d:" % _seat) and not mine.has(key):
+				var id := int(String(key).split(":")[1])
+				_drop_holo(key)
+				_send_holo(VersusProtocol.unholo(_seat, id))
+	# Theirs.
+	var inbox: Array[PackedByteArray] = []
+	if host != null:
+		inbox = host.holo_inbox
+	elif client != null:
+		inbox = client.holo_inbox
+	for payload in inbox:
+		match VersusProtocol.kind_of(payload):
+			VersusProtocol.Msg.HOLO:
+				var h := VersusProtocol.read_holo(payload)
+				var key := "%d:%d" % [int(h["seat"]), int(h["holo_id"])]
+				_drop_holo(key)
+				var main := _remote_holo(int(h["kind"]), h["at"], h["path"])
+				_holos[key] = {"main": main,
+					"copies": _lap_copies(int(h["kind"]), h["at"], h["path"])}
+			VersusProtocol.Msg.UNHOLO:
+				var u := VersusProtocol.read_unholo(payload)
+				_drop_holo("%d:%d" % [int(u["seat"]), int(u["holo_id"])])
+	inbox.clear()
+	# Copies follow their original out (expiry is each one's own 6 s).
+	for key in _holos.keys():
+		var entry: Dictionary = _holos[key]
+		if not is_instance_valid(entry["main"]) or entry["main"].is_queued_for_deletion():
+			_drop_holo(key, false)
+
+func _send_holo(payload: PackedByteArray) -> void:
+	if host != null:
+		host.send_holo(payload)
+	elif client != null:
+		client.send_holo(payload)
+
+## Somebody else's platform: the same Hologram, built the same way, but not
+## the local Guardian's (it does not count against this player's two) and
+## its launch trigger throws nobody here.
+func _remote_holo(kind: int, at: Vector2, path: PackedVector2Array) -> Hologram:
+	var holo := Hologram.create(kind, at, path)
+	add_child(holo)
+	if holo.trigger != null:
+		holo.trigger.runner = null
+	return holo
+
+func _lap_copies(kind: int, at: Vector2, path: PackedVector2Array) -> Array:
+	var out: Array = []
+	for lap in [-1, 1]:
+		out.append(_remote_holo(kind, at + Vector2(VersusStageData.WIDTH * float(lap), 0.0), path))
+	return out
+
+func _drop_holo(key: String, include_main: bool = true) -> void:
+	if not _holos.has(key):
+		return
+	var entry: Dictionary = _holos[key]
+	var nodes: Array = entry["copies"].duplicate()
+	if include_main and not String(key).begins_with("%d:" % _seat):
+		nodes.append(entry["main"])
+	for n in nodes:
+		if is_instance_valid(n) and not n.is_queued_for_deletion():
+			n.expire()
+	_holos.erase(key)
 
 # ------------------------------------------------------------------ the menu
 ## Real buttons for what the keyboard did before: start, play again, leave.
@@ -785,10 +896,38 @@ func _physics_process(_delta: float) -> void:
 			_tick_host(seqs)
 		Mode.CLIENT:
 			_tick_client(seqs)
+	_solid_bodies()
+	_sync_holograms()
+	_star_sounds()
+	_remember_fall()
 	_update_activity()
 	_mark_started()
 	_record_match_state()
 	_redraw()
+
+## Only a runner who is in the match is something to bump into: an empty
+## chair's body (hidden at its start) or one waiting to respawn is not.
+func _solid_bodies() -> void:
+	for i in range(sides):
+		var solid := runners[i].visible and _respawn_in[i] <= 0 \
+			and runners[i].state != Runner.State.DEAD
+		runners[i].collision_layer = Runner.LAYER_RUNNER if solid else 0
+
+## The coin sound when a star is picked up: full for this player's own side,
+## quieter for everyone else's, so you hear the race without mistaking it.
+var _held_seen: Array[int] = []
+
+func _star_sounds() -> void:
+	_held_seen.resize(sides)
+	for i in range(sides):
+		var now := held_by(i)
+		if now > _held_seen[i] and phase() == VersusMatch.Phase.PLAYING:
+			Audio.play("coin", 0.0, 0.0, 1.0 if i == _my_side() else 0.45)
+			star_sounds_played += 1
+		_held_seen[i] = now
+
+## For the probes: how many times the pickup sound has played.
+var star_sounds_played: int = 0
 
 ## Runners move only while the match is on: not while the room is filling, not
 ## through "3, 2, 1", not after someone has won. The other team's runners are
@@ -836,8 +975,21 @@ func _observe(i: int, seq: int) -> VersusMatch.Seat:
 	s.can_act = s.alive and runners[i].state != Runner.State.HURT
 	s.invulnerable = runners[i].is_invulnerable()
 	s.strike_seq = seq
-	s.velocity = runners[i].velocity
+	s.velocity = Vector2(runners[i].velocity.x, fall_speed(i))
 	return s
+
+## How fast `i` is coming down. Bodies are solid now, so the frame a runner
+## lands on a head its fall has already been stopped by that head; the speed
+## it arrived with is last frame's.
+func fall_speed(i: int) -> float:
+	return maxf(runners[i].velocity.y, _last_vy[i] if i < _last_vy.size() else 0.0)
+
+var _last_vy: Array[float] = []
+
+func _remember_fall() -> void:
+	_last_vy.resize(sides)
+	for i in range(sides):
+		_last_vy[i] = runners[i].velocity.y
 
 ## Before and after play: where the runner stands, alive, and not acting.
 func _idle(i: int, seq: int) -> VersusMatch.Seat:
@@ -856,8 +1008,11 @@ func _stomp_bounce(i: int) -> void:
 	for j in range(sides):
 		if j == i or not runners[j].visible or _respawn_in[j] > 0:
 			continue
-		if VersusMatch.is_stomp(me.global_position, me.velocity, runners[j].global_position):
+		if VersusMatch.is_stomp(me.global_position,
+				Vector2(me.velocity.x, fall_speed(i)), runners[j].global_position):
 			me.velocity.y = VersusRules.STOMP_BOUNCE
+			if i < _last_vy.size():
+				_last_vy[i] = VersusRules.STOMP_BOUNCE
 			return
 
 func _tick_solo(seqs: Array[int]) -> void:
@@ -921,6 +1076,7 @@ func _tick_client(seqs: Array[int]) -> void:
 	client.step(mine, _seat)
 	if local_team >= 0 and can_move():
 		_stomp_bounce(local_team)
+		_predict_bump(local_team)
 	_sync_builds_from_snapshot(client.builds, client.world_revision)
 	# Everyone the host describes and this machine does not own.
 	for i in range(sides):
@@ -1189,6 +1345,12 @@ func _reset_bodies() -> void:
 		runners[i].facing = facings[i]
 		runners[i].velocity = Vector2.ZERO
 		_respawn_in[i] = 0
+	# Every platform goes with the old match: this player's own, and the
+	# copies of everyone else's (each machine clears its own the same way).
+	if guardian != null:
+		guardian.clear_constructs()
+	for key in _holos.keys():
+		_drop_holo(key)
 
 func _apply_events(events: Array) -> void:
 	for e in events:
@@ -1207,10 +1369,46 @@ func _apply_events(events: Array) -> void:
 				# harmless, a fresh bounce from the same height.
 				if _owns(e["side"]) and runners[e["side"]].velocity.y > 0.0:
 					runners[e["side"]].velocity.y = VersusRules.STOMP_BOUNCE
+			"bump":
+				# Both are thrown apart on their own machines; the stars are
+				# the host's (VersusMatch._bump).
+				var side: int = e["side"]
+				if _owns(side) and runners[side].state != Runner.State.DEAD:
+					runners[side].launch(Vector2(
+						VersusRules.BUMP_KNOCK.x * float(e["dir"]), VersusRules.BUMP_KNOCK.y))
+					Audio.play("hurt", 4.0, 0.0, 0.7)
+					bumps_felt += 1
 			"fell":
 				if _owns(e["side"]):
 					runners[e["side"]].die("fell")
 					_begin_respawn(e["side"])
+
+## A guest hears nothing of the host's events, so its own runner is thrown
+## apart the moment it touches someone, as the host's rule will see it
+## (VersusMatch.is_bump); the stars are still only the host's to drop.
+var _bump_quiet: int = 0
+
+func _predict_bump(i: int) -> void:
+	if _bump_quiet > 0:
+		_bump_quiet -= 1
+		return
+	if _respawn_in[i] > 0 or runners[i].state == Runner.State.DEAD:
+		return
+	for j in range(sides):
+		if j == i or not runners[j].visible or _respawn_in[j] > 0:
+			continue
+		var them := VersusStageData.nearest_image(runners[j].global_position,
+			runners[i].global_position)
+		if VersusMatch.is_bump(runners[i].global_position, them):
+			var dir := -signf(them.x - runners[i].global_position.x)
+			if dir == 0.0:
+				dir = -1.0
+			_apply_events([{"kind": "bump", "side": i, "dir": dir}])
+			_bump_quiet = VersusRules.HIT_IMMUNE_TICKS
+			return
+
+## For the probes: bumps this machine's own runner has been thrown by.
+var bumps_felt: int = 0
 
 func _owns(side: int) -> bool:
 	return mode == Mode.SOLO or side == local_team
@@ -1281,11 +1479,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## ground, trees and signposts -- and a star behind a tree was a star nobody
 ## could see.
 func _draw_overlay() -> void:
-	for t in _tracers:
-		var a: Vector2 = _near(t["from"])
-		var b: Vector2 = VersusStageData.nearest_image(t["to"], a)
-		_overlay.draw_line(a, b, Color(1.0, 0.95, 0.6, clampf(float(t["ttl"]) * 5.0, 0.0, 1.0)), 4.0)
-		_overlay.draw_circle(b, 10.0, Color(1.0, 0.85, 0.3, 0.6))
+
 	_builds()
 	_markers()
 	_coins()

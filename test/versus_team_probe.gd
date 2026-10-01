@@ -124,9 +124,13 @@ func _ready() -> void:
 		"and the host sees it there")
 
 	# ---------------------------------------------------------- the guardian
-	check(a_guard.guardian != null and a_guard.guardian.command_router != null
-			and a_guard.guardian.abilities.keys() == [3],
-		"team A's guardian has the rifle and nothing else, wired to the host")
+	var tools: Array = a_guard.guardian.abilities.keys() if a_guard.guardian != null else []
+	tools.sort()
+	check(a_guard.guardian != null and a_guard.guardian.command_router == null
+			and tools == [1, 3] and a_guard.input.hubs[0].solo_role == "guardian",
+		"team A's guardian has 1-1's platform and rifle, on the guardian layout")
+	check(a_guard.guardian.runner == a_guard.runners[0],
+		"and builds for team A's runner")
 	var hm: VersusMatch = host.match_rules
 	for c in hm.ledger.coins:
 		if c.state == ArenaCoin.State.WORLD:
@@ -135,10 +139,13 @@ func _ready() -> void:
 	var star := hm.ledger.get_coin(4)
 	ArenaCoin.to_held(star, 1)
 	var held_before := hm.ledger.held_by(1).size()
-	a_guard.request_shot(host.runners[1].global_position)
+	# What the co-op rifle does when it hits: the target's take_damage.
+	a_guard.runners[1].get_node("Shootable").take_damage(1, "snipe")
 	await _ticks(20)
 	check(hm.ledger.held_by(1).size() == held_before - 1,
 		"team A's guardian shoots team B's runner and the star comes loose")
+	check(not a_guard.runners[0].get_node("Shootable").is_shootable_now(),
+		"but cannot shoot its own team's runner")
 	var none_built := true
 	for s in scenes:
 		none_built = none_built and s._built.is_empty()

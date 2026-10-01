@@ -123,7 +123,8 @@ func _test_the_stage() -> void:
 	# A strike across the join lands, and a star across it can be taken.
 	var m := _fresh()
 	var seats := _seats()
-	_park(seats, 0, Vector2(w - 20.0, 377.0))
+	# 80px apart across it: closer would be a bump, which is its own rule.
+	_park(seats, 0, Vector2(w - 60.0, 377.0))
 	_park(seats, 1, Vector2(20.0, 377.0))
 	_give(m, 1, [0])
 	m.step(seats)
@@ -572,6 +573,42 @@ func _test_stealing() -> void:
 	for t in range(20):
 		m.step(seats)
 	check(_held_of(m, 1, [0]) == 1, "a close-range strike no longer takes a star")
+
+	# Bump: bodies touching side by side. Both drop, even with one loose.
+	m = _fresh()
+	seats = _seats()
+	_park(seats, 0, Vector2(1400.0, 377.0))
+	_park(seats, 1, Vector2(1800.0, 377.0))
+	m.step(seats)
+	_clear_field(m)
+	_give(m, 0, [0, 1])
+	_give(m, 1, [2, 3])
+	ArenaCoin.to_world(m.ledger.get_coin(6), Vector2(600.0, 300.0), m.tick, Vector2.ZERO, 0)
+	seats[0].position = Vector2(1800.0 - Balance.RUNNER_SIZE.x - 1.0, 377.0)
+	m.step(seats)
+	var bumps := {}
+	for e in m.events:
+		if String(e["kind"]) == "bump":
+			bumps[int(e["side"])] = float(e["dir"])
+	check(_held_of(m, 0, [0, 1]) == 1 and _held_of(m, 1, [2, 3]) == 1,
+		"bumping into someone: both drop a star")
+	check(m.ledger.count_in(ArenaCoin.State.WORLD) == 3,
+		"even with one already loose (%d on the field)" % m.ledger.count_in(ArenaCoin.State.WORLD))
+	check(bumps.get(0, 0.0) < 0.0 and bumps.get(1, 0.0) > 0.0,
+		"and both are told to fly apart")
+	m.step(seats)
+	check(_held_of(m, 0, [0, 1]) == 1 and _held_of(m, 1, [2, 3]) == 1,
+		"once: still touching the next tick costs nothing more")
+	check(m.ledger.conserved(), "with the ledger balanced")
+	# Apart, or one on the other's head, is not a bump.
+	check(not VersusMatch.is_bump(Vector2(1700.0, 377.0), Vector2(1800.0, 377.0)),
+		"100px apart is not a bump")
+	check(not VersusMatch.is_bump(Vector2(1800.0, 377.0 - Balance.RUNNER_SIZE.y),
+			Vector2(1800.0, 377.0)),
+		"standing on a head is not a bump")
+	check(VersusMatch.is_bump(Vector2(VersusStageData.WIDTH - 10.0, 377.0),
+			Vector2(15.0, 377.0)),
+		"and a bump across the join counts")
 
 	# Death: one star back on the field (if it has room), the rest to the pool.
 	m = _fresh()

@@ -100,14 +100,22 @@ static func colour_of(room_mode: int, side: int) -> Color:
 	return ArenaRules.TEAM_COLOURS[clampi(side, 0, 1)]
 
 # ---------------------------------------------------------------- attacks
-## Shooting: a tap on the right of the screen fires at that point, the way the
-## co-op 1-1 rifle does, with the same aim assist. One shot per this many
-## ticks per player, so a hit is a decision and not a hose.
+## Shooting is the co-op rifle (SniperAbility) on each player's own device;
+## what reaches the host is "I hit whoever is at this point", checked against
+## where the host has everybody, within this distance.
 const SHOT_ASSIST_RADIUS: float = 110.0
-const SHOT_COOLDOWN_TICKS: int = 24
+## The co-op rifle has no cooldown: the gauge is the limit. Kept at a few
+## ticks only so a report repeated by the network cannot double a hit.
+const SHOT_COOLDOWN_TICKS: int = 3
 ## Stomping: landing on a head at least this fast (px/s, downwards).
 const STOMP_MIN_FALL: float = 60.0
 ## The bounce a stomp gives the stomper, as a jump velocity.
 const STOMP_BOUNCE: float = -620.0
 ## A hit runner is untouchable for this long.
 const HIT_IMMUNE_TICKS: int = 60
+## Bumping: two runners within this many px of touching, side by side, both
+## drop a star and are knocked apart this hard. The reach is more than "a
+## few pixels" because each machine stops against where it last saw the other
+## body, and the host compares two such reports.
+const BUMP_REACH: float = 12.0
+const BUMP_KNOCK := Vector2(420.0, -200.0)

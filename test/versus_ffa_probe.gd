@@ -142,6 +142,10 @@ func _ready() -> void:
 	host.runners[0].velocity = Vector2.ZERO
 	await _ticks(30)
 	var on_screen: Vector2 = views[2].get_canvas_transform() * p3._near(p3.runners[0].global_position)
+	var slot_3: Vector2 = ControlLayout.layout("shared", Vector2(1280, 720), false)["slot_3"]["center"]
+	_touch(2, 2, slot_3, true)
+	_touch(2, 2, slot_3, false)
+	await _ticks(3)
 	_touch(2, 3, on_screen, true)
 	_touch(2, 3, on_screen, false)
 	await _ticks(20)
@@ -151,6 +155,44 @@ func _ready() -> void:
 	for s in scenes:
 		none = none and s._built.is_empty()
 	check(none, "and nobody can build")
+
+	# ------------------------------------------- bodies are solid; bumps
+	# P2 walks into P3, both on guests' machines: neither passes through,
+	# and the host takes a star off each.
+	await _ticks(VersusRules.HIT_IMMUNE_TICKS + 10)
+	for c in hm.ledger.coins:
+		if c.state == ArenaCoin.State.WORLD or c.state == ArenaCoin.State.HELD:
+			ArenaCoin.to_recycle(c, hm.tick)
+	ArenaCoin.to_held(hm.ledger.get_coin(1), 1)
+	ArenaCoin.to_held(hm.ledger.get_coin(2), 2)
+	var p2 = scenes[1]
+	var p3_body: Runner = p3.runners[2]
+	p3_body.global_position = Vector2(1420.0, 370.0)
+	p3_body.velocity = Vector2.ZERO
+	p2.runners[1].global_position = Vector2(1330.0, 370.0)
+	p2.runners[1].velocity = Vector2.ZERO
+	host.runners[0].global_position = Vector2(400.0, 370.0)
+	await _ticks(30)
+	var felt: int = p2.bumps_felt + p3.bumps_felt
+	var closest := INF
+	var dropped := {}
+	_touch(1, 0, _stick_at(1.0), true)
+	for k in range(60):
+		await get_tree().physics_frame
+		for e in hm.events:
+			if String(e["kind"]) == "drop":
+				dropped[int(e["side"])] = int(e["coin"])
+		closest = minf(closest, _loop_distance(p2.runners[1].global_position,
+			p2.runners[2].global_position))
+	_touch(1, 0, _stick_at(1.0), false)
+	await _ticks(20)
+	check(closest >= Balance.RUNNER_SIZE.x - 3.0,
+		"P2 walking into P3 stops at P3's body (closest %.0fpx)" % closest)
+	# Read off the host's events: a star knocked loose may be picked
+	# straight back up afterwards, which is fair.
+	check(dropped.get(1, -1) == 1 and dropped.get(2, -1) == 2,
+		"and the bump knocks a star out of both of them")
+	check(p2.bumps_felt + p3.bumps_felt > felt, "and they are thrown apart")
 
 	# ------------------------------------------------------------- the end
 	for id in range(VersusRules.FFA_WIN_AT):
