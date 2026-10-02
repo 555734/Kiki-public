@@ -74,6 +74,25 @@ func _draw_lock() -> void:
 
 func _draw_gate() -> void:
 	var glow := 0.5 + 0.5 * sin(_pulse * 2.0)
+	if Stage.is_cave():
+		draw_colored_polygon(_arch_points(50, 58, 95), Color("66564d"))
+		draw_colored_polygon(_arch_points(43, 51, 90), Color("ba9671"))
+		draw_colored_polygon(_arch_points(32, 40, 87),
+			Color("698b95", 0.72 + glow * 0.12))
+		for x in [-25.0, 25.0]:
+			draw_line(Vector2(x, -65), Vector2(x, 87),
+				Color("d6b38a"), 4.0)
+		return
+	if Stage.is_tower():
+		draw_colored_polygon(_arch_points(50, 64, 95), Color("615a53"))
+		draw_colored_polygon(_arch_points(44, 58, 92), Color("c6ae83"))
+		draw_colored_polygon(_arch_points(32, 45, 90),
+			Color("779ba1", 0.65 + glow * 0.16))
+		for x in [-29.0, 29.0]:
+			draw_line(Vector2(x, -62), Vector2(x, 83), Color("ddc799"), 4.0)
+		draw_circle(Vector2(0, -103), 10, Color("c9b178"))
+		draw_circle(Vector2(0, -103), 5, Color("9bbab9"))
+		return
 	if Stage.is_sea() and Balance.USE_TEXTURES and Art.tex("goal") != null:
 		# 1-4's goal is the pack's red flag, planted on the ground (the goal
 		# sits 55px above the ledge), with a soft beacon glow over it.

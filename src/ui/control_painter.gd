@@ -71,7 +71,7 @@ static func look_button(ci: CanvasItem, src, centre: Vector2, radius: float, for
 	var d := 1.0 if forward else -1.0
 	var w := radius * 0.42
 	for i in range(2):
-		if Stage.is_skyward_ruins():
+		if Stage.progress_direction() == Vector2.UP:
 			# Positive pan is forward; in this stage forward is visually up.
 			var up := -d
 			var y := centre.y + up * (w * 0.30 + float(i) * w * 0.58) - up * w * 0.30

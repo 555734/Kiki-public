@@ -353,9 +353,45 @@ a broken tower. All four are drawn in code now -- `src/render/decor.gd` and
 - `menu/card_1_6.png` is a screenshot of the implemented stage, captured by
   `test/desert_card_capture.tscn`.
 
+## Stage 1-7 "THE CLOCKWORK TOWER" (`stage_1_7/`)
+
+- `concept_board.png`, `concept_board_v2.png`, and `concept_board_v3.png` were
+  generated with OpenAI's built-in image generation tool for this task. The
+  first board shows a rail lift, rotating gears, pendulums, blinking platforms,
+  a wind shaft, a remote
+  switch gate, and crumbling steps. The second board adds a piston crusher,
+  rotating clock-hand bridge, conveyor, paired portals, and retractable wall
+  spikes. The third board retains these mechanisms with quieter sandstone,
+  aged brass, dusty teal, and muted plum colors. All three are design
+  references in the cartoon style of the existing stages.
+- `tower_back_wall.png` was generated from the approved muted tower direction
+  with the same built-in tool. It is a non-colliding painted wall background;
+  the playable ledges, gears, traps, moving parts, and other gameplay shapes
+  are drawn by the game from original code.
+- `menu/card_1_7.png` is a screenshot of the implemented stage, captured by
+  `test/tower_card_capture.tscn`.
+
+## Stage 1-8 underground concept (`stage_1_8/`)
+
+- `concept_board.png` was generated with OpenAI's built-in image generation
+  tool for this task. The prompt asked for an original side-scrolling cartoon
+  underground world consistent with Kiki's existing boards: layered stone
+  tunnels, breakable blocks, a minecart, a vent, a rolling boulder, a remote
+  gate, cave enemies, and a separate object-study strip. It is a design
+  reference rather than a screenshot; playable objects are drawn from code.
+- `concept_board_v2.png` was edited from `concept_board.png` with the same
+  built-in tool. It reduces background texture and color variation, while
+  adding more enemies and distinct playable objects. The original board is
+  retained for comparison.
+- `cave_back_wall.png` was generated with the same built-in tool as a muted
+  background-only cave wall. It has no playable objects or collision; the
+  minecarts, enemies, traps, and platforms are drawn by the game.
+- `menu/card_1_8.png` is a screenshot of the implemented stage, captured by
+  `test/cave_card_capture.tscn`.
+
 ## Stage-select cards (`menu/`)
 
-`card_1_1.png` 〜 `card_1_6.png` are **not** a hand-over. They are screenshots
+`card_1_1.png` 〜 `card_1_8.png` are **not** a hand-over. They are screenshots
 of the stages in this repository, rendered by `tools/capture_stage_cards.gd`
 through a 432x840 window so the picture matches the card's shape instead of
 being a centre crop of a 16:9 frame. Everything in them is art already

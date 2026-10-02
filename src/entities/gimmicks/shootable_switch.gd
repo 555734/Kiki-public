@@ -90,6 +90,19 @@ func _draw_body() -> void:
 	var lit := Color("8b93a1") if _locked > 0.0 \
 		else (Color("ffd24a") if active else Color("8b93a1"))
 	var glow := 0.5 + 0.5 * sin(_pulse * (7.0 if active else 2.2))
+	if Stage.is_cave():
+		draw_circle(Vector2.ZERO, 24, Color("65717b"))
+		draw_circle(Vector2.ZERO, 18, Color("aaa99b"))
+		draw_circle(Vector2.ZERO, 12,
+			Color("b5d2c6") if active else Color("ad6a5c"))
+		draw_circle(Vector2.ZERO, 5 + glow, Color("e8dac2"))
+		return
+	if Stage.is_tower():
+		draw_circle(Vector2.ZERO, 24, Color("695f54"))
+		draw_circle(Vector2.ZERO, 19, Color("b6a07b"))
+		draw_circle(Vector2.ZERO, 12, Color("8fb8b6") if active else Color("688a90"))
+		draw_circle(Vector2.ZERO, 4 + glow * 1.5, Color("d6e5d9"))
+		return
 	if Balance.USE_TEXTURES and Art.tex("switch_off") != null:
 		var pulse := 1.0 + glow * (0.10 if active else 0.03)
 		Art.draw_sprite(self, "switch_on" if active else "switch_off",

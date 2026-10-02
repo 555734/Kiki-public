@@ -38,6 +38,12 @@ func _draw() -> void:
 			"desert_cactus": _desert_cactus(item["pos"])
 			"desert_flower": _desert_flower(item["pos"])
 			"desert_bridge": _desert_bridge(item["rect"])
+			"tower_banner": _tower_banner(item["pos"])
+			"tower_lamp": _tower_lamp(item["pos"])
+			"tower_rail": _tower_rail(item["pos"], float(item.get("height", 260.0)))
+			"cave_lamp": _cave_lamp(item["pos"])
+			"cave_crystal": _cave_crystal(item["pos"])
+			"cave_rail": _cave_rail(item["pos"], float(item.get("width", 290.0)))
 			# 1-4, the sea.
 			"sea_palm", "sea_palm_small":
 				Art.draw_sprite(self, String(item["type"]), item["pos"] + Vector2(0, 6.0),
@@ -645,3 +651,57 @@ func _desert_bridge(rect: Rect2) -> void:
 		draw_rect(Rect2(x - 3, rect.position.y - 28, 7, 35), Color("9c643b"))
 	draw_line(Vector2(rect.position.x + 4, rect.position.y - 24),
 		Vector2(rect.end.x - 4, rect.position.y - 24), Color("bb8650"), 3, true)
+
+func _tower_banner(at: Vector2) -> void:
+	draw_line(at + Vector2(0, -130), at + Vector2(0, 80), Color("75695d"), 4.0)
+	draw_colored_polygon(PackedVector2Array([
+		at + Vector2(-33, -120), at + Vector2(33, -120),
+		at + Vector2(33, 30), at + Vector2(0, 12),
+		at + Vector2(-33, 30)]), Color("786679", 0.82))
+	draw_line(at + Vector2(-20, -104), at + Vector2(20, -104),
+		Color("c9b99b"), 3.0)
+	draw_circle(at + Vector2(0, -55), 12, Color("bfab7a"))
+
+func _tower_lamp(at: Vector2) -> void:
+	draw_line(at + Vector2(0, -55), at + Vector2(0, 15), Color("6a6358"), 5.0)
+	draw_circle(at + Vector2(0, 18), 23, Color("6c6154"))
+	draw_circle(at + Vector2(0, 18), 15, Color("d7ba80", 0.72))
+	draw_circle(at + Vector2(0, 18), 7, Color("f1dfb0", 0.80))
+
+func _tower_rail(base: Vector2, height: float) -> void:
+	for side in [-1.0, 1.0]:
+		var x: float = base.x + float(side) * 70.0
+		draw_rect(Rect2(x - 7, base.y - height, 14, height), Color("665e51"))
+		draw_rect(Rect2(x - 3, base.y - height, 5, height), Color("c4a777"))
+		for i in 5:
+			var y := base.y - float(i) * height / 4.0
+			draw_circle(Vector2(x, y), 4, Color("d9c49c"))
+	for y in [base.y - height, base.y]:
+		draw_rect(Rect2(base.x - 86, y - 9, 172, 18), Color("9c805a"))
+		draw_rect(Rect2(base.x - 80, y - 7, 160, 5), Color("d4bb8e"))
+
+func _cave_lamp(at: Vector2) -> void:
+	draw_line(at + Vector2(0, -35), at + Vector2(0, 2),
+		Color("66616a"), 5.0)
+	draw_rect(Rect2(at + Vector2(-14, 0), Vector2(28, 35)), Color("524b4a"))
+	draw_rect(Rect2(at + Vector2(-9, 5), Vector2(18, 22)), Color("c49b68"))
+	draw_rect(Rect2(at + Vector2(-5, 7), Vector2(10, 18)), Color("e8c487"))
+
+func _cave_crystal(at: Vector2) -> void:
+	for i in 3:
+		var x := at.x + float(i - 1) * 15.0
+		var h := 32.0 if i == 1 else 22.0
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(x - 8, at.y), Vector2(x - 6, at.y - h * 0.7),
+			Vector2(x, at.y - h), Vector2(x + 8, at.y - h * 0.7),
+			Vector2(x + 9, at.y)]), Color("6c9b9f"))
+
+func _cave_rail(at: Vector2, width: float) -> void:
+	var left := at.x - width * 0.5
+	draw_line(Vector2(left, at.y - 6), Vector2(left + width, at.y - 6),
+		Color("a68767"), 5.0)
+	draw_line(Vector2(left, at.y + 4), Vector2(left + width, at.y + 4),
+		Color("604e47"), 5.0)
+	for i in range(int(width / 26.0)):
+		var x := left + float(i) * 26.0
+		draw_rect(Rect2(x, at.y - 10, 8, 21), Color("78604d"))

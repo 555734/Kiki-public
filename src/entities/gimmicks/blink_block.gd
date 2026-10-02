@@ -59,7 +59,8 @@ func _draw() -> void:
 				draw_line(Vector2(x, r.position.y), Vector2(x + 9.0, r.position.y), ghost, 2.0)
 				draw_line(Vector2(x, r.end.y), Vector2(x + 9.0, r.end.y), ghost, 2.0)
 		return
-	var c := Color("6fd6ff") if colour == 0 else Color("b98cff")
+	var c := (Color("75adb0") if colour == 0 else Color("998ba9")) \
+		if Stage.is_tower() else (Color("6fd6ff") if colour == 0 else Color("b98cff"))
 	c.a = 0.85 if on else 0.18
 	if on and warning() and int(Clock.tick / 4) % 2 == 0:
 		c.a = 0.35

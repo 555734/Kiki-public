@@ -82,6 +82,32 @@ func holds(at: Vector2) -> bool:
 
 func _draw() -> void:
 	var rect := Rect2(-span.x * 0.5, -span.y, span.x, span.y)
+	if Stage.is_cave():
+		draw_rect(rect, Color("82aeb5", 0.15))
+		for i in maxi(2, int(span.y / 90.0)):
+			var y := -fposmod(float(i) * 90.0 + _phase * 65.0, span.y)
+			draw_line(Vector2(-18, y + 9), Vector2(0, y - 8),
+				Color("b2d1d0", 0.7), 4.0)
+			draw_line(Vector2(0, y - 8), Vector2(18, y + 9),
+				Color("b2d1d0", 0.7), 4.0)
+		draw_rect(Rect2(-span.x * 0.35, -37, span.x * 0.70, 37),
+			Color("6b7480"))
+		draw_rect(Rect2(-span.x * 0.29, -38, span.x * 0.58, 8),
+			Color("b6b3aa"))
+		return
+	if Stage.is_tower():
+		draw_rect(rect, Color("8eacae", 0.16))
+		draw_rect(Rect2(rect.position.x, rect.position.y, 8, rect.size.y),
+			Color("a8c9c7", 0.42))
+		draw_rect(Rect2(rect.end.x - 8, rect.position.y, 8, rect.size.y),
+			Color("a8c9c7", 0.42))
+		for i in maxi(2, int(span.y / 90.0)):
+			var y := -fposmod(float(i) * 90.0 + _phase * 70.0, span.y)
+			draw_line(Vector2(-25, y + 12), Vector2(0, y - 10),
+				Color("bed5ce", 0.58), 4.0)
+			draw_line(Vector2(0, y - 10), Vector2(25, y + 12),
+				Color("bed5ce", 0.58), 4.0)
+		return
 	# Stretched rather than tiled. A column is one object, not a repeating
 	# surface, and the two columns in the stage are different shapes: 240x720
 	# for the route in section 3 and 170x560 for the four that carry a fallen

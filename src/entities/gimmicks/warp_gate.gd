@@ -32,6 +32,16 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
-	var c := Color("7fb8ff") if not is_exit else Color("ffd46b")
+	if Stage.is_tower():
+		var frame := Rect2(-size.x * 0.5, -size.y * 0.5, size.x, size.y)
+		DrawUtil.rounded_rect(self, frame.grow(7), 23, Color("6b6057"))
+		DrawUtil.rounded_rect(self, frame, 20, Color("b8a17c"))
+		DrawUtil.rounded_rect(self, frame.grow(-9), 14,
+			Color("756787") if not is_exit else Color("718e92"))
+		draw_arc(Vector2.ZERO, size.x * 0.28, 0, TAU, 32,
+			Color("cbbbd5", 0.55) if not is_exit else Color("b6d5d0", 0.55), 3.0, true)
+		return
+	var c := (Color("8c82a5") if not is_exit else Color("a69b79")) \
+		if Stage.is_tower() else (Color("7fb8ff") if not is_exit else Color("ffd46b"))
 	draw_rect(Rect2(-size * 0.5, size), Color(c.r, c.g, c.b, 0.35))
 	draw_rect(Rect2(-size * 0.5, size), c, false, 3.0)

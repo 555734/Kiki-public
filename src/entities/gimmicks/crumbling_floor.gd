@@ -80,6 +80,19 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		_draw_cracks(r)
 		return
+	if Stage.is_cave():
+		draw_rect(r, Color("a67b5b"))
+		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("c69b70"))
+		draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5),
+			Color("59483e"))
+		_draw_cracks(r)
+		return
+	if Stage.is_tower():
+		draw_rect(r, Color("b5a58a"))
+		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("dfcfb0"))
+		draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), Color("756b60"))
+		_draw_cracks(r)
+		return
 	if Stage.is_swamp():
 		draw_rect(r, Color("745238"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 9.0)), Color("a4d74a"))

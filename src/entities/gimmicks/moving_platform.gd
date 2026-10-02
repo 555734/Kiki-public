@@ -10,6 +10,7 @@ extends AnimatableBody2D
 @export var speed: float = Balance.MOVING_PLATFORM_SPEED
 
 @export var phase_offset: float = 0.0
+@export var visual_style: String = ""
 
 var _origin: Vector2 = Vector2.ZERO
 
@@ -43,6 +44,35 @@ func position_at(at_tick: int) -> Vector2:
 
 func _draw() -> void:
 	var r := Rect2(-span * 0.5, span)
+	if Stage.is_cave():
+		if visual_style == "minecart":
+			# Flat rim is the collision top; the wheels and rail are dressing below.
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(r.position.x + 3, r.position.y),
+				Vector2(r.end.x - 3, r.position.y),
+				Vector2(r.end.x - 16, r.end.y + 3),
+				Vector2(r.position.x + 16, r.end.y + 3)]),
+				Color("896b53"))
+			draw_rect(Rect2(r.position.x + 4, r.position.y + 8,
+				r.size.x - 8, 8), Color("ac8969"))
+			draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 7),
+				Color("cbb08d"))
+			for x in [r.position.x + 25.0, r.end.x - 25.0]:
+				draw_circle(Vector2(x, r.end.y + 7), 12, Color("343943"))
+				draw_circle(Vector2(x, r.end.y + 7), 5, Color("a5a29a"))
+		else:
+			draw_rect(r, Color("596b76"))
+			draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 7),
+				Color("b7aca0"))
+		return
+	if Stage.is_tower():
+		draw_rect(r, Color("665f55"))
+		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("d6c6a7"))
+		draw_rect(Rect2(r.position.x + 5, r.position.y + 8,
+			r.size.x - 10, r.size.y - 12), Color("a99473"))
+		for x in [r.position.x + 22.0, r.end.x - 22.0]:
+			draw_circle(Vector2(x, 4), 4, Color("73979a"))
+		return
 	if Stage.is_swamp():
 		# A raft of short lashed logs; its top is exactly the collision top.
 		for i in range(maxi(1, int(ceilf(span.x / 30.0)))):

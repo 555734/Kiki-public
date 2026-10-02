@@ -93,7 +93,9 @@ enum World {
 ##     the full game to the person they are playing with. Two lines of work met
 ##     here -- one had reached 16, the other 15 -- and a build carrying both is
 ##     neither of them.
-const VERSION: int = 17
+## 18: vertical position uses quarter-pixel units for 1-7's 14,000px tower.
+## 19: stage 1-8 adds an underground stage id to the handshake.
+const VERSION: int = 19
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

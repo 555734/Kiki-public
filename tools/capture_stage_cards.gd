@@ -37,6 +37,10 @@ const SHOTS := [
 		"at": Vector2(1120, 300), "zoom": 2.9, "runner": Vector2(1024, 330)},
 	{"which": Stage.Which.DESERT, "file": "card_1_6.png",
 		"at": Vector2(1170, 245), "zoom": 1.6, "runner": Vector2(1080, 277)},
+	{"which": Stage.Which.TOWER, "file": "card_1_7.png",
+		"at": Vector2(0, 13475), "zoom": 1.45, "runner": Vector2(300, 13632)},
+	{"which": Stage.Which.CAVE, "file": "card_1_8.png",
+		"at": Vector2(22320, 180), "zoom": 1.45, "runner": Vector2(22220, 170)},
 ]
 
 func _ready() -> void:

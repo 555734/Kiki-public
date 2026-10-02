@@ -23,6 +23,18 @@ func _ready() -> void:
 func _draw() -> void:
 	if not draw_spikes:
 		return
+	if Stage.is_cave():
+		var left := -span.x * 0.5
+		draw_rect(Rect2(left, span.y * 0.5 - 7, span.x, 7),
+			Color("5b4b42"))
+		var count := maxi(1, int(span.x / 22.0))
+		for i in count:
+			var x := left + (float(i) + 0.5) * span.x / float(count)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(x - 10, span.y * 0.5 - 7),
+				Vector2(x + 10, span.y * 0.5 - 7),
+				Vector2(x, -span.y * 0.5)]), Color("a7a69f"))
+		return
 	var strip := Art.tex("spikes")
 	if Balance.USE_TEXTURES and strip != null:
 		# Repeat the painted spike plate across the strip, stretched to a whole

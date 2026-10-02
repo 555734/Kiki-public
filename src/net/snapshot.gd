@@ -12,15 +12,15 @@ extends RefCounted
 ##
 ##   x  1/2 px over [-2048, 30719]  -- 0.25px of error, invisible after
 ##                                     interpolation against ~6px of travel per tick
-##   y  1/8 px over [-1024,  7167]  -- 0.06px of error, and y is the axis that
-##                                     decides whether a landing looks right
+##   y  1/4 px over [-1024, 15359]  -- 0.125px of error, extending the codec
+##                                      to the top of 1-7's long tower
 ##
 ## Precision goes where the platform rescue needs it, and the packet is the same
 ## size either way.
 
 const X_SCALE: float = 2.0
 const X_ORIGIN: float = -2048.0
-const Y_SCALE: float = 8.0
+const Y_SCALE: float = 4.0
 const Y_ORIGIN: float = -1024.0
 ## Velocity in 1/8 px/s over +/-4095 px/s. Terminal velocity is 1100, so there
 ## is headroom and the resolution is far below anything visible.

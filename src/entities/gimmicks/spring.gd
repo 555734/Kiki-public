@@ -72,6 +72,16 @@ func _draw() -> void:
 	var h := HEIGHT * (1.0 - _squash * 0.34)
 	var w := WIDTH * (1.0 + _squash * 0.16)
 	var rect := Rect2(-w * 0.5, -h, w, h)
+	if Stage.is_cave():
+		draw_rect(Rect2(-21, -34, 42, 30), Color("69727c"))
+		for y in [-30.0, -19.0, -8.0]:
+			draw_line(Vector2(-18, y), Vector2(18, y - 5),
+				Color("c5c2b9"), 4.0)
+		draw_circle(Vector2(0, -h + 22), w * 0.42, Color("b76462"))
+		draw_rect(Rect2(-w * 0.5, -h + 21, w, 13), Color("a75155"))
+		for x in [-18.0, 0.0, 18.0]:
+			draw_circle(Vector2(x, -h + 16), 4, Color("e9d7c2"))
+		return
 	if Art.draw_stretched(self, "spring", rect):
 		return
 	DrawUtil.rounded_rect(self, rect, 6.0, Color("d13b3b"))

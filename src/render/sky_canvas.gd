@@ -3,6 +3,8 @@ extends Control
 ## and the drawing has a Control's rect to work against.
 
 var sky: Node = null
+const TOWER_BACK_WALL: Texture2D = preload("res://assets/stage_1_7/tower_back_wall.png")
+const CAVE_BACK_WALL: Texture2D = preload("res://assets/stage_1_8/cave_back_wall.png")
 
 func _draw() -> void:
 	if sky == null:
@@ -10,6 +12,12 @@ func _draw() -> void:
 	var view := size
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
+	if Stage.is_cave():
+		_cave_background(view, scroll)
+		return
+	if Stage.is_tower():
+		_tower_background(view, scroll, sky.vertical())
+		return
 
 	# Every painted backdrop is opaque and, with the strip below it, reaches
 	# the bottom of the screen; when it also reaches the top, the gradient
@@ -39,6 +47,56 @@ func _draw() -> void:
 	_ruin_tower(view, scroll * 0.24, _base(view, 0.24))
 	_hills(view, scroll * 0.38, _base(view, 0.38), 1.0)
 	_bushes(view, scroll * 0.55, _base(view, 0.55))
+
+## Distant cave arches scroll slowly. Adjacent tiles are mirrored so their
+## edges meet without a visible vertical seam on the long horizontal route.
+func _cave_background(view: Vector2, scroll: float) -> void:
+	draw_rect(Rect2(Vector2.ZERO, view), Color("172840"))
+	var pixel_size := Vector2(CAVE_BACK_WALL.get_size())
+	var tile_size := pixel_size * (view.y / pixel_size.y)
+	var phase := scroll * 0.09
+	var first := int(floorf(phase / tile_size.x))
+	var offset := fposmod(phase, tile_size.x)
+	for i in range(-1, int(ceilf(view.x / tile_size.x)) + 2):
+		var x := float(i) * tile_size.x - offset
+		if posmod(first + i, 2) != 0:
+			draw_set_transform(Vector2(2.0 * x + tile_size.x, 0),
+				0.0, Vector2(-1, 1))
+		draw_texture_rect(CAVE_BACK_WALL,
+			Rect2(x, 0, tile_size.x, tile_size.y), false)
+		if posmod(first + i, 2) != 0:
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Keep gameplay blocks and interactive silhouettes visually in front.
+	draw_rect(Rect2(Vector2.ZERO, view), Color("172840", 0.12))
+
+## A quiet painted wall behind the playable tower; it scrolls more slowly than
+## the ledges so the silhouettes stay separate from the collision geometry.
+func _tower_background(view: Vector2, camera_x: float, camera_y: float) -> void:
+	_tower_painted_background(view, camera_x, camera_y)
+
+func _tower_painted_background(view: Vector2, camera_x: float, camera_y: float) -> void:
+	draw_rect(Rect2(Vector2.ZERO, view), Color("a9a69b"))
+	var size_px := Vector2(TOWER_BACK_WALL.get_size())
+	var scale_factor := maxf(view.x / size_px.x, view.y / size_px.y) * 1.20
+	var tile_size := size_px * scale_factor
+	var x := (view.x - tile_size.x) * 0.5 - camera_x * 0.09
+	var phase := camera_y * Balance.CAMERA_ZOOM * 0.22
+	var offset := fposmod(phase, tile_size.y)
+	var first := int(floorf(phase / tile_size.y))
+	for i in range(-1, 3):
+		var y := -offset + float(i) * tile_size.y
+		if y > view.y or y + tile_size.y < 0:
+			continue
+		if posmod(first + i, 2) != 0:
+			draw_set_transform(Vector2(0, (y + tile_size.y * 0.5) * 2.0),
+				0.0, Vector2(1, -1))
+		draw_texture_rect(TOWER_BACK_WALL, Rect2(x, y, tile_size.x, tile_size.y),
+			false, Color("dfdcd4"))
+		if posmod(first + i, 2) != 0:
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Recede behind the interactive stone and machinery, keeping the tower's
+	# muted palette readable even where the painted windows are bright blue.
+	draw_rect(Rect2(Vector2.ZERO, view), Color("b8b7b2", 0.22))
 
 ## How fast the painted backdrop scrolls relative to the world. Between the old
 ## tower layer (0.24) and the near hills (0.38): the panorama spans that whole

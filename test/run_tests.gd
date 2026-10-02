@@ -4621,7 +4621,7 @@ func _test_a_tap_puts_it_where_you_pointed() -> void:
 
 	# --- the wire rounds it, and by how much is known ---
 	#
-	# Positions cross as 16 bits each: x in half-pixels, y in eighths. A
+	# Positions cross as 16 bits each: x in half-pixels, y in quarters. A
 	# placement is allowed to move by that rounding and no more, and the number
 	# is here so a change to the packing cannot quietly loosen it.
 	var worst := 0.0

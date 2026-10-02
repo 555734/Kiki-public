@@ -240,6 +240,11 @@ func veil_field() -> VeilField:
 
 func _make_enemy(spec: Dictionary) -> Node2D:
 	match String(spec.get("type", "")):
+		"cave_enemy":
+			var cave := CaveEnemy.new()
+			cave.kind = String(spec.get("kind", "burrower"))
+			cave.patrol_half_width = float(spec.get("patrol", 100.0))
+			return cave
 		"desert_enemy":
 			var d := DesertEnemy.new()
 			d.kind = String(spec.get("kind", "scarab"))
@@ -336,7 +341,37 @@ func _make_gimmick(spec: Dictionary) -> Node2D:
 			m.travel = spec.get("travel", Vector2(220, 0))
 			m.speed = float(spec.get("speed", Balance.MOVING_PLATFORM_SPEED))
 			m.phase_offset = float(spec.get("phase", 0.0))
+			m.visual_style = String(spec.get("style", ""))
 			return m
+		"cave_trap":
+			var trap := CaveTrap.new()
+			trap.kind = String(spec.get("kind", "boulder"))
+			trap.travel = float(spec.get("travel", 145.0))
+			trap.period = float(spec.get("period", 3.5))
+			trap.phase_offset = float(spec.get("phase", 0.0))
+			return trap
+		"clock_hand":
+			var hand := ClockHandBridge.new()
+			hand.length = float(spec.get("length", 225.0))
+			hand.period = float(spec.get("period", 4.2))
+			hand.phase_offset = float(spec.get("phase", 0.0))
+			return hand
+		"gear_wheel":
+			var wheel := GearWheel.new()
+			wheel.radius = float(spec.get("radius", 98.0))
+			wheel.angular_speed = float(spec.get("speed", 0.30))
+			wheel.direction = int(spec.get("dir", 1))
+			wheel.phase_offset = float(spec.get("phase", 0.0))
+			return wheel
+		"tower_trap":
+			var trap := TowerTrap.new()
+			trap.kind = String(spec.get("kind", "pendulum"))
+			trap.length = float(spec.get("length", 235.0))
+			trap.travel = float(spec.get("travel", 150.0))
+			trap.period = float(spec.get("period", 3.6))
+			trap.phase_offset = float(spec.get("phase", 0.0))
+			trap.facing = int(spec.get("facing", 1))
+			return trap
 		"blink":
 			var blink := BlinkBlock.new()
 			blink.span = spec.get("span", Vector2(150, 26))

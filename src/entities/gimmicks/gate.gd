@@ -65,6 +65,27 @@ func _draw_body() -> void:
 	if has_meta("model_3d"): return
 	var lift := _open_amount * span.y * 0.92
 	var r := Rect2(-span.x * 0.5, -span.y * 0.5 - lift, span.x, span.y)
+	if Stage.is_cave():
+		draw_rect(Rect2(-span.x * 0.5 - 7, -span.y * 0.5 - 10,
+			span.x + 14, 12), Color("a88666"))
+		draw_rect(r, Color("394555"))
+		for x in range(9, int(span.x), 14):
+			draw_rect(Rect2(r.position.x + float(x), r.position.y,
+				5, r.size.y), Color("9fa5a4"))
+		draw_rect(r, Color("2c3540"), false, 3.0)
+		return
+	if Stage.is_tower():
+		draw_rect(Rect2(-span.x * 0.5 - 8, -span.y * 0.5 - 12,
+			span.x + 16, 12), Color("6e6254"))
+		draw_rect(r, Color("756b5d"))
+		draw_rect(Rect2(r.position.x + 5, r.position.y + 5,
+			r.size.x - 10, r.size.y - 10), Color("bcaa85"))
+		for i in 5:
+			var y := r.position.y + 17 + float(i) * (r.size.y - 34) / 4.0
+			draw_rect(Rect2(r.position.x + 5, y, r.size.x - 10, 6),
+				Color("6e6356"))
+		draw_rect(r, Color("5d554c"), false, 3.0)
+		return
 	if Stage.is_desert():
 		draw_rect(Rect2(-span.x * 0.5 - 7, -span.y * 0.5 - 10,
 			span.x + 14, 10), Color("8b5c43"))

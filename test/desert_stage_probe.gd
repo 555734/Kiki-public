@@ -58,10 +58,9 @@ func run() -> void:
 	add_child(main)
 	await get_tree().process_frame
 	var panel := main.get_node_or_null("NetPanel")
-	check(panel != null and panel._cards().size() == 6,
-		"selection includes the sixth stage")
+	check(panel != null and panel._cards().size() == 8,
+		"selection includes the desert, tower and cave stages")
 	if panel != null:
-		panel._change_stage_page(1)
 		await get_tree().process_frame
 		check(panel._stage_1_6 != null, "desert card appears on the second page")
 		panel.queue_free()

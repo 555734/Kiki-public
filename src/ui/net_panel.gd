@@ -23,6 +23,8 @@ var _stage_1_3: Button = null
 var _stage_1_4: Button = null
 var _stage_1_5: Button = null
 var _stage_1_6: Button = null
+var _stage_1_7: Button = null
+var _stage_1_8: Button = null
 var _local: Button = null
 const STAGES_PER_PAGE := 3
 var _stage_page: int = 0
@@ -105,6 +107,8 @@ func _ready() -> void:
 	if Stage.current() == Stage.Which.SEA or Stage.current() == Stage.Which.SWAMP \
 			or Stage.current() == Stage.Which.DESERT:
 		_stage_page = 1
+	elif Stage.current() == Stage.Which.TOWER or Stage.current() == Stage.Which.CAVE:
+		_stage_page = 2
 
 	if _open_play_after_reload:
 		_open_play_after_reload = false
@@ -131,6 +135,8 @@ func _clear_screen() -> void:
 	_stage_1_4 = null
 	_stage_1_5 = null
 	_stage_1_6 = null
+	_stage_1_7 = null
+	_stage_1_8 = null
 	_stage_view = null
 	_swipe_active = false
 	_local = null
@@ -139,7 +145,7 @@ func _clear_screen() -> void:
 	_status = null
 	_cancel = null
 
-## The six stages the menu offers, in order, with the art each card shows.
+## The stages the menu offers, in order, with the art each card shows.
 ##
 ## The pictures are rendered from the stages themselves by
 ## `tools/capture_stage_cards.gd` -- through a portrait window, because a card
@@ -172,6 +178,14 @@ func _cards() -> Array[Dictionary]:
 			"blurb": "奇妙な敵が待つ砂漠の遺跡へ",
 			"which": Stage.Which.DESERT, "accent": Color("e6a44b"),
 			"art": preload("res://assets/menu/card_1_6.png"), "crop_top": 180.0},
+		{"number": "1-7", "name": "THE CLOCKWORK TOWER",
+			"blurb": "仕掛けだらけの塔をふたりで登る",
+			"which": Stage.Which.TOWER, "accent": Color("8c8a78"),
+			"art": preload("res://assets/menu/card_1_7.png"), "crop_top": 320.0},
+		{"number": "1-8", "name": "THE UNDERGROVE",
+			"blurb": "地下の仕掛けと敵をくぐり抜ける",
+			"which": Stage.Which.CAVE, "accent": Color("708797"),
+			"art": preload("res://assets/menu/card_1_8.png"), "crop_top": 320.0},
 	]
 
 func _show_stage_screen() -> void:
@@ -210,6 +224,8 @@ func _show_stage_screen() -> void:
 			Stage.Which.SEA: _stage_1_4 = card
 			Stage.Which.SWAMP: _stage_1_5 = card
 			Stage.Which.DESERT: _stage_1_6 = card
+			Stage.Which.TOWER: _stage_1_7 = card
+			Stage.Which.CAVE: _stage_1_8 = card
 	for i in range(STAGES_PER_PAGE - row.get_child_count()):
 		var spacer := Control.new()
 		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -724,7 +740,7 @@ func _card_for(which: int) -> Dictionary:
 
 func _refresh_stage_buttons() -> void:
 	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4, _stage_1_5,
-			_stage_1_6]:
+			_stage_1_6, _stage_1_7, _stage_1_8]:
 		if button == null:
 			continue
 		var which: int = int(button.get_meta("which"))

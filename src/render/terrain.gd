@@ -45,6 +45,12 @@ func _palette() -> Dictionary:
 	}
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
+	if Stage.is_cave():
+		_draw_cave_slab(rect, seed_index)
+		return
+	if Stage.is_tower():
+		_draw_tower_slab(rect, seed_index)
+		return
 	if Stage.is_desert():
 		_draw_desert_slab(rect, seed_index)
 		return
@@ -133,6 +139,58 @@ func _draw_desert_slab(rect: Rect2, seed_index: int) -> void:
 		Color("9f5c34", 0.55))
 	draw_rect(Rect2(rect.end.x - 7, rect.position.y + 34, 7, rect.size.y - 34),
 		Color("9f5c34", 0.55))
+
+func _draw_cave_slab(rect: Rect2, seed_index: int) -> void:
+	# Broad, low-detail stone masses keep enemies and cracks readable.
+	draw_rect(rect, Color("5a4844"))
+	for row in 2:
+		var y := rect.position.y + 24.0 + float(row) * 85.0
+		if y > rect.end.y:
+			break
+		var x := rect.position.x + float((seed_index + row) % 2) * 65.0
+		while x < rect.end.x:
+			var width := minf(126.0, rect.end.x - x)
+			draw_rect(Rect2(x, y, width - 3.0, 78.0),
+				Color("725548") if row == 0 else Color("654e45"))
+			x += 130.0
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 24),
+		Color("bd8e65"))
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 7),
+		Color("d7ad7d"))
+	draw_rect(Rect2(rect.position.x, rect.position.y + 24,
+		rect.size.x, 5), Color("4e3e3c"))
+
+func _draw_tower_slab(rect: Rect2, seed_index: int) -> void:
+	# Stone courses are sized in world pixels, not stretched from one texture.
+	# The cap's top edge is exactly the collision top.
+	draw_rect(rect, Color("9c8468"))
+	var rows := maxi(1, int(ceilf(rect.size.y / 48.0)))
+	for row in rows:
+		var y := rect.position.y + float(row) * 48.0
+		var h := minf(47.0, rect.end.y - y)
+		if h <= 0.0:
+			continue
+		var offset := 0.0 if row % 2 == 0 else 38.0
+		var left := int(floorf((rect.position.x - offset) / 76.0))
+		var right := int(ceilf((rect.end.x - offset) / 76.0))
+		for n in range(left, right):
+			var x := maxf(rect.position.x, float(n) * 76.0 + offset)
+			var end_x := minf(rect.end.x, float(n + 1) * 76.0 + offset - 2.0)
+			if end_x <= x:
+				continue
+			var tint := Color("d0b996") if (n + row + seed_index) % 3 == 0 \
+				else Color("bfa582")
+			draw_rect(Rect2(x, y, end_x - x, h), tint)
+			draw_line(Vector2(x + 4, y + h - 4), Vector2(end_x - 4, y + h - 4),
+				Color("75634f", 0.35), 2.0)
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 12),
+		Color("ead6b2"))
+	draw_rect(Rect2(rect.position.x, rect.position.y + 12, rect.size.x, 5),
+		Color("8b7358"))
+	draw_rect(Rect2(rect.position.x, rect.position.y, 6, rect.size.y),
+		Color("777168", 0.35))
+	draw_rect(Rect2(rect.end.x - 6, rect.position.y, 6, rect.size.y),
+		Color("eee4cf", 0.35))
 
 ## The swamp has chunky moss and layered stone/peat, aligned to the same safe
 ## collision ledge. The details repeat in world coordinates so wide banks never

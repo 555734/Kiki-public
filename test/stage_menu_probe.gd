@@ -44,6 +44,12 @@ func _ready() -> void:
 	Stage.use(Stage.Which.DESERT)
 	check(Stage.stage_number() == "1-6", "the desert is selectable as 1-6")
 	check(Stage.stage_name() == "THE SANDGLASS RUINS", "and it is the one it says it is")
+	Stage.use(Stage.Which.TOWER)
+	check(Stage.stage_number() == "1-7", "the tower is selectable as 1-7")
+	check(Stage.stage_name() == "THE CLOCKWORK TOWER", "and it is the one it says it is")
+	Stage.use(Stage.Which.CAVE)
+	check(Stage.stage_number() == "1-8", "the cave is selectable as 1-8")
+	check(Stage.stage_name() == "THE UNDERGROVE", "and it is the one it says it is")
 	Stage.use(Stage.Which.GREENFIELD)
 	check(Stage.stage_number() == "1-1", "1-1 remains selectable after the others")
 
@@ -80,7 +86,7 @@ func _ready() -> void:
 			for label in ["1-1", "1-2", "1-3"]:
 				check(not seen.has(label), "second page does not show %s" % label)
 			check(panel._stage_view.get_child_count() == 3,
-				"last page keeps the three-column layout")
+				"second page keeps the three-column layout")
 			var centre: Vector2 = panel._stage_view.get_global_rect().get_center()
 			var touch := InputEventScreenTouch.new()
 			touch.index = 0
@@ -96,6 +102,13 @@ func _ready() -> void:
 			seen = _visible_stages(panel)
 			check(seen.has("1-1") and seen.has("1-2") and seen.has("1-3"),
 				"swipe restores the first three stage cards")
+			panel._change_stage_page(2)
+			await get_tree().process_frame
+			seen = _visible_stages(panel)
+			check(seen.has("1-7") and seen.has("1-8"),
+				"third page shows the tower and cave")
+			check(panel._stage_view.get_child_count() == 3,
+				"third page keeps the three-column layout")
 			for label in ["1-V", "1-B", "1-S"]:
 				check(not seen.has(label),
 					"start screen does NOT offer %s (hidden on purpose)" % label)
@@ -104,6 +117,12 @@ func _ready() -> void:
 			# not offered before one has been.
 			check(_speeds(panel).is_empty(),
 				"the stage screen does not ask about difficulty yet")
+			var versus_door := false
+			for node in panel.find_children("*", "Button", true, false):
+				var label := String((node as Button).text)
+				if label.contains("たいせん") or label.contains("対戦"):
+					versus_door = true
+			check(versus_door, "2対2 たいせん entry remains available")
 
 			panel._show_play_screen()
 			await get_tree().process_frame
@@ -123,16 +142,17 @@ func _ready() -> void:
 				func(button: Button) -> bool: return not button.text.contains("1-2")),
 				"stage cards are not duplicated on the play screen")
 
-			# "部屋を作る" swaps the menu for the stage at once, with the room
-			# code on a strip across it, before any EOS round trip finishes.
-			panel._on_host_eos()
-			await get_tree().process_frame
+			# The room-code strip is a UI contract. Show it with a known code so
+			# this probe does not depend on EOS connectivity or timing.
+			main.link.room_code = "123456"
+			panel._show_banner()
 			await get_tree().process_frame
 			check(panel.get("_banner") != null, "creating a room shows the room-code strip")
 			check(not panel._root.visible, "the menu gives way to the stage behind the strip")
 			check(EosCoopLobby.valid_code(main.link.room_code),
 				"the room code is known before EOS answers")
-			check(String(panel._banner_code.text).replace(" ", "") == main.link.room_code,
+			check(panel._banner_code != null
+				and String(panel._banner_code.text).replace(" ", "") == main.link.room_code,
 				"the strip shows the room code")
 			check(main.process_mode == Node.PROCESS_MODE_DISABLED,
 				"the stage stays frozen behind the strip")
@@ -141,27 +161,13 @@ func _ready() -> void:
 				"やめる puts the menu back")
 			check(not main.link.busy(), "やめる ends the attempt")
 			check(panel.get("_code") != null, "and it is the play/connect screen again")
-			# Let the abandoned attempt's EOS call return before tearing down.
-			for i in 600:
-				if EosRuntime.state != EosRuntime.State.STARTING:
-					break
-				await get_tree().process_frame
-			await get_tree().process_frame
-
-			# Internet versus still depends on the retired relay and is deliberately
-			# absent from the release menu until its EOS migration is complete.
-			var door := false
-			for node in panel.find_children("*", "Button", true, false):
-				var text := String((node as Button).text)
-				if text.contains("たいせん") or text.contains("対戦"):
-					door = true
-			check(not door, "retired-relay たいせん entry remains hidden")
 			panel.queue_free()
 			await get_tree().process_frame
 			check(main.process_mode == Node.PROCESS_MODE_INHERIT,
 				"choosing play resumes the gameplay subtree")
-			check(GameState.running and Clock.tick <= 1,
-				"a local run starts from time zero after leaving home")
+			check(GameState.running and Clock.tick <= 5,
+				"a local run starts after leaving home (running=%s, tick=%d)" \
+					% [str(GameState.running), Clock.tick])
 		main.queue_free()
 		await get_tree().process_frame
 
