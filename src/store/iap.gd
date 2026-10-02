@@ -43,9 +43,11 @@ func _on_eos_state(state: int, _detail: String) -> void:
 	var puid := EosRuntime.product_user_id()
 	Entitlement.bind_to(puid)
 	await renew_if_stale()
-	# A token that was just dropped for naming a different device is exactly
-	# the case "restore" exists for, and it can be done without asking.
-	if Entitlement.level() == Entitlement.Level.FREE and available():
+	# Google Play can silently query owned products. StoreKit restoration may
+	# prompt for App Store credentials, so on iOS it stays behind the Restore
+	# button instead of interrupting an online sign-in.
+	if Entitlement.level() == Entitlement.Level.FREE and available() \
+			and OS.has_feature("android"):
 		await restore()
 
 func available() -> bool:

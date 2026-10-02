@@ -72,7 +72,7 @@ func _ready() -> void:
 	box.add_child(NetPanel.heading("このステージには完全版が必要です", 21,
 		Color("37638d")))
 	var benefits := NetPanel.heading(
-		"完全版を1回購入すると、1-3・1-4・1-5を遊べます。\n協力プレイの部屋も作れます。",
+		"購入すると1-3〜1-5を遊べて、協力プレイの部屋も作れます。",
 		18, Color("264c70"))
 	benefits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(benefits)
@@ -93,6 +93,9 @@ func _ready() -> void:
 
 	_restore = NetPanel.action_button("購入済みなら復元する", func() -> void:
 		restore_requested.emit())
+	_restore.flat = true
+	_restore.custom_minimum_size.y = 42
+	_restore.add_theme_font_size_override("font_size", 17)
 	box.add_child(_restore)
 	var restore_help := NetPanel.heading("同じストアアカウントで購入した方はこちら", 17,
 		Color("416b91"))

@@ -21,6 +21,8 @@ func _ready() -> void:
 			failures.append("%s: purchase choices are not buy, join, restore and back" % locale)
 		if not buy.text.contains("$9.99"):
 			failures.append("%s: purchase price is missing from the primary action" % locale)
+		if not restore.flat or restore.custom_minimum_size.y >= buy.custom_minimum_size.y:
+			failures.append("%s: restore is competing with the purchase action" % locale)
 		purchase.set_store_available(false)
 		purchase.say("このAPKは操作確認用です。完全版はGoogle Play版で購入してください。")
 		if not buy.disabled or not restore.disabled:
