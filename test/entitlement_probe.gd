@@ -71,6 +71,12 @@ func _free_player() -> void:
 	check(Entitlement.can_host(Stage.Which.GREENFIELD)
 		and Entitlement.can_host(Stage.Which.HORROR),
 		"and can make a room on either of them")
+	var new_stages := [Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]
+	var all_new_free := true
+	for which in new_stages:
+		all_new_free = all_new_free and Stage.is_free(which) \
+			and Entitlement.can_play(which) and Entitlement.can_host(which)
+	check(all_new_free, "1-6, 1-7 and 1-8 can be played and hosted without purchase")
 	var paid := [Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]
 	var blocked := true
 	var unhostable := true

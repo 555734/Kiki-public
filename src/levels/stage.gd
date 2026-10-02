@@ -187,10 +187,11 @@ static func stage_name() -> String:
 ## suite down with it. Locking happens where a player starts a game -- the menu
 ## and the room-creation path -- not where the data is read.
 ##
-## 1-1 teaches running and jumping; 1-2 is the first stage that cannot be
-## finished without the guardian, which is the thing being sold. Someone who
-## has played both has seen what the full game is.
-const FREE_STAGES: Array[int] = [Which.GREENFIELD, Which.HORROR]
+## 1-3 through 1-5 remain in the reviewed full-game purchase. The newer
+## 1-6 through 1-8 stages are free while they have not been submitted for review.
+const FREE_STAGES: Array[int] = [
+	Which.GREENFIELD, Which.HORROR, Which.DESERT, Which.TOWER, Which.CAVE,
+]
 
 static func is_free(which: int = -1) -> bool:
 	return FREE_STAGES.has(_which if which < 0 else which)

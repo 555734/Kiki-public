@@ -83,6 +83,8 @@ func _ready() -> void:
 			seen = _visible_stages(panel)
 			for label in ["1-4", "1-5", "1-6"]:
 				check(seen.has(label), "second page has a %s stage button" % label)
+			check(_card_unlocked(panel._stage_1_6),
+				"1-6 card has no purchase lock")
 			for label in ["1-1", "1-2", "1-3"]:
 				check(not seen.has(label), "second page does not show %s" % label)
 			check(panel._stage_view.get_child_count() == 3,
@@ -107,6 +109,8 @@ func _ready() -> void:
 			seen = _visible_stages(panel)
 			check(seen.has("1-7") and seen.has("1-8"),
 				"third page shows the tower and cave")
+			check(_card_unlocked(panel._stage_1_7) and _card_unlocked(panel._stage_1_8),
+				"1-7 and 1-8 cards have no purchase locks")
 			check(panel._stage_view.get_child_count() == 3,
 				"third page keeps the three-column layout")
 			for label in ["1-V", "1-B", "1-S"]:
@@ -195,3 +199,11 @@ func _visible_stages(panel: Node) -> Dictionary:
 		if node is Button:
 			result[String((node as Button).text)] = true
 	return result
+
+func _card_unlocked(card: Button) -> bool:
+	if card == null:
+		return false
+	for node in card.get_meta("lock") as Array:
+		if (node as CanvasItem).visible:
+			return false
+	return true
