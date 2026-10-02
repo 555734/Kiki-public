@@ -12,9 +12,17 @@ func _ready() -> void:
 		purchase.stage_name = "THE POISON MARSH"
 		purchase.price_text = "$9.99"
 		add_child(purchase)
-		purchase.set_store_available(false)
 		var buy: Button = purchase.get("_buy")
 		var restore: Button = purchase.get("_restore")
+		if not purchase.find_children("*", "LineEdit", true, false).is_empty():
+			failures.append("%s: reviewer code entry is still visible" % locale)
+		var buttons := purchase.find_children("*", "Button", true, false)
+		if buttons.size() != 4:
+			failures.append("%s: purchase choices are not buy, join, restore and back" % locale)
+		if not buy.text.contains("$9.99"):
+			failures.append("%s: purchase price is missing from the primary action" % locale)
+		purchase.set_store_available(false)
+		purchase.say("このAPKは操作確認用です。完全版はGoogle Play版で購入してください。")
 		if not buy.disabled or not restore.disabled:
 			failures.append("%s: unavailable store still offers purchase or restore" % locale)
 		if buy.text != TranslationServer.translate("▶  このビルドでは購入できません"):

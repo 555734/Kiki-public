@@ -23,7 +23,6 @@ signal closed
 signal buy_requested
 signal restore_requested
 signal join_requested
-signal review_code_requested(code: String)
 
 var stage_number: String = ""
 var stage_name: String = ""
@@ -70,57 +69,49 @@ func _ready() -> void:
 
 	box.add_child(NetPanel.heading("%s  %s" % [stage_number, tr(stage_name)], 27,
 		Color("073f89")))
-	box.add_child(NetPanel.heading("このステージは完全版に入っています", 19,
+	box.add_child(NetPanel.heading("このステージには完全版が必要です", 21,
 		Color("37638d")))
-	box.add_child(_spacer(6))
+	var benefits := NetPanel.heading(
+		"完全版を1回購入すると、1-3・1-4・1-5を遊べます。\n協力プレイの部屋も作れます。",
+		18, Color("264c70"))
+	benefits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(benefits)
+	box.add_child(_spacer(4))
 
 	_buy = NetPanel.action_button(_price_label(), func() -> void:
 		buy_requested.emit())
 	_buy.custom_minimum_size.y = 62
 	box.add_child(_buy)
 
-	box.add_child(NetPanel.action_button("👥  購入済みの友達と遊ぶ", func() -> void:
+	box.add_child(NetPanel.action_button("購入せずに友達の部屋へ入る", func() -> void:
 		join_requested.emit()))
 	var friend_help := NetPanel.heading(
-		"友達が完全版を持っていれば、その人の部屋に入るだけで\n"
-		+ "全ステージを一緒に遊べます。購入は要りません。", 18, Color("416b91"))
+		"完全版を持つ友達が部屋を作れば、一緒に遊べます。", 17, Color("416b91"))
 	friend_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	friend_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(friend_help)
-	box.add_child(_spacer(4))
 
-	_restore = NetPanel.action_button("↺  購入を復元する", func() -> void:
+	_restore = NetPanel.action_button("購入済みなら復元する", func() -> void:
 		restore_requested.emit())
 	box.add_child(_restore)
-	var restore_help := NetPanel.heading("機種変更や再インストールのあとはこちら", 18,
+	var restore_help := NetPanel.heading("同じストアアカウントで購入した方はこちら", 17,
 		Color("416b91"))
 	restore_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	restore_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(restore_help)
 
-	# Google Play reviewers cannot make a purchase with a personal account.
-	# A server-validated, limited reviewer code gives them access to every stage
-	# in the same release build that customers receive.
-	var review_row := HBoxContainer.new()
-	review_row.add_theme_constant_override("separation", 8)
-	var review_code := LineEdit.new()
-	review_code.placeholder_text = tr("審査用アクセスコード")
-	review_code.secret = true
-	review_code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	review_code.add_theme_font_size_override("font_size", 19)
-	review_row.add_child(review_code)
-	review_row.add_child(NetPanel.action_button("コードを適用", func() -> void:
-		review_code_requested.emit(review_code.text.strip_edges())))
-	box.add_child(review_row)
-
 	_status = NetPanel.heading("", 18, Color("264c70"))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size.y = 44
+	_status.visible = false
 	box.add_child(_status)
 
 	box.add_child(NetPanel.action_button("‹  もどる", func() -> void:
 		closed.emit()
 		queue_free()))
+	Iap.changed.connect(_on_price_changed)
+
+func _on_price_changed() -> void:
+	set_price(Iap.price_text())
 
 ## The price comes from the store, never from the source. A build cannot know
 ## what a regional price is, and one hard-coded number is how a store listing
@@ -137,6 +128,7 @@ func set_price(text: String) -> void:
 func say(message: String) -> void:
 	if _status != null and is_instance_valid(_status):
 		_status.text = tr(message)
+		_status.visible = not message.is_empty()
 
 func set_store_available(value: bool) -> void:
 	_store_available = value
