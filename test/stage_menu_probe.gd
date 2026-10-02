@@ -120,7 +120,7 @@ func _ready() -> void:
 			var versus_door := false
 			for node in panel.find_children("*", "Button", true, false):
 				var label := String((node as Button).text)
-				if label.contains("たいせん") or label.contains("対戦"):
+				if label.contains("2対2") or label.contains("2v2"):
 					versus_door = true
 			check(versus_door, "2対2 たいせん entry remains available")
 
