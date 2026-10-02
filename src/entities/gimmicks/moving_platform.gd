@@ -58,6 +58,14 @@ func _draw() -> void:
 		draw_line(Vector2(r.position.x, r.end.y - 3.0),
 			Vector2(r.end.x, r.end.y - 3.0), Color("4d3527"), 5.0)
 		return
+	if Stage.is_desert():
+		draw_rect(r, Color("805b49"))
+		draw_rect(Rect2(r.position, Vector2(r.size.x, 10.0)), Color("f2c773"))
+		draw_rect(Rect2(r.position.x + 5.0, r.position.y + 10.0,
+			r.size.x - 10.0, r.size.y - 14.0), Color("c58b55"))
+		for x in [r.position.x + 24.0, r.end.x - 24.0]:
+			draw_circle(Vector2(x, r.position.y + 17.0), 3.0, Color("59c9d8"))
+		return
 	if Balance.USE_TEXTURES and Art.draw_stretched(self, "moving_platform", r):
 		draw_rect(Rect2(r.position.x, r.position.y + r.size.y - 4.0, r.size.x, 4.0),
 			Color(0.10, 0.09, 0.08, 0.35))

@@ -35,6 +35,8 @@ const SHOTS := [
 	# Two stepping stones and the gap between them, which is the whole stage.
 	{"which": Stage.Which.SWAMP, "file": "card_1_5.png",
 		"at": Vector2(1120, 300), "zoom": 2.9, "runner": Vector2(1024, 330)},
+	{"which": Stage.Which.DESERT, "file": "card_1_6.png",
+		"at": Vector2(1170, 245), "zoom": 1.6, "runner": Vector2(1080, 277)},
 ]
 
 func _ready() -> void:

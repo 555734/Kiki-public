@@ -44,7 +44,10 @@ func warning() -> bool:
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
-	draw_rect(Rect2(-span * 0.5, span), Color("2c3448"))
+	draw_rect(Rect2(-span * 0.5, span),
+		Color("866046") if Stage.is_desert() else Color("2c3448"))
+	if Stage.is_desert():
+		draw_rect(Rect2(-span.x * 0.5, -span.y * 0.5, span.x, 5.0), Color("e7b66b"))
 	var d := float(direction_at(Clock.tick))
 	var lit := Color("ffc93c") if not (warning() and int(Clock.tick / 4) % 2 == 0) else Color("ff5a3c")
 	for i in int(span.x / 40.0):

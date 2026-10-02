@@ -65,6 +65,18 @@ func _draw_body() -> void:
 	if has_meta("model_3d"): return
 	var lift := _open_amount * span.y * 0.92
 	var r := Rect2(-span.x * 0.5, -span.y * 0.5 - lift, span.x, span.y)
+	if Stage.is_desert():
+		draw_rect(Rect2(-span.x * 0.5 - 7, -span.y * 0.5 - 10,
+			span.x + 14, 10), Color("8b5c43"))
+		draw_rect(r, Color("b7774b"))
+		draw_rect(Rect2(r.position.x + 5, r.position.y + 5,
+			r.size.x - 10, r.size.y - 10), Color("e7b66b"))
+		for i in range(4):
+			var y := r.position.y + 24.0 + float(i) * 48.0
+			draw_line(Vector2(r.position.x + 7, y), Vector2(r.end.x - 7, y),
+				Color("a76d47"), 3.0)
+		draw_rect(r, Color("80523d"), false, 3.0)
+		return
 	if Balance.USE_TEXTURES and Art.tex("gate") != null:
 		draw_rect(Rect2(-span.x * 0.5 - 5, -span.y * 0.5 - 8, span.x + 10, 8), Color("3a3f4a"))
 		Art.draw_stretched(self, "gate", r)

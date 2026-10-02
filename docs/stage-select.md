@@ -2,7 +2,7 @@
 
 `src/ui/net_panel.gd` が2枚の画面を持つ。
 
-1. **ステージを選択** — 5枚のカード（1-1〜1-5）だけ。
+1. **ステージを選択** — 6枚のカード（1-1〜1-6）。
 2. **遊び方を選択** — 選んだステージの大きな絵、**追跡者の速さ**、
    ローカル2人プレイ、オンラインの部屋作成／参加。
 
@@ -26,7 +26,7 @@
 
 ## カードの絵
 
-`assets/menu/card_1_1.png` 〜 `card_1_5.png`。
+`assets/menu/card_1_1.png` 〜 `card_1_6.png`。
 **ステージそのものを縦向きの窓で撮ったもの**で、
 `tools/capture_stage_cards.gd` が書き出す。
 
@@ -57,5 +57,5 @@ xvfb-run -a godot --path . tools/capture_stage_cards.tscn --fixed-fps 60
 
 ## 検証
 
-- `test/stage_menu_probe.tscn` — 5枚が出ていること、1-V / 1-B / 1-S が
+- `test/stage_menu_probe.tscn` — 6枚が出ていること、1-V / 1-B / 1-S が
   出ていないこと、2枚目へ進むこと、部屋番号の帯。

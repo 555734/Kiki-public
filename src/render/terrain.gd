@@ -45,6 +45,9 @@ func _palette() -> Dictionary:
 	}
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
+	if Stage.is_desert():
+		_draw_desert_slab(rect, seed_index)
+		return
 	if Stage.is_swamp():
 		_draw_swamp_slab(rect, seed_index)
 		return
@@ -104,6 +107,32 @@ func _draw_slab(rect: Rect2, seed_index: int) -> void:
 		var cx := rect.position.x + step * (float(s) + 0.5)
 		draw_arc(Vector2(cx, rect.position.y + 2.0), step * 0.56, PI * 1.15, PI * 1.85, 8,
 			Color(1, 1, 1, 0.22), 3.0, true)
+
+## Broad sandstone shapes from the approved cartoon board. The safe top is
+## exactly rect.position.y; decoration below it never changes collision.
+func _draw_desert_slab(rect: Rect2, seed_index: int) -> void:
+	# Reuse the coast's painted sand grain so 1-6 shares its material language.
+	# The darker tint and broad seams make this sandstone rather than beach sand.
+	if not (Balance.USE_TEXTURES and Art.draw_tiled(self, "sea_sand_tile", rect,
+			128.0, Color("dbaa84"))):
+		draw_rect(rect, Color("c8793b"))
+	draw_rect(rect, Color("a75f36", 0.17))
+	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 25), Color("ffd06b"))
+	draw_rect(Rect2(rect.position.x, rect.position.y + 25, rect.size.x, 7), Color("a95e32"))
+	var first := int(floorf(rect.position.x / 105.0))
+	var last := int(ceilf(rect.end.x / 105.0))
+	for n in range(first, last):
+		var x := float(n) * 105.0
+		if x < rect.position.x + 8.0 or x > rect.end.x - 30.0:
+			continue
+		var y := rect.position.y + 80.0 + float(posmod(n + seed_index, 3)) * 76.0
+		if y + 25.0 < rect.end.y:
+			draw_rect(Rect2(x, y, 56, 8), Color("eaa45b", 0.65))
+			draw_rect(Rect2(x + 26, y + 8, 6, 17), Color("a75d34", 0.65))
+	draw_rect(Rect2(rect.position.x, rect.position.y + 34, 7, rect.size.y - 34),
+		Color("9f5c34", 0.55))
+	draw_rect(Rect2(rect.end.x - 7, rect.position.y + 34, 7, rect.size.y - 34),
+		Color("9f5c34", 0.55))
 
 ## The swamp has chunky moss and layered stone/peat, aligned to the same safe
 ## collision ledge. The details repeat in world coordinates so wide banks never

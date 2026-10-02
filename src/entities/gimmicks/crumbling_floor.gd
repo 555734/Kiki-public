@@ -89,6 +89,17 @@ func _draw() -> void:
 			draw_rect(r, Color(0.85, 0.35, 0.12, _shake * 0.28))
 		_draw_cracks(r)
 		return
+	if Stage.is_desert():
+		draw_rect(r, Color("b87746"))
+		draw_rect(Rect2(r.position, Vector2(r.size.x, 8.0)), Color("f2c071"))
+		draw_rect(Rect2(r.position.x, r.end.y - 6.0, r.size.x, 6.0), Color("83543b"))
+		for x in [r.position.x + 24.0, r.end.x - 26.0]:
+			draw_line(Vector2(x, r.position.y + 9.0), Vector2(x + 5.0, r.end.y - 6.0),
+				Color("98613c"), 2.0)
+		if _shake > 0.0:
+			draw_rect(r, Color(1.0, 0.38, 0.15, _shake * 0.23))
+		_draw_cracks(r)
+		return
 	if not _draw_painted(r):
 		_draw_flat(r)
 	_draw_cracks(r)

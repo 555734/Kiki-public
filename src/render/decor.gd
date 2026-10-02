@@ -33,6 +33,11 @@ func _draw() -> void:
 			"keel": _keel(item["pos"], float(item.get("width", 240.0)))
 			"streamer": _streamer(item["pos"], float(item.get("scale", 1.0)))
 			"arch": _arch(item["pos"], float(item.get("scale", 1.0)))
+			"desert_arch": _desert_arch(item["pos"], float(item.get("height", 220.0)))
+			"desert_crystal": _desert_crystal(item["pos"])
+			"desert_cactus": _desert_cactus(item["pos"])
+			"desert_flower": _desert_flower(item["pos"])
+			"desert_bridge": _desert_bridge(item["rect"])
 			# 1-4, the sea.
 			"sea_palm", "sea_palm_small":
 				Art.draw_sprite(self, String(item["type"]), item["pos"] + Vector2(0, 6.0),
@@ -589,3 +594,54 @@ func _swamp_footing(key: String, rect: Rect2) -> void:
 				maxf(0.0, width - 4.0), 5.0), Color("c58a4a"))
 	draw_line(Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y),
 		Color("523b29"), 6.0)
+
+func _desert_arch(base: Vector2, height: float) -> void:
+	var left := base + Vector2(-70, -height)
+	var right := base + Vector2(46, -height)
+	draw_rect(Rect2(left, Vector2(28, height)), Color("dc9650"))
+	draw_rect(Rect2(right, Vector2(28, height)), Color("be743d"))
+	draw_arc(base + Vector2(2, -height + 42), 72, PI, TAU, 18,
+		Color("f9bd65"), 28, true)
+	draw_rect(Rect2(left + Vector2(-8, -14), Vector2(44, 15)), Color("ffcf79"))
+	draw_rect(Rect2(right + Vector2(-8, -14), Vector2(44, 15)), Color("ffcf79"))
+
+func _desert_crystal(base: Vector2) -> void:
+	for i in 3:
+		var x := base.x + float(i - 1) * 21.0
+		var h := 44.0 if i == 1 else 29.0
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(x - 11, base.y), Vector2(x - 9, base.y - h * 0.7),
+			Vector2(x, base.y - h), Vector2(x + 10, base.y - h * 0.72),
+			Vector2(x + 13, base.y)]), Color("21cce6"))
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(x, base.y - h), Vector2(x + 10, base.y - h * 0.72),
+			Vector2(x + 2, base.y)]), Color("88f5ff", 0.85))
+
+func _desert_cactus(base: Vector2) -> void:
+	draw_line(base, base + Vector2(0, -75), Color("4b963e"), 19, true)
+	draw_line(base + Vector2(-4, -27), base + Vector2(-24, -42),
+		Color("5fad49"), 11, true)
+	draw_line(base + Vector2(4, -49), base + Vector2(23, -62),
+		Color("5fad49"), 11, true)
+	draw_circle(base + Vector2(0, -77), 10, Color("78c856"))
+	for p in [Vector2(-24, -45), Vector2(0, -89), Vector2(24, -64)]:
+		draw_circle(base + p, 6, Color("ed6547"))
+		draw_circle(base + p, 2.5, Color("ffcc66"))
+
+func _desert_flower(base: Vector2) -> void:
+	for side in [-1.0, 1.0]:
+		draw_line(base + Vector2(0, -4), base + Vector2(side * 18, -21),
+			Color("3c9852"), 5, true)
+		draw_circle(base + Vector2(side * 20, -25), 7, Color("ee604a"))
+		draw_circle(base + Vector2(side * 20, -25), 3, Color("ffd976"))
+
+func _desert_bridge(rect: Rect2) -> void:
+	draw_rect(rect, Color("a56537"))
+	for n in range(int(ceilf(rect.size.x / 25.0))):
+		var x := rect.position.x + float(n) * 25.0
+		draw_line(Vector2(x, rect.position.y), Vector2(x, rect.end.y),
+			Color("70452d"), 2)
+	for x in [rect.position.x + 4.0, rect.end.x - 4.0]:
+		draw_rect(Rect2(x - 3, rect.position.y - 28, 7, 35), Color("9c643b"))
+	draw_line(Vector2(rect.position.x + 4, rect.position.y - 24),
+		Vector2(rect.end.x - 4, rect.position.y - 24), Color("bb8650"), 3, true)

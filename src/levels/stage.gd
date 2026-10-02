@@ -8,7 +8,7 @@ extends RefCounted
 
 
 ## New stages go on the END: the value is what travels in the handshake.
-enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP }
+enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT }
 
 ## A fresh launch starts at 1-1. The start panel can switch to 1-2 before play.
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
@@ -37,7 +37,7 @@ static func current() -> int:
 ## picture of those two stages than the art they replaced.
 static func world_3d() -> bool:
 	return Balance.USE_3D and _which != Which.GREENFIELD and _which != Which.HORROR \
-		and _which != Which.SEA and _which != Which.SWAMP
+		and _which != Which.SEA and _which != Which.SWAMP and _which != Which.DESERT
 
 static func is_crossing() -> bool:
 	return _which == Which.CROSSING
@@ -74,6 +74,9 @@ static func is_sea() -> bool:
 static func is_swamp() -> bool:
 	return _which == Which.SWAMP
 
+static func is_desert() -> bool:
+	return _which == Which.DESERT
+
 ## The sea's surface on a stage that has one (1-4), or INF.
 static func water_y() -> float:
 	if is_swamp():
@@ -95,6 +98,8 @@ static func needs_two_devices() -> bool:
 # ------------------------------------------------------------------ constants
 
 static func kill_y() -> float:
+	if is_desert():
+		return _data("level_desert_data").kill_y_value()
 	if is_swamp():
 		return _data("level_swamp_data").kill_y_value()
 	if is_sea():
@@ -114,6 +119,8 @@ static func kill_y() -> float:
 	return Level02Data.KILL_Y if is_crossing() else Level01Data.KILL_Y
 
 static func start() -> Vector2:
+	if is_desert():
+		return _data("level_desert_data").start_position()
 	if is_swamp():
 		return _data("level_swamp_data").start_position()
 	if is_sea():
@@ -133,6 +140,8 @@ static func start() -> Vector2:
 	return Level02Data.START if is_crossing() else Level01Data.START
 
 static func stage_name() -> String:
+	if is_desert():
+		return _data("level_desert_data").stage_name_value()
 	if is_swamp():
 		return _data("level_swamp_data").stage_name_value()
 	if is_sea():
@@ -168,6 +177,8 @@ static func is_free(which: int = -1) -> bool:
 	return FREE_STAGES.has(_which if which < 0 else which)
 
 static func stage_number() -> String:
+	if is_desert():
+		return _data("level_desert_data").stage_number_value()
 	if is_swamp():
 		return _data("level_swamp_data").stage_number_value()
 	if is_sea():
@@ -187,6 +198,8 @@ static func stage_number() -> String:
 	return Level02Data.STAGE_NUMBER if is_crossing() else Level01Data.STAGE_NUMBER
 
 static func objective() -> String:
+	if is_desert():
+		return _data("level_desert_data").objective_value()
 	if is_swamp():
 		return _data("level_swamp_data").objective_value()
 	if is_sea():
@@ -208,6 +221,8 @@ static func objective() -> String:
 # ---------------------------------------------------------------------- data
 
 static func ground() -> Array[Rect2]:
+	if is_desert():
+		return _data("level_desert_data").ground()
 	if is_swamp():
 		return _data("level_swamp_data").ground()
 	if is_sea():
@@ -227,6 +242,8 @@ static func ground() -> Array[Rect2]:
 	return Level02Data.ground() if is_crossing() else Level01Data.ground()
 
 static func solid_decor() -> Array[Rect2]:
+	if is_desert():
+		return _data("level_desert_data").solid_decor()
 	if is_swamp():
 		return _data("level_swamp_data").solid_decor()
 	if is_sea():
@@ -246,6 +263,8 @@ static func solid_decor() -> Array[Rect2]:
 	return Level02Data.solid_decor() if is_crossing() else Level01Data.solid_decor()
 
 static func decor() -> Array[Dictionary]:
+	if is_desert():
+		return _data("level_desert_data").decor()
 	if is_swamp():
 		return _data("level_swamp_data").decor()
 	if is_sea():
@@ -265,6 +284,8 @@ static func decor() -> Array[Dictionary]:
 	return Level02Data.decor() if is_crossing() else Level01Data.decor()
 
 static func hazards() -> Array[Dictionary]:
+	if is_desert():
+		return _data("level_desert_data").hazards()
 	if is_swamp():
 		return _data("level_swamp_data").hazards()
 	if is_sea():
@@ -284,6 +305,8 @@ static func hazards() -> Array[Dictionary]:
 	return Level02Data.hazards() if is_crossing() else Level01Data.hazards()
 
 static func enemies() -> Array[Dictionary]:
+	if is_desert():
+		return _data("level_desert_data").enemies()
 	if is_swamp():
 		return _data("level_swamp_data").enemies()
 	if is_sea():
@@ -303,6 +326,8 @@ static func enemies() -> Array[Dictionary]:
 	return Level02Data.enemies() if is_crossing() else Level01Data.enemies()
 
 static func gimmicks() -> Array[Dictionary]:
+	if is_desert():
+		return _data("level_desert_data").gimmicks()
 	if is_swamp():
 		return _data("level_swamp_data").gimmicks()
 	if is_sea():
@@ -324,6 +349,8 @@ static func gimmicks() -> Array[Dictionary]:
 ## Regions one of the two players cannot see into. Empty for every stage that
 ## shows both players the same world, which is all of them until 1-V.
 static func veils() -> Array[Dictionary]:
+	if is_desert():
+		return _data("level_desert_data").veils()
 	if is_swamp():
 		return _data("level_swamp_data").veils()
 	if is_sea():
@@ -343,6 +370,8 @@ static func veils() -> Array[Dictionary]:
 	return Level02Data.veils() if is_crossing() else Level01Data.veils()
 
 static func checkpoints() -> Array[Vector2]:
+	if is_desert():
+		return _data("level_desert_data").checkpoints()
 	if is_swamp():
 		return _data("level_swamp_data").checkpoints()
 	if is_sea():
@@ -362,6 +391,8 @@ static func checkpoints() -> Array[Vector2]:
 	return Level02Data.checkpoints() if is_crossing() else Level01Data.checkpoints()
 
 static func goal() -> Vector2:
+	if is_desert():
+		return _data("level_desert_data").goal()
 	if is_swamp():
 		return _data("level_swamp_data").goal()
 	if is_sea():
@@ -385,7 +416,7 @@ static func goal() -> Vector2:
 ## from reaching the goal on guardian platforms without ever landing.
 static func needs_key() -> bool:
 	return _which == Which.GREENFIELD or _which == Which.HORROR \
-		or _which == Which.SEA or _which == Which.SWAMP
+		or _which == Which.SEA or _which == Which.SWAMP or _which == Which.DESERT
 
 ## Where the key rests: on the lowest ground under a point ~60% of the way from
 ## start to goal, nudged along until it is on a floor with no hazard on it.
@@ -444,6 +475,8 @@ static func sky_crows() -> Array[Vector2]:
 	return out
 
 static func coins() -> Array[Vector2]:
+	if is_desert():
+		return _data("level_desert_data").coins()
 	if is_swamp():
 		return _data("level_swamp_data").coins()
 	if is_sea():
@@ -463,6 +496,8 @@ static func coins() -> Array[Vector2]:
 	return Level02Data.coins() if is_crossing() else Level01Data.coins()
 
 static func springs() -> Array[Vector2]:
+	if is_desert():
+		return _data("level_desert_data").springs()
 	if is_swamp():
 		return _data("level_swamp_data").springs()
 	if is_sea():
@@ -482,6 +517,8 @@ static func springs() -> Array[Vector2]:
 	return Level02Data.springs() if is_crossing() else Level01Data.springs()
 
 static func crystals() -> Array[Vector2]:
+	if is_desert():
+		return _data("level_desert_data").crystals()
 	if is_swamp():
 		return _data("level_swamp_data").crystals()
 	if is_sea():
@@ -502,6 +539,8 @@ static func crystals() -> Array[Vector2]:
 
 ## Where the pit sensor goes. Wide enough to catch the whole active stage.
 static func pit_centre_x() -> float:
+	if is_desert():
+		return 2700.0
 	if is_swamp():
 		return 4200.0
 	if is_sea():

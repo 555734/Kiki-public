@@ -240,6 +240,11 @@ func veil_field() -> VeilField:
 
 func _make_enemy(spec: Dictionary) -> Node2D:
 	match String(spec.get("type", "")):
+		"desert_enemy":
+			var d := DesertEnemy.new()
+			d.kind = String(spec.get("kind", "scarab"))
+			d.patrol_half_width = float(spec.get("patrol", 150.0))
+			return d
 		"chaser":
 			var c = BlackHoleChaserScript.new()
 			c.runner = runner

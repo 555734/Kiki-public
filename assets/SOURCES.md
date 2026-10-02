@@ -339,9 +339,23 @@ a broken tower. All four are drawn in code now -- `src/render/decor.gd` and
   raft, and falling floor are drawn at runtime. No image from the owner's
   screenshot is copied into the game.
 
+## Stage 1-6 "THE SANDGLASS RUINS" (`stage_1_6/`)
+
+- `concept_board.png` and `concept_board_v2.png` were generated with OpenAI's
+  built-in image generation tool. The second board uses the existing coast and
+  marsh stage art as style references. They are design references only.
+- `distant_desert.png` was generated with the same tool from the approved v2
+  direction, then simplified to distant mesas and open dunes for gameplay
+  readability. It contains no copied art from the other stages.
+- Sandstone terrain, bridge, desert plants and all four enemy silhouettes are
+  drawn at runtime from original shapes in `src/render/` and
+  `src/entities/enemies/desert_enemy_visual.gd`.
+- `menu/card_1_6.png` is a screenshot of the implemented stage, captured by
+  `test/desert_card_capture.tscn`.
+
 ## Stage-select cards (`menu/`)
 
-`card_1_1.png` 〜 `card_1_5.png` are **not** a hand-over. They are screenshots
+`card_1_1.png` 〜 `card_1_6.png` are **not** a hand-over. They are screenshots
 of the stages in this repository, rendered by `tools/capture_stage_cards.gd`
 through a 432x840 window so the picture matches the card's shape instead of
 being a centre crop of a 16:9 frame. Everything in them is art already

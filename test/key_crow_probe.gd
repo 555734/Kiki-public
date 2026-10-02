@@ -20,6 +20,7 @@ func run() -> void:
 	var sides := {
 		"1-1": Stage.Which.GREENFIELD, "1-2": Stage.Which.HORROR,
 		"1-4": Stage.Which.SEA, "1-5": Stage.Which.SWAMP,
+		"1-6": Stage.Which.DESERT,
 	}
 	for label in sides:
 		Stage.use(sides[label])

@@ -41,6 +41,9 @@ func _ready() -> void:
 	Stage.use(Stage.Which.SWAMP)
 	check(Stage.stage_number() == "1-5", "the poison marsh is selectable as 1-5")
 	check(Stage.stage_name() == "THE POISON MARSH", "and it is the one it says it is")
+	Stage.use(Stage.Which.DESERT)
+	check(Stage.stage_number() == "1-6", "the desert is selectable as 1-6")
+	check(Stage.stage_name() == "THE SANDGLASS RUINS", "and it is the one it says it is")
 	Stage.use(Stage.Which.GREENFIELD)
 	check(Stage.stage_number() == "1-1", "1-1 remains selectable after the others")
 
@@ -65,14 +68,14 @@ func _ready() -> void:
 			var seen := _visible_stages(panel)
 			for label in ["1-1", "1-2", "1-3"]:
 				check(seen.has(label), "first page has a %s stage button" % label)
-			for label in ["1-4", "1-5"]:
+			for label in ["1-4", "1-5", "1-6"]:
 				check(not seen.has(label), "first page does not show %s" % label)
 			check(panel._stage_view.get_child_count() == 3,
 				"first page fits exactly three stage slots")
 			panel._change_stage_page(1)
 			await get_tree().process_frame
 			seen = _visible_stages(panel)
-			for label in ["1-4", "1-5"]:
+			for label in ["1-4", "1-5", "1-6"]:
 				check(seen.has(label), "second page has a %s stage button" % label)
 			for label in ["1-1", "1-2", "1-3"]:
 				check(not seen.has(label), "second page does not show %s" % label)

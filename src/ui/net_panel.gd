@@ -22,6 +22,7 @@ var _stage_1_2: Button = null
 var _stage_1_3: Button = null
 var _stage_1_4: Button = null
 var _stage_1_5: Button = null
+var _stage_1_6: Button = null
 var _local: Button = null
 const STAGES_PER_PAGE := 3
 var _stage_page: int = 0
@@ -101,7 +102,8 @@ func _ready() -> void:
 	_screen_host.add_theme_constant_override("margin_right", 54)
 	_screen_host.add_theme_constant_override("margin_bottom", 24)
 	_root.add_child(_screen_host)
-	if Stage.current() == Stage.Which.SEA or Stage.current() == Stage.Which.SWAMP:
+	if Stage.current() == Stage.Which.SEA or Stage.current() == Stage.Which.SWAMP \
+			or Stage.current() == Stage.Which.DESERT:
 		_stage_page = 1
 
 	if _open_play_after_reload:
@@ -128,6 +130,7 @@ func _clear_screen() -> void:
 	_stage_1_3 = null
 	_stage_1_4 = null
 	_stage_1_5 = null
+	_stage_1_6 = null
 	_stage_view = null
 	_swipe_active = false
 	_local = null
@@ -136,7 +139,7 @@ func _clear_screen() -> void:
 	_status = null
 	_cancel = null
 
-## The five stages the menu offers, in order, with the art each card shows.
+## The six stages the menu offers, in order, with the art each card shows.
 ##
 ## The pictures are rendered from the stages themselves by
 ## `tools/capture_stage_cards.gd` -- through a portrait window, because a card
@@ -165,6 +168,10 @@ func _cards() -> Array[Dictionary]:
 			"blurb": "毒沼の足場を渡り岸の門へ",
 			"which": Stage.Which.SWAMP, "accent": Color("75b72b"),
 			"art": preload("res://assets/menu/card_1_5.png"), "crop_top": 350.0},
+		{"number": "1-6", "name": "THE SANDGLASS RUINS",
+			"blurb": "奇妙な敵が待つ砂漠の遺跡へ",
+			"which": Stage.Which.DESERT, "accent": Color("e6a44b"),
+			"art": preload("res://assets/menu/card_1_6.png"), "crop_top": 180.0},
 	]
 
 func _show_stage_screen() -> void:
@@ -202,6 +209,7 @@ func _show_stage_screen() -> void:
 			Stage.Which.SKYWARD_RUINS: _stage_1_3 = card
 			Stage.Which.SEA: _stage_1_4 = card
 			Stage.Which.SWAMP: _stage_1_5 = card
+			Stage.Which.DESERT: _stage_1_6 = card
 	for i in range(STAGES_PER_PAGE - row.get_child_count()):
 		var spacer := Control.new()
 		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -715,7 +723,8 @@ func _card_for(which: int) -> Dictionary:
 	return {}
 
 func _refresh_stage_buttons() -> void:
-	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4, _stage_1_5]:
+	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4, _stage_1_5,
+			_stage_1_6]:
 		if button == null:
 			continue
 		var which: int = int(button.get_meta("which"))

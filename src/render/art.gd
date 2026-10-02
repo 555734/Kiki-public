@@ -122,6 +122,7 @@ const MANIFEST := {
 	# mid-detail swamp concept board. Ground and poison are drawn in world space.
 	"swamp_panorama": "stage_1_5/distant_swamp.png",
 	"swamp_props_atlas": "stage_1_5/props_atlas.png",
+	"desert_panorama": "stage_1_6/distant_desert.png",
 	# synthesised entities
 	"flyer": "entities/flyer_bird.png",
 	"turret": "entities/turret.png",
@@ -206,6 +207,10 @@ static func _prefer(keys: Array) -> String:
 	return chosen
 
 static func _resolved_key(key: String) -> String:
+	if Stage.is_desert():
+		match key:
+			"parallax": return "desert_panorama"
+			_: return key
 	if Stage.is_swamp():
 		match key:
 			"parallax": return "swamp_panorama"
