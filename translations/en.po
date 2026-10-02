@@ -801,3 +801,60 @@ msgstr "No response"
 
 msgid "時間切れ"
 msgstr "Timed out"
+
+msgid "メニュー"
+msgstr "Menu"
+
+msgid "▶  ゲームに戻る"
+msgstr "▶  Resume"
+
+msgid "⌂  ホームに戻る（ステージ選択）"
+msgstr "⌂  Back to home (stage select)"
+
+msgid "オンライン中は一時停止しません。\nホームに戻ると接続が終わります。"
+msgstr "Online play does not pause.\nGoing home ends the connection."
+
+msgid "★  完全版を購入（全ステージ）"
+msgstr "★  Buy the full game (all stages)"
+
+msgid "✓  完全版 購入済み"
+msgstr "✓  Full game owned"
+
+msgid "メロスゲーム 完全版"
+msgstr "Melos Game — Full Game"
+
+msgid "1-3 / 1-4 / 1-5 を含む全ステージが遊べます（買い切り・1回のみ）"
+msgstr "Unlocks every stage, including 1-3 / 1-4 / 1-5 (one-time purchase)"
+
+msgid "ストアの処理が終わるまでお待ちください。"
+msgstr "Please wait for the store to finish."
+
+msgid "Cross the poison marsh"
+msgstr "Cross the poison marsh"
+
+msgid "Cross together"
+msgstr "Cross together"
+
+msgid "Reach the village gate"
+msgstr "Reach the village gate"
+
+msgid "Reach the beacon"
+msgstr "Reach the beacon"
+
+msgid "Measure everything"
+msgstr "Measure everything"
+
+msgid "Reach the lighthouse flag"
+msgstr "Reach the lighthouse flag"
+
+msgid "Bring the Keeper down"
+msgstr "Bring the Keeper down"
+
+msgid "Find the Ancient Gate"
+msgstr "Find the Ancient Gate"
+
+msgid "Talk each other through"
+msgstr "Talk each other through"
+
+msgid "Reach the summit gate"
+msgstr "Reach the summit gate"

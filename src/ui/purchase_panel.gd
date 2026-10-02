@@ -27,6 +27,9 @@ signal join_requested
 var stage_number: String = ""
 var stage_name: String = ""
 var price_text: String = ""
+## False when opened from the home screen's 完全版 button rather than from a
+## locked stage: with no stage chosen there is nothing to take to a friend.
+var offer_friend: bool = true
 
 var _status: Label = null
 var _buy: Button = null
@@ -65,10 +68,16 @@ func _ready() -> void:
 	box.add_theme_constant_override("separation", 10)
 	margin.add_child(box)
 
-	box.add_child(NetPanel.heading("%s  %s" % [stage_number, tr(stage_name)], 27,
-		Color("073f89")))
-	box.add_child(NetPanel.heading("このステージは完全版に入っています", 19,
-		Color("37638d")))
+	if stage_number.is_empty():
+		box.add_child(NetPanel.heading("メロスゲーム 完全版", 27, Color("073f89")))
+		box.add_child(NetPanel.heading(
+			"1-3 / 1-4 / 1-5 を含む全ステージが遊べます（買い切り・1回のみ）", 19,
+			Color("37638d")))
+	else:
+		box.add_child(NetPanel.heading("%s  %s" % [stage_number, tr(stage_name)], 27,
+			Color("073f89")))
+		box.add_child(NetPanel.heading("このステージは完全版に入っています", 19,
+			Color("37638d")))
 	box.add_child(_spacer(6))
 
 	_buy = NetPanel.action_button(_price_label(), func() -> void:
@@ -76,15 +85,16 @@ func _ready() -> void:
 	_buy.custom_minimum_size.y = 62
 	box.add_child(_buy)
 
-	box.add_child(NetPanel.action_button("👥  購入済みの友達と遊ぶ", func() -> void:
-		join_requested.emit()))
-	var friend_help := NetPanel.heading(
-		"友達が完全版を持っていれば、その人の部屋に入るだけで\n"
-		+ "全ステージを一緒に遊べます。購入は要りません。", 18, Color("416b91"))
-	friend_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	friend_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(friend_help)
-	box.add_child(_spacer(4))
+	if offer_friend:
+		box.add_child(NetPanel.action_button("👥  購入済みの友達と遊ぶ", func() -> void:
+			join_requested.emit()))
+		var friend_help := NetPanel.heading(
+			"友達が完全版を持っていれば、その人の部屋に入るだけで\n"
+			+ "全ステージを一緒に遊べます。購入は要りません。", 18, Color("416b91"))
+		friend_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		friend_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(friend_help)
+		box.add_child(_spacer(4))
 
 	box.add_child(NetPanel.action_button("↺  購入を復元する", func() -> void:
 		restore_requested.emit()))

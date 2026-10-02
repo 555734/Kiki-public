@@ -82,7 +82,7 @@ func _stage_plate(view: Vector2) -> void:
 		obj + Vector2(Hud.SKEW, 0), obj + Vector2(obj_w, 0),
 		obj + Vector2(obj_w, 30), obj + Vector2(0, 30),
 	]), _dim(Color(0.05, 0.10, 0.16, 0.7), fade))
-	draw_string(font, obj + Vector2(Hud.SKEW + 6.0, 21.0), Stage.objective(),
+	draw_string(font, obj + Vector2(Hud.SKEW + 6.0, 21.0), tr(Stage.objective()),
 		HORIZONTAL_ALIGNMENT_RIGHT, obj_w - Hud.SKEW - 44.0, 15,
 		_dim(Color(0.88, 0.94, 1.0), fade))
 	# The diamond marker from the mockup. It keeps pulsing at full strength --
@@ -225,6 +225,7 @@ func _look_button(centre: Vector2, radius: float, forward: bool, lit: bool) -> v
 ## there is room and where you are looking for them.
 func _ability_button(centre: Vector2, radius: float, slot: int, label: String,
 		cost: float, icon: String, held: bool) -> void:
+	label = tr(label)
 	var font := Art.font()
 	var accent := Balance.C_ACCENT
 	var affordable: bool = hud.gauge() >= cost

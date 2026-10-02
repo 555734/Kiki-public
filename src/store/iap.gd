@@ -25,6 +25,14 @@ signal changed
 
 var _backend: Node = null
 var _price: String = ""
+## True while a purchase or restore is talking to the store. The plugin has one
+## event queue and a waiter discards what it is not waiting for, so a second
+## operation started meanwhile -- the automatic restore below, fired by the
+## same EOS login a purchase waits for -- would swallow the first one's answer.
+var _busy: bool = false
+## A price request in flight. Same single queue, same problem, so a purchase
+## waits for it to finish before asking the store for anything.
+var _fetching: bool = false
 
 func _ready() -> void:
 	_backend = _make_backend()
@@ -45,7 +53,7 @@ func _on_eos_state(state: int, _detail: String) -> void:
 	await renew_if_stale()
 	# A token that was just dropped for naming a different device is exactly
 	# the case "restore" exists for, and it can be done without asking.
-	if Entitlement.level() == Entitlement.Level.FREE and available():
+	if Entitlement.level() == Entitlement.Level.FREE and available() and not _busy:
 		await restore()
 
 func available() -> bool:
@@ -65,14 +73,56 @@ func product_id() -> String:
 func purchase() -> String:
 	if not available():
 		return "このビルドではストアに接続できません。"
+	if _busy:
+		return "ストアの処理が終わるまでお待ちください。"
+	_busy = true
+	await _price_settled()
+	var result := await _purchase_now()
+	_busy = false
+	return result
+
+func _purchase_now() -> String:
+	# The unlock is bound to the EOS ProductUserId, so the store is not asked
+	# to take any money until that id exists. EOS is warmed at launch, but a
+	# player who taps 購入 on the first screen -- which is what App Review
+	# does -- can get there first, and a purchase that the server can then not
+	# redeem is a charge with nothing to show for it.
+	if not await _ready_to_redeem():
+		return "オンラインの準備ができていません。通信を確認してもう一度お試しください。"
 	var receipt: Dictionary = await _backend.purchase(PRODUCT_ID)
 	return await _redeem(receipt)
 
 func restore() -> String:
 	if not available():
 		return "このビルドではストアに接続できません。"
+	if _busy:
+		return "ストアの処理が終わるまでお待ちください。"
+	_busy = true
+	await _price_settled()
+	var result := await _restore_now()
+	_busy = false
+	return result
+
+func _restore_now() -> String:
+	if not await _ready_to_redeem():
+		return "オンラインの準備ができていません。通信を確認してもう一度お試しください。"
 	var receipt: Dictionary = await _backend.restore(PRODUCT_ID)
 	return await _redeem(receipt)
+
+func _price_settled() -> void:
+	while _fetching:
+		await changed
+
+func _ready_to_redeem() -> bool:
+	if not EosRuntime.product_user_id().is_empty():
+		return true
+	if not await EosRuntime.ensure_ready():
+		return false
+	var puid := EosRuntime.product_user_id()
+	if puid.is_empty():
+		return false
+	Entitlement.bind_to(puid)
+	return true
 
 ## Quietly top up a token that is getting old. Called at launch; never blocks
 ## anything and never takes an unlock away on its own -- a device that cannot
@@ -138,10 +188,20 @@ func _finish(pending: String) -> void:
 		_backend.finish(pending)
 
 func _refresh_price() -> void:
-	if not available():
+	if not available() or _fetching:
 		return
+	_fetching = true
 	_price = await _backend.price_of(PRODUCT_ID)
+	_fetching = false
 	changed.emit()
+
+## The price, asking the store again if the launch-time request came back
+## empty (no network yet, or StoreKit not ready). Without this a purchase
+## screen opened early said "loading" for ever.
+func fetch_price() -> String:
+	if _price.is_empty() and available() and not _busy:
+		await _refresh_price()
+	return _price
 
 ## One backend per platform, and none anywhere else.
 ##

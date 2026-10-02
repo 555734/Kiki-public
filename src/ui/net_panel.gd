@@ -17,6 +17,7 @@ var _code: LineEdit = null
 var _root: Control = null
 var _screen_host: MarginContainer = null
 var _logo: Label = null
+var _full_game: Button = null
 var _stage_1_1: Button = null
 var _stage_1_2: Button = null
 var _stage_1_3: Button = null
@@ -101,6 +102,20 @@ func _ready() -> void:
 	_screen_host.add_theme_constant_override("margin_right", 54)
 	_screen_host.add_theme_constant_override("margin_bottom", 24)
 	_root.add_child(_screen_host)
+
+	# The full game is for sale from the first screen, not only from behind a
+	# locked stage card. App Review could not find the in-app purchase in
+	# 0.9.0: tapping a card with a padlock on it is not something a reviewer,
+	# or a player, can be expected to guess.
+	_full_game = NetPanel.action_button("", func() -> void: _show_purchase(-1))
+	_full_game.name = "FullGame"
+	_full_game.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_full_game.offset_left = -394.0
+	_full_game.offset_right = -54.0
+	_full_game.offset_top = 30.0
+	_full_game.offset_bottom = 90.0
+	_root.add_child(_full_game)
+	_refresh_full_game()
 	if Stage.current() == Stage.Which.SEA or Stage.current() == Stage.Which.SWAMP:
 		_stage_page = 1
 
@@ -613,6 +628,8 @@ func _select_stage(which: int) -> void:
 
 var _purchase: PurchasePanel = null
 
+## `which` < 0 is the home screen's 完全版 button: no stage in particular, so
+## there is no stage to carry into a friend's room either.
 func _show_purchase(which: int) -> void:
 	if _purchase != null and is_instance_valid(_purchase):
 		return
@@ -620,6 +637,7 @@ func _show_purchase(which: int) -> void:
 	_purchase = PurchasePanel.new()
 	_purchase.stage_number = String(info.get("number", ""))
 	_purchase.stage_name = String(info.get("name", ""))
+	_purchase.offer_friend = which >= 0
 	_purchase.price_text = Iap.price_text()
 	_purchase.closed.connect(func() -> void: _purchase = null)
 	_purchase.buy_requested.connect(_on_buy)
@@ -629,6 +647,11 @@ func _show_purchase(which: int) -> void:
 	if not Iap.available():
 		_purchase.say(tr("このビルドではストアに接続できません。")
 			+ tr("購入済みの友達の部屋には、このままでも入れます。"))
+	elif Iap.price_text().is_empty():
+		var panel := _purchase
+		var price: String = await Iap.fetch_price()
+		if is_instance_valid(panel) and not price.is_empty():
+			panel.set_price(price)
 
 ## The middle door. It does not unlock anything -- it lets the player carry a
 ## stage they cannot host as far as the room-code field, where the unlock will
@@ -683,7 +706,15 @@ func _card_for(which: int) -> Dictionary:
 			return info
 	return {}
 
+func _refresh_full_game() -> void:
+	if _full_game == null or not is_instance_valid(_full_game):
+		return
+	var owned := Entitlement.unlocked()
+	_full_game.text = tr("✓  完全版 購入済み") if owned else tr("★  完全版を購入（全ステージ）")
+	_full_game.disabled = owned
+
 func _refresh_stage_buttons() -> void:
+	_refresh_full_game()
 	for button in [_stage_1_1, _stage_1_2, _stage_1_3, _stage_1_4, _stage_1_5]:
 		if button == null:
 			continue

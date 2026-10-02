@@ -18,3 +18,33 @@ msgstr "陽光の海岸"
 
 msgid "THE POISON MARSH"
 msgstr "毒の沼地"
+
+msgid "Cross the poison marsh"
+msgstr "毒の沼地を渡りきれ"
+
+msgid "Cross together"
+msgstr "ふたりで越えよう"
+
+msgid "Reach the village gate"
+msgstr "村の門をめざせ"
+
+msgid "Reach the beacon"
+msgstr "のろしをめざせ"
+
+msgid "Measure everything"
+msgstr "すべてを測れ"
+
+msgid "Reach the lighthouse flag"
+msgstr "灯台の旗をめざせ"
+
+msgid "Bring the Keeper down"
+msgstr "番人を倒せ"
+
+msgid "Find the Ancient Gate"
+msgstr "古代の門をさがせ"
+
+msgid "Talk each other through"
+msgstr "声をかけあって進め"
+
+msgid "Reach the summit gate"
+msgstr "頂上の門をめざせ"

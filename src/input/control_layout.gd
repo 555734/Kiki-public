@@ -93,6 +93,17 @@ const STICK_TRAVEL_FRACTION := 0.80
 const STICK_DEADZONE_FRACTION := 0.11
 const STICK_JUMP_FRACTION := 0.52
 
+## Controls are sized in units of the screen height, which is right for a phone
+## and wrong for a tablet. With `aspect=expand` a 4:3 iPad is a TALLER canvas
+## than a 16:9 phone, so every button grew with it -- and the screen was a
+## larger physical one to begin with. App Review rejected exactly that: on an
+## iPad Air the stick, JUMP and both tools covered the ground being played on.
+## The unit is therefore never taller than a 16:9 canvas of the same width, and
+## tablet-shaped screens take a further step down. Phones (16:9 and wider) are
+## unchanged.
+const TABLET_ASPECT := 1.6
+const TABLET_SCALE := 0.85
+
 ## A tiny visual/touch buffer inside Apple's reported safe rectangle. The safe
 ## area is already conservative; this just keeps anti-aliased rings off its edge.
 const SAFE_PAD := 4.0
@@ -105,7 +116,7 @@ const SAFE_PAD := 4.0
 static func layout(mode: String, view: Vector2, mirrored: bool = false) -> Dictionary:
 	_ensure_loaded()
 	var out: Dictionary = {}
-	var u := view.y
+	var u := unit(view)
 	var right := Vector2(view.x, view.y)
 	var left := Vector2(0.0, view.y)
 
@@ -157,6 +168,31 @@ static func layout(mode: String, view: Vector2, mirrored: bool = false) -> Dicti
 		_clamp_layout_to_safe_area(out, _ios_safe_rect(view))
 	return out
 
+## The length every default position and radius is measured in. See
+## TABLET_ASPECT.
+static func unit(view: Vector2) -> float:
+	var u := minf(view.y, view.x * 9.0 / 16.0)
+	if view.y > 0.0 and view.x / view.y < TABLET_ASPECT:
+		u *= TABLET_SCALE
+	return u
+
+## The in-game menu button (pause / back to home), top-left, inside the safe
+## area. Not part of layout(): it is a real Control, not a painted thumb
+## control, and the layout editor has no business moving it. InputHub asks
+## this so a finger on it never also lands in the world.
+const MENU_SIZE := 0.085
+const MENU_MARGIN := 0.025
+
+static func menu_rect(view: Vector2) -> Rect2:
+	var u := unit(view)
+	var side := maxf(48.0, u * MENU_SIZE)
+	var at := Vector2(u * MENU_MARGIN, u * MENU_MARGIN)
+	if OS.get_name() == "iOS":
+		var safe := _ios_safe_rect(view)
+		at.x = maxf(at.x, safe.position.x + SAFE_PAD)
+		at.y = maxf(at.y, safe.position.y + SAFE_PAD)
+	return Rect2(at, Vector2(side, side))
+
 ## Convert Godot's display-pixel safe rectangle to the current canvas/view size.
 ## `aspect=expand` preserves the same aspect ratio, so independent x/y fractions
 ## correctly account for Retina resolution and different iPhone dimensions.
@@ -200,7 +236,7 @@ static func _clamp_layout_to_safe_area(places: Dictionary, safe: Rect2) -> void:
 static func _shared_runner(view: Vector2) -> Dictionary:
 	var span := SHARED_MARGIN + STICK_CAPTURE + 1.0 + SHARED_GAP \
 		+ 2.0 * JUMP_R + SHARED_MARGIN
-	var r := minf(view.y * STICK.z, (DIVIDER * view.x) / span)
+	var r := minf(unit(view) * STICK.z, (DIVIDER * view.x) / span)
 	var anchor := Vector2(r * (SHARED_MARGIN + STICK_CAPTURE),
 		view.y - r * (SHARED_MARGIN + STICK_CAPTURE))
 	var button_x := anchor.x + r * (STICK_CAPTURE + SHARED_GAP + JUMP_R)

@@ -77,6 +77,24 @@ if [ -z "$PROJ" ]; then
 	exit 1
 fi
 
+# Godot links an iOS plugin only when the preset says plugins/<name>=true, and
+# the option defaults to false. 0.9.0 (387632) went to App Review with the
+# StoreKit plugin built, installed -- and not linked: Iap.available() was false
+# on the device and Apple could not find the in-app purchase. Refuse to upload
+# a build like that again.
+if [ -f ios/plugins/inappstore.gdip ]; then
+	# The exporter writes each enabled plugin's init call into dummy.cpp.
+	if ! grep -rqs --include='*.cpp' "register_inappstore_types" "$STAGE"; then
+		echo "The StoreKit plugin is installed but was not linked into the Xcode project."
+		echo "Check plugins/InAppStore=true in the iOS preset of export_presets.cfg."
+		exit 1
+	fi
+	echo "   StoreKit plugin linked"
+else
+	echo "ios/plugins/inappstore.gdip is missing: this build would have no in-app purchase."
+	exit 1
+fi
+
 INFO_PLIST="$(find "$STAGE" -maxdepth 3 -name '*-Info.plist' -print -quit)"
 if [ -n "$INFO_PLIST" ]; then
 	python3 tools/ios-plist-clean.py "$INFO_PLIST"

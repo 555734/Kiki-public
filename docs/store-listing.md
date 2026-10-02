@@ -185,8 +185,17 @@ No ads. No subscription. No stamina.
 https://555734.github.io/Kiki-public/privacy-policy.html
 ```
 
-両ストアの「プライバシーポリシー」欄に同じものを入れる。サポートURLは
-`https://github.com/555734/Kiki-public` で足りる。
+両ストアの「プライバシーポリシー」欄に同じものを入れる。
+
+**サポートURL**（App Store Connect の「サポートURL」欄）:
+
+```
+https://555734.github.io/Kiki-public/support.html
+```
+
+リポジトリの URL（`https://github.com/555734/Kiki-public`）は 0.9.0 の審査で
+Guideline 1.5 として却下された。問い合わせ先と FAQ のあるページでなければ
+ならない。中身は `docs/support.html`。
 
 中身は `docs/privacy-policy.html`（正本は `docs/privacy-policy.md`。両方を
 直すこと ―― HTML のほうが公開される)。`docs/.nojekyll` を置いてあるので

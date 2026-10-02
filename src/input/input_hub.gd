@@ -602,6 +602,10 @@ func _touch_down(index: int, position: Vector2) -> void:
 		_has_touch = true
 	var size := _screen_size()
 	var mirrored := not runner_on_left
+	# The menu button is a real Control and gets the emulated mouse press; the
+	# raw touch still arrives here, and must not also become a shot or a slab.
+	if ControlLayout.menu_rect(size).grow(6.0).has_point(position):
+		return
 
 	if solo_role == "guardian":
 		_route_guardian_only(index, position, size, mirrored)
