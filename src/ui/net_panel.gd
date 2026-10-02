@@ -657,7 +657,8 @@ func _show_purchase(which: int) -> void:
 	_purchase.join_requested.connect(func() -> void: _on_join_as_guest(which))
 	_root.add_child(_purchase)
 	if not Iap.available():
-		_purchase.say(tr("このビルドではストアに接続できません。")
+		_purchase.set_store_available(false)
+		_purchase.say(tr(Iap.unavailable_message()) + "\n"
 			+ tr("購入済みの友達の部屋には、このままでも入れます。"))
 
 ## The middle door. It does not unlock anything -- it lets the player carry a
@@ -675,7 +676,7 @@ func _on_buy() -> void:
 	if _purchase == null or not is_instance_valid(_purchase):
 		return
 	if not Iap.available():
-		_purchase.say("このビルドではストアに接続できません。")
+		_purchase.say(Iap.unavailable_message())
 		return
 	_purchase.set_busy(true)
 	_purchase.say("ストアに接続しています…")
@@ -686,7 +687,7 @@ func _on_restore() -> void:
 	if _purchase == null or not is_instance_valid(_purchase):
 		return
 	if not Iap.available():
-		_purchase.say("このビルドではストアに接続できません。")
+		_purchase.say(Iap.unavailable_message())
 		return
 	_purchase.set_busy(true)
 	_purchase.say("購入履歴を確認しています…")

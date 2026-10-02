@@ -31,6 +31,8 @@ var price_text: String = ""
 
 var _status: Label = null
 var _buy: Button = null
+var _restore: Button = null
+var _store_available := true
 
 func _ready() -> void:
 	# set_anchors_AND_OFFSETS: anchors alone leave the offsets where they were,
@@ -87,8 +89,9 @@ func _ready() -> void:
 	box.add_child(friend_help)
 	box.add_child(_spacer(4))
 
-	box.add_child(NetPanel.action_button("↺  購入を復元する", func() -> void:
-		restore_requested.emit()))
+	_restore = NetPanel.action_button("↺  購入を復元する", func() -> void:
+		restore_requested.emit())
+	box.add_child(_restore)
 	var restore_help := NetPanel.heading("機種変更や再インストールのあとはこちら", 18,
 		Color("416b91"))
 	restore_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -129,17 +132,27 @@ func _price_label() -> String:
 func set_price(text: String) -> void:
 	price_text = text
 	if _buy != null and is_instance_valid(_buy):
-		_buy.text = _price_label()
+		_buy.text = _price_label() if _store_available else tr("▶  このビルドでは購入できません")
 
 func say(message: String) -> void:
 	if _status != null and is_instance_valid(_status):
 		_status.text = tr(message)
+
+func set_store_available(value: bool) -> void:
+	_store_available = value
+	if _buy != null and is_instance_valid(_buy):
+		_buy.disabled = not value
+		_buy.text = _price_label() if value else tr("▶  このビルドでは購入できません")
+	if _restore != null and is_instance_valid(_restore):
+		_restore.disabled = not value
 
 ## Purchases can be slow and can be cancelled. While one is in flight nothing
 ## else on this panel may be pressed, or a second tap buys a second time.
 func set_busy(busy: bool) -> void:
 	for node in find_children("*", "Button", true, false):
 		(node as Button).disabled = busy
+	if not busy and not _store_available:
+		set_store_available(false)
 
 func _spacer(h: int) -> Control:
 	var c := Control.new()

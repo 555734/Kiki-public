@@ -169,6 +169,12 @@ msgstr "▶  Buy full game (loading price…)"
 msgid "このビルドではストアに接続できません。"
 msgstr "This build cannot connect to the store."
 
+msgid "このAPKは操作確認用です。完全版はGoogle Play版で購入してください。"
+msgstr "This APK is for gameplay testing. Buy the full game from the Google Play version."
+
+msgid "▶  このビルドでは購入できません"
+msgstr "▶  Purchases unavailable in this build"
+
 msgid "購入が見つかりませんでした。別のアカウントで購入した場合は、\nそのアカウントでストアにログインしてからもう一度お試しください。"
 msgstr "No purchase found. If you bought it with another account,\nsign in to that account and try again."
 

@@ -369,6 +369,13 @@ iOS の弱さは設計で吸収してある: **復元の正はサーバ側のキ
 
 ## 9. テスト
 
+GitHub Actions の配布 APK は操作確認用で、パッケージ名は
+`com.sasakiful.sidesky.test`（GLES3 版は `com.sasakiful.sidesky.gles3`）。
+Play Console の `full_unlock` は `com.sasakiful.melos` に登録するため、
+この APK からは購入できない。購入・復元の実機確認には、`Android Play AAB`
+ワークフローで作った AAB を Play のテストトラックに配布して使用する。
+配布 APK では購入ボタンを無効化し、Play 版が必要な理由を画面に表示する。
+
 ### 自動（ネットワーク・ストア不要）
 
 ```bash

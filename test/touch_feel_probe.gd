@@ -39,8 +39,31 @@ func _ready() -> void:
 	Options._cache["stick_jump"] = false
 
 	var jump: Dictionary = ControlLayout.layout(hub.layout_mode(), size, false)["jump"]
+	var jump_radius := float(jump["radius"])
+	var outer_tap: Vector2 = jump["center"] + Vector2(jump_radius * 1.1, 0.0)
+	check(ControlLayout.hit("runner", size, false, outer_tap) == "jump",
+		"runner jump accepts a thumb just outside its painted ring")
+	check(ControlLayout.hit("runner", size, false,
+		jump["center"] + Vector2(jump_radius * 1.21, 0.0)) != "jump",
+		"jump capture does not spread indefinitely into the playfield")
+	var shared := ControlLayout.layout("shared", size, false)
+	var shared_jump: Dictionary = shared["jump"]
+	var shared_radius := float(shared_jump["radius"])
+	check(size.x - float(shared_jump["center"].x) - shared_radius >= size.y * 0.03
+		and size.y - float(shared_jump["center"].y) - shared_radius >= size.y * 0.08,
+		"shared jump stays clear of the screen edges")
+	check(ControlLayout.hit("shared", size, false,
+		shared_jump["center"] + Vector2(shared_radius * 1.1, 0.0)) == "jump",
+		"shared jump accepts an outer-ring tap")
+	check(ControlLayout.hit("shared", size, true,
+		Vector2(size.x - float(shared_jump["center"].x) - shared_radius * 1.1,
+			float(shared_jump["center"].y))) == "jump",
+		"mirrored jump accepts the same outer-ring tap")
+	check(ControlLayout.hit("shared", size, false, shared["slot_1"]["center"]) == "slot_1"
+		and ControlLayout.hit("shared", size, false, shared["slot_3"]["center"]) == "slot_3",
+		"larger jump target leaves both guardian tool buttons usable")
 	var release_before := hub.jump_release_sequence
-	hub._touch_down(71, jump["center"])
+	hub._touch_down(71, outer_tap)
 	check(hub.take_jump() and hub.jump_held, "jump reacts on finger down")
 	check(hub.jump_press_release_sequence == release_before,
 		"jump press snapshots the current aggregate release sequence")

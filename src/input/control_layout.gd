@@ -64,7 +64,7 @@ const GUARDIAN_LAYOUT_VERSION := 3
 ## go. (It used to be stick and jump on the left and the two tools on an arc
 ## at the right; the star battle tried this arrangement first and it stayed.)
 const SHARED_RIGHT := {
-	"jump":   Vector3(0.12, 0.17, 0.110),
+	"jump":   Vector3(0.155, 0.20, 0.115),
 	"slot_3": Vector3(0.13, 0.43, 0.090),
 	"slot_1": Vector3(0.36, 0.15, 0.090),
 }
@@ -75,7 +75,7 @@ const SHARED_LAYOUT_VERSION := 2
 ## The runner alone has the whole screen, so their actions go to the far corner
 ## and are held with the other thumb.
 const RUNNER_SOLO := {
-	"jump":   Vector3(0.22, 0.20, 0.105),
+	"jump":   Vector3(0.22, 0.20, 0.115),
 	"ping":   Vector3(0.44, 0.12, 0.058),
 }
 
@@ -92,6 +92,9 @@ const JUMP_R := 0.58
 ## The stick, as a fraction of the height from the bottom-LEFT corner.
 const STICK := Vector3(0.21, 0.24, 0.150)
 const STICK_CAPTURE := 1.15
+## A thumb landing just outside the painted jump ring still counts. The
+## shared-screen default leaves room between this target and both tool buttons.
+const JUMP_CAPTURE := 1.20
 const STICK_TRAVEL_FRACTION := 0.80
 const STICK_DEADZONE_FRACTION := 0.11
 const STICK_JUMP_FRACTION := 0.52
@@ -225,8 +228,9 @@ static func hit(mode: String, view: Vector2, mirrored: bool, at: Vector2) -> Str
 	var best_kind := ""
 	for id in places:
 		var place: Dictionary = places[id]
-		if at.distance_to(place["center"]) > float(place["radius"]) \
-				* (STICK_CAPTURE if place["kind"] == "stick" else 1.0):
+		var capture := STICK_CAPTURE if place["kind"] == "stick" else \
+			JUMP_CAPTURE if id == "jump" else 1.0
+		if at.distance_to(place["center"]) > float(place["radius"]) * capture:
 			continue
 		if best == "" or (best_kind == "stick" and place["kind"] == "button"):
 			best = String(id)

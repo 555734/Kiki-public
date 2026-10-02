@@ -12,6 +12,17 @@ func _ready() -> void:
 		purchase.stage_name = "THE POISON MARSH"
 		purchase.price_text = "$9.99"
 		add_child(purchase)
+		purchase.set_store_available(false)
+		var buy: Button = purchase.get("_buy")
+		var restore: Button = purchase.get("_restore")
+		if not buy.disabled or not restore.disabled:
+			failures.append("%s: unavailable store still offers purchase or restore" % locale)
+		if buy.text != TranslationServer.translate("▶  このビルドでは購入できません"):
+			failures.append("%s: unavailable purchase button still shows a loading price" % locale)
+		purchase.set_busy(true)
+		purchase.set_busy(false)
+		if not buy.disabled or not restore.disabled:
+			failures.append("%s: store buttons re-enabled after another action" % locale)
 		await get_tree().process_frame
 		var cards := purchase.find_children("*", "PanelContainer", true, false)
 		if cards.is_empty():

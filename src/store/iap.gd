@@ -51,6 +51,11 @@ func _on_eos_state(state: int, _detail: String) -> void:
 func available() -> bool:
 	return _backend != null and _backend.available()
 
+func unavailable_message() -> String:
+	if OS.has_feature("android") and not OS.has_feature("play_billing"):
+		return "このAPKは操作確認用です。完全版はGoogle Play版で購入してください。"
+	return "このビルドではストアに接続できません。"
+
 ## The store's own words for the price, in the player's own currency, or ""
 ## until the store has answered. Never a number from this repository: a build
 ## cannot know a regional price, and one hard-coded figure is how a store
@@ -152,6 +157,10 @@ func _refresh_price() -> void:
 ## from an addon, so a checkout that has never run tools/install-iap-plugins.sh
 ## -- every checkout the tests run in -- still parses.
 func _make_backend() -> Node:
+	# Actions APKs have a different package ID from the Play listing. They can
+	# exercise the game, but Play cannot sell that listing's product to them.
+	if OS.has_feature("android") and not OS.has_feature("play_billing"):
+		return null
 	var android := load("res://src/store/iap_android.gd")
 	if android.installed():
 		return android.new()

@@ -210,7 +210,7 @@ static func touch_controls(ci: CanvasItem, src, view: Vector2) -> void:
 	# runner always runs at full speed (Options.auto_dash).
 	var button: Dictionary = cluster.get("jump", {})
 	if not button.is_empty():
-		round_button(ci, src, button["center"], float(button["radius"]), "JUMP", false)
+		round_button(ci, src, button["center"], float(button["radius"]), "JUMP", hub.jump_held)
 	# The runner's one way of saying something. Marks where they are.
 	var say: Dictionary = cluster.get("ping", {})
 	if not say.is_empty():
