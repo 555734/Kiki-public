@@ -73,6 +73,16 @@ func _ready() -> void:
 	hub._touch_up(71)
 	check(not hub.jump_held and hub.jump_release_sequence == release_before + 1,
 		"lifting the last jump source records one aggregate release")
+	var overlapping: Vector2 = jump["center"]
+	hub._touch_down(72, overlapping)
+	var overlap_press := hub.jump_press_sequence
+	hub._touch_down(73, overlapping)
+	check(hub.jump_press_sequence == overlap_press,
+		"a second finger on jump does not invent another press")
+	hub._touch_up(72)
+	check(hub.jump_held, "jump stays held until the second finger lifts")
+	hub._touch_up(73)
+	check(not hub.jump_held, "the last jump finger releases the button")
 
 	# A second source holding jump must prevent a false release. This direct
 	# source setup exercises aggregation even though stick jump is disabled in

@@ -95,7 +95,10 @@ enum World {
 ##     neither of them.
 ## 18: vertical position uses quarter-pixel units for 1-7's 14,000px tower.
 ## 19: stage 1-8 adds an underground stage id to the handshake.
-const VERSION: int = 19
+## 20: runner input carries a cumulative jump-press count so brief taps survive
+##     the 30 Hz send interval and dropped unreliable packets. HELLO supplies
+##     its baseline when authority changes or a client reconnects.
+const VERSION: int = 20
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -148,22 +151,24 @@ static func _buf(kind: int) -> StreamPeerBuffer:
 ## (see HostSession._resync): an entitlement that arrived on a separate message
 ## would be an entitlement that a dropped link could lose.
 static func hello(player_id: String, stage: int, role: String = "guardian",
-		token: String = "") -> PackedByteArray:
+		token: String = "", jump_press_sequence: int = 0) -> PackedByteArray:
 	var b := _buf(Msg.HELLO)
 	b.put_u8(VERSION)
 	b.put_u8(stage)
 	b.put_u8(1 if role == "runner" else 2)
 	b.put_utf8_string(player_id)
 	b.put_utf8_string(token)
+	b.put_u16(jump_press_sequence & 0xFFFF)
 	return b.data_array
 
 static func runner_input(axis: float, axis_y: float, jump: bool, dash: bool,
-		sequence: int) -> PackedByteArray:
+		sequence: int, jump_press_sequence: int) -> PackedByteArray:
 	var b := _buf(Msg.RUNNER_INPUT)
 	b.put_8(clampi(int(round(axis * 127.0)), -127, 127))
 	b.put_8(clampi(int(round(axis_y * 127.0)), -127, 127))
 	b.put_u8((1 if jump else 0) | ((1 if dash else 0) << 1))
 	b.put_u16(sequence & 0xFFFF)
+	b.put_u16(jump_press_sequence & 0xFFFF)
 	return b.data_array
 
 static func authority_ready(epoch: int, tick: int) -> PackedByteArray:

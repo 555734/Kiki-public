@@ -25,6 +25,8 @@ var move_axis_y: float = 0.0
 ## monotonic: a player jump can remember that its original press was released
 ## even if the button is pressed again before the minimum-jump window expires.
 var jump_held: bool = false
+## Sent with remote runner input so even a tap between 30 Hz packets arrives.
+var jump_press_sequence: int = 0
 var jump_release_sequence: int = 0
 var jump_press_release_sequence: int = 0
 var _jump_from_button: bool = false
@@ -137,6 +139,7 @@ func _on_roles_swapped(on_left: bool) -> void:
 
 func _latch_jump_press() -> void:
 	_jump_latched = true
+	jump_press_sequence = (jump_press_sequence + 1) & 0xFFFF
 	jump_press_release_sequence = jump_release_sequence
 
 func press_jump() -> void:
@@ -179,13 +182,16 @@ func _refresh_jump_held() -> void:
 ## jump release sequence, the buffered press and the dash edge behave exactly as
 ## they do in co-op. A hub being driven should have `scripted = true` set, which
 ## is what stops it also reading the keyboard for itself.
-func drive_runner(axis: float, axis_y: float, jump: bool, dash: bool) -> void:
+## jump_edge: -1 uses the held-state transition (local/legacy callers); 0 or 1
+## uses the press counter carried by remote input packets.
+func drive_runner(axis: float, axis_y: float, jump: bool, dash: bool,
+		jump_edge: int = -1) -> void:
 	move_axis = clampf(axis, -1.0, 1.0)
 	move_axis_y = clampf(axis_y, -1.0, 1.0)
 	var was_jump := _jump_from_button
 	_jump_from_button = jump
 	_refresh_jump_held()
-	if jump and not was_jump:
+	if jump_edge > 0 or (jump_edge < 0 and jump and not was_jump):
 		_latch_jump_press()
 	var was_dash := dash_held
 	dash_held = dash
@@ -660,7 +666,10 @@ func _route_control(index: int, position: Vector2, size: Vector2,
 			return false
 		"jump":
 			_touch_owner[index] = "jump"
-			press_jump()
+			# Two fingers can overlap the button while changing grip. Only the
+			# first contact is a press; the last release ends the hold.
+			if not _jump_from_button:
+				press_jump()
 		"stick":
 			_touch_owner[index] = "stick"
 			_stick_finger = index
@@ -841,7 +850,13 @@ func _touch_up(index: int, position: Vector2 = Vector2(INF, INF)) -> void:
 		"zoom":
 			_zoom_finger = -1
 		"jump":
-			release_jump()
+			var another_jump_finger := false
+			for finger in _touch_owner:
+				if finger != index and _touch_owner[finger] == "jump":
+					another_jump_finger = true
+					break
+			if not another_jump_finger:
+				release_jump()
 		"dash":
 			release_dash()
 		"pan":

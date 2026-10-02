@@ -115,7 +115,7 @@ func _ready() -> void:
 	transport.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED,
 		Protocol.hello(NetLink.client_id(), Stage.current(), local_role,
-			Entitlement.local_token()))
+			Entitlement.local_token(), main.input_hub.jump_press_sequence))
 
 ## Take the partner's entitlement, if they have one and if this is the kind of
 ## room that lends it.
@@ -198,7 +198,7 @@ func _process(delta: float) -> void:
 			transport.send(NetTransport.Channel.CONTROL,
 				NetTransport.Reliability.RELIABLE_ORDERED,
 				Protocol.hello(NetLink.client_id(), Stage.current(), local_role,
-			Entitlement.local_token()))
+					Entitlement.local_token(), main.input_hub.jump_press_sequence))
 	if local_role == "runner" and _down_for < 0.0:
 		_runner_input_accumulator += delta
 		if _runner_input_accumulator >= 1.0 / 30.0:
@@ -207,7 +207,7 @@ func _process(delta: float) -> void:
 			transport.send(NetTransport.Channel.AIM, NetTransport.Reliability.UNRELIABLE,
 				Protocol.runner_input(main.input_hub.move_axis, main.input_hub.move_axis_y,
 					main.input_hub.jump_held, main.input_hub.dash_held,
-					_runner_input_sequence))
+					_runner_input_sequence, main.input_hub.jump_press_sequence))
 
 ## Is the link up, and if not, keep trying.
 ##
@@ -313,7 +313,7 @@ func _send_hello() -> void:
 	transport.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED,
 		Protocol.hello(NetLink.client_id(), Stage.current(), local_role,
-			Entitlement.local_token()))
+			Entitlement.local_token(), main.input_hub.jump_press_sequence))
 
 func migration_state_is_fresh() -> bool:
 	return not _latest_migration.is_empty() and _latest_migration_received_ms >= 0 \

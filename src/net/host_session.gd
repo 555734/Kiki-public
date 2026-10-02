@@ -20,6 +20,8 @@ var local_role: String = "runner"
 var remote_role: String = "guardian"
 var _migration_generation: int = 0
 var _remote_runner_silence: float = 0.0
+var _remote_runner_last_input_sequence: int = -1
+var _remote_runner_last_jump_press_sequence: int = 0
 
 ## Who is playing, by the three names that can mean "who". See Party.
 var party := Party.new()
@@ -326,6 +328,10 @@ func _handle(packet: Dictionary) -> void:
 				return
 			var their_id := b.get_utf8_string()
 			_take_entitlement(Protocol.opt_string(b))
+			# A reconnect can restart the packet sequence. Establish both input
+			# baselines from HELLO before accepting its unreliable stream.
+			_remote_runner_last_input_sequence = -1
+			_remote_runner_last_jump_press_sequence = b.get_u16() if b.get_available_bytes() >= 2 else 0
 			party.clear()
 			party.seat(NetLink.client_id(), Party.ROLE_RUNNER \
 				if local_role == "runner" else Party.ROLE_GUARDIAN)
@@ -356,13 +362,21 @@ func _handle(packet: Dictionary) -> void:
 		Protocol.Msg.RUNNER_INPUT:
 			if remote_role != "runner":
 				return
-			_remote_runner_silence = 0.0
 			var axis := float(b.get_8()) / 127.0
 			var axis_y := float(b.get_8()) / 127.0
 			var flags := b.get_u8()
-			b.get_u16() # sequence is carried for tracing/redundancy evolution
+			var input_sequence := int(b.get_u16())
+			if _remote_runner_last_input_sequence >= 0:
+				var advance := (input_sequence - _remote_runner_last_input_sequence) & 0xFFFF
+				if advance == 0 or advance >= 0x8000:
+					return
+			_remote_runner_silence = 0.0
+			_remote_runner_last_input_sequence = input_sequence
+			var jump_press_sequence := int(b.get_u16())
+			var jump_edge := jump_press_sequence != _remote_runner_last_jump_press_sequence
+			_remote_runner_last_jump_press_sequence = jump_press_sequence
 			main.input_hub.drive_runner(axis, axis_y,
-				(flags & 1) != 0, (flags & 2) != 0)
+				(flags & 1) != 0, (flags & 2) != 0, 1 if jump_edge else 0)
 		Protocol.Msg.SLOT:
 			main.guardian.select_slot(b.get_u8())
 		Protocol.Msg.PLACE:
