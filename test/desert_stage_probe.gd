@@ -2,6 +2,8 @@ extends Node
 ## Stage 1-6 wiring, route and four enemy behaviours.
 
 const MainScene: PackedScene = preload("res://src/main.tscn")
+const SwitchBridge = preload("res://src/entities/gimmicks/switch_bridge.gd")
+const TrickPad = preload("res://src/entities/gimmicks/trick_pad.gd")
 var failures: Array[String] = []
 
 func check(ok: bool, message: String) -> void:
@@ -33,11 +35,13 @@ func run() -> void:
 	for spec in Stage.gimmicks():
 		var kind: String = spec["type"]
 		gimmick_counts[kind] = int(gimmick_counts.get(kind, 0)) + 1
-	check(gimmick_counts.get("crumble", 0) == 6
+	check(gimmick_counts.get("crumble", 0) == 5
 		and gimmick_counts.get("blink", 0) == 3
 		and gimmick_counts.get("moving_platform", 0) == 1
-		and gimmick_counts.get("conveyor", 0) == 1,
-		"four distinct platforming beats are built")
+		and gimmick_counts.get("conveyor", 0) == 1
+		and gimmick_counts.get("switch_bridge", 0) == 3
+		and gimmick_counts.get("trick_pad", 0) == 2,
+		"desert route mixes launch pads and revealed bridges with its earlier beats")
 	check(Stage.checkpoints().size() == 9,
 		"checkpoints break up the harder route")
 	check(Stage.ground()[7].position.x - Stage.ground()[6].end.x == 550.0,
@@ -74,10 +78,27 @@ func run() -> void:
 	check(built.size() == 4, "all four enemy classes build in the live level")
 	var oracle: Gate = null
 	var correct: ShootableSwitch = null
+	var mirage: SwitchBridge = null
+	var delayed_mirage: SwitchBridge = null
+	var mirage_switch: ShootableSwitch = null
+	var pad_count := 0
+	var first_pad: TrickPad = null
+	for node in main.level._dynamic.get_children():
+		if node is SwitchBridge and node.switch_id == "desert_mirage":
+			if node.delay > 0.0:
+				delayed_mirage = node
+			else:
+				mirage = node
+		if node is TrickPad:
+			pad_count += 1
+			if first_pad == null:
+				first_pad = node
 	for node in get_tree().get_nodes_in_group("gate"):
 		if node is Gate and node.switch_id == "desert_oracle":
 			oracle = node
 	for node in get_tree().get_nodes_in_group("switch"):
+		if node is ShootableSwitch and node.switch_id == "desert_mirage":
+			mirage_switch = node
 		if node is ShootableSwitch and node.switch_id == "desert_oracle" \
 				and node.sigil == 2:
 			correct = node
@@ -89,6 +110,35 @@ func run() -> void:
 		for _i in 30:
 			await get_tree().physics_frame
 		check(oracle._shape.disabled, "guardian shot opens the oracle gate")
+	check(mirage != null and delayed_mirage != null and mirage_switch != null
+		and pad_count == 2,
+		"new desert set pieces build in the live level")
+	if mirage != null and delayed_mirage != null and mirage_switch != null:
+		check(mirage._shape.disabled, "mirage starts as a visible ghost, without collision")
+		mirage_switch.take_damage(1)
+		for _i in 24:
+			await get_tree().physics_frame
+		check(not mirage._shape.disabled, "guardian shot makes the mirage bridge solid")
+		check(delayed_mirage._shape.disabled, "second mirage waits for its own beat")
+		for _i in 20:
+			await get_tree().physics_frame
+		check(not delayed_mirage._shape.disabled, "second mirage follows the first")
+		mirage_switch.take_damage(1)
+		await get_tree().physics_frame
+		check(not mirage._shape.disabled,
+			"shooting again extends the bridge without dropping its rider")
+		Events.switch_activated.emit("desert_mirage:off")
+		await get_tree().physics_frame
+		check(mirage._shape.disabled, "mirage withdraws when the target expires")
+	if first_pad != null:
+		var original_position: Vector2 = main.runner.global_position
+		main.runner.global_position = first_pad.global_position + Vector2(0, -23)
+		main.runner.velocity = Vector2.ZERO
+		first_pad._physics_process(1.0 / 60.0)
+		check(main.runner.velocity.x > 400.0 and main.runner.velocity.y < -800.0,
+			"arrow pad throws the runner forward and over the obstacle")
+		main.runner.global_position = original_position
+		main.runner.velocity = Vector2.ZERO
 	main.queue_free()
 	await get_tree().process_frame
 	Stage.use(Stage.Which.GREENFIELD)

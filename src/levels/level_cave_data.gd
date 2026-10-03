@@ -173,6 +173,16 @@ static func gimmicks() -> Array[Dictionary]:
 			"travel": Vector2(95, 0), "speed": 120.0, "phase": 1.3},
 		{"type": "moving_platform", "pos": Vector2(4850, 292),
 			"span": Vector2(135, 24), "travel": Vector2(0, -90), "speed": 75.0},
+		# An early optional echo step teaches the guardian that a shot can make
+		# footing appear, before the same idea becomes essential much later.
+		{"type": "switch", "id": "cave_echo", "pos": Vector2(6990, 45),
+			"hold": 7.0},
+		{"type": "switch_bridge", "id": "cave_echo", "pos": Vector2(7260, 220),
+			"span": Vector2(135, 26)},
+		{"type": "trick_pad", "pos": Vector2(9910, 300)},
+		{"type": "trick_pad", "pos": Vector2(10870, 320),
+			"flip": 3.2, "phase": 0.4},
+		{"type": "trick_pad", "pos": Vector2(19850, 260)},
 		{"type": "updraft", "pos": Vector2(3040, 275),
 			"span": Vector2(120, 255)},
 		{"type": "updraft", "pos": Vector2(9030, 245),
@@ -231,12 +241,21 @@ static func gimmicks() -> Array[Dictionary]:
 			"sigil": 2, "hold": 14.0},
 		{"type": "gate", "id": "cave_deep_gate", "pos": Vector2(14150, 120),
 			"span": Vector2(64, 240), "wants": 1},
+		# The same correct target opens the gate and raises two stepping stones,
+		# one after the other. Both players must cross before the switch expires.
+		{"type": "switch_bridge", "id": "cave_deep_gate", "pos": Vector2(13600, 250),
+			"span": Vector2(155, 26)},
+		{"type": "switch_bridge", "id": "cave_deep_gate", "pos": Vector2(13795, 250),
+			"span": Vector2(155, 26), "delay": 0.32},
 		{"type": "switch", "id": "cave_last_gate", "pos": Vector2(18040, 75),
 			"sigil": 1, "hold": 15.0},
 		{"type": "switch", "id": "cave_last_gate", "pos": Vector2(18320, 65),
 			"sigil": 2, "hold": 15.0},
 		{"type": "gate", "id": "cave_last_gate", "pos": Vector2(19130, 90),
 			"span": Vector2(64, 240), "wants": 2},
+		# The final fissure gives only a single echo step; the rest is a jump.
+		{"type": "switch_bridge", "id": "cave_last_gate", "pos": Vector2(18675, 240),
+			"span": Vector2(160, 26)},
 	]
 
 static func springs() -> Array[Vector2]:
@@ -269,4 +288,7 @@ static func coins() -> Array[Vector2]:
 			11320, 12120, 12850, 13580, 13770, 14590, 15360, 16940,
 			17730, 18600, 18780, 20390, 21160, 21940, 22770]:
 		out.append(Vector2(float(x), 130.0))
+	for point in [Vector2(10050, 165), Vector2(10740, 180),
+			Vector2(11000, 180), Vector2(19980, 130)]:
+		out.append(point)
 	return out

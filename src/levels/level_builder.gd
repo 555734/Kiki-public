@@ -9,6 +9,8 @@ extends Node2D
 const BlackHoleChaserScript = preload("res://src/entities/enemies/black_hole_chaser.gd")
 const SkyPursuerScript = preload("res://src/entities/enemies/sky_pursuer.gd")
 const ThornmiteScript = preload("res://src/entities/enemies/thornmite.gd")
+const SwitchBridgeScript = preload("res://src/entities/gimmicks/switch_bridge.gd")
+const TrickPadScript = preload("res://src/entities/gimmicks/trick_pad.gd")
 
 var runner: Runner = null
 ## The co-op run's sky crows and gate key. The versus circuit is cut from 1-1
@@ -397,6 +399,21 @@ func _make_gimmick(spec: Dictionary) -> Node2D:
 			trap.period = float(spec.get("period", 3.5))
 			trap.phase_offset = float(spec.get("phase", 0.0))
 			return trap
+		"switch_bridge":
+			var bridge := SwitchBridgeScript.new()
+			bridge.span = spec.get("span", Vector2(150, 26))
+			bridge.switch_id = String(spec.get("id", ""))
+			bridge.delay = float(spec.get("delay", 0.0))
+			return bridge
+		"trick_pad":
+			var pad := TrickPadScript.new()
+			pad.runner = runner
+			pad.start_direction = int(spec.get("dir", 1))
+			pad.flip_every = float(spec.get("flip", 0.0))
+			pad.phase_offset = float(spec.get("phase", 0.0))
+			pad.forward_speed = float(spec.get("forward", 460.0))
+			pad.rise_speed = float(spec.get("rise", 830.0))
+			return pad
 		"clock_hand":
 			var hand := ClockHandBridge.new()
 			hand.length = float(spec.get("length", 225.0))

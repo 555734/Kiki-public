@@ -98,6 +98,16 @@ static func gimmicks() -> Array[Dictionary]:
 		{"type": "crumble", "pos": Vector2(2460, 165), "span": Vector2(110, 30)},
 		{"type": "crumble", "pos": Vector2(2670, 165), "span": Vector2(110, 30)},
 		{"type": "crumble", "pos": Vector2(2880, 155), "span": Vector2(110, 30)},
+		# A hidden causeway answers the guardian's shot in two beats. The ghost
+		# outlines make the surprise legible before anyone commits to the jump.
+		{"type": "switch", "id": "desert_mirage", "pos": Vector2(3500, -5),
+			"hold": 8.0},
+		{"type": "switch_bridge", "id": "desert_mirage", "pos": Vector2(3830, 205),
+			"span": Vector2(155, 26)},
+		{"type": "switch_bridge", "id": "desert_mirage", "pos": Vector2(4025, 205),
+			"span": Vector2(155, 26), "delay": 0.30},
+		# The arrow pad fires sideways over hazards and patrols, unlike a spring.
+		{"type": "trick_pad", "pos": Vector2(1080, 300)},
 		# E: wait for the lift, then make a 170px jump to the high bank.
 		{"type": "moving_platform", "pos": Vector2(4860, 205),
 			"span": Vector2(140, 26), "travel": Vector2(0, -190), "speed": 85.0},
@@ -111,6 +121,7 @@ static func gimmicks() -> Array[Dictionary]:
 		# G: the belt changes direction before the downhill section.
 		{"type": "conveyor", "pos": Vector2(6520, 67),
 			"span": Vector2(260, 26), "speed": 120.0, "flip": 3.2},
+		{"type": "trick_pad", "pos": Vector2(8330, 300), "forward": 360.0},
 		# G: the runner reads the switches, the guardian reads the gate's mark
 		# and shoots the matching target. The high door blocks every normal jump.
 		{"type": "switch", "id": "desert_oracle", "pos": Vector2(7030, 95),
@@ -121,7 +132,10 @@ static func gimmicks() -> Array[Dictionary]:
 			"span": Vector2(54, 230), "wants": 2},
 		# H: one last run across falling stones to the goal bank.
 		{"type": "crumble", "pos": Vector2(8790, 315), "span": Vector2(110, 30)},
-		{"type": "crumble", "pos": Vector2(9000, 315), "span": Vector2(110, 30)},
+		{"type": "switch", "id": "desert_last_mirage", "pos": Vector2(8500, 185),
+			"hold": 9.0},
+		{"type": "switch_bridge", "id": "desert_last_mirage", "pos": Vector2(9000, 315),
+			"span": Vector2(120, 30)},
 		{"type": "crumble", "pos": Vector2(9210, 315), "span": Vector2(110, 30)},
 	]
 static func veils() -> Array[Dictionary]: return []

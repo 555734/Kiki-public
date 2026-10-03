@@ -3,6 +3,8 @@ extends Node
 
 const MainScene: PackedScene = preload("res://src/main.tscn")
 const CaveData = preload("res://src/levels/level_cave_data.gd")
+const SwitchBridge = preload("res://src/entities/gimmicks/switch_bridge.gd")
+const TrickPad = preload("res://src/entities/gimmicks/trick_pad.gd")
 var failures: Array[String] = []
 
 func check(ok: bool, message: String) -> void:
@@ -44,8 +46,9 @@ func run() -> void:
 			carts += 1
 	check(carts == 4 and kinds.has("crumble") and kinds.has("updraft")
 		and kinds.has("switch") and kinds.has("gate") and traps.size() == 2
+		and kinds.has("switch_bridge") and kinds.has("trick_pad")
 		and Stage.springs().size() >= 6,
-		"extended machinery has working stage data")
+		"extended machinery adds revealed bridges and directional launch pads")
 	# Allow a generous full second at the maximum triple-jump forward boost,
 	# plus the runner's width. The actual held arc is shorter than this bound.
 	var solo_reach_bound := Balance.RUNNER_RUN_SPEED \
@@ -138,6 +141,11 @@ func run() -> void:
 	var switches := {}
 	var sample_trap: CaveTrap = null
 	var far_enemy: CaveEnemy = null
+	var echo_bridge: SwitchBridge = null
+	var echo_target: ShootableSwitch = null
+	var reversing_pad: TrickPad = null
+	var bridge_count := 0
+	var pad_count := 0
 	for node in main.level._dynamic.get_children():
 		if node is CaveEnemy:
 			live_enemies += 1
@@ -151,12 +159,38 @@ func run() -> void:
 				sample_trap = node
 		if node is Gate:
 			gates[node.switch_id] = node
+		if node is SwitchBridge:
+			bridge_count += 1
+			if node.switch_id == "cave_echo":
+				echo_bridge = node
+		if node is TrickPad:
+			pad_count += 1
+			if node.flip_every > 0.0:
+				reversing_pad = node
 		if node is ShootableSwitch:
+			if node.switch_id == "cave_echo":
+				echo_target = node
 			var wanted := 1 if node.switch_id == "cave_deep_gate" else 2
 			if node.sigil == wanted:
 				switches[node.switch_id] = node
 	check(live_enemies >= 45 and live_carts == 4 and live_traps >= 17,
 		"enemies, rideable carts and hazards build in the live level")
+	check(bridge_count == 4 and pad_count == 3 and echo_bridge != null
+		and echo_target != null and reversing_pad != null,
+		"new cave set pieces build in the live level")
+	if reversing_pad != null:
+		check(reversing_pad.direction_at(0) != reversing_pad.direction_at(
+			Clock.ticks_for(reversing_pad.flip_every)),
+			"the cave pad changes launch direction at a readable interval")
+	if echo_bridge != null and echo_target != null:
+		check(echo_bridge._shape.disabled, "echo bridge begins intangible")
+		echo_target.take_damage(1)
+		for _i in 24:
+			await get_tree().physics_frame
+		check(not echo_bridge._shape.disabled, "shooting reveals a solid echo bridge")
+		Events.switch_activated.emit("cave_echo:off")
+		await get_tree().physics_frame
+		check(echo_bridge._shape.disabled, "echo bridge hides when its target expires")
 	if far_enemy != null:
 		var dormant_position: Vector2 = far_enemy.global_position
 		for _i in 5:
