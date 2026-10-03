@@ -37,6 +37,10 @@ var _was_on_ground: bool = true
 func _ready() -> void:
 	current = self
 	Events.runner_died.connect(_on_runner_died)
+	# Most stages have no veils. Scanning every enemy, gimmick and pickup each
+	# frame on those stages is pure overhead, especially in the long cave.
+	if veils.is_empty():
+		set_process(false)
 
 func _exit_tree() -> void:
 	if current == self:
@@ -105,6 +109,8 @@ func drawn_slabs() -> Array[Rect2]:
 ## is re-tested every frame -- true for enemies and moving floors, false for the
 ## things that were put down once and stay there.
 func watch(node: Node2D, layer: String, moving: bool = false) -> void:
+	if veils.is_empty():
+		return
 	if node == null or not is_instance_valid(node):
 		return
 	var entry := {"node": node, "layer": layer, "moving": moving}
@@ -156,6 +162,8 @@ func _prune() -> void:
 ## words for it. It fires on death and on landing inside a veil that was hiding
 ## the GROUND, which is the only layer whose absence can be what went wrong.
 func reveal_for(seconds: float = REVEAL_TIME) -> void:
+	if veils.is_empty():
+		return
 	if eye() == "":
 		return
 	var was := _reveal_left > 0.0

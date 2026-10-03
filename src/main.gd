@@ -37,6 +37,9 @@ const CANCELLED := "接続をやめました"
 var _home_active: bool = false
 
 func _ready() -> void:
+	# Runner movement is a physics-tick decision. Follow it after that tick,
+	# rather than moving the camera on an unrelated rendered-frame clock.
+	process_priority = 100
 	link = NetLink.new()
 	link.name = "NetLink"
 	link.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -70,7 +73,9 @@ func _ready() -> void:
 
 	camera = Camera2D.new()
 	camera.name = "Camera"
-	camera.position_smoothing_enabled = false   # smoothed by hand, see _process
+	camera.position_smoothing_enabled = false   # smoothed by hand in _physics_process
+	camera.process_callback = Camera2D.CAMERA2D_PROCESS_IDLE
+	camera.process_priority = 200
 	camera.zoom = Vector2.ONE * Balance.CAMERA_ZOOM
 	_snap_camera_to_runner()
 	add_child(camera)
@@ -478,8 +483,6 @@ func _offer_reconnect() -> void:
 	add_child(panel)
 
 func _process(delta: float) -> void:
-	_update_camera(delta)
-
 	if _respawn_timer >= 0.0:
 		_respawn_timer -= delta
 		if _respawn_timer <= 0.0:
@@ -500,6 +503,9 @@ func _process(delta: float) -> void:
 		_swap_roles()
 	if input_hub.take_countdown():
 		Events.countdown_started.emit()
+
+func _physics_process(delta: float) -> void:
+	_update_camera(delta)
 
 ## How far the guardian has pushed the view along, in world pixels. Read by the
 ## camera; written by the two "look" buttons.

@@ -36,7 +36,10 @@ func _ready() -> void:
 	sensor_shape.position = Vector2(0, -span.y * 0.5 - 5.0)
 	sensor.add_child(sensor_shape)
 	add_child(sensor)
-	sensor.body_entered.connect(func(_b: Node2D) -> void: _armed = true)
+	sensor.body_entered.connect(func(_b: Node2D) -> void:
+		_armed = true
+		set_process(true))
+	set_process(false)
 
 func _process(delta: float) -> void:
 	if _gone:
@@ -47,6 +50,7 @@ func _process(delta: float) -> void:
 			_shake = 0.0
 			_shape.set_deferred("disabled", false)
 			queue_redraw()
+			set_process(false)
 		return
 	if _armed:
 		_timer += delta
@@ -66,6 +70,7 @@ func reset_state() -> void:
 	if _shape != null:
 		_shape.set_deferred("disabled", false)
 	queue_redraw()
+	set_process(false)
 
 func _draw() -> void:
 	if _gone:

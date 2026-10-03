@@ -72,6 +72,10 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=4
 window/vsync/vsync_mode=1
+; Keep Android's frame pacing, but do not let its automatic mode silently
+; reduce a 60 Hz game to 30 fps after a few expensive cave frames.
+window/frame_pacing/android/enable_frame_pacing=true
+window/frame_pacing/android/swappy_mode=0
 
 [input]
 

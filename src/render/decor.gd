@@ -3,12 +3,25 @@ extends Node2D
 ## stage 1-2 adds a separate horror dressing set without changing collision.
 
 var items: Array[Dictionary] = []
+var _cave_chunk := false
 
 func _ready() -> void:
-	z_index = 1
+	z_index = 0 if _cave_chunk else 1
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	# A single CanvasItem that spans the entire cave keeps every prop in the
+	# renderer's draw list even when it is 20,000 pixels away. Give each prop its
+	# own bounds so the renderer can reject the distant ones.
+	if Stage.is_cave() and not _cave_chunk:
+		for item in items:
+			var chunk = get_script().new()
+			chunk._cave_chunk = true
+			var one_item: Array[Dictionary] = [item]
+			chunk.items = one_item
+			add_child(chunk)
 
 func _draw() -> void:
+	if Stage.is_cave() and not _cave_chunk:
+		return
 	for item in items:
 		match String(item.get("type", "")):
 			"conduit": _conduit(item["pos"], item.get("size", Vector2(90, 76)))

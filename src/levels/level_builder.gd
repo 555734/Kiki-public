@@ -23,6 +23,9 @@ var _decor: Node2D = null
 var _dynamic: Node2D = null
 var _static_root: Node2D = null
 var _veils: VeilField = null
+var _cave_enemies: Array[CaveEnemy] = []
+var _cave_traps: Array[CaveTrap] = []
+var _cave_wake_timer: Timer = null
 
 func build() -> void:
 	_static_root = Node2D.new()
@@ -55,6 +58,13 @@ func build() -> void:
 	_build_goal()
 	_build_kill_plane()
 	rebuild_dynamic()
+	if Stage.is_cave():
+		_cave_wake_timer = Timer.new()
+		_cave_wake_timer.wait_time = 0.1
+		_cave_wake_timer.process_callback = Timer.TIMER_PROCESS_PHYSICS
+		_cave_wake_timer.timeout.connect(_refresh_cave_activity)
+		add_child(_cave_wake_timer)
+		_cave_wake_timer.start()
 
 func _build_ground_bodies() -> void:
 	var body := StaticBody2D.new()
@@ -109,6 +119,8 @@ func _build_kill_plane() -> void:
 	_static_root.add_child(pit)
 
 func rebuild_dynamic() -> void:
+	_cave_enemies.clear()
+	_cave_traps.clear()
 	if _dynamic != null and is_instance_valid(_dynamic):
 		_dynamic.free()
 	_dynamic = Node2D.new()
@@ -137,6 +149,7 @@ func rebuild_dynamic() -> void:
 			node.net_id = enemy_id
 			if node is CaveEnemy:
 				node.runner = runner
+				_cave_enemies.append(node)
 			_dynamic.add_child(node)
 			_veil(node, Veil.ENEMIES, true)
 		enemy_id += 1
@@ -167,6 +180,8 @@ func rebuild_dynamic() -> void:
 		if node != null:
 			node.global_position = g["pos"]
 			_dynamic.add_child(node)
+			if node is CaveTrap:
+				_cave_traps.append(node)
 			_veil(node, Veil.GIMMICKS, node is MovingPlatform)
 
 	for c in Stage.coins():
@@ -204,8 +219,38 @@ func rebuild_dynamic() -> void:
 	# tree by the time this runs.
 	_settle_barricades()
 	_settle_boss()
+	_refresh_cave_activity()
 
 	Events.level_rebuilt.emit()
+
+## The cave is much longer than the visible area. A single timer checks authored
+## actors ten times a second, instead of simulating every distant one at 60 Hz.
+func _refresh_cave_activity() -> void:
+	if (_cave_enemies.is_empty() and _cave_traps.is_empty()) \
+			or runner == null or not is_instance_valid(runner):
+		return
+	var camera := get_viewport().get_camera_2d()
+	var centre_x := runner.global_position.x
+	var half_view_x := 1350.0
+	if camera != null:
+		centre_x = camera.global_position.x
+		half_view_x = get_viewport().get_visible_rect().size.x * 0.5 / camera.zoom.x
+	for enemy in _cave_enemies:
+		if not is_instance_valid(enemy) or enemy.is_queued_for_deletion():
+			continue
+		# Include patrol travel and one timer interval of runner movement beyond
+		# the screen, so a moving enemy is active before it can enter the view.
+		var near := absf(enemy.spawn_position.x - centre_x) <= \
+			half_view_x + enemy.patrol_half_width + 180.0
+		if enemy.is_physics_processing() != near:
+			enemy.set_physics_process(near)
+	for trap in _cave_traps:
+		if not is_instance_valid(trap) or trap.is_queued_for_deletion():
+			continue
+		var near := absf(trap.global_position.x - centre_x) <= \
+			half_view_x + trap.travel + 180.0
+		if trap.is_physics_processing() != near:
+			trap.set_physics_process(near)
 
 ## A gate whose keeper is already dead has to be built open.
 ##
