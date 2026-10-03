@@ -81,8 +81,7 @@ func take_terrain(node: Node2D, slabs: Array[Rect2]) -> void:
 func _repaint_ground() -> void:
 	if _terrain == null or not is_instance_valid(_terrain):
 		return
-	_terrain.slabs = drawn_slabs()
-	_terrain.queue_redraw()
+	_terrain.set_slabs(drawn_slabs())
 
 ## The slabs this device paints. Public because the probe asserts on it.
 func drawn_slabs() -> Array[Rect2]:

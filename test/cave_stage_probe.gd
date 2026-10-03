@@ -91,6 +91,8 @@ func run() -> void:
 	var panel := main.get_node_or_null("NetPanel")
 	check(panel != null and panel._stage_1_8 != null,
 		"third menu page contains the cave card")
+	check(main.level._terrain._cave_chunks.size() == CaveData.SLABS.size(),
+		"cave ground is split into individually culled banks")
 	if panel != null:
 		panel.queue_free()
 	for _i in 25:

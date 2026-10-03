@@ -11,6 +11,8 @@ const GRASS_CAP := 26.0
 const BUMP := 22.0
 
 var slabs: Array[Rect2] = []
+var _cave_chunks: Array[Node2D] = []
+const CaveSlabScript = preload("res://src/render/cave_slab.gd")
 
 func _ready() -> void:
 	z_index = 2
@@ -18,8 +20,29 @@ func _ready() -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 
 func _draw() -> void:
+	# One CanvasItem spanning the whole 24,000 px cave prevents the renderer
+	# from rejecting off-screen ground. Each cave slab has its own bounds below.
+	if Stage.is_cave():
+		return
 	for i in slabs.size():
 		_draw_slab(slabs[i], i)
+
+func set_slabs(next_slabs: Array[Rect2]) -> void:
+	slabs = next_slabs
+	if Stage.is_cave():
+		for chunk in _cave_chunks:
+			remove_child(chunk)
+			chunk.queue_free()
+		_cave_chunks.clear()
+		for i in slabs.size():
+			var chunk = CaveSlabScript.new()
+			chunk.position = slabs[i].position
+			chunk.span = slabs[i].size
+			chunk.seed_index = i
+			add_child(chunk)
+			_cave_chunks.append(chunk)
+	else:
+		queue_redraw()
 
 ## The colours a slab is painted in when there is no texture for it.
 ##
@@ -45,9 +68,6 @@ func _palette() -> Dictionary:
 	}
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
-	if Stage.is_cave():
-		_draw_cave_slab(rect, seed_index)
-		return
 	if Stage.is_tower():
 		_draw_tower_slab(rect, seed_index)
 		return
@@ -139,26 +159,6 @@ func _draw_desert_slab(rect: Rect2, seed_index: int) -> void:
 		Color("9f5c34", 0.55))
 	draw_rect(Rect2(rect.end.x - 7, rect.position.y + 34, 7, rect.size.y - 34),
 		Color("9f5c34", 0.55))
-
-func _draw_cave_slab(rect: Rect2, seed_index: int) -> void:
-	# Broad, low-detail stone masses keep enemies and cracks readable.
-	draw_rect(rect, Color("5a4844"))
-	for row in 2:
-		var y := rect.position.y + 24.0 + float(row) * 85.0
-		if y > rect.end.y:
-			break
-		var x := rect.position.x + float((seed_index + row) % 2) * 65.0
-		while x < rect.end.x:
-			var width := minf(126.0, rect.end.x - x)
-			draw_rect(Rect2(x, y, width - 3.0, 78.0),
-				Color("725548") if row == 0 else Color("654e45"))
-			x += 130.0
-	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 24),
-		Color("bd8e65"))
-	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 7),
-		Color("d7ad7d"))
-	draw_rect(Rect2(rect.position.x, rect.position.y + 24,
-		rect.size.x, 5), Color("4e3e3c"))
 
 func _draw_tower_slab(rect: Rect2, seed_index: int) -> void:
 	# Stone courses are sized in world pixels, not stretched from one texture.
