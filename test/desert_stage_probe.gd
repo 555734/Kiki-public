@@ -24,7 +24,8 @@ func run() -> void:
 		"full route fits online coordinates")
 	var kinds := {}
 	for spec in Stage.enemies():
-		kinds[String(spec.get("kind", ""))] = true
+		if String(spec.get("type", "")) == "desert_enemy":
+			kinds[String(spec.get("kind", ""))] = true
 	check(kinds.size() == 4 and kinds.has("scarab") and kinds.has("cactus")
 		and kinds.has("jelly") and kinds.has("fin"), "all four desert enemy kinds are placed")
 	var bridge: Rect2 = Stage.solid_decor()[0]

@@ -77,6 +77,11 @@ static func hazards() -> Array[Dictionary]:
 
 static func enemies() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	# The climbing chaser from 1-3: it rises from below the start, so the climb
+	# cannot be taken at leisure; the guardian's shot knocks it back down.
+	out.append({"type": "sky_pursuer", "pos": start_position() + Vector2(0, 420),
+		"delay": 2.0, "speed": 200.0, "catchup": 470.0, "stun": 1.5,
+		"direction": Vector2.UP})
 	for chamber in CHAMBERS:
 		if chamber > 0 and chamber % 6 != 4:
 			out.append({"type": "cave_enemy",

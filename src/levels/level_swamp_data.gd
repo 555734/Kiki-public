@@ -63,6 +63,10 @@ static func hazards() -> Array[Dictionary]:
 
 static func enemies() -> Array[Dictionary]:
 	return [
+		# The chaser from 1-2 and 1-4: it wakes behind the start and has to be
+		# outrun, or shot by the guardian to buy time.
+		{"type": "sky_pursuer", "pos": START + Vector2(-900, -15), "delay": 2.5,
+			"speed": 215.0, "catchup": 510.0, "stun": 1.45},
 		{"type": "walker", "pos": Vector2(-350, 379), "patrol": 210.0,
 			"skin": "walker_spiky"},
 		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 190.0,

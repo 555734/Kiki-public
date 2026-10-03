@@ -39,7 +39,8 @@ func run() -> void:
 	check(ordered and fixed_landings, "every chamber rises through readable steps")
 	var kinds := {}
 	for spec in Stage.enemies():
-		kinds[String(spec["kind"])] = true
+		if String(spec.get("type", "")) == "cave_enemy":
+			kinds[String(spec["kind"])] = true
 	check(Stage.enemies().size() >= 50 and kinds.size() == 5,
 		"all five cave enemy types populate the vertical shaft")
 	var gimmick_counts := {}
@@ -202,7 +203,7 @@ func run() -> void:
 	check(capture_ms < 8.0,
 		"and is taken without stalling a frame (%.1f ms)" % capture_ms)
 	check(MigrationState.decode(frame).get("groups", {}).get("enemy", []).size() \
-			== live_enemies, "and still describes every enemy")
+			== get_tree().get_nodes_in_group("enemy").size(), "and still describes every enemy")
 	# On the guest the host moves every enemy. The cave's wake timer must not
 	# switch their own patrols back on, or they walk away from where they hit.
 	main._become_client(LoopbackTransport.pair(0.0)[0])
