@@ -6,6 +6,6 @@ Work on `main`. Every relevant push runs Android and iOS test builds. Download t
 
 Store builds are started manually from the intended source revision. Record the Android version code, iOS build number, store submission date, and commit SHA before advancing `release`. If the platforms are submitted at different revisions, use immutable `submitted/android/<version-code>` and `submitted/ios/<build-number>` tags so neither submission is lost when `release` advances.
 
-The former public branch tips are preserved under the annotated tag `archive/branches-2026-10-03`. Its tagged commit has the old branch tips as parents and the same file tree as the previous `main`; it is a history archive, not a merge into the game. `555734/Kiki` retains earlier private history and its open PR until that work is resolved. Local worktrees with uncommitted changes are left intact.
+The former public branch tips are preserved under the annotated tag `archive/branches-2026-10-03`. Its tagged commit has the old branch tips as parents and the same file tree as the previous `main`; it is a history archive, not a merge into the game. The old private repository `555734/Kiki` is archived read-only, retaining its branches and open PR. Local worktrees with uncommitted changes remain intact. In the shared local clone, `origin` points to `Kiki-public` and `legacy` points to the archived repository.
 
 Older `build-*` and `ios-build-*` GitHub Releases remain available as historical downloads. They are not evidence of store submission.
