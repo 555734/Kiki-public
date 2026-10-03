@@ -9,6 +9,7 @@ extends Enemy
 var direction := -1
 var phase := 0.0
 var _origin := Vector2.ZERO
+const DRAW_RANGE := Vector2(1400.0, 950.0)
 
 func _ready() -> void:
 	hp = 2 if kind == "burrower" else 1
@@ -34,7 +35,7 @@ func _physics_process(delta: float) -> void:
 			sin(phase * rate) * patrol_half_width,
 			sin(phase * (3.1 if kind == "bat" else 2.0)) * 21.0)
 		direction = 1 if cos(phase * rate) >= 0.0 else -1
-		queue_redraw()
+		_redraw_if_near()
 		return
 	if kind == "mushroom" and is_on_floor() and sin(phase * 4.0) > 0.98:
 		velocity.y = -330.0
@@ -45,7 +46,18 @@ func _physics_process(delta: float) -> void:
 	if is_on_wall() or absf(global_position.x - _origin.x) > patrol_half_width \
 			or (is_on_floor() and not _ground_ahead()):
 		direction = -direction
-	queue_redraw()
+	_redraw_if_near()
+
+func _redraw_if_near() -> void:
+	# The 24,000-pixel cave keeps every patrol alive for collision and online
+	# state. Only its picture can sleep while it is many screens away.
+	var active_camera := get_viewport().get_camera_2d()
+	if active_camera == null:
+		queue_redraw()
+		return
+	var gap := global_position - active_camera.global_position
+	if absf(gap.x) <= DRAW_RANGE.x and absf(gap.y) <= DRAW_RANGE.y:
+		queue_redraw()
 
 func _ground_ahead() -> bool:
 	var from := global_position + Vector2(float(direction) * 26.0, 20.0)

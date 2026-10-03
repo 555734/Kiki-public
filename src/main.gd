@@ -18,7 +18,7 @@ var preview: Node2D = null
 var fx: Node2D = null
 
 var _respawn_timer: float = -1.0
-var _shake: float = 0.0
+var _camera_y_anchor: float = 0.0
 
 ## Online play. OFFLINE is two players on one screen, which is what the game
 ## has always been; the other two split them across devices with the runner's
@@ -72,7 +72,7 @@ func _ready() -> void:
 	camera.name = "Camera"
 	camera.position_smoothing_enabled = false   # smoothed by hand, see _process
 	camera.zoom = Vector2.ONE * Balance.CAMERA_ZOOM
-	camera.global_position = runner.global_position
+	_snap_camera_to_runner()
 	add_child(camera)
 	camera.make_current()
 
@@ -137,7 +137,6 @@ func _ready() -> void:
 	Events.runner_died.connect(_on_runner_died)
 	Events.stage_cleared.connect(_on_stage_cleared)
 	Events.checkpoint_reached.connect(_on_checkpoint)
-	Events.ability_used.connect(_on_ability_used)
 
 	GameState.reset_run(Stage.start())
 	Clock.reset(0)
@@ -172,7 +171,7 @@ func resume_from_home(fresh_local_run: bool) -> void:
 		# The world was constructed at the start and never advanced. Calling
 		# respawn here would add a post-hit invulnerability window to a brand-new
 		# run, making the first enemy contact appear to do nothing.
-		camera.global_position = runner.global_position
+		_snap_camera_to_runner()
 	Clock.set_physics_process(true)
 	GameState.running = true
 	process_mode = Node.PROCESS_MODE_INHERIT
@@ -538,28 +537,38 @@ func _update_camera(delta: float) -> void:
 	if runner == null or not is_instance_valid(runner):
 		return
 	_update_pan(delta)
+	var climbing := Stage.progress_direction() == Vector2.UP
+	var up_margin := Balance.CAMERA_CLIMB_DEADZONE_UP if climbing \
+		else Balance.CAMERA_Y_DEADZONE_UP
+	var down_margin := Balance.CAMERA_CLIMB_DEADZONE_DOWN if climbing \
+		else Balance.CAMERA_Y_DEADZONE_DOWN
+	# The anchor holds still through a normal jump. It only moves when the runner
+	# approaches the edge of a generous vertical band in the viewport.
+	if runner.global_position.y < _camera_y_anchor - up_margin:
+		_camera_y_anchor = runner.global_position.y + up_margin
+	elif runner.global_position.y > _camera_y_anchor + down_margin:
+		_camera_y_anchor = runner.global_position.y - down_margin
 	# Lead the camera in the direction of travel so the guardian gets a little
 	# more of the road ahead -- chapter 6 wants them reading one screen further
 	# than the runner, and on a shared display this is the whole of that budget.
-	var direction := Stage.progress_direction()
-	var speed_along := runner.velocity.dot(direction)
-	var lead := clampf(speed_along / Balance.RUNNER_RUN_SPEED, -1.0, 1.0) \
-		* Balance.CAMERA_LOOKAHEAD
-	var target := runner.global_position + direction * (lead + guardian_pan)
-	target += Vector2(0.0, -75.0 if Stage.progress_direction() == Vector2.UP else -40.0)
+	var target := Vector2(runner.global_position.x, _camera_y_anchor)
+	if climbing:
+		# Velocity flips on each jump and fall; a fixed upward framing is steadier.
+		target.y -= 90.0 + guardian_pan
+	else:
+		var lead := clampf(runner.velocity.x / Balance.RUNNER_RUN_SPEED,
+			-1.0, 1.0) * Balance.CAMERA_LOOKAHEAD
+		target.x += lead + guardian_pan
+		target.y -= 40.0
 	var t := clampf(delta * Balance.CAMERA_SMOOTH, 0.0, 1.0)
 	camera.global_position = camera.global_position.lerp(target, t)
+	camera.offset = Vector2.ZERO
 
-	if _shake > 0.0:
-		_shake = maxf(0.0, _shake - delta * 3.0)
-		camera.offset = Vector2(
-			randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake * 7.0
-	else:
-		camera.offset = Vector2.ZERO
-
-func _on_ability_used(slot: int, _pos: Vector2) -> void:
-	if slot == 3:
-		_shake = 0.55
+func _snap_camera_to_runner() -> void:
+	_camera_y_anchor = runner.global_position.y
+	var height := 90.0 if Stage.progress_direction() == Vector2.UP else 40.0
+	camera.global_position = runner.global_position + Vector2(0.0, -height)
+	camera.offset = Vector2.ZERO
 
 ## The goal ends the danger as well as the run: the runner can no longer be
 ## hurt, every enemy and chaser stops where it is, and the controls let go so
@@ -578,7 +587,6 @@ func _on_stage_cleared(_stats: Dictionary) -> void:
 func _on_runner_died(_cause: String) -> void:
 	if runner.cleared:
 		return
-	_shake = 1.0
 	_respawn_timer = Balance.RESPAWN_DELAY
 
 func _do_respawn() -> void:
@@ -590,7 +598,7 @@ func _do_respawn() -> void:
 	# Back to the runner. Whatever the guardian was looking at, the retry is the
 	# thing that matters now.
 	guardian_pan = 0.0
-	camera.global_position = runner.global_position
+	_snap_camera_to_runner()
 	Events.runner_respawned.emit(GameState.checkpoint_index)
 
 func _restart() -> void:
@@ -606,7 +614,7 @@ func _restart() -> void:
 	guardian.clear_constructs()
 	level.reset_to_checkpoint()
 	runner.respawn(Stage.start())
-	camera.global_position = runner.global_position
+	_snap_camera_to_runner()
 
 func _on_checkpoint(index: int) -> void:
 	Events.notice.emit("checkpoint %d" % index)

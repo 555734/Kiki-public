@@ -62,7 +62,11 @@ func _draw() -> void:
 	var c := (Color("75adb0") if colour == 0 else Color("998ba9")) \
 		if Stage.is_tower() else (Color("6fd6ff") if colour == 0 else Color("b98cff"))
 	c.a = 0.85 if on else 0.18
-	if on and warning() and int(Clock.tick / 4) % 2 == 0:
-		c.a = 0.35
+	var warning_now := on and warning()
+	if warning_now:
+		# An amber edge communicates the coming change without a rapid alpha
+		# strobe across a staircase full of these blocks.
+		c = Color("c7a987", 0.80) if Stage.is_tower() else Color("f4c488", 0.80)
 	draw_rect(Rect2(-span * 0.5, span), c)
-	draw_rect(Rect2(-span * 0.5, span), Color(1, 1, 1, c.a), false, 2.0)
+	draw_rect(Rect2(-span * 0.5, span),
+		Color("ffe0a0", 0.95) if warning_now else Color(1, 1, 1, c.a), false, 2.0)

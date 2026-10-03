@@ -97,6 +97,20 @@ func run() -> void:
 		await get_tree().physics_frame
 	check(main.runner.is_on_floor(), "runner begins on solid cave ground")
 	var entrance: Vector2 = main.runner.global_position
+	main._snap_camera_to_runner()
+	var stable_y: float = main.camera.global_position.y
+	main.runner.global_position = entrance + Vector2(0.0, -100.0)
+	main._update_camera(1.0 / 60.0)
+	check(absf(main.camera.global_position.y - stable_y) < 0.01,
+		"ordinary cave jump does not bounce the whole camera")
+	main.runner.global_position = entrance + Vector2(0.0, -200.0)
+	for _i in 24:
+		main._update_camera(1.0 / 60.0)
+	check(main.camera.global_position.y < stable_y - 15.0,
+		"camera still follows a sustained climb")
+	check(main.camera.offset == Vector2.ZERO, "camera has no random screen shake")
+	main.runner.global_position = entrance
+	main._snap_camera_to_runner()
 	for crossing in [
 		{"runner": Vector2(5280, 170), "platform": Vector2(5675, 280)},
 		{"runner": Vector2(13280, 210), "platform": Vector2(13690, 290)},

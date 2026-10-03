@@ -14,6 +14,10 @@ extends Node2D
 
 const RADIUS := 34.0
 const SIZE := 40.0
+## The guardian may pan almost a screen ahead of the runner. Keep a generous
+## margin beyond that view, then stop rebuilding far-away coin draw commands.
+const DRAW_RANGE_X := 1300.0
+const DRAW_RANGE_Y := 900.0
 
 var runner: Runner = null
 
@@ -26,11 +30,14 @@ func _ready() -> void:
 	_bob = float(int(global_position.x)) * 0.01   # so a row does not bob in lockstep
 
 func _process(delta: float) -> void:
-	_bob += delta * 3.0
-	queue_redraw()
 	if _taken or runner == null or not is_instance_valid(runner):
 		return
-	if runner.global_position.distance_to(global_position) > RADIUS:
+	var gap := runner.global_position - global_position
+	if absf(gap.x) > DRAW_RANGE_X or absf(gap.y) > DRAW_RANGE_Y:
+		return
+	_bob += delta * 3.0
+	queue_redraw()
+	if gap.length_squared() > RADIUS * RADIUS:
 		return
 	_taken = true
 	visible = false

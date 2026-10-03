@@ -50,8 +50,9 @@ func _draw() -> void:
 	if Stage.is_desert():
 		draw_rect(Rect2(-span.x * 0.5, -span.y * 0.5, span.x, 5.0), Color("e7b66b"))
 	var d := float(direction_at(Clock.tick))
-	var lit := (Color("9bc4bd") if Stage.is_tower() else Color("ffc93c")) \
-		if not (warning() and int(Clock.tick / 4) % 2 == 0) else Color("bb6d5d")
+	# A steady warm cue is easier to read than flashing arrows on a moving view.
+	var lit := Color("c78f72") if warning() else \
+		(Color("9bc4bd") if Stage.is_tower() else Color("ffc93c"))
 	for i in int(span.x / 40.0):
 		var x := -span.x * 0.5 + 20.0 + float(i) * 40.0
 		draw_polyline(PackedVector2Array([Vector2(x - 6 * d, -7), Vector2(x + 6 * d, 0),

@@ -29,6 +29,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if runner == null:
 		return
+	# Keep the player visible through the post-hit safety window. The old
+	# on/off blink was especially harsh amid the dense hazards in 1-8.
+	self_modulate.a = 0.68 if runner.is_invulnerable() else 1.0
 	var speed := absf(runner.velocity.x)
 	match runner.state:
 		Runner.State.RUN:
@@ -110,11 +113,6 @@ func _puff(count: int, strength: float, offset: Vector2 = Vector2.ZERO) -> void:
 
 func _draw() -> void:
 	if runner == null:
-		return
-
-	# Invulnerability blink. Skipping the draw entirely (rather than fading) is
-	# the readable version at this size.
-	if runner.is_invulnerable() and fmod(_phase * 3.0, 1.0) < 0.4:
 		return
 
 	_draw_shadow()

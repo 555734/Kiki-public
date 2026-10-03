@@ -60,6 +60,20 @@ func run() -> void:
 	for _i in 25:
 		await get_tree().physics_frame
 	check(main.runner.is_on_floor(), "runner starts on the tower's entrance floor")
+	var camera_start: Vector2 = main.runner.global_position
+	main._snap_camera_to_runner()
+	var stable_y: float = main.camera.global_position.y
+	main.runner.global_position = camera_start + Vector2(0.0, -80.0)
+	main._update_camera(1.0 / 60.0)
+	check(absf(main.camera.global_position.y - stable_y) < 0.01,
+		"short tower jump stays inside the camera's vertical band")
+	main.runner.global_position = camera_start + Vector2(0.0, -230.0)
+	for _i in 24:
+		main._update_camera(1.0 / 60.0)
+	check(main.camera.global_position.y < stable_y - 30.0,
+		"camera follows the tower's long ascent")
+	main.runner.global_position = camera_start
+	main._snap_camera_to_runner()
 	var gate_bridge := Vector2(-100, 10985)
 	var at_entrance: Vector2 = main.runner.global_position
 	main.runner.global_position = Vector2(100, 11060)

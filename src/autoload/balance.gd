@@ -538,6 +538,13 @@ const RESPAWN_DELAY: float = 1.5
 const CAMERA_LOOKAHEAD: float = 130.0
 const CAMERA_SMOOTH: float = 6.0
 const CAMERA_ZOOM: float = 1.5
+## Let ordinary jumps move inside the frame before scrolling the whole world.
+const CAMERA_Y_DEADZONE_UP: float = 135.0
+const CAMERA_Y_DEADZONE_DOWN: float = 100.0
+## The climbing stages need more room above the runner, but still ignore small
+## changes in height and give a falling player room before moving down.
+const CAMERA_CLIMB_DEADZONE_UP: float = 110.0
+const CAMERA_CLIMB_DEADZONE_DOWN: float = 80.0
 
 ## How high a step ahead of a grounded runner an auto-placed platform sits.
 const RUNNER_REACH_STEP: float = 96.0
