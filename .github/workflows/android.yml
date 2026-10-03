@@ -1,8 +1,6 @@
 name: Android
 
-# Builds both APKs and publishes them as a GitHub Release.
-# The private source branch is recovery/unified; this workflow is intended to
-# run automatically only after that snapshot is synced to Kiki-public/main.
+# Builds test APKs and stores them as Actions artifacts.
 on:
   workflow_call:
   workflow_dispatch:
@@ -12,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   GODOT_VERSION: 4.7.2
@@ -145,41 +143,8 @@ jobs:
           export KEYSTORE="${SIDE_SKY_CI_KEYSTORE}"
           bash tools/build-android.sh
 
-      - name: Name this build
-        id: name
-        run: echo "tag=build-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-
       - uses: actions/upload-artifact@v4
         with:
           name: side-sky-android
           path: |
             build/android/*.apk
-
-      - name: Publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.name.outputs.tag }}"
-          NOTES=$(cat <<'EOF'
-          SIDE / SKY automated Android build.
-
-          | file | purpose | renderer |
-          |---|---|---|
-          | `side-sky-vulkan.apk` | direct install | Vulkan / Godot mobile |
-          | `side-sky-motorola-vulkan.apk` | **Motorola / PowerVR向け** direct install | Vulkan / Godot mobile |
-          | `side-sky-gles3.apk` | compatibility fallback | GLES3 / Godot compatibility |
-
-          Motorola端末では最初に`side-sky-motorola-vulkan.apk`を使用し、描画互換性の比較時だけGLES3版を使用してください。
-
-          These APKs are signed with a throwaway key generated only for this
-          workflow run. Do not upload them to Google Play. The store AAB must
-          be built by the separate Android Play AAB workflow with the app's
-          stable upload key. APKs from different workflow runs may require the
-          previous test build to be uninstalled before installation.
-          EOF
-          )
-          gh release create "$TAG" build/android/*.apk \
-            --title "SIDE / SKY $TAG" --notes "$NOTES" || \
-          gh release upload "$TAG" build/android/*.apk --clobber
-          echo "Release: $(gh release view "$TAG" --json url -q .url)"

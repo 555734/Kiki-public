@@ -1,11 +1,10 @@
 # Downloads
 
-## The current build is on Releases
+## Current test builds
 
-**[github.com/555734/Kiki-public/releases/latest](https://github.com/555734/Kiki-public/releases/latest)**
+Open the latest successful [Mobile Android + iOS workflow run](https://github.com/555734/Kiki-public/actions/workflows/mobile.yml) and download the `side-sky-android` artifact. It contains the current test APKs. These use a temporary signing key; installing a newer run may require uninstalling the older test build first.
 
-`.github/workflows/android.yml` builds both APKs and publishes them there on
-every push to the public mirror's `main`. That is the build to install.
+GitHub Releases contain historical test builds and are no longer updated on every push.
 
 ## The two files in this directory are an older hand-off copy
 
@@ -13,7 +12,7 @@ They were committed back when Actions could not publish Releases for this
 repository, and they have not been rebuilt since — the changelog further down
 describes a **two-stage** game, and there are seven stages now. In particular
 they predate the painted art for 1-B and 1-S entirely. Keep them only if you
-want the build they are; otherwise take the Release above.
+want the build they are; otherwise use the Actions artifact above.
 
 | file | renderer | notes |
 |---|---|---|
@@ -71,7 +70,7 @@ two processes against a real relay for the first time.
 
 ## Why these are still committed
 
-They no longer need to be. Actions publishes Releases now, which is the reason
+They no longer need to be. Actions stores current APKs as run artifacts, which is the reason
 this directory was supposed to be temporary:
 
 > Once it does, delete this directory: keeping binaries in git is a poor habit

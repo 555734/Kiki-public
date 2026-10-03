@@ -1,21 +1,20 @@
 name: iOS
 
-# Public CI has two modes:
-# - normal push: require complete signing credentials and submit to App Store Connect
-# - manual run with submit_to_app_store_connect=false: build the unsigned IPA fallback
+# Push builds produce an unsigned IPA artifact. Signed App Store Connect
+# uploads require an explicit manual run.
 on:
   workflow_call:
     inputs:
       submit_to_app_store_connect:
         required: false
-        default: true
+        default: false
         type: boolean
   workflow_dispatch:
     inputs:
       submit_to_app_store_connect:
         description: "Sign and upload to App Store Connect"
         required: false
-        default: true
+        default: false
         type: boolean
 
 concurrency:
@@ -23,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   GODOT_VERSION: 4.7.2
@@ -85,7 +84,7 @@ jobs:
           MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect }}
         run: |
           set -euo pipefail
-          requested="${MANUAL_SUBMIT:-true}"
+          requested="${MANUAL_SUBMIT:-false}"
 
           if [ "$requested" = false ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -167,11 +166,6 @@ jobs:
             /tmp/xcodebuild_logs/*.log
           if-no-files-found: warn
 
-      - name: Name unsigned fallback build
-        if: steps.asc.outputs.ready != 'true' && success()
-        id: name
-        run: echo "tag=ios-build-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-
       - name: Upload unsigned fallback artifact
         if: steps.asc.outputs.ready != 'true' && success()
         uses: actions/upload-artifact@v4
@@ -179,24 +173,6 @@ jobs:
           name: side-sky-ipa
           path: build/ios/side-sky-unsigned.ipa
           if-no-files-found: error
-
-      - name: Publish unsigned fallback release
-        if: steps.asc.outputs.ready != 'true' && success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.name.outputs.tag }}"
-          NOTES=$(cat <<'EOF'
-          **Unsigned iOS build.** It will not install by tapping it.
-
-          This run explicitly requested the unsigned fallback instead of an App Store Connect submission.
-          EOF
-          )
-          gh release create "$TAG" build/ios/side-sky-unsigned.ipa \
-            --title "SIDE / SKY $TAG (iOS)" --notes "$NOTES" || \
-          gh release upload "$TAG" build/ios/side-sky-unsigned.ipa --clobber
-          echo "Release: $(gh release view "$TAG" --json url -q .url)"
 
       - name: Summarize App Store Connect submission
         if: steps.asc.outputs.ready == 'true' && success()
