@@ -137,10 +137,17 @@ func _physics_process(delta: float) -> void:
 	if Clock.tick % SNAPSHOT_EVERY == 0:
 		transport.send(NetTransport.Channel.SNAPSHOT,
 			NetTransport.Reliability.UNRELIABLE, _snapshot().encode())
-	if Clock.tick % MigrationState.SEND_EVERY_TICKS == 0:
+	# Once per tick that actually happened. The stage clock stands still on the
+	# home screen and while authority moves, and a tick parked on a multiple of
+	# SEND_EVERY_TICKS sent the whole stage again on every frame.
+	if Clock.tick % MigrationState.SEND_EVERY_TICKS == 0 \
+			and Clock.tick != _migration_sent_tick:
+		_migration_sent_tick = Clock.tick
 		_send_migration_frame()
 	_send_boss()
 	_reap_holograms()
+
+var _migration_sent_tick: int = -1
 
 func _send_migration_frame() -> void:
 	if transport == null or not transport.is_connected_to_peer():

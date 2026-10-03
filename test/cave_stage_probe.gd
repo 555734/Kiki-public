@@ -191,6 +191,33 @@ func run() -> void:
 		check(sample_trap.head_at(0) != sample_trap.head_at(
 			Clock.ticks_for(sample_trap.period * 0.25)),
 			"cave traps still follow the shared clock")
+	# Online. The host's failover frame is taken four times a second, so it
+	# has to be cheap and small for the longest stage.
+	var started := Time.get_ticks_usec()
+	MigrationState.capture(main)
+	var frame := MigrationState.capture(main)
+	var capture_ms := float(Time.get_ticks_usec() - started) / 2000.0
+	check(MigrationState.chunks(frame, 1, 0).size() <= 4,
+		"the host's failover frame fits in a few packets (%d bytes)" % frame.size())
+	check(capture_ms < 8.0,
+		"and is taken without stalling a frame (%.1f ms)" % capture_ms)
+	check(MigrationState.decode(frame).get("groups", {}).get("enemy", []).size() \
+			== live_enemies, "and still describes every enemy")
+	# On the guest the host moves every enemy. The cave's wake timer must not
+	# switch their own patrols back on, or they walk away from where they hit.
+	main._become_client(LoopbackTransport.pair(0.0)[0])
+	main.runner.global_position = Stage.start()
+	main._snap_camera_to_runner()
+	for _i in 20:
+		await get_tree().physics_frame
+	var simulating := 0
+	for node in main.level._dynamic.get_children():
+		if node is CaveEnemy and node.is_physics_processing():
+			simulating += 1
+	check(simulating == 0,
+		"the guest's cave enemies follow the host instead of patrolling (%d did)" % simulating)
+	main._end_any_session()
+	Clock.is_host = true
 	main.queue_free()
 	await get_tree().process_frame
 	Stage.use(Stage.Which.GREENFIELD)
