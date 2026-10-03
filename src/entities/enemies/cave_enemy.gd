@@ -9,7 +9,9 @@ extends Enemy
 var direction := -1
 var phase := 0.0
 var _origin := Vector2.ZERO
-const DRAW_RANGE := Vector2(1400.0, 950.0)
+var runner: Runner = null
+const ACTIVE_RANGE_X := 1350.0
+const ACTIVE_RANGE_Y := 800.0
 
 func _ready() -> void:
 	hp = 2 if kind == "burrower" else 1
@@ -29,6 +31,11 @@ func _build_body() -> void:
 
 func _physics_process(delta: float) -> void:
 	phase += delta
+	# Only enemies near the shared runner can be seen, hit or block progress.
+	# The cave is 24,000 px long; simulating every distant ground patrol would
+	# otherwise run dozens of move_and_slide calls and raycasts on every tick.
+	if not _near_runner():
+		return
 	if kind == "bat" or kind == "beetle":
 		var rate := 1.55 if kind == "bat" else 1.05
 		global_position = _origin + Vector2(
@@ -49,15 +56,14 @@ func _physics_process(delta: float) -> void:
 	_redraw_if_near()
 
 func _redraw_if_near() -> void:
-	# The 24,000-pixel cave keeps every patrol alive for collision and online
-	# state. Only its picture can sleep while it is many screens away.
-	var active_camera := get_viewport().get_camera_2d()
-	if active_camera == null:
+	if _near_runner():
 		queue_redraw()
-		return
-	var gap := global_position - active_camera.global_position
-	if absf(gap.x) <= DRAW_RANGE.x and absf(gap.y) <= DRAW_RANGE.y:
-		queue_redraw()
+
+func _near_runner() -> bool:
+	if runner == null or not is_instance_valid(runner):
+		return true
+	var gap := global_position - runner.global_position
+	return absf(gap.x) <= ACTIVE_RANGE_X and absf(gap.y) <= ACTIVE_RANGE_Y
 
 func _ground_ahead() -> bool:
 	var from := global_position + Vector2(float(direction) * 26.0, 20.0)

@@ -54,7 +54,7 @@ func _cave_background(view: Vector2, scroll: float) -> void:
 	draw_rect(Rect2(Vector2.ZERO, view), Color("172840"))
 	var pixel_size := Vector2(CAVE_BACK_WALL.get_size())
 	var tile_size := pixel_size * (view.y / pixel_size.y)
-	var phase := scroll * 0.09
+	var phase := roundf(scroll * 0.09)
 	var first := int(floorf(phase / tile_size.x))
 	var offset := fposmod(phase, tile_size.x)
 	for i in range(-1, int(ceilf(view.x / tile_size.x)) + 2):

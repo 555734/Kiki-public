@@ -29,6 +29,7 @@ var scroll_offset: float = 0.0
 var _canvas: Control = null
 var _gradient: GradientTexture2D = null
 var _time: float = 0.0
+var _last_cave_phase: int = -2147483648
 
 func _ready() -> void:
 	layer = -10
@@ -74,6 +75,13 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	# The cave wall has no animation. Its slow parallax changes by less than a
+	# screen pixel on many frames, so rebuilding it then wastes mobile GPU time.
+	if Stage.is_cave():
+		var cave_phase := roundi(scroll() * 0.09)
+		if cave_phase == _last_cave_phase:
+			return
+		_last_cave_phase = cave_phase
 	if _canvas != null:
 		_canvas.queue_redraw()
 

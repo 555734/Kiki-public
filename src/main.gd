@@ -562,6 +562,15 @@ func _update_camera(delta: float) -> void:
 		target.y -= 40.0
 	var t := clampf(delta * Balance.CAMERA_SMOOTH, 0.0, 1.0)
 	camera.global_position = camera.global_position.lerp(target, t)
+	# A long fall, fast lift or a guardian pan can outrun smoothing. Keep the
+	# runner inside the actual visible rectangle even on that first frame.
+	var half_view := get_viewport().get_visible_rect().size * 0.5 / camera.zoom
+	var safe_x := maxf(0.0, half_view.x - 80.0)
+	var safe_y := maxf(0.0, half_view.y - 70.0)
+	camera.global_position.x = clampf(camera.global_position.x,
+		runner.global_position.x - safe_x, runner.global_position.x + safe_x)
+	camera.global_position.y = clampf(camera.global_position.y,
+		runner.global_position.y - safe_y, runner.global_position.y + safe_y)
 	camera.offset = Vector2.ZERO
 
 func _snap_camera_to_runner() -> void:

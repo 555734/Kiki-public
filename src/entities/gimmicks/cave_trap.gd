@@ -41,7 +41,9 @@ func head_at(at_tick: int) -> Vector2:
 
 func _physics_process(_delta: float) -> void:
 	_shape.position = head_at(Clock.tick)
-	queue_redraw()
+	var active_camera := get_viewport().get_camera_2d()
+	if active_camera == null or absf(global_position.x - active_camera.global_position.x) < 1200.0:
+		queue_redraw()
 
 func _draw() -> void:
 	var at := head_at(Clock.tick)

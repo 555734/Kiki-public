@@ -111,6 +111,14 @@ func run() -> void:
 	check(main.camera.offset == Vector2.ZERO, "camera has no random screen shake")
 	main.runner.global_position = entrance
 	main._snap_camera_to_runner()
+	main.runner.global_position = entrance + Vector2(0.0, 620.0)
+	main._update_camera(1.0 / 60.0)
+	var safe_y: float = get_viewport().get_visible_rect().size.y * 0.5 \
+		/ main.camera.zoom.y - 70.0
+	check(absf(main.runner.global_position.y - main.camera.global_position.y) <= safe_y + 0.01,
+		"camera keeps runner visible during a sudden cave fall")
+	main.runner.global_position = entrance
+	main._snap_camera_to_runner()
 	for crossing in [
 		{"runner": Vector2(5280, 170), "platform": Vector2(5675, 280)},
 		{"runner": Vector2(13280, 210), "platform": Vector2(13690, 290)},
@@ -127,9 +135,12 @@ func run() -> void:
 	var gates := {}
 	var switches := {}
 	var sample_trap: CaveTrap = null
+	var far_enemy: CaveEnemy = null
 	for node in main.level._dynamic.get_children():
 		if node is CaveEnemy:
 			live_enemies += 1
+			if node.global_position.x > 20000.0 and far_enemy == null:
+				far_enemy = node
 		if node is MovingPlatform and node.visual_style == "minecart":
 			live_carts += 1
 		if node is CaveTrap:
@@ -144,6 +155,19 @@ func run() -> void:
 				switches[node.switch_id] = node
 	check(live_enemies >= 45 and live_carts == 4 and live_traps >= 17,
 		"enemies, rideable carts and hazards build in the live level")
+	if far_enemy != null:
+		var dormant_position: Vector2 = far_enemy.global_position
+		for _i in 5:
+			await get_tree().physics_frame
+		check(far_enemy.global_position == dormant_position,
+			"distant cave patrol sleeps until the runner approaches")
+		main.runner.global_position = dormant_position + Vector2(0.0, -130.0)
+		for _i in 5:
+			await get_tree().physics_frame
+		check(far_enemy.global_position != dormant_position,
+			"cave patrol wakes before entering the visible route")
+		main.runner.global_position = entrance
+		main._snap_camera_to_runner()
 	if sample_trap != null:
 		check(sample_trap.head_at(0) != sample_trap.head_at(
 			Clock.ticks_for(sample_trap.period * 0.25)),

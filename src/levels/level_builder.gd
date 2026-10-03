@@ -135,6 +135,8 @@ func rebuild_dynamic() -> void:
 		if node != null:
 			node.global_position = e["pos"]
 			node.net_id = enemy_id
+			if node is CaveEnemy:
+				node.runner = runner
 			_dynamic.add_child(node)
 			_veil(node, Veil.ENEMIES, true)
 		enemy_id += 1

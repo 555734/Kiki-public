@@ -72,6 +72,12 @@ func run() -> void:
 		main._update_camera(1.0 / 60.0)
 	check(main.camera.global_position.y < stable_y - 30.0,
 		"camera follows the tower's long ascent")
+	main.runner.global_position = camera_start + Vector2(0.0, 650.0)
+	main._update_camera(1.0 / 60.0)
+	var safe_y: float = get_viewport().get_visible_rect().size.y * 0.5 \
+		/ main.camera.zoom.y - 70.0
+	check(absf(main.runner.global_position.y - main.camera.global_position.y) <= safe_y + 0.01,
+		"camera keeps runner visible during a sudden tower fall")
 	main.runner.global_position = camera_start
 	main._snap_camera_to_runner()
 	var gate_bridge := Vector2(-100, 10985)

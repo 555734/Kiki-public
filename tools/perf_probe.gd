@@ -25,6 +25,7 @@ func _ready() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	var which := Stage.Which.GREENFIELD
+	var at_x := NAN
 	var args := OS.get_cmdline_user_args()
 	for i in args.size():
 		if args[i] == "--stage" and i + 1 < args.size():
@@ -33,7 +34,12 @@ func _ready() -> void:
 				"1-3": which = Stage.Which.SKYWARD_RUINS
 				"1-4": which = Stage.Which.SEA
 				"1-5": which = Stage.Which.SWAMP
+				"1-6": which = Stage.Which.DESERT
+				"1-7": which = Stage.Which.TOWER
+				"1-8": which = Stage.Which.CAVE
 				_: which = Stage.Which.GREENFIELD
+		if args[i] == "--at" and i + 1 < args.size():
+			at_x = float(args[i + 1])
 	Stage.use(which)
 	_main = MainScene.instantiate()
 	add_child(_main)
@@ -41,6 +47,15 @@ func _ready() -> void:
 	var panel := _main.get_node_or_null("NetPanel")
 	if panel != null:
 		panel.queue_free()
+	_main.resume_from_home(true)
+	# The camera and stage keep running while this probe moves through a safe
+	# route. Avoid deaths and respawns, which would skew frame timings.
+	_main.runner.set_physics_process(false)
+	_main.runner.collision_layer = 0
+	_main.runner.collision_mask = 0
+	if is_finite(at_x):
+		_main.runner.global_position.x = at_x
+		_main._snap_camera_to_runner()
 	await get_tree().process_frame
 
 func _process(delta: float) -> void:
