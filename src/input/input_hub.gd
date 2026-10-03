@@ -123,6 +123,12 @@ var runner_driven_remotely: bool = false
 ## A versus runner always has the stick on the left; global co-op role-swap
 ## signals must never mirror the versus touch map independently of its HUD.
 var force_runner_left: bool = false
+## Screen points that belong to a real Button over the play field (the star
+## battle's スタート / やめる). _input runs before the GUI, so a press there is
+## left alone -- down, drags and up -- or the button never hears it. Unset in
+## co-op, where the controls are painted.
+var gui_passthrough: Callable = Callable()
+var _gui_fingers: Dictionary = {}
 
 func _ready() -> void:
 	process_priority = -100
@@ -538,6 +544,8 @@ func _poll_desktop() -> void:
 ## Read real fingers before any Control can consume a press. The gameplay HUD
 ## is painted, but an overlapping GUI node could previously swallow a jump.
 func _input(event: InputEvent) -> void:
+	if _leave_to_gui(event):
+		return
 	if event is InputEventScreenTouch:
 		_has_touch = true
 		if event.pressed:
@@ -562,6 +570,33 @@ func _input(event: InputEvent) -> void:
 			and _touch_owner.has(MOUSE_FINGER):
 		_touch_move(MOUSE_FINGER, event.position)
 		get_viewport().set_input_as_handled()
+
+## Whether this event is a press on (or the rest of a gesture that began on) a
+## button `gui_passthrough` claims.
+func _leave_to_gui(event: InputEvent) -> bool:
+	var index := -1
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		index = event.index
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
+			and not _has_touch:
+		index = MOUSE_FINGER
+	elif event is InputEventMouseMotion and not _has_touch:
+		return _gui_fingers.has(MOUSE_FINGER)
+	else:
+		return false
+	var down: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) \
+		and event.pressed
+	if down:
+		if gui_passthrough.is_valid() and bool(gui_passthrough.call(event.position)):
+			_gui_fingers[index] = true
+			return true
+		_gui_fingers.erase(index)
+		return false
+	if not _gui_fingers.has(index):
+		return false
+	if not (event is InputEventScreenDrag):
+		_gui_fingers.erase(index)
+	return true
 
 func _screen_to_world(position: Vector2) -> Vector2:
 	var viewport := get_viewport()

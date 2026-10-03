@@ -122,6 +122,9 @@ func _ready() -> void:
 		layer.add_child(_debug_copy_button)
 	_build_menu(layer)
 	_layer = layer
+	# The hub reads fingers before the GUI does; the menu's buttons are real
+	# Buttons and would never hear a press otherwise.
+	input.hubs[0].gui_passthrough = _over_button
 	_build_controls()
 
 	match mode:
@@ -753,6 +756,13 @@ func _build_menu(layer: CanvasLayer) -> void:
 	_again_button = _menu_button("もういちど", rematch)
 	_leave_button = _menu_button("やめる", leave_versus)
 	_refresh_menu()
+
+## Whether a screen point is on one of the buttons shown right now.
+func _over_button(at: Vector2) -> bool:
+	for b in [_start_button, _again_button, _leave_button, _debug_copy_button]:
+		if b != null and b.is_visible_in_tree() and b.get_global_rect().has_point(at):
+			return true
+	return false
 
 func _menu_button(text: String, handler: Callable) -> Button:
 	var b := Button.new()

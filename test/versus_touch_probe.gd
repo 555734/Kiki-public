@@ -70,8 +70,29 @@ func _ready() -> void:
 		var scene = scenes[i]
 		check(not scene.waiting(), "peer %d leaves waiting" % i)
 		check(scene.runners[i].is_physics_processing(), "peer %d local physics enabled" % i)
-		check(not scene.input.hubs[1].is_processing_unhandled_input(),
+		check(not scene.input.hubs[1].is_processing_input(),
 			"peer %d unused hub cannot consume touch" % i)
+		# The やめる button is a real Button: the hub reads fingers before the
+		# GUI and must leave a press on it alone, or it can never be pressed.
+		# (Its handler is swapped for a counter so the probe does not leave.)
+		var leave: Button = scene._leave_button
+		var leave_pressed := [0]
+		var count := func() -> void: leave_pressed[0] += 1
+		leave.pressed.disconnect(scene.leave_versus)
+		leave.pressed.connect(count)
+		var on_leave: Vector2 = leave.get_global_rect().get_center()
+		_touch(i, 9, on_leave, true)
+		await _ticks(2)
+		check(scene.input.hubs[0]._gui_fingers.has(9)
+				and not scene.input.hubs[0]._touch_owner.has(9),
+			"peer %d hub leaves a press on the menu button to the GUI" % i)
+		_touch(i, 9, on_leave, false)
+		await _ticks(2)
+		check(not scene.input.hubs[0]._gui_fingers.has(9),
+			"peer %d and forgets it on release" % i)
+		check(leave_pressed[0] == 1, "peer %d the menu button is pressed by touch" % i)
+		leave.pressed.disconnect(count)
+		leave.pressed.connect(scene.leave_versus)
 		check(scene.level._dynamic.get_child_count() == 0,
 			"peer %d builds the arena without 1-1's pickups or enemies" % i)
 		var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)
