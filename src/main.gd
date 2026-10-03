@@ -596,7 +596,7 @@ func _on_stage_cleared(_stats: Dictionary) -> void:
 	if input_hub != null:
 		input_hub.move_axis = 0.0
 		input_hub.move_axis_y = 0.0
-		input_hub.set_process_unhandled_input(false)
+		input_hub.set_process_input(false)
 		input_hub.set_process(false)
 
 func _on_runner_died(_cause: String) -> void:

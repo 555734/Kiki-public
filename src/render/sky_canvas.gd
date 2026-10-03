@@ -13,7 +13,7 @@ func _draw() -> void:
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
 	if Stage.is_cave():
-		_cave_background(view, scroll)
+		_cave_background(view, sky.vertical())
 		return
 	if Stage.is_tower():
 		_tower_background(view, scroll, sky.vertical())
@@ -48,26 +48,42 @@ func _draw() -> void:
 	_hills(view, scroll * 0.38, _base(view, 0.38), 1.0)
 	_bushes(view, scroll * 0.55, _base(view, 0.55))
 
-## Distant cave arches scroll slowly. Adjacent tiles are mirrored so their
-## edges meet without a visible vertical seam on the long horizontal route.
-func _cave_background(view: Vector2, scroll: float) -> void:
+## A quiet vertical cave wall gives way to daylight at the actual roof height.
+## The texture is tiled only over the visible viewport, never over 13,000px.
+func _cave_background(view: Vector2, camera_y: float) -> void:
 	draw_rect(Rect2(Vector2.ZERO, view), Color("172840"))
 	var pixel_size := Vector2(CAVE_BACK_WALL.get_size())
-	var tile_size := pixel_size * (view.y / pixel_size.y)
-	var phase := roundf(scroll * 0.09)
-	var first := int(floorf(phase / tile_size.x))
-	var offset := fposmod(phase, tile_size.x)
-	for i in range(-1, int(ceilf(view.x / tile_size.x)) + 2):
-		var x := float(i) * tile_size.x - offset
+	var tile_height := pixel_size.y * (view.x / pixel_size.x)
+	var phase := roundf(camera_y * 0.09)
+	var first := int(floorf(phase / tile_height))
+	var offset := fposmod(phase, tile_height)
+	for i in range(-1, int(ceilf(view.y / tile_height)) + 2):
+		var y := float(i) * tile_height - offset
 		if posmod(first + i, 2) != 0:
-			draw_set_transform(Vector2(2.0 * x + tile_size.x, 0),
-				0.0, Vector2(-1, 1))
+			draw_set_transform(Vector2(0, 2.0 * y + tile_height),
+				0.0, Vector2(1, -1))
 		draw_texture_rect(CAVE_BACK_WALL,
-			Rect2(x, 0, tile_size.x, tile_size.y), false)
+			Rect2(0, y, view.x, tile_height), false)
 		if posmod(first + i, 2) != 0:
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# Keep gameplay blocks and interactive silhouettes visually in front.
 	draw_rect(Rect2(Vector2.ZERO, view), Color("172840", 0.12))
+	# The lower chambers stay subdued. Light grows slowly as the shaft opens.
+	var near_roof := clampf((3000.0 - camera_y) / 2000.0, 0.0, 1.0)
+	if near_roof > 0.0:
+		draw_rect(Rect2(Vector2.ZERO, view), Color("a5b9af", near_roof * 0.14))
+	var roof_y := view.y * 0.5 + (1080.0 - camera_y) * Balance.CAMERA_ZOOM
+	if roof_y <= 0.0:
+		return
+	var sky_height := minf(roof_y, view.y)
+	draw_rect(Rect2(0, 0, view.x, sky_height), Color("c6d9d7"))
+	if roof_y < view.y:
+		# Broken rim and three soft rays keep the transition readable without
+		# adding a large animated texture or another full-screen pass.
+		draw_rect(Rect2(0, roof_y - 12.0, view.x, 15.0), Color("7b817b"))
+		for i in 3:
+			var x := view.x * (0.18 + float(i) * 0.31)
+			draw_line(Vector2(x, 0), Vector2(x + 55, roof_y - 15),
+				Color("e6e4c8", 0.30), 24.0)
 
 ## A quiet painted wall behind the playable tower; it scrolls more slowly than
 ## the ledges so the silhouettes stay separate from the collision geometry.

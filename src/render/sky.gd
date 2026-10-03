@@ -78,7 +78,7 @@ func _process(delta: float) -> void:
 	# The cave wall has no animation. Its slow parallax changes by less than a
 	# screen pixel on many frames, so rebuilding it then wastes mobile GPU time.
 	if Stage.is_cave():
-		var cave_phase := roundi(scroll() * 0.09)
+		var cave_phase := roundi(vertical() * 0.09)
 		if cave_phase == _last_cave_phase:
 			return
 		_last_cave_phase = cave_phase

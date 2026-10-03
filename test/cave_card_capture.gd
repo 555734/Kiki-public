@@ -22,15 +22,15 @@ func capture() -> void:
 	main.set_process(false)
 	main.set_physics_process(false)
 	main.runner.set_physics_process(false)
-	main.runner.global_position = Vector2(22220, 170)
+	main.runner.global_position = Vector2(280, 1157)
 	main.runner.velocity = Vector2.ZERO
 	main.camera.zoom = Vector2.ONE * 1.45
 	for _i in 6:
 		await get_tree().physics_frame
-		main.camera.global_position = Vector2(22320, 180)
+		main.camera.global_position = Vector2(0, 1140)
 	for _i in 4:
 		await get_tree().process_frame
-	main.camera.global_position = Vector2(22320, 180)
+	main.camera.global_position = Vector2(0, 1140)
 	await RenderingServer.frame_post_draw
 	var image := get_viewport().get_texture().get_image()
 	image.save_png("res://assets/menu/card_1_8.png")

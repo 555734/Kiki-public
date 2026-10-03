@@ -95,7 +95,7 @@ static func water_y() -> float:
 ## Unit vector in the direction the stage asks the team to make progress.
 ## It is shared by camera framing and directional pursuit.
 static func progress_direction() -> Vector2:
-	return Vector2.UP if is_skyward_ruins() or is_tower() else Vector2.RIGHT
+	return Vector2.UP if is_skyward_ruins() or is_tower() or is_cave() else Vector2.RIGHT
 
 ## Stages that only work with one player per device. On a shared screen there is
 ## nobody to hide anything from, so the whole design collapses into a walk.
@@ -619,7 +619,7 @@ static func crystals() -> Array[Vector2]:
 ## Where the pit sensor goes. Wide enough to catch the whole active stage.
 static func pit_centre_x() -> float:
 	if is_cave():
-		return 5000.0
+		return 0.0
 	if is_tower():
 		return 0.0
 	if is_desert():

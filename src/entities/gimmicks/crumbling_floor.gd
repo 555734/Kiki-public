@@ -23,6 +23,7 @@ func _ready() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = span
 	_shape.shape = rect
+	_shape.one_way_collision = Stage.is_cave()
 	add_child(_shape)
 
 	# A thin sensor across the top surface tells us the runner has arrived.

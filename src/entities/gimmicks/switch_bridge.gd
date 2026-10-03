@@ -22,6 +22,7 @@ func _ready() -> void:
 	var box := RectangleShape2D.new()
 	box.size = span
 	_shape.shape = box
+	_shape.one_way_collision = Stage.is_cave()
 	_shape.disabled = true
 	add_child(_shape)
 	Events.switch_activated.connect(_on_switch)

@@ -81,6 +81,9 @@ func _build_ground_bodies() -> void:
 		box.size = rect.size
 		shape.shape = box
 		shape.position = rect.position + rect.size * 0.5
+		# A vertical platformer needs pass-through ledges: the runner may jump
+		# through stone from below and land on its top on the way down.
+		shape.one_way_collision = Stage.is_cave() and rect.position.y < Stage.start().y
 		body.add_child(shape)
 	_static_root.add_child(body)
 
@@ -232,25 +235,25 @@ func _refresh_cave_activity() -> void:
 			or runner == null or not is_instance_valid(runner):
 		return
 	var camera := get_viewport().get_camera_2d()
-	var centre_x := runner.global_position.x
-	var half_view_x := 1350.0
+	var centre_y := runner.global_position.y
+	var half_view_y := 750.0
 	if camera != null:
-		centre_x = camera.global_position.x
-		half_view_x = get_viewport().get_visible_rect().size.x * 0.5 / camera.zoom.x
+		centre_y = camera.global_position.y
+		half_view_y = get_viewport().get_visible_rect().size.y * 0.5 / camera.zoom.y
 	for enemy in _cave_enemies:
 		if not is_instance_valid(enemy) or enemy.is_queued_for_deletion():
 			continue
 		# Include patrol travel and one timer interval of runner movement beyond
 		# the screen, so a moving enemy is active before it can enter the view.
-		var near := absf(enemy.spawn_position.x - centre_x) <= \
-			half_view_x + enemy.patrol_half_width + 180.0
+		var near := absf(enemy.spawn_position.y - centre_y) <= \
+			half_view_y + 850.0
 		if enemy.is_physics_processing() != near:
 			enemy.set_physics_process(near)
 	for trap in _cave_traps:
 		if not is_instance_valid(trap) or trap.is_queued_for_deletion():
 			continue
-		var near := absf(trap.global_position.x - centre_x) <= \
-			half_view_x + trap.travel + 180.0
+		var near := absf(trap.global_position.y - centre_y) <= \
+			half_view_y + trap.travel + 180.0
 		if trap.is_physics_processing() != near:
 			trap.set_physics_process(near)
 

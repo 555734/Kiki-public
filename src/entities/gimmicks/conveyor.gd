@@ -23,6 +23,7 @@ func _ready() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = span
 	shape.shape = rect
+	shape.one_way_collision = Stage.is_cave()
 	add_child(shape)
 
 func _physics_process(_delta: float) -> void:

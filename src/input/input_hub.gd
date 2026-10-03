@@ -535,7 +535,9 @@ func _poll_desktop() -> void:
 
 # ---------------------------------------------------------------------- touch
 
-func _unhandled_input(event: InputEvent) -> void:
+## Read real fingers before any Control can consume a press. The gameplay HUD
+## is painted, but an overlapping GUI node could previously swallow a jump.
+func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		_has_touch = true
 		if event.pressed:
@@ -590,7 +592,7 @@ func _notification(what: int) -> void:
 
 func release_everything() -> void:
 	for index in _touch_owner.keys():
-		_touch_up(int(index), Vector2(INF, INF))
+		_touch_up(int(index), Vector2(INF, INF), true)
 	_touch_owner.clear()
 	_last_position.clear()
 	_stick_finger = -1
@@ -599,6 +601,11 @@ func release_everything() -> void:
 	_zoom_finger = -1
 	_slot_held = -1
 	_slot_dragged = false
+	_slot_latched = -1
+	_slot_latched_dragged = false
+	_place_latched = Vector2(INF, INF)
+	_place_path = PackedVector2Array()
+	_ping_latched = 0
 	move_axis = 0.0
 	move_axis_y = 0.0
 	dash_held = false
@@ -611,9 +618,13 @@ func _screen_size() -> Vector2:
 	return Vector2(get_viewport().get_visible_rect().size)
 
 func _touch_down(index: int, position: Vector2) -> void:
+	# Android can cancel a contact without delivering its release when focus or
+	# the system gesture layer changes. A reused finger index is a new press.
+	if _touch_owner.has(index):
+		_touch_up(index, Vector2(INF, INF), true)
 	_last_position[index] = position
-	# Set here rather than only in _unhandled_input so that every route into the
-	# touch handlers switches off desktop polling.
+	# Set here too so direct calls into the touch handlers switch off desktop
+	# polling, just like events routed through _input.
 	if index != MOUSE_FINGER:
 		_has_touch = true
 	var size := _screen_size()
@@ -666,10 +677,9 @@ func _route_control(index: int, position: Vector2, size: Vector2,
 			return false
 		"jump":
 			_touch_owner[index] = "jump"
-			# Two fingers can overlap the button while changing grip. Only the
-			# first contact is a press; the last release ends the hold.
-			if not _jump_from_button:
-				press_jump()
+			# Every physical down is an edge. A stale held finger or a second thumb
+			# must not make the button look pressed while Runner receives nothing.
+			press_jump()
 		"stick":
 			_touch_owner[index] = "stick"
 			_stick_finger = index
@@ -798,7 +808,8 @@ func _apply_stick(position: Vector2, size: Vector2) -> void:
 	var reach := (absf(dx) - dead) / maxf(travel - dead, 1.0)
 	move_axis = clampf(reach, 0.0, 1.0) * signf(dx)
 
-func _touch_up(index: int, position: Vector2 = Vector2(INF, INF)) -> void:
+func _touch_up(index: int, position: Vector2 = Vector2(INF, INF),
+		cancelled: bool = false) -> void:
 	if position.x != INF:
 		if _last_position.has(index):
 			_aim_moved[index] = float(_aim_moved.get(index, 0.0)) \
@@ -815,7 +826,11 @@ func _touch_up(index: int, position: Vector2 = Vector2(INF, INF)) -> void:
 			_jump_from_stick = false
 			_refresh_jump_held()
 		"aim":
-			if index == _trace_finger:
+			if cancelled:
+				if index == _trace_finger:
+					_trace_finger = -1
+					trace_points = PackedVector2Array()
+			elif index == _trace_finger:
 				if position.x != INF:
 					trace_points.append(_screen_to_world(position))
 				var made := path_from_stroke(trace_points)
@@ -837,16 +852,18 @@ func _touch_up(index: int, position: Vector2 = Vector2(INF, INF)) -> void:
 			_aim_is_scroll.erase(index)
 			_aim_moved.erase(index)
 		"slot":
-			_slot_latched_dragged = _slot_dragged
-			press_slot(_slot_held)
-			if _slot_dragged and not _over_a_control(index):
-				_place_latched = _world_under(index)
+			if not cancelled:
+				_slot_latched_dragged = _slot_dragged
+				press_slot(_slot_held)
+				if _slot_dragged and not _over_a_control(index):
+					_place_latched = _world_under(index)
 			_slot_finger = -1
 			_slot_held = -1
 			_slot_dragged = false
 		"ping":
-			var held := Time.get_ticks_msec() - _ping_down_ms
-			_ping_latched = 2 if held >= PING_HOLD_MS else 1
+			if not cancelled:
+				var held := Time.get_ticks_msec() - _ping_down_ms
+				_ping_latched = 2 if held >= PING_HOLD_MS else 1
 		"zoom":
 			_zoom_finger = -1
 		"jump":

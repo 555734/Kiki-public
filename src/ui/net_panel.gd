@@ -60,7 +60,7 @@ func _ready() -> void:
 	# emulated mouse event goes to the button and the touch event still reaches
 	# the game's input router.
 	#
-	# _process has to stop as well as _unhandled_input, and that is not belt and
+	# _process has to stop as well as _input, and that is not belt and
 	# braces. The desktop poll used to read p2_use, bound to the left mouse
 	# button, and touch is emulated as a mouse -- so the single tap that picks a
 	# mode was also firing the guardian's ability, spending 30 gauge and
@@ -68,7 +68,7 @@ func _ready() -> void:
 	# Suppressing only the touch path left that one wide open, because the
 	# suppression is what kept _has_touch false and the poll running.
 	if main != null and main.input_hub != null:
-		main.input_hub.set_process_unhandled_input(false)
+		main.input_hub.set_process_input(false)
 		main.input_hub.set_process(false)
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -883,7 +883,7 @@ static func _spaced(code: String) -> String:
 
 func _exit_tree() -> void:
 	if main != null and is_instance_valid(main) and main.input_hub != null:
-		main.input_hub.set_process_unhandled_input(true)
+		main.input_hub.set_process_input(true)
 		main.input_hub.set_process(true)
 		if main.has_method("resume_from_home"):
 			var local_start: bool = fresh_run \

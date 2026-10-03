@@ -77,12 +77,41 @@ func _ready() -> void:
 	hub._touch_down(72, overlapping)
 	var overlap_press := hub.jump_press_sequence
 	hub._touch_down(73, overlapping)
-	check(hub.jump_press_sequence == overlap_press,
-		"a second finger on jump does not invent another press")
+	check(hub.jump_press_sequence == overlap_press + 1,
+		"every new contact on jump supplies a press edge")
 	hub._touch_up(72)
 	check(hub.jump_held, "jump stays held until the second finger lifts")
 	hub._touch_up(73)
 	check(not hub.jump_held, "the last jump finger releases the button")
+	hub._touch_down(74, overlapping)
+	var before_reused := hub.jump_press_sequence
+	# Simulate Android dropping this finger's release and recycling its index.
+	hub._touch_down(74, overlapping)
+	check(hub.jump_press_sequence == before_reused + 1 and hub.take_jump(),
+		"a recycled finger index is a fresh jump even after a lost release")
+	hub._touch_up(74)
+	# A full-screen Control that consumes GUI input must not steal a gameplay
+	# finger before the router has seen the jump down/up pair.
+	var covering_ui := Control.new()
+	covering_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	covering_ui.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(covering_ui)
+	var real_down := InputEventScreenTouch.new()
+	real_down.index = 75
+	real_down.position = jump["center"]
+	real_down.pressed = true
+	get_viewport().push_input(real_down, true)
+	await get_tree().process_frame
+	check(hub.take_jump() and hub.jump_held,
+		"gameplay jump receives the touch before an overlapping GUI Control")
+	var real_up := InputEventScreenTouch.new()
+	real_up.index = 75
+	real_up.position = jump["center"]
+	real_up.pressed = false
+	get_viewport().push_input(real_up, true)
+	await get_tree().process_frame
+	check(not hub.jump_held, "the same path receives the touch release")
+	covering_ui.free()
 
 	# A second source holding jump must prevent a false release. This direct
 	# source setup exercises aggregation even though stick jump is disabled in
@@ -108,6 +137,14 @@ func _ready() -> void:
 	check(hub.jump_release_sequence == focus_before + 1 and not hub.jump_held,
 		"release_everything records a held jump release")
 	check(not hub.take_jump(), "release_everything discards pending jump presses")
+	hub.solo_role = ""
+	hub._touch_down(76, shared["slot_1"]["center"])
+	hub._touch_down(76, shared_jump["center"])
+	check(hub.take_slot_choice() == -1 and hub.take_jump(),
+		"a recycled tool finger cannot fire the old tool instead of jump")
+	hub.release_everything()
+	check(hub.take_slot_choice() == -1 and hub.take_place_at().x == INF,
+		"focus loss cancels tools without placing anything")
 
 	hub.free()
 	print("touch feel: %d checks, %d failures" % [checks, failures])

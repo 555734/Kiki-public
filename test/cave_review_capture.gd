@@ -3,12 +3,9 @@ extends Node
 
 const MainScene: PackedScene = preload("res://src/main.tscn")
 const SHOTS := [
-	["cart", 1210.0, 310.0], ["vent", 3000.0, 240.0],
-	["boulder", 3800.0, 200.0], ["bridge", 5500.0, 180.0],
-	["gate", 6150.0, 180.0], ["first_finale", 9150.0, 225.0],
-	["deep_cart", 12845.0, 230.0], ["deep_bridge", 13650.0, 200.0],
-	["last_bridge", 18700.0, 175.0], ["last_cart", 20385.0, 215.0],
-	["key_run", 22300.0, 180.0], ["goal", 23130.0, 230.0],
+	["deep_start", 0.0, 13820.0], ["wind", 0.0, 12600.0],
+	["first_echo", 0.0, 11000.0], ["mid_cave", 0.0, 8000.0],
+	["last_echo", 0.0, 1750.0], ["surface", 0.0, 1080.0],
 ]
 
 func _ready() -> void:
