@@ -1210,3 +1210,15 @@ msgstr "② Friends enter that code to join"
 
 msgid "③ そろったら 作った人が スタート"
 msgstr "③ When everyone is in, the room's maker starts"
+
+msgid "オンラインに接続できないため、購入を始めませんでした。通信を確認してもう一度お試しください。"
+msgstr "The purchase did not start because the game is not online. Check your connection and try again."
+
+msgid "このApple IDの購入履歴に完全版が見つかりませんでした（App Store）。購入したときのApple IDでサインインしているか確認してください。"
+msgstr "The App Store found no full-game purchase for this Apple ID. Check that you are signed in with the Apple ID you bought it with."
+
+msgid "App Storeから応答がありませんでした。通信を確認してもう一度お試しください。"
+msgstr "The App Store did not answer. Check your connection and try again."
+
+msgid "App Storeから応答がありませんでした。購入済みなら「復元」をお試しください。"
+msgstr "The App Store did not answer. If you have already paid, try Restore."

@@ -25,6 +25,14 @@ class FakeStore extends RefCounted:
 	func restore_purchases() -> void:
 		queue.append_array(on_restore)
 
+## A store that would take the money: records whether it was asked to.
+class ChargingBackend extends Node:
+	var charged := false
+	func available() -> bool: return true
+	func purchase(_id: String) -> Dictionary:
+		charged = true
+		return {}
+
 var failures: Array[String] = []
 
 func check(ok: bool, label: String) -> void:
@@ -92,6 +100,17 @@ func run() -> void:
 	r = await b3.restore("full_unlock")
 	check(String(r.get("error", "")).contains("Cannot connect"),
 		"a failed restore shows the App Store's own reason")
+
+	# Without the online sign-in the purchase must not start at all: the store
+	# would charge and the server could not deliver the game.
+	var real = Iap._backend
+	var charging := ChargingBackend.new()
+	add_child(charging)
+	Iap._backend = charging
+	var said: String = await Iap.purchase()
+	Iap._backend = real
+	check(not charging.charged and said.contains("オンライン"),
+		"no purchase starts without the online sign-in (%s)" % said)
 
 	if failures.is_empty():
 		print("iap ios probe: all checks passed")

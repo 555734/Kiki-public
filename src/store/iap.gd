@@ -50,6 +50,13 @@ func _on_eos_state(state: int, _detail: String) -> void:
 			and OS.has_feature("android"):
 		await restore()
 
+## Signed in to EOS, retrying the sign-in once if the boot-time one failed.
+func online_ready() -> bool:
+	if not EosRuntime.product_user_id().is_empty():
+		return true
+	await EosRuntime.ensure_ready()
+	return not EosRuntime.product_user_id().is_empty()
+
 func available() -> bool:
 	return _backend != null and _backend.available()
 
@@ -72,6 +79,11 @@ func product_id() -> String:
 func purchase() -> String:
 	if not available():
 		return "このビルドではストアに接続できません。"
+	# The entitlement is bound to the EOS ProductUserId. Without one the store
+	# would take the money and _redeem could not deliver the game, so the
+	# purchase does not start until the online sign-in is there.
+	if not await online_ready():
+		return "オンラインに接続できないため、購入を始めませんでした。通信を確認してもう一度お試しください。"
 	var receipt: Dictionary = await _backend.purchase(PRODUCT_ID)
 	return await _redeem(receipt)
 
