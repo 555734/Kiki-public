@@ -1,5 +1,5 @@
 // Runs the Worker's App Store credential check from the command line, with
-// the key taken from the environment (CI secrets). Prints only statuses.
+// the key taken from the environment (CI secrets). Prints only HTTP statuses.
 import { appleCheck } from "./entitlement.js";
 
 const env = {
