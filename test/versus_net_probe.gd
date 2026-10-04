@@ -427,12 +427,12 @@ func _test_the_guardian() -> void:
 	check(guard.connected and guard.seat == VersusRoster.SEAT_A_GUARDIAN,
 		"the guardian is seated")
 
-	# Over 1-1's pit (x 1220..1360), where there is no floor at all.
-	var over_the_gap := Vector2(1290.0, 260.0)
+	# Over 1-1's windy pit (x 1000..1140), where there is no floor at all.
+	var over_the_gap := Vector2(1070.0, 260.0)
 	# Asked from above the platform: floor_below finds surfaces BELOW the point,
 	# and a point inside the slab it just built sees nothing under it.
-	# Below 1-1's sky bridge (its row spans the pit at y 120..166).
-	var looking_down := Vector2(1290.0, 200.0)
+	# Below the row over the pit (y 30..76).
+	var looking_down := Vector2(1070.0, 200.0)
 	check(host.world.floor_below(looking_down, 500.0) == INF,
 		"there is no floor over the gap to begin with")
 	guard.request_build(over_the_gap)

@@ -266,8 +266,11 @@ func _test_random_spawns() -> void:
 	var previous := Vector2(INF, INF)
 	var safe := true
 	var repeats := 0
+	var high := 0
 	for i in range(100):
 		var p: Vector2 = first._free_point()
+		if p.y < 200.0:
+			high += 1
 		same = same and p == replay._free_point()
 		if p != other._free_point():
 			different += 1
@@ -285,6 +288,14 @@ func _test_random_spawns() -> void:
 	check(heights.size() >= 3, "and several heights, block tops included (%d)" % heights.size())
 	check(repeats == 0, "successive stars do not repeat the same spot")
 	check(safe, "all random stars are clear of solids and above floor")
+	# 1-1 puts most of its stars on the hilltops, the rows and the sky.
+	check(high >= 50, "most 1-1 stars appear up high (%d of 100)" % high)
+	var tops := VersusStageData.surface_tops()
+	check(tops[-1] - tops[0] >= 200.0 and tops.size() >= 6,
+		"1-1 climbs through %d heights over %.0fpx" % [tops.size(), tops[-1] - tops[0]])
+	check(VersusStageData.springs().size() >= 4 and VersusStageData.movers().size() >= 4
+		and not VersusStageData.blinks().is_empty() and not VersusStageData.updrafts().is_empty(),
+		"1-1 has springs, lifts, a blinking slab and a column of wind")
 	var actors := _seats()
 	for actor in actors:
 		actor.alive = false
@@ -434,9 +445,9 @@ func _test_themes() -> void:
 				hidden += 1
 		check(hidden == 0, "%s: every solid piece is visible (%d invisible)" % [name, hidden])
 		check(VersusStageData.decor().size() >= 5, "%s: and it has its own scenery" % name)
-		if Stage.water_y() != INF:
-			check(Stage.water_y() > VersusStageData.surface_tops()[-1] + 40.0
-					and Stage.water_y() < VersusStageData.kill_y(),
+		if VersusStageData.water_y() != INF:
+			check(VersusStageData.water_y() > VersusStageData.surface_tops()[-1] + 40.0
+					and VersusStageData.water_y() < VersusStageData.kill_y(),
 				"%s: its water lies below every floor and above the kill line" % name)
 	VersusStageData.use_theme(Stage.Which.GREENFIELD)
 
