@@ -3287,7 +3287,7 @@ func _test_either_of_them_can_point() -> void:
 	# difference is how long the thumb stays on it.
 	said.clear()
 	hub._touch_down(32, _place("ping", view, "guardian"))
-	hub._ping_down_ms -= InputHub.PING_HOLD_MS + 40
+	hub.touch.ping.down_ms -= InputHub.PING_HOLD_MS + 40
 	hub._touch_up(32)
 	await _frames(4)
 	check(said.size() == 1 and int(said[0]["kind"]) == 2,
@@ -4337,12 +4337,12 @@ func _test_the_guardian_can_look_ahead() -> void:
 			% [before_flick, main.guardian_pan])
 
 	# Both arrows at once is a standstill, not a fight.
-	hub._pan_fingers[1] = -1.0
-	hub._pan_fingers[2] = 1.0
-	hub._refresh_pan()
+	hub.touch.pan.fingers[1] = -1.0
+	hub.touch.pan.fingers[2] = 1.0
+	hub.touch.pan.refresh()
 	check(is_zero_approx(hub.pan_axis), "two thumbs on opposite arrows cancel")
-	hub._pan_fingers.clear()
-	hub._refresh_pan()
+	hub.touch.pan.fingers.clear()
+	hub.touch.pan.refresh()
 
 	# A retry puts the view back on the runner: whatever was being looked at,
 	# the checkpoint is what matters now.

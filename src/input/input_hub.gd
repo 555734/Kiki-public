@@ -51,12 +51,6 @@ var aim_screen: Vector2 = Vector2.ZERO
 var aim_active: bool = false
 var _scope_latched: bool = false
 var _slot_latched: int = -1
-## The tool button currently under a thumb, and whether that thumb has moved.
-## Holding a button is aiming with it; letting go is using it. Nothing is
-## "selected" in between -- see press_slot.
-var _slot_finger: int = -1
-var _slot_held: int = -1
-var _slot_dragged: bool = false
 ## Whether the press being consumed right now came with a drag. Latched with
 ## the slot so the reader sees the two together.
 var _slot_latched_dragged: bool = false
@@ -84,17 +78,10 @@ var scope_engaged: bool = false
 ## -1, 0 or +1 while a "look" button is held. Held rather than latched: this is
 ## a camera being pushed, not an event.
 var pan_axis: float = 0.0
-var _pan_fingers: Dictionary = {}   ## finger index -> direction
 ## Sliding sideways off a look button scrubs the view, so a long look is one
 ## flick rather than a thumb held down for three seconds. Accumulated here and
 ## consumed by the camera.
 var _pan_drag: float = 0.0
-var _pan_drag_from: Dictionary = {}  ## finger index -> last x
-## A finger on open ground: where it was last frame, and whether it has
-## committed to scrolling rather than aiming.
-var _aim_from: Dictionary = {}
-var _aim_from_y: Dictionary = {}
-var _aim_is_scroll: Dictionary = {}
 ## How far sideways a finger travels before it counts as a scroll rather than a
 ## nudge of the reticle. Small enough to feel immediate, large enough that
 ## placing the reticle precisely never turns into a scroll by accident.
@@ -106,12 +93,19 @@ const SCROLL_SCALE := 1.0
 ## point is to cover ground without a long drag.
 const PAN_DRAG_SCALE := 2.2
 
-var _touch_owner: Dictionary = {}   ## finger index -> role string
-var _stick_finger: int = -1
-var _stick_position: Vector2 = Vector2.ZERO
-var _aim_finger: int = -1
-var _zoom_finger: int = -1
 var _has_touch: bool = false
+## Every finger on the screen, and the gesture each one belongs to.
+var touch: TouchRouter = TouchRouter.new(self)
+## Which gesture owns each finger, by role name. Read-only: for diagnostics and
+## tests.
+var _touch_owner: Dictionary:
+	get: return touch.roles()
+var _stick_finger: int:
+	get: return touch.stick.finger
+var _slot_finger: int:
+	get: return touch.slot.finger
+var _zoom_finger: int:
+	get: return touch.zoom.finger
 ## Test seam. When true, _process stops polling the keyboard and mouse, so a
 ## headless capture or a unit test can write the intent fields directly. Nothing
 ## in the shipping game sets this.
@@ -151,18 +145,11 @@ func release_jump() -> void:
 	_jump_from_button = false
 	_refresh_jump_held()
 
-## Two thumbs on opposite arrows cancel, which is the only sane answer.
 ## World pixels of scrub since this was last asked, and then zero.
 func take_pan_drag() -> float:
 	var value := _pan_drag
 	_pan_drag = 0.0
 	return value
-
-func _refresh_pan() -> void:
-	var sum := 0.0
-	for finger in _pan_fingers:
-		sum += float(_pan_fingers[finger])
-	pan_axis = signf(sum)
 
 func _refresh_jump_held() -> void:
 	var was_held := jump_held
@@ -232,13 +219,6 @@ const TRACE_MAX_POINTS: int = 16
 ## A finger index no touchscreen will produce, for the mouse to borrow.
 const MOUSE_FINGER: int = 90
 
-## Distance covered since the finger went down, per finger. Accumulated rather
-## than measured start-to-end: _aim_from holds the PREVIOUS position, not the
-## origin -- it is rewritten on every move -- and the reticle itself is rate
-## limited, so neither of them can answer "has this finger moved". A finger that
-## wanders out and comes back is a drag, and this counts it as one.
-var _aim_moved: Dictionary = {}
-
 ## Where the current tool has been asked to go. Cleared when read: it is an
 ## instruction, not a state.
 var _place_latched: Vector2 = Vector2(INF, INF)
@@ -250,16 +230,15 @@ var _place_path: PackedVector2Array = PackedVector2Array()
 var trace_mode: bool = false
 ## World points of the stroke being drawn right now, for the preview.
 var trace_points: PackedVector2Array = PackedVector2Array()
-var _trace_finger: int = -1
 
 func held_slot() -> int:
-	return _slot_held
+	return touch.slot.held
 
 ## Whether the thumb currently on a tool button has moved. Read, not consumed:
 ## the ghost has to ask this every frame while the press is still open, and
 ## take_slot_was_dragged() is the once-only answer for the commit.
 func slot_is_dragged() -> bool:
-	return _slot_dragged
+	return touch.slot.dragged
 
 ## Put the target under a screen point. Everything that aims goes through here
 ## so the world point and the screen record can never disagree.
@@ -402,7 +381,6 @@ func take_slot_was_dragged() -> bool:
 ## untrustworthy in the first place.
 var _undo_latched: bool = false
 var _ping_latched: int = 0
-var _ping_down_ms: int = 0
 
 ## A press this long means "wait" instead of "here". One button, two things,
 ## and the difference is how long you leave your thumb on it.
@@ -462,7 +440,7 @@ func assume_touch() -> void:
 
 ## A finger is on the world right now, drawing a platform or aiming.
 func aiming() -> bool:
-	return _aim_finger >= 0
+	return touch.aim.finger >= 0
 
 func shows_guardian_cursor() -> bool:
 	return owns_guardian_controls() or remote_aim
@@ -534,28 +512,21 @@ func _poll_desktop() -> void:
 	pan_axis = Input.get_axis("p2_pan_left", "p2_pan_right")
 
 # ---------------------------------------------------------------------- touch
+# The fingers themselves are TouchRouter's; see there for why touches are read
+# in two passes.
 
-## Touches are read in two passes, and which pass takes a press is the point.
-##
-## A press on one of the painted game controls (stick, jump, tool slots, the
-## zoom slider) is claimed in _input, before any Control sees it: an
-## overlapping GUI node used to swallow those, which is how a jump went missing.
-## A press on open ground waits for _unhandled_input, so a real Button over
-## the world still gets it first. Once a finger is the hub's, its drags and its
-## release are claimed in _input too, wherever they land; a finger the hub
-## never took is left alone in both passes.
 func _input(event: InputEvent) -> void:
-	if _claim(event, false):
+	if touch.claim(event, false):
 		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _claim(event, true):
+	if touch.claim(event, true):
 		get_viewport().set_input_as_handled()
 
 ## Both passes in the order the viewport runs them, for callers -- tests -- that
 ## hand the hub events directly. Returns whether the hub kept the event.
 func feed(event: InputEvent) -> bool:
-	return _claim(event, false) or _claim(event, true)
+	return touch.claim(event, false) or touch.claim(event, true)
 
 ## Switches the hub's reading of touches and the mouse on or off as one. Both
 ## passes have to go together: turning off only one of them left a stand-in
@@ -567,73 +538,6 @@ func set_listening(on: bool) -> void:
 func is_listening() -> bool:
 	return is_processing_input() and is_processing_unhandled_input()
 
-## One event, one pass. `late` is the unhandled pass, after the GUI has had it.
-func _claim(event: InputEvent, late: bool) -> bool:
-	if event is InputEventScreenTouch:
-		_has_touch = true
-		return _claim_finger(event.index, event.position, event.pressed, late)
-	if event is InputEventScreenDrag:
-		_has_touch = true
-		if late or not _touch_owner.has(event.index):
-			return false
-		_touch_move(event.index, event.position)
-		return true
-	# The mouse goes down the same path as a finger -- but only on a device that
-	# has never produced a real one.
-	if _has_touch:
-		return false
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		return _claim_finger(MOUSE_FINGER, event.position, event.pressed, late)
-	if event is InputEventMouseMotion and not late and _touch_owner.has(MOUSE_FINGER):
-		_touch_move(MOUSE_FINGER, event.position)
-		return true
-	return false
-
-func _claim_finger(index: int, position: Vector2, pressed: bool, late: bool) -> bool:
-	if not pressed:
-		if late or not _touch_owner.has(index):
-			return false
-		_touch_up(index, position if index != MOUSE_FINGER else Vector2(INF, INF))
-		return true
-	if not late:
-		# Android can cancel a contact without delivering its release when focus
-		# or the system gesture layer changes. A reused finger index is a new
-		# press, whoever ends up taking it.
-		if _touch_owner.has(index):
-			_touch_up(index, Vector2(INF, INF), true)
-		if not _on_a_control(position):
-			return false
-	_touch_down(index, position)
-	return _touch_owner.has(index)
-
-## Whether a press here belongs to a painted game control rather than to the
-## world under it. Same tests _touch_down routes by.
-func _on_a_control(position: Vector2) -> bool:
-	var size := _screen_size()
-	var mirrored := not runner_on_left
-	if scope_engaged and TouchLayout.hit_rect(position, TouchLayout.ZOOM_SLIDER, size, mirrored):
-		return true
-	return ControlLayout.hit(layout_mode(), size, mirrored, position) != ""
-
-func _screen_to_world(position: Vector2) -> Vector2:
-	var viewport := get_viewport()
-	return viewport.get_canvas_transform().affine_inverse() * position if viewport != null else position
-
-func _world_under(index: int) -> Vector2:
-	var at: Vector2 = _last_position.get(index, Vector2(INF, INF))
-	var viewport := get_viewport()
-	if at.x == INF or viewport == null:
-		return aim_point
-	return viewport.get_canvas_transform().affine_inverse() * at
-
-func _over_a_control(index: int) -> bool:
-	var at: Vector2 = _last_position.get(index, Vector2(-1.0, -1.0))
-	if at.x < 0.0:
-		return false
-	return ControlLayout.hit(layout_mode(), _screen_size(), not runner_on_left, at) != ""
-
-var _last_position: Dictionary = {}
-
 ## Android does not always send release events when focus is lost, so release
 ## held controls and also discard any press edge that has not reached Runner.
 func _notification(what: int) -> void:
@@ -643,16 +547,7 @@ func _notification(what: int) -> void:
 		release_everything()
 
 func release_everything() -> void:
-	for index in _touch_owner.keys():
-		_touch_up(int(index), Vector2(INF, INF), true)
-	_touch_owner.clear()
-	_last_position.clear()
-	_stick_finger = -1
-	_aim_finger = -1
-	_slot_finger = -1
-	_zoom_finger = -1
-	_slot_held = -1
-	_slot_dragged = false
+	touch.release_all()
 	_slot_latched = -1
 	_slot_latched_dragged = false
 	_place_latched = Vector2(INF, INF)
@@ -664,98 +559,6 @@ func release_everything() -> void:
 	_jump_from_stick = false
 	release_jump()
 	_jump_latched = false
-	_refresh_pan()
-
-func _screen_size() -> Vector2:
-	return Vector2(get_viewport().get_visible_rect().size)
-
-func _touch_down(index: int, position: Vector2) -> void:
-	# Android can cancel a contact without delivering its release when focus or
-	# the system gesture layer changes. A reused finger index is a new press.
-	if _touch_owner.has(index):
-		_touch_up(index, Vector2(INF, INF), true)
-	_last_position[index] = position
-	# Set here too so direct calls into the touch handlers switch off desktop
-	# polling, just like events routed through _claim.
-	if index != MOUSE_FINGER:
-		_has_touch = true
-	var size := _screen_size()
-	var mirrored := not runner_on_left
-
-	if solo_role == "guardian":
-		_route_guardian_only(index, position, size, mirrored)
-		return
-
-	if scope_engaged and TouchLayout.hit_rect(position, TouchLayout.ZOOM_SLIDER, size, mirrored):
-		_touch_owner[index] = "zoom"
-		_zoom_finger = index
-		_apply_zoom_slider(position, size)
-		return
-	if _route_control(index, position, size, mirrored):
-		return
-	if solo_role != "runner" and (TouchLayout.hit_rect(
-			position, TouchLayout.AIM_ZONE, size, mirrored)
-			or _clear_of_runner_controls(position, size, mirrored)):
-		_touch_owner[index] = "aim"
-		_aim_finger = index
-		_begin_aim(index, position)
-
-## On a shared screen, whether a touch on the runner's side is far enough from
-## the stick and the jump button to be the guardian drawing rather than the
-## runner missing a control.
-##
-## The runner's side used to be the runner's alone: a touch there that missed
-## the stick did nothing. But the world carries on over there, and a platform
-## to the runner's LEFT had to be drawn in exactly that third of the screen --
-## so building behind the runner mostly failed. Now only a margin round the
-## runner's controls stays theirs; the rest of that third is the guardian's.
-func _clear_of_runner_controls(position: Vector2, size: Vector2, mirrored: bool) -> bool:
-	var places := ControlLayout.layout(layout_mode(), size, mirrored)
-	for id in ["stick", "jump", "ping"]:
-		if not places.has(id):
-			continue
-		var place: Dictionary = places[id]
-		var reach := float(place["radius"]) \
-			* (ControlLayout.STICK_CAPTURE if place["kind"] == "stick" else 1.0)
-		if position.distance_to(place["center"]) <= reach * RUNNER_CONTROL_MARGIN:
-			return false
-	return true
-
-func _route_control(index: int, position: Vector2, size: Vector2,
-		mirrored: bool) -> bool:
-	var id := ControlLayout.hit(layout_mode(), size, mirrored, position)
-	match id:
-		"":
-			return false
-		"jump":
-			_touch_owner[index] = "jump"
-			# Every physical down is an edge. A stale held finger or a second thumb
-			# must not make the button look pressed while Runner receives nothing.
-			press_jump()
-		"stick":
-			_touch_owner[index] = "stick"
-			_stick_finger = index
-			_apply_stick(position, size)
-		"scope":
-			_touch_owner[index] = "scope"
-			press_scope()
-		"undo":
-			_touch_owner[index] = "undo"
-			_undo_latched = true
-		"ping":
-			_touch_owner[index] = "ping"
-			_ping_down_ms = Time.get_ticks_msec()
-		"pan_left", "pan_right":
-			_touch_owner[index] = "pan"
-			_pan_fingers[index] = -1.0 if id == "pan_left" else 1.0
-			_pan_drag_from[index] = position.y if Stage.progress_direction() == Vector2.UP else position.x
-			_refresh_pan()
-		_:
-			if id.begins_with("slot_"):
-				_hold_slot(index, int(id.substr(5)))
-			else:
-				return false
-	return true
 
 func layout_mode() -> String:
 	if solo_role == "runner":
@@ -764,195 +567,34 @@ func layout_mode() -> String:
 		return "guardian"
 	return "shared"
 
-func _route_guardian_only(index: int, position: Vector2, size: Vector2,
-		mirrored: bool) -> void:
-	if scope_engaged and TouchLayout.hit_rect(position, TouchLayout.ZOOM_SLIDER, size, mirrored):
-		_touch_owner[index] = "zoom"
-		_zoom_finger = index
-		_apply_zoom_slider(position, size)
-		return
-	if _route_control(index, position, size, mirrored):
-		return
-	_touch_owner[index] = "aim"
-	_aim_finger = index
-	_begin_aim(index, position)
+func _screen_size() -> Vector2:
+	return Vector2(get_viewport().get_visible_rect().size)
 
-func _begin_aim(index: int, position: Vector2) -> void:
-	if trace_mode:
-		_trace_finger = index
-		trace_points = PackedVector2Array([_screen_to_world(position)])
-	_aim_from[index] = position.x
-	_aim_from_y[index] = position.y
-	_aim_is_scroll[index] = false
-	_aim_moved[index] = 0.0
-	aim_at_screen(position)
+func _screen_to_world(position: Vector2) -> Vector2:
+	var viewport := get_viewport()
+	return viewport.get_canvas_transform().affine_inverse() * position if viewport != null else position
 
-func _hold_slot(index: int, slot: int) -> void:
-	_touch_owner[index] = "slot"
-	_slot_finger = index
-	_slot_held = slot
-	_slot_dragged = false
+# Finger entry points, kept for the many tests that drive fingers directly.
+func _touch_down(index: int, position: Vector2) -> void:
+	touch.down(index, position)
 
 func _touch_move(index: int, position: Vector2) -> void:
-	_has_touch = true
-	_last_position[index] = position
-	var size := _screen_size()
-	match _touch_owner.get(index, ""):
-		"stick":
-			_apply_stick(position, size)
-		"aim":
-			var travel: float = position.x - float(_aim_from.get(index, position.x))
-			var lift: float = absf(position.y - float(_aim_from_y.get(index, position.y)))
-			_aim_moved[index] = float(_aim_moved.get(index, 0.0)) \
-				+ Vector2(travel, position.y - float(_aim_from_y.get(index, position.y))).length()
-			if index == _trace_finger:
-				trace_points.append(_screen_to_world(position))
-			elif not _aim_is_scroll.get(index, false) \
-					and absf(travel) > SCROLL_WAKES_UP and absf(travel) > lift * 1.4:
-				_aim_is_scroll[index] = true
-			if _aim_is_scroll.get(index, false):
-				_pan_drag += travel * -SCROLL_SCALE
-			else:
-				aim_at_screen(position)
-			_aim_from[index] = position.x
-			_aim_from_y[index] = position.y
-		"pan":
-			var coordinate := position.y if Stage.progress_direction() == Vector2.UP else position.x
-			var from: float = _pan_drag_from.get(index, coordinate)
-			_pan_drag += (coordinate - from) * -PAN_DRAG_SCALE
-			_pan_drag_from[index] = coordinate
-			_pan_fingers.erase(index)
-			_refresh_pan()
-		"slot":
-			_slot_dragged = true
-			aim_at_screen(position)
-		"zoom":
-			_apply_zoom_slider(position, size)
-
-func _apply_stick(position: Vector2, size: Vector2) -> void:
-	_stick_position = position
-	var place := stick_place(size)
-	if place.is_empty():
-		return
-	var anchor: Vector2 = place["center"]
-	var travel_px: float = maxf(ControlLayout.stick_travel(place), 1.0)
-
-	var up := anchor.y - position.y
-	var in_jump_zone := Options.stick_jump() and up > travel_px * ControlLayout.STICK_JUMP_FRACTION
-	var entered_jump_zone := in_jump_zone and not _jump_from_stick
-	_jump_from_stick = in_jump_zone
-	_refresh_jump_held()
-	if entered_jump_zone:
-		_latch_jump_press()
-
-	move_axis_y = clampf(-up / travel_px, -1.0, 1.0)
-	if Options.responsive_touch() and -up < absf(position.x - anchor.x) * 0.85:
-		move_axis_y = minf(move_axis_y, 0.0)
-
-	var dx: float = position.x - anchor.x
-	if not runner_on_left:
-		dx = -dx
-	var dead: float = travel_px * 0.07 if Options.responsive_touch() else ControlLayout.stick_deadzone(place)
-	if absf(dx) <= dead:
-		move_axis = 0.0
-		return
-	var travel: float = travel_px * 0.55 if Options.responsive_touch() else travel_px
-	var reach := (absf(dx) - dead) / maxf(travel - dead, 1.0)
-	move_axis = clampf(reach, 0.0, 1.0) * signf(dx)
+	touch.move(index, position)
 
 func _touch_up(index: int, position: Vector2 = Vector2(INF, INF),
 		cancelled: bool = false) -> void:
-	if position.x != INF:
-		if _last_position.has(index):
-			_aim_moved[index] = float(_aim_moved.get(index, 0.0)) \
-				+ (position - Vector2(_last_position[index])).length()
-		_last_position[index] = position
-		if _touch_owner.get(index, "") in ["aim", "slot"] \
-				and not bool(_aim_is_scroll.get(index, false)):
-			aim_at_screen(position)
-	match _touch_owner.get(index, ""):
-		"stick":
-			_stick_finger = -1
-			move_axis = 0.0
-			move_axis_y = 0.0
-			_jump_from_stick = false
-			_refresh_jump_held()
-		"aim":
-			if cancelled:
-				if index == _trace_finger:
-					_trace_finger = -1
-					trace_points = PackedVector2Array()
-			elif index == _trace_finger:
-				if position.x != INF:
-					trace_points.append(_screen_to_world(position))
-				var made := path_from_stroke(trace_points)
-				if not made.is_empty():
-					_place_latched = made[0]
-					_place_path = made[1]
-				elif float(_aim_moved.get(index, 0.0)) <= TAP_SLOP * 3.0:
-					_place_latched = _world_under(index)
-					_place_path = PackedVector2Array()
-				_trace_finger = -1
-				trace_points = PackedVector2Array()
-			elif not bool(_aim_is_scroll.get(index, false)) \
-					and float(_aim_moved.get(index, 0.0)) <= TAP_SLOP:
-				_place_latched = _world_under(index)
-				_place_path = PackedVector2Array()
-			_aim_finger = -1
-			_aim_from.erase(index)
-			_aim_from_y.erase(index)
-			_aim_is_scroll.erase(index)
-			_aim_moved.erase(index)
-		"slot":
-			if not cancelled:
-				_slot_latched_dragged = _slot_dragged
-				press_slot(_slot_held)
-				if _slot_dragged and not _over_a_control(index):
-					_place_latched = _world_under(index)
-			_slot_finger = -1
-			_slot_held = -1
-			_slot_dragged = false
-		"ping":
-			if not cancelled:
-				var held := Time.get_ticks_msec() - _ping_down_ms
-				_ping_latched = 2 if held >= PING_HOLD_MS else 1
-		"zoom":
-			_zoom_finger = -1
-		"jump":
-			var another_jump_finger := false
-			for finger in _touch_owner:
-				if finger != index and _touch_owner[finger] == "jump":
-					another_jump_finger = true
-					break
-			if not another_jump_finger:
-				release_jump()
-		"dash":
-			release_dash()
-		"pan":
-			_pan_fingers.erase(index)
-			_pan_drag_from.erase(index)
-			_refresh_pan()
-	_touch_owner.erase(index)
-	_last_position.erase(index)
+	touch.up(index, position, cancelled)
 
-var _zoom_slider_value: float = -1.0
+func _on_a_control(position: Vector2) -> bool:
+	return touch.on_a_control(position)
 
-func _apply_zoom_slider(position: Vector2, size: Vector2) -> void:
-	var rect := TouchLayout.ZOOM_SLIDER
-	var t := clampf((position.y / size.y - rect.position.y) / rect.size.y, 0.0, 1.0)
-	var steps := Balance.SCOPE_ZOOM_STEPS.size()
-	var target := int(round((1.0 - t) * float(steps - 1)))
-	if _zoom_slider_value < 0.0:
-		_zoom_slider_value = float(target)
-	var current := int(round(_zoom_slider_value))
-	if target != current:
-		_zoom_latched = signi(target - current)
-		_zoom_slider_value = float(target)
+func _apply_stick(position: Vector2, size: Vector2) -> void:
+	touch.stick.apply(position, size)
 
 func stick_visual() -> Dictionary:
 	return {
-		"active": _stick_finger >= 0,
-		"thumb": _stick_position,
+		"active": touch.stick.finger >= 0,
+		"thumb": touch.stick.thumb,
 		"axis": move_axis,
 		"jumping": _jump_from_stick,
 		"touch_mode": _has_touch,
