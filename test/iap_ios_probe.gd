@@ -86,7 +86,8 @@ func run() -> void:
 	var b3 := _backend(s3)
 	s3.on_restore = [{"type": "restore", "result": "completed"}]
 	r = await b3.restore("full_unlock")
-	check(r.is_empty(), "an account with nothing to restore restores nothing")
+	check(String(r.get("error", "")).contains("App Store"),
+		"an account with nothing to restore is told so, in the App Store's name")
 	s3.on_restore = [{"type": "restore", "result": "error", "error": "Cannot connect to iTunes Store"}]
 	r = await b3.restore("full_unlock")
 	check(String(r.get("error", "")).contains("Cannot connect"),

@@ -86,5 +86,6 @@ func _post(path: String, body: Dictionary) -> Dictionary:
 		return {"error": "ストアの確認サーバに一時的につながりません。"
 			+ "しばらくしてから「購入を復元する」をお試しください。"}
 	if answer.has("message"):
-		return {"error": String(answer["message"])}
+		# The status says which side refused, so a screenshot is a diagnosis.
+		return {"error": "%s（サーバー %d）" % [String(answer["message"]), status]}
 	return {"error": TranslationServer.translate("購入を確認できませんでした（%d）。") % status}

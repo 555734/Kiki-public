@@ -85,7 +85,10 @@ func restore(product_id: String) -> Dictionary:
 	if event.is_empty():
 		return {"error": "App Storeから応答がありませんでした。通信を確認してもう一度お試しください。"}
 	if String(event.get("result", "")) == "completed":
-		return {}
+		# StoreKit itself has nothing to restore for this Apple ID: said in
+		# words that cannot be mistaken for the server's "not found".
+		return {"error": "このApple IDの購入履歴に完全版が見つかりませんでした（App Store）。"
+			+ "購入したときのApple IDでサインインしているか確認してください。"}
 	return _receipt_from(event, product_id)
 
 func _receipt_from(event: Dictionary, product_id: String) -> Dictionary:

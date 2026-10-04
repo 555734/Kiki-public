@@ -15,7 +15,7 @@
  * things only a real store account proves.
  */
 import { webcrypto } from "node:crypto";
-import { Entitlements, _internals } from "./entitlement.js";
+import { Entitlements, _internals, appleCheck } from "./entitlement.js";
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -188,6 +188,15 @@ async function main() {
   const nowhere = await apple.askStore({ platform: "ios", transaction_id: "4000000000" });
   check(!nowhere.ok && nowhere.reason === "not-found",
     "an id Apple knows nowhere is not found");
+  // The credential check: Apple's 404 for a made-up id means the key works.
+  globalThis.fetch = async () => new Response("{}", { status: 404 });
+  const good = await appleCheck(apple.env);
+  check(good.ok && good.statuses.production === 404, "apple-check passes with a working key");
+  globalThis.fetch = async () => new Response("{}", { status: 401 });
+  const bad = await appleCheck(apple.env);
+  check(!bad.ok && bad.statuses.sandbox === 401, "and reports Apple's 401 for a wrong key");
+  const none = await appleCheck(env);
+  check(!none.ok && none.missing.includes("APPLE_ASC_KEY"), "and names a missing setting");
   globalThis.fetch = realFetch;
 
   // --- developers ----------------------------------------------------------

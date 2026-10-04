@@ -279,7 +279,39 @@ function receiptKey(body) {
   return "";
 }
 
+// A health check for the App Store Server API credentials, for whoever is
+// debugging a restore: asks Apple about a transaction that cannot exist.
+// 404 from Apple means the key is good; 401 means it is the wrong key (an App
+// Store Connect API key, not an In-App Purchase key) or the wrong issuer.
+// Nothing secret is returned -- only HTTP statuses and which setting is absent.
+export async function appleCheck(env) {
+  const missing = ["APPLE_ASC_KEY", "APPLE_ASC_KEY_ID", "APPLE_ASC_ISSUER_ID"]
+    .filter((name) => !env[name]);
+  if (missing.length) return { ok: false, missing };
+  let jwt;
+  try {
+    jwt = await appleToken(env);
+  } catch (err) {
+    return { ok: false, key: `unusable: ${String(err && err.name || "error")}` };
+  }
+  const statuses = {};
+  for (const [name, base] of [["production", APPLE_PRODUCTION], ["sandbox", APPLE_SANDBOX]]) {
+    try {
+      const response = await fetch(`${base}/inApps/v1/transactions/0`,
+        { headers: { authorization: `Bearer ${jwt}` } });
+      statuses[name] = response.status;
+    } catch (err) {
+      statuses[name] = `unreachable`;
+    }
+  }
+  const ok = Object.values(statuses).every((s) => s === 404 || s === 400);
+  return { ok, statuses };
+}
+
 export async function handleEntitlement(request, env, url) {
+  if (request.method === "GET" && url.pathname === "/entitlement/apple-check") {
+    return json(await appleCheck(env));
+  }
   if (request.method !== "POST") return json({ message: "method not allowed" }, 405);
   let body;
   try {
