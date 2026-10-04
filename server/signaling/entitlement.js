@@ -285,8 +285,8 @@ function receiptKey(body) {
 // Store Connect API key, not an In-App Purchase key) or the wrong issuer.
 // Nothing secret is returned -- only HTTP statuses and which setting is absent.
 export async function appleCheck(env) {
-  const missing = ["APPLE_ASC_KEY", "APPLE_ASC_KEY_ID", "APPLE_ASC_ISSUER_ID"]
-    .filter((name) => !env[name]);
+  const missing = ["APPLE_ASC_KEY", "APPLE_ASC_KEY_ID", "APPLE_ASC_ISSUER_ID",
+    "ENTITLEMENT_SIGNING_KEY"].filter((name) => !env[name]);
   if (missing.length) return { ok: false, missing };
   let jwt;
   try {
