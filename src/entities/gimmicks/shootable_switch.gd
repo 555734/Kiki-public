@@ -22,6 +22,15 @@ var _locked: float = 0.0
 var _remaining: float = 0.0
 var _pulse: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("switch"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var s := ShootableSwitch.new()
+	s.switch_id = String(spec.get("id", "gate_a"))
+	s.hold_time = float(spec.get("hold", 6.0))
+	s.sigil = int(spec.get("sigil", 0))
+	return s
+
 func _ready() -> void:
 	add_to_group("shootable")
 	# Named so the host can find the open ones and replay them to a client that

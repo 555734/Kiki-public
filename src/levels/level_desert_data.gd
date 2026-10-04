@@ -14,6 +14,11 @@ static func stage_name_value() -> String: return "THE SANDGLASS RUINS"
 static func stage_number_value() -> String: return "1-6"
 static func objective_value() -> String: return "Cross the desert ruins"
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func painted_2d_value() -> bool: return true
+static func needs_key_value() -> bool: return true
+static func pit_centre_x_value() -> float: return 2700.0
+
 const SLABS := [
 	[-1400.0, -360.0, 400.0], # A: acceleration and first scarab
 	[-175.0, 190.0, 360.0],   # A: 40px step up

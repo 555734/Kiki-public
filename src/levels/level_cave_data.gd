@@ -14,6 +14,11 @@ static func stage_name_value() -> String: return "THE UNDERGROVE"
 static func stage_number_value() -> String: return "1-8"
 static func objective_value() -> String: return "Climb out of the cavern"
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func painted_2d_value() -> bool: return true
+static func progress_direction_value() -> Vector2: return Vector2.UP
+static func needs_key_value() -> bool: return true
+
 ## A vertical climb: every ledge and platform above the cavern floor is taken
 ## from below, so all of them let the runner jump up through them.
 static func platforms_one_way() -> bool: return true

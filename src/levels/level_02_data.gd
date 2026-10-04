@@ -29,6 +29,17 @@ const HIGH := 40.0      # 200 above MID; paired with the final wide gap
 ## the wide crossings, not by taking movement controls away.
 const SHELF_TOP := -30.0
 
+## The stage protocol Stage reads. These three stages predate it and keep
+## their constants, which tests and the versus circuit still name directly.
+static func kill_y_value() -> float: return KILL_Y
+static func start_position() -> Vector2: return START
+static func stage_name_value() -> String: return STAGE_NAME
+static func stage_number_value() -> String: return STAGE_NUMBER
+static func objective_value() -> String: return OBJECTIVE
+
+## Stage traits: what Stage answers for this stage instead of its default.
+static func pit_centre_x_value() -> float: return 5000.0
+
 static func solid_decor() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for d in decor():

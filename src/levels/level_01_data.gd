@@ -27,6 +27,19 @@ const STAGE_NAME := "GREENFIELD PLAINS"
 const STAGE_NUMBER := "1-1"
 const OBJECTIVE := "Find the Ancient Gate"
 
+## The stage protocol Stage reads. These three stages predate it and keep
+## their constants, which tests and the versus circuit still name directly.
+static func kill_y_value() -> float: return KILL_Y
+static func start_position() -> Vector2: return START
+static func stage_name_value() -> String: return STAGE_NAME
+static func stage_number_value() -> String: return STAGE_NUMBER
+static func objective_value() -> String: return OBJECTIVE
+
+## Stage traits: what Stage answers for this stage instead of its default.
+static func painted_2d_value() -> bool: return true
+static func needs_key_value() -> bool: return true
+static func pit_centre_x_value() -> float: return 9000.0
+
 ## Solid decor -- conduits and block rows -- as world-space rects. Used both by the
 ## renderer and by the collider builder, so the picture and the physics agree.
 static func solid_decor() -> Array[Rect2]:

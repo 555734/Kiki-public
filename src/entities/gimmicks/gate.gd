@@ -17,6 +17,15 @@ var _open_amount: float = 0.0
 var _target: float = 0.0
 var _shape: CollisionShape2D = null
 
+## Builds this piece from a stage's gimmick spec ("gate"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var gate := Gate.new()
+	gate.span = spec.get("span", Vector2(40, 190))
+	gate.switch_id = String(spec.get("id", "gate_a"))
+	gate.wants = int(spec.get("wants", 0))
+	return gate
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0

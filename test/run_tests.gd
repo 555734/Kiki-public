@@ -83,6 +83,7 @@ func _boot(dismiss_home: bool = true) -> void:
 func _run_all() -> void:
 	_test_eos_contracts()
 	_test_stage_rules_reach_gimmicks()
+	_test_every_stage_keeps_the_contract()
 	await _test_gauge_rules()
 	await _test_platform_limits()
 	await _test_wall_limits()
@@ -425,6 +426,37 @@ func _test_stage_rules_reach_gimmicks() -> void:
 	for n in [plain, asked, cave, solid]:
 		n.free()
 	Stage.use(previous)
+
+## A new stage is a data file and a line in Stage._DATA_FILES. This is what
+## makes leaving something out fail here, rather than as a wrong answer from a
+## fallback deep inside a playthrough.
+func _test_every_stage_keeps_the_contract() -> void:
+	_current = "every stage keeps the contract"
+	var previous: int = Stage.current()
+	var types := {}
+	for which in Stage.Which.values():
+		check(Stage._DATA_FILES.has(which), "stage %d has a data script" % which)
+		if not Stage._DATA_FILES.has(which):
+			continue
+		Stage.use(which)
+		var missing: Array[String] = []
+		for method in Stage.REQUIRED:
+			if not Stage.data().has_method(method):
+				missing.append(method)
+		check(missing.is_empty(), "%s answers every required function (missing %s)"
+			% [Stage._DATA_FILES[which], missing])
+		for spec in Stage.gimmicks():
+			types[String(spec.get("type", ""))] = spec
+	Stage.use(previous)
+	for type in types:
+		check(LevelBuilder.GIMMICKS.has(type), "gimmick type '%s' is registered" % type)
+		if not LevelBuilder.GIMMICKS.has(type):
+			continue
+		var node: Node2D = LevelBuilder.GIMMICKS[type].from_spec(types[type], null)
+		check(node != null and node.get_script() == LevelBuilder.GIMMICKS[type],
+			"and '%s' builds the piece it names" % type)
+		if node != null:
+			node.free()
 
 # ------------------------------------------------------------------ netcode
 

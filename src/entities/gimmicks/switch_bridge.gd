@@ -18,6 +18,15 @@ var _expires_at_tick := -1
 ## it -- the stage data decides, never the piece itself.
 var one_way: bool = false
 
+## Builds this piece from a stage's gimmick spec ("switch_bridge"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var bridge := SwitchBridge.new()
+	bridge.span = spec.get("span", Vector2(150, 26))
+	bridge.switch_id = String(spec.get("id", ""))
+	bridge.delay = float(spec.get("delay", 0.0))
+	return bridge
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0

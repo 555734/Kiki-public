@@ -16,6 +16,16 @@ extends Node2D
 var runner: Node2D = null
 var _cooldown: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("warp" / "warp_exit"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, runner: Runner) -> Node2D:
+	var portal := WarpGate.new()
+	portal.runner = runner
+	portal.is_exit = String(spec.get("type")) == "warp_exit"
+	portal.exit = spec.get("exit", Vector2.ZERO)
+	portal.size = spec.get("size", Vector2(90, 120))
+	return portal
+
 func _physics_process(delta: float) -> void:
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if is_exit or not Clock.is_host or _cooldown > 0.0:

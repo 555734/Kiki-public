@@ -9,6 +9,16 @@ extends Area2D
 
 var _shape: CollisionShape2D
 
+## Builds this piece from a stage's gimmick spec ("cave_trap"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var trap := CaveTrap.new()
+	trap.kind = String(spec.get("kind", "boulder"))
+	trap.travel = float(spec.get("travel", 145.0))
+	trap.period = float(spec.get("period", 3.5))
+	trap.phase_offset = float(spec.get("phase", 0.0))
+	return trap
+
 func _ready() -> void:
 	add_to_group("instant_death")
 	collision_layer = Hazard.LAYER_HAZARD

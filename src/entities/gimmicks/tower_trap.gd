@@ -12,6 +12,18 @@ extends Area2D
 
 var _shape: CollisionShape2D = null
 
+## Builds this piece from a stage's gimmick spec ("tower_trap"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var trap := TowerTrap.new()
+	trap.kind = String(spec.get("kind", "pendulum"))
+	trap.length = float(spec.get("length", 235.0))
+	trap.travel = float(spec.get("travel", 150.0))
+	trap.period = float(spec.get("period", 3.6))
+	trap.phase_offset = float(spec.get("phase", 0.0))
+	trap.facing = int(spec.get("facing", 1))
+	return trap
+
 func _ready() -> void:
 	add_to_group("instant_death")
 	collision_layer = Hazard.LAYER_HAZARD

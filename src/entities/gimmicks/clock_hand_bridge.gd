@@ -7,6 +7,15 @@ extends AnimatableBody2D
 @export var period: float = 4.2
 @export var phase_offset: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("clock_hand"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var hand := ClockHandBridge.new()
+	hand.length = float(spec.get("length", 225.0))
+	hand.period = float(spec.get("period", 4.2))
+	hand.phase_offset = float(spec.get("phase", 0.0))
+	return hand
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0

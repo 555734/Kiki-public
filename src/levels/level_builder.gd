@@ -9,8 +9,6 @@ extends Node2D
 const BlackHoleChaserScript = preload("res://src/entities/enemies/black_hole_chaser.gd")
 const SkyPursuerScript = preload("res://src/entities/enemies/sky_pursuer.gd")
 const ThornmiteScript = preload("res://src/entities/enemies/thornmite.gd")
-const SwitchBridgeScript = preload("res://src/entities/gimmicks/switch_bridge.gd")
-const TrickPadScript = preload("res://src/entities/gimmicks/trick_pad.gd")
 
 var runner: Runner = null
 ## The co-op run's sky crows and gate key. The versus circuit is cut from 1-1
@@ -394,113 +392,31 @@ static func configure_gimmick(node: Node2D, spec: Dictionary) -> void:
 	if "one_way" in node:
 		node.one_way = bool(spec.get("one_way", Stage.platforms_one_way()))
 
+## Every gimmick type a stage spec can name. Each script parses its own spec
+## in from_spec(); adding a type is a line here and a from_spec there.
+const GIMMICKS := {
+	"moving_platform": preload("res://src/entities/gimmicks/moving_platform.gd"),
+	"cave_trap": preload("res://src/entities/gimmicks/cave_trap.gd"),
+	"switch_bridge": preload("res://src/entities/gimmicks/switch_bridge.gd"),
+	"trick_pad": preload("res://src/entities/gimmicks/trick_pad.gd"),
+	"clock_hand": preload("res://src/entities/gimmicks/clock_hand_bridge.gd"),
+	"gear_wheel": preload("res://src/entities/gimmicks/gear_wheel.gd"),
+	"tower_trap": preload("res://src/entities/gimmicks/tower_trap.gd"),
+	"blink": preload("res://src/entities/gimmicks/blink_block.gd"),
+	"conveyor": preload("res://src/entities/gimmicks/conveyor.gd"),
+	"warp": preload("res://src/entities/gimmicks/warp_gate.gd"),
+	"warp_exit": preload("res://src/entities/gimmicks/warp_gate.gd"),
+	"crumble": preload("res://src/entities/gimmicks/crumbling_floor.gd"),
+	"laser": preload("res://src/entities/gimmicks/laser.gd"),
+	"switch": preload("res://src/entities/gimmicks/shootable_switch.gd"),
+	"gate": preload("res://src/entities/gimmicks/gate.gd"),
+	"barricade": preload("res://src/entities/gimmicks/barricade.gd"),
+	"updraft": preload("res://src/entities/gimmicks/updraft.gd"),
+}
+
 func _make_gimmick(spec: Dictionary) -> Node2D:
-	match String(spec.get("type", "")):
-		"moving_platform":
-			var m := MovingPlatform.new()
-			m.span = spec.get("span", Vector2(150, 26))
-			m.travel = spec.get("travel", Vector2(220, 0))
-			m.speed = float(spec.get("speed", Balance.MOVING_PLATFORM_SPEED))
-			m.phase_offset = float(spec.get("phase", 0.0))
-			m.visual_style = String(spec.get("style", ""))
-			return m
-		"cave_trap":
-			var trap := CaveTrap.new()
-			trap.kind = String(spec.get("kind", "boulder"))
-			trap.travel = float(spec.get("travel", 145.0))
-			trap.period = float(spec.get("period", 3.5))
-			trap.phase_offset = float(spec.get("phase", 0.0))
-			return trap
-		"switch_bridge":
-			var bridge := SwitchBridgeScript.new()
-			bridge.span = spec.get("span", Vector2(150, 26))
-			bridge.switch_id = String(spec.get("id", ""))
-			bridge.delay = float(spec.get("delay", 0.0))
-			return bridge
-		"trick_pad":
-			var pad := TrickPadScript.new()
-			pad.runner = runner
-			pad.start_direction = int(spec.get("dir", 1))
-			pad.flip_every = float(spec.get("flip", 0.0))
-			pad.phase_offset = float(spec.get("phase", 0.0))
-			pad.forward_speed = float(spec.get("forward", 460.0))
-			pad.rise_speed = float(spec.get("rise", 830.0))
-			return pad
-		"clock_hand":
-			var hand := ClockHandBridge.new()
-			hand.length = float(spec.get("length", 225.0))
-			hand.period = float(spec.get("period", 4.2))
-			hand.phase_offset = float(spec.get("phase", 0.0))
-			return hand
-		"gear_wheel":
-			var wheel := GearWheel.new()
-			wheel.radius = float(spec.get("radius", 98.0))
-			wheel.angular_speed = float(spec.get("speed", 0.30))
-			wheel.direction = int(spec.get("dir", 1))
-			wheel.phase_offset = float(spec.get("phase", 0.0))
-			return wheel
-		"tower_trap":
-			var trap := TowerTrap.new()
-			trap.kind = String(spec.get("kind", "pendulum"))
-			trap.length = float(spec.get("length", 235.0))
-			trap.travel = float(spec.get("travel", 150.0))
-			trap.period = float(spec.get("period", 3.6))
-			trap.phase_offset = float(spec.get("phase", 0.0))
-			trap.facing = int(spec.get("facing", 1))
-			return trap
-		"blink":
-			var blink := BlinkBlock.new()
-			blink.span = spec.get("span", Vector2(150, 26))
-			blink.beat = float(spec.get("beat", 1.6))
-			blink.colour = int(spec.get("colour", 0))
-			blink.phase_offset = float(spec.get("phase", 0.0))
-			return blink
-		"conveyor":
-			var belt := Conveyor.new()
-			belt.span = spec.get("span", Vector2(220, 26))
-			belt.speed = float(spec.get("speed", 150.0))
-			belt.flip_every = float(spec.get("flip", 0.0))
-			belt.start_direction = int(spec.get("dir", 1))
-			belt.phase_offset = float(spec.get("phase", 0.0))
-			return belt
-		"warp", "warp_exit":
-			var portal := WarpGate.new()
-			portal.runner = runner
-			portal.is_exit = String(spec.get("type")) == "warp_exit"
-			portal.exit = spec.get("exit", Vector2.ZERO)
-			portal.size = spec.get("size", Vector2(90, 120))
-			return portal
-		"crumble":
-			var c := CrumblingFloor.new()
-			c.span = spec.get("span", Vector2(120, 40))
-			return c
-		"laser":
-			var l := Laser.new()
-			l.direction = spec.get("dir", Vector2.RIGHT)
-			l.max_length = float(spec.get("length", 520.0))
-			return l
-		"switch":
-			var s := ShootableSwitch.new()
-			s.switch_id = String(spec.get("id", "gate_a"))
-			s.hold_time = float(spec.get("hold", 6.0))
-			s.sigil = int(spec.get("sigil", 0))
-			return s
-		"gate":
-			var gate := Gate.new()
-			gate.span = spec.get("span", Vector2(40, 190))
-			gate.switch_id = String(spec.get("id", "gate_a"))
-			gate.wants = int(spec.get("wants", 0))
-			return gate
-		"barricade":
-			var wall := Barricade.new()
-			wall.needed_act = int(spec.get("act", 1))
-			return wall
-		"updraft":
-			var lift := Updraft.new()
-			lift.runner = runner
-			lift.span = spec.get("span", Vector2(150.0, 420.0))
-			return lift
-	return null
+	var script: Script = GIMMICKS.get(String(spec.get("type", "")))
+	return script.from_spec(spec, runner) if script != null else null
 
 func reset_to_checkpoint() -> void:
 	rebuild_dynamic()

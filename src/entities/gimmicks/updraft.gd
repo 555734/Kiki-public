@@ -40,6 +40,14 @@ var _phase: float = 0.0
 ## "somebody is in here" out of the puppet's position, which it already has.
 var _occupied: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("updraft"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, runner: Runner) -> Node2D:
+	var lift := Updraft.new()
+	lift.runner = runner
+	lift.span = spec.get("span", Vector2(150.0, 420.0))
+	return lift
+
 func _ready() -> void:
 	add_to_group("updraft")
 	z_index = 4

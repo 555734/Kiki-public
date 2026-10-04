@@ -27,6 +27,11 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func painted_2d_value() -> bool: return true
+static func needs_key_value() -> bool: return true
+static func pit_centre_x_value() -> float: return 4600.0
+
 ## Floating masonry gets the same collision as terrain but is painted separately
 ## by Decor so each block can keep its beveled 2.5D silhouette.
 static func solid_decor() -> Array[Rect2]:

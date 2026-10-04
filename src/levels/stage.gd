@@ -5,6 +5,13 @@ extends RefCounted
 ## Every builder and renderer asks this facade instead of naming a level-data
 ## class directly, so adding a stage cannot accidentally mix geometry from one
 ## map with enemies or checkpoints from another.
+##
+## Each stage is one data script (see _DATA_FILES), and every accessor here
+## just asks the current one. A data script answers the same static functions
+## as every other (REQUIRED, checked by the logic tests) and may declare any of
+## the optional traits below; a stage that says nothing gets the default. So a
+## new stage is a new data file and one line in _DATA_FILES -- not a new branch
+## in every function of this file.
 
 
 ## New stages go on the END: the value is what travels in the handshake.
@@ -59,14 +66,27 @@ static func use(which: int) -> void:
 static func current() -> int:
 	return _which
 
+## Every function a stage's data script must answer. The scalar ones end in
+## _value or _position for the same reason the data files always named them so:
+## a static function cannot share a name with the constant it wraps.
+const REQUIRED: Array[String] = [
+	"kill_y_value", "start_position", "stage_name_value", "stage_number_value",
+	"objective_value", "ground", "solid_decor", "decor", "hazards", "enemies",
+	"gimmicks", "veils", "checkpoints", "goal", "coins", "springs", "crystals",
+]
+
+
+# ------------------------------------------------------------------- traits
+# What a stage is like, as opposed to what is in it. Each is optional in the
+# data script; the fallback is what most stages are.
+
 ## Whether this stage's world is drawn by the 3D view. 1-1 and 1-2 keep their
 ## original painted 2D art -- terrain, props, enemies, pickups and backdrop --
 ## and only the runner is a 3D model over it; the low-poly recipes were a worse
-## picture of those two stages than the art they replaced.
+## picture of those two stages than the art they replaced. Later painted
+## stages declare painted_2d_value() too.
 static func world_3d() -> bool:
-	return Balance.USE_3D and _which != Which.GREENFIELD and _which != Which.HORROR \
-		and _which != Which.SEA and _which != Which.SWAMP and _which != Which.DESERT \
-		and _which != Which.TOWER and _which != Which.CAVE
+	return Balance.USE_3D and not bool(_rule("painted_2d_value", false))
 
 static func is_crossing() -> bool:
 	return _which == Which.CROSSING
@@ -114,16 +134,12 @@ static func is_cave() -> bool:
 
 ## The sea's surface on a stage that has one (1-4), or INF.
 static func water_y() -> float:
-	if is_swamp():
-		return _data("level_swamp_data").water_y_value()
-	if is_sea():
-		return _data("level_sea_data").water_y_value()
-	return INF
+	return float(_rule("water_y_value", INF))
 
 ## Unit vector in the direction the stage asks the team to make progress.
 ## It is shared by camera framing and directional pursuit.
 static func progress_direction() -> Vector2:
-	return Vector2.UP if is_skyward_ruins() or is_tower() or is_cave() else Vector2.RIGHT
+	return _rule("progress_direction_value", Vector2.RIGHT)
 
 ## Whether the stage's platform gimmicks (moving, blinking, crumbling...) can
 ## be jumped through from below. A stage-wide default; a gimmick spec can still
@@ -138,84 +154,28 @@ static func ground_is_one_way(rect: Rect2) -> bool:
 ## Stages that only work with one player per device. On a shared screen there is
 ## nobody to hide anything from, so the whole design collapses into a walk.
 static func needs_two_devices() -> bool:
-	return is_quiet()
+	return bool(_rule("needs_two_devices_value", false))
 
-# ------------------------------------------------------------------ constants
+## The side-scrolling stages lock their goal until the runner has picked up
+## the key, which sits on the ground part-way along. It is what stops a team
+## from reaching the goal on guardian platforms without ever landing.
+static func needs_key() -> bool:
+	return bool(_rule("needs_key_value", false))
+
+## Where the pit sensor goes. Wide enough to catch the whole active stage.
+static func pit_centre_x() -> float:
+	return float(_rule("pit_centre_x_value", 0.0))
+
+# ---------------------------------------------------------------- constants
 
 static func kill_y() -> float:
-	if is_cave():
-		return _data("level_cave_data").kill_y_value()
-	if is_tower():
-		return _data("level_tower_data").kill_y_value()
-	if is_desert():
-		return _data("level_desert_data").kill_y_value()
-	if is_swamp():
-		return _data("level_swamp_data").kill_y_value()
-	if is_sea():
-		return _data("level_sea_data").kill_y_value()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").kill_y_value()
-	if is_sky():
-		return _data("level_sky_data").kill_y_value()
-	if is_keeper():
-		return _data("level_keeper_data").kill_y_value()
-	if is_quiet():
-		return _data("level_quiet_data").kill_y_value()
-	if is_horror():
-		return _data("level_horror_data").kill_y_value()
-	if is_workshop():
-		return Level03Data.KILL_Y
-	return Level02Data.KILL_Y if is_crossing() else Level01Data.KILL_Y
+	return data().kill_y_value()
 
 static func start() -> Vector2:
-	if is_cave():
-		return _data("level_cave_data").start_position()
-	if is_tower():
-		return _data("level_tower_data").start_position()
-	if is_desert():
-		return _data("level_desert_data").start_position()
-	if is_swamp():
-		return _data("level_swamp_data").start_position()
-	if is_sea():
-		return _data("level_sea_data").start_position()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").start_position()
-	if is_sky():
-		return _data("level_sky_data").start_position()
-	if is_keeper():
-		return _data("level_keeper_data").start_position()
-	if is_quiet():
-		return _data("level_quiet_data").start_position()
-	if is_horror():
-		return _data("level_horror_data").start_position()
-	if is_workshop():
-		return Level03Data.START
-	return Level02Data.START if is_crossing() else Level01Data.START
+	return data().start_position()
 
 static func stage_name() -> String:
-	if is_cave():
-		return _data("level_cave_data").stage_name_value()
-	if is_tower():
-		return _data("level_tower_data").stage_name_value()
-	if is_desert():
-		return _data("level_desert_data").stage_name_value()
-	if is_swamp():
-		return _data("level_swamp_data").stage_name_value()
-	if is_sea():
-		return _data("level_sea_data").stage_name_value()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").stage_name_value()
-	if is_sky():
-		return _data("level_sky_data").stage_name_value()
-	if is_keeper():
-		return _data("level_keeper_data").stage_name_value()
-	if is_quiet():
-		return _data("level_quiet_data").stage_name_value()
-	if is_horror():
-		return _data("level_horror_data").stage_name_value()
-	if is_workshop():
-		return Level03Data.STAGE_NAME
-	return Level02Data.STAGE_NAME if is_crossing() else Level01Data.STAGE_NAME
+	return data().stage_name_value()
 
 ## The stages a player who has not bought the full game can start on their own.
 ##
@@ -235,297 +195,56 @@ static func is_free(which: int = -1) -> bool:
 	return FREE_STAGES.has(_which if which < 0 else which)
 
 static func stage_number() -> String:
-	if is_cave():
-		return _data("level_cave_data").stage_number_value()
-	if is_tower():
-		return _data("level_tower_data").stage_number_value()
-	if is_desert():
-		return _data("level_desert_data").stage_number_value()
-	if is_swamp():
-		return _data("level_swamp_data").stage_number_value()
-	if is_sea():
-		return _data("level_sea_data").stage_number_value()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").stage_number_value()
-	if is_sky():
-		return _data("level_sky_data").stage_number_value()
-	if is_keeper():
-		return _data("level_keeper_data").stage_number_value()
-	if is_quiet():
-		return _data("level_quiet_data").stage_number_value()
-	if is_horror():
-		return _data("level_horror_data").stage_number_value()
-	if is_workshop():
-		return Level03Data.STAGE_NUMBER
-	return Level02Data.STAGE_NUMBER if is_crossing() else Level01Data.STAGE_NUMBER
+	return data().stage_number_value()
 
 static func objective() -> String:
-	if is_cave():
-		return _data("level_cave_data").objective_value()
-	if is_tower():
-		return _data("level_tower_data").objective_value()
-	if is_desert():
-		return _data("level_desert_data").objective_value()
-	if is_swamp():
-		return _data("level_swamp_data").objective_value()
-	if is_sea():
-		return _data("level_sea_data").objective_value()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").objective_value()
-	if is_sky():
-		return _data("level_sky_data").objective_value()
-	if is_keeper():
-		return _data("level_keeper_data").objective_value()
-	if is_quiet():
-		return _data("level_quiet_data").objective_value()
-	if is_horror():
-		return _data("level_horror_data").objective_value()
-	if is_workshop():
-		return Level03Data.OBJECTIVE
-	return Level02Data.OBJECTIVE if is_crossing() else Level01Data.OBJECTIVE
+	return data().objective_value()
 
 # ---------------------------------------------------------------------- data
 
 static func ground() -> Array[Rect2]:
-	if is_cave():
-		return _data("level_cave_data").ground()
-	if is_tower():
-		return _data("level_tower_data").ground()
-	if is_desert():
-		return _data("level_desert_data").ground()
-	if is_swamp():
-		return _data("level_swamp_data").ground()
-	if is_sea():
-		return _data("level_sea_data").ground()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").ground()
-	if is_sky():
-		return _data("level_sky_data").ground()
-	if is_keeper():
-		return _data("level_keeper_data").ground()
-	if is_quiet():
-		return _data("level_quiet_data").ground()
-	if is_horror():
-		return _data("level_horror_data").ground()
-	if is_workshop():
-		return Level03Data.ground()
-	return Level02Data.ground() if is_crossing() else Level01Data.ground()
+	return data().ground()
 
 static func solid_decor() -> Array[Rect2]:
-	if is_cave():
-		return _data("level_cave_data").solid_decor()
-	if is_tower():
-		return _data("level_tower_data").solid_decor()
-	if is_desert():
-		return _data("level_desert_data").solid_decor()
-	if is_swamp():
-		return _data("level_swamp_data").solid_decor()
-	if is_sea():
-		return _data("level_sea_data").solid_decor()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").solid_decor()
-	if is_sky():
-		return _data("level_sky_data").solid_decor()
-	if is_keeper():
-		return _data("level_keeper_data").solid_decor()
-	if is_quiet():
-		return _data("level_quiet_data").solid_decor()
-	if is_horror():
-		return _data("level_horror_data").solid_decor()
-	if is_workshop():
-		return Level03Data.solid_decor()
-	return Level02Data.solid_decor() if is_crossing() else Level01Data.solid_decor()
+	return data().solid_decor()
 
 static func decor() -> Array[Dictionary]:
-	if is_cave():
-		return _data("level_cave_data").decor()
-	if is_tower():
-		return _data("level_tower_data").decor()
-	if is_desert():
-		return _data("level_desert_data").decor()
-	if is_swamp():
-		return _data("level_swamp_data").decor()
-	if is_sea():
-		return _data("level_sea_data").decor()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").decor()
-	if is_sky():
-		return _data("level_sky_data").decor()
-	if is_keeper():
-		return _data("level_keeper_data").decor()
-	if is_quiet():
-		return _data("level_quiet_data").decor()
-	if is_horror():
-		return _data("level_horror_data").decor()
-	if is_workshop():
-		return Level03Data.decor()
-	return Level02Data.decor() if is_crossing() else Level01Data.decor()
+	return data().decor()
 
 static func hazards() -> Array[Dictionary]:
-	if is_cave():
-		return _data("level_cave_data").hazards()
-	if is_tower():
-		return _data("level_tower_data").hazards()
-	if is_desert():
-		return _data("level_desert_data").hazards()
-	if is_swamp():
-		return _data("level_swamp_data").hazards()
-	if is_sea():
-		return _data("level_sea_data").hazards()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").hazards()
-	if is_sky():
-		return _data("level_sky_data").hazards()
-	if is_keeper():
-		return _data("level_keeper_data").hazards()
-	if is_quiet():
-		return _data("level_quiet_data").hazards()
-	if is_horror():
-		return _data("level_horror_data").hazards()
-	if is_workshop():
-		return Level03Data.hazards()
-	return Level02Data.hazards() if is_crossing() else Level01Data.hazards()
+	return data().hazards()
 
 static func enemies() -> Array[Dictionary]:
-	if is_cave():
-		return _data("level_cave_data").enemies()
-	if is_tower():
-		return _data("level_tower_data").enemies()
-	if is_desert():
-		return _data("level_desert_data").enemies()
-	if is_swamp():
-		return _data("level_swamp_data").enemies()
-	if is_sea():
-		return _data("level_sea_data").enemies()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").enemies()
-	if is_sky():
-		return _data("level_sky_data").enemies()
-	if is_keeper():
-		return _data("level_keeper_data").enemies()
-	if is_quiet():
-		return _data("level_quiet_data").enemies()
-	if is_horror():
-		return _data("level_horror_data").enemies()
-	if is_workshop():
-		return Level03Data.enemies()
-	return Level02Data.enemies() if is_crossing() else Level01Data.enemies()
+	return data().enemies()
 
 static func gimmicks() -> Array[Dictionary]:
-	if is_cave():
-		return _data("level_cave_data").gimmicks()
-	if is_tower():
-		return _data("level_tower_data").gimmicks()
-	if is_desert():
-		return _data("level_desert_data").gimmicks()
-	if is_swamp():
-		return _data("level_swamp_data").gimmicks()
-	if is_sea():
-		return _data("level_sea_data").gimmicks()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").gimmicks()
-	if is_sky():
-		return _data("level_sky_data").gimmicks()
-	if is_keeper():
-		return _data("level_keeper_data").gimmicks()
-	if is_quiet():
-		return _data("level_quiet_data").gimmicks()
-	if is_horror():
-		return _data("level_horror_data").gimmicks()
-	if is_workshop():
-		return Level03Data.gimmicks()
-	return Level02Data.gimmicks() if is_crossing() else Level01Data.gimmicks()
+	return data().gimmicks()
 
 ## Regions one of the two players cannot see into. Empty for every stage that
 ## shows both players the same world, which is all of them until 1-V.
 static func veils() -> Array[Dictionary]:
-	if is_cave():
-		return _data("level_cave_data").veils()
-	if is_tower():
-		return _data("level_tower_data").veils()
-	if is_desert():
-		return _data("level_desert_data").veils()
-	if is_swamp():
-		return _data("level_swamp_data").veils()
-	if is_sea():
-		return _data("level_sea_data").veils()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").veils()
-	if is_sky():
-		return _data("level_sky_data").veils()
-	if is_keeper():
-		return _data("level_keeper_data").veils()
-	if is_quiet():
-		return _data("level_quiet_data").veils()
-	if is_horror():
-		return _data("level_horror_data").veils()
-	if is_workshop():
-		return Level03Data.veils()
-	return Level02Data.veils() if is_crossing() else Level01Data.veils()
+	return data().veils()
 
 static func checkpoints() -> Array[Vector2]:
-	if is_cave():
-		return _data("level_cave_data").checkpoints()
-	if is_tower():
-		return _data("level_tower_data").checkpoints()
-	if is_desert():
-		return _data("level_desert_data").checkpoints()
-	if is_swamp():
-		return _data("level_swamp_data").checkpoints()
-	if is_sea():
-		return _data("level_sea_data").checkpoints()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").checkpoints()
-	if is_sky():
-		return _data("level_sky_data").checkpoints()
-	if is_keeper():
-		return _data("level_keeper_data").checkpoints()
-	if is_quiet():
-		return _data("level_quiet_data").checkpoints()
-	if is_horror():
-		return _data("level_horror_data").checkpoints()
-	if is_workshop():
-		return Level03Data.checkpoints()
-	return Level02Data.checkpoints() if is_crossing() else Level01Data.checkpoints()
+	return data().checkpoints()
 
 static func goal() -> Vector2:
-	if is_cave():
-		return _data("level_cave_data").goal()
-	if is_tower():
-		return _data("level_tower_data").goal()
-	if is_desert():
-		return _data("level_desert_data").goal()
-	if is_swamp():
-		return _data("level_swamp_data").goal()
-	if is_sea():
-		return _data("level_sea_data").goal()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").goal()
-	if is_sky():
-		return _data("level_sky_data").goal()
-	if is_keeper():
-		return _data("level_keeper_data").goal()
-	if is_quiet():
-		return _data("level_quiet_data").goal()
-	if is_horror():
-		return _data("level_horror_data").goal()
-	if is_workshop():
-		return Level03Data.goal()
-	return Level02Data.goal() if is_crossing() else Level01Data.goal()
+	return data().goal()
 
-## The side-scrolling stages lock their goal until the runner has picked up
-## the key, which sits on the ground part-way along. It is what stops a team
-## from reaching the goal on guardian platforms without ever landing.
-static func needs_key() -> bool:
-	return _which == Which.GREENFIELD or _which == Which.HORROR \
-		or _which == Which.SEA or _which == Which.SWAMP or _which == Which.DESERT \
-		or _which == Which.CAVE
+static func coins() -> Array[Vector2]:
+	return data().coins()
+
+static func springs() -> Array[Vector2]:
+	return data().springs()
+
+static func crystals() -> Array[Vector2]:
+	return data().crystals()
 
 ## Where the key rests: on the lowest ground under a point ~60% of the way from
 ## start to goal, nudged along until it is on a floor with no hazard on it.
 static func key_position() -> Vector2:
-	if is_cave():
-		return _data("level_cave_data").key_position()
+	if data().has_method("key_position"):
+		return data().key_position()
 	var s := start()
 	var g := goal()
 	var base_x := lerpf(s.x, g.x, 0.6)
@@ -565,7 +284,7 @@ static func key_position() -> Vector2:
 ## difficulty sets how fast they sweep instead.
 static func sky_crows() -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	if progress_direction() != Vector2.RIGHT or not needs_key() or is_cave():
+	if progress_direction() != Vector2.RIGHT or not needs_key():
 		return out
 	var rects := ground()
 	var x := start().x + 600.0
@@ -578,104 +297,3 @@ static func sky_crows() -> Array[Vector2]:
 		out.append(Vector2(x, top - 330.0))
 		x += 900.0
 	return out
-
-static func coins() -> Array[Vector2]:
-	if is_cave():
-		return _data("level_cave_data").coins()
-	if is_tower():
-		return _data("level_tower_data").coins()
-	if is_desert():
-		return _data("level_desert_data").coins()
-	if is_swamp():
-		return _data("level_swamp_data").coins()
-	if is_sea():
-		return _data("level_sea_data").coins()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").coins()
-	if is_sky():
-		return _data("level_sky_data").coins()
-	if is_keeper():
-		return _data("level_keeper_data").coins()
-	if is_quiet():
-		return _data("level_quiet_data").coins()
-	if is_horror():
-		return _data("level_horror_data").coins()
-	if is_workshop():
-		return Level03Data.coins()
-	return Level02Data.coins() if is_crossing() else Level01Data.coins()
-
-static func springs() -> Array[Vector2]:
-	if is_cave():
-		return _data("level_cave_data").springs()
-	if is_tower():
-		return _data("level_tower_data").springs()
-	if is_desert():
-		return _data("level_desert_data").springs()
-	if is_swamp():
-		return _data("level_swamp_data").springs()
-	if is_sea():
-		return _data("level_sea_data").springs()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").springs()
-	if is_sky():
-		return _data("level_sky_data").springs()
-	if is_keeper():
-		return _data("level_keeper_data").springs()
-	if is_quiet():
-		return _data("level_quiet_data").springs()
-	if is_horror():
-		return _data("level_horror_data").springs()
-	if is_workshop():
-		return Level03Data.springs()
-	return Level02Data.springs() if is_crossing() else Level01Data.springs()
-
-static func crystals() -> Array[Vector2]:
-	if is_cave():
-		return _data("level_cave_data").crystals()
-	if is_tower():
-		return _data("level_tower_data").crystals()
-	if is_desert():
-		return _data("level_desert_data").crystals()
-	if is_swamp():
-		return _data("level_swamp_data").crystals()
-	if is_sea():
-		return _data("level_sea_data").crystals()
-	if is_skyward_ruins():
-		return _data("level_skyward_ruins_data").crystals()
-	if is_sky():
-		return _data("level_sky_data").crystals()
-	if is_keeper():
-		return _data("level_keeper_data").crystals()
-	if is_quiet():
-		return _data("level_quiet_data").crystals()
-	if is_horror():
-		return _data("level_horror_data").crystals()
-	if is_workshop():
-		return Level03Data.crystals()
-	return Level02Data.crystals() if is_crossing() else Level01Data.crystals()
-
-## Where the pit sensor goes. Wide enough to catch the whole active stage.
-static func pit_centre_x() -> float:
-	if is_cave():
-		return 0.0
-	if is_tower():
-		return 0.0
-	if is_desert():
-		return 2700.0
-	if is_swamp():
-		return 4200.0
-	if is_sea():
-		return 4700.0
-	if is_skyward_ruins():
-		return 0.0
-	if is_sky():
-		return 4000.0
-	if is_keeper():
-		return 200.0
-	if is_quiet():
-		return 1200.0
-	if is_horror():
-		return 4600.0
-	if is_workshop():
-		return 5000.0
-	return 5000.0 if is_crossing() else 9000.0

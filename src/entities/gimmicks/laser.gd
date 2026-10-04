@@ -13,6 +13,14 @@ var _on: bool = false
 var _end: Vector2 = Vector2.ZERO
 var _warn: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("laser"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var l := Laser.new()
+	l.direction = spec.get("dir", Vector2.RIGHT)
+	l.max_length = float(spec.get("length", 520.0))
+	return l
+
 ## Whether the beam is firing at a given tick. A pure function of the tick, so
 ## the on/off phase never has to be synchronised -- see docs/netcode.md 4.1.
 func is_on_at(at_tick: int) -> bool:

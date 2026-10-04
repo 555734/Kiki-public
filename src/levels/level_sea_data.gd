@@ -52,6 +52,11 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func painted_2d_value() -> bool: return true
+static func needs_key_value() -> bool: return true
+static func pit_centre_x_value() -> float: return 4700.0
+
 ## [x0, x1, top] for every beach, cliff and sea stack. Drawn down to
 ## GROUND_BASE, under the water, so each one reads as rock rising out of the sea.
 const SLABS := [

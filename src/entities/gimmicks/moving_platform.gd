@@ -18,6 +18,17 @@ var _origin: Vector2 = Vector2.ZERO
 ## it -- the stage data decides, never the piece itself.
 var one_way: bool = false
 
+## Builds this piece from a stage's gimmick spec ("moving_platform"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var m := MovingPlatform.new()
+	m.span = spec.get("span", Vector2(150, 26))
+	m.travel = spec.get("travel", Vector2(220, 0))
+	m.speed = float(spec.get("speed", Balance.MOVING_PLATFORM_SPEED))
+	m.phase_offset = float(spec.get("phase", 0.0))
+	m.visual_style = String(spec.get("style", ""))
+	return m
+
 func _ready() -> void:
 	collision_layer = 1   # terrain, so everything already treats it as ground
 	collision_mask = 0

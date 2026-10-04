@@ -19,6 +19,17 @@ const WARN := 0.6
 ## it -- the stage data decides, never the piece itself.
 var one_way: bool = false
 
+## Builds this piece from a stage's gimmick spec ("conveyor"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var belt := Conveyor.new()
+	belt.span = spec.get("span", Vector2(220, 26))
+	belt.speed = float(spec.get("speed", 150.0))
+	belt.flip_every = float(spec.get("flip", 0.0))
+	belt.start_direction = int(spec.get("dir", 1))
+	belt.phase_offset = float(spec.get("phase", 0.0))
+	return belt
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0

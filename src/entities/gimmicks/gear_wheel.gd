@@ -10,6 +10,16 @@ extends AnimatableBody2D
 
 const DECK := Vector2(116, 22)
 
+## Builds this piece from a stage's gimmick spec ("gear_wheel"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var wheel := GearWheel.new()
+	wheel.radius = float(spec.get("radius", 98.0))
+	wheel.angular_speed = float(spec.get("speed", 0.30))
+	wheel.direction = int(spec.get("dir", 1))
+	wheel.phase_offset = float(spec.get("phase", 0.0))
+	return wheel
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0

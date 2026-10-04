@@ -22,6 +22,16 @@ var _shape: CollisionShape2D = null
 ## it -- the stage data decides, never the piece itself.
 var one_way: bool = false
 
+## Builds this piece from a stage's gimmick spec ("blink"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var blink := BlinkBlock.new()
+	blink.span = spec.get("span", Vector2(150, 26))
+	blink.beat = float(spec.get("beat", 1.6))
+	blink.colour = int(spec.get("colour", 0))
+	blink.phase_offset = float(spec.get("phase", 0.0))
+	return blink
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0
