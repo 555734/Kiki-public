@@ -1,0 +1,47 @@
+name: Server
+
+# The signalling and entitlement Worker decides whether two people can meet
+# and whether a purchase unlocks anything. Its tests ran only by hand, so a
+# commit could pass every Godot and mobile check and still leave nobody able
+# to make a room. This runs them on every change to the Worker.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "tools/server-tests.sh"
+      - ".github/workflows/server.yml"
+  pull_request:
+    paths:
+      - "server/**"
+      - "tools/server-tests.sh"
+      - ".github/workflows/server.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/signaling/package-lock.json
+
+      # The lockfile is the dependency tree: npm ci refuses to drift from it.
+      - name: Install pinned dependencies
+        working-directory: server/signaling
+        run: npm ci --no-audit --no-fund
+
+      - name: Entitlement rules, co-op rooms and the versus relay
+        run: bash tools/server-tests.sh

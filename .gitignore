@@ -30,7 +30,6 @@ bin/
 # Signalling server deps and local state
 server/signaling/node_modules/
 server/signaling/.wrangler/
-server/signaling/package-lock.json
 server/signaling/.dev.vars
 server/signaling/.dev.vars.*
 !server/signaling/.dev.vars.example
