@@ -1,6 +1,6 @@
 name: Tail signalling worker logs
 
-# Read-only: records the Worker's live log for 15 minutes into this job's
+# Read-only: records the Worker's live log for about 6 hours into this job's
 # output, so a restore attempted on a phone meanwhile shows what Apple said.
 # Runs when this file or server/signaling/TAIL_REQUEST changes on the branch.
 on:
@@ -17,16 +17,16 @@ permissions:
 jobs:
   tail:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Tail for 15 minutes
+      - name: Tail for about 6 hours
         working-directory: server/signaling
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          timeout 900 npx --yes wrangler@4 tail side-sky-signalling --format pretty || true
+          timeout 21000 npx --yes wrangler@4 tail side-sky-signalling --format pretty || true
