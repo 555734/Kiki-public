@@ -1444,3 +1444,24 @@ func _test_the_guardian_sees_the_enemy_go() -> void:
 	session.queue_free()
 	Clock.is_host = true
 	await _frames(2)
+
+## The copied report is meant to be pasted to whoever is helping: it says that
+## the device signed in and is on a network, not who it is or where.
+func _test_a_shared_report_hides_who_it_is() -> void:
+	_current = "shared diagnostic"
+	var puid := "0002a1b2c3d4e5f60718293a4b5c6d7e"
+	var private := {
+		puid: NetDiagnostics.short_id(puid),
+		"192.168.1.23": "<IPv4>",
+		"fd00::1:23": "<IPv6>",
+	}
+	var text := "  Product User ID: %s\nこの端末のIP 192.168.1.23, fd00::1:23\nseen %s again" % [puid, puid]
+	var shared := NetDiagnostics.masked(text, private)
+	check(not shared.contains(puid) and shared.contains("…6d7e"),
+		"the product user id is cut to its last four characters, everywhere")
+	check(not shared.contains("192.168.1.23") and not shared.contains("fd00::1:23")
+		and shared.contains("<IPv4>") and shared.contains("<IPv6>"),
+		"local addresses are replaced, keeping which kind they were")
+	check(NetDiagnostics.masked(text, {}) == text, "nothing is changed without a reason")
+	check(NetDiagnostics.short_id("abc") == "…", "a short id gives nothing away")
+

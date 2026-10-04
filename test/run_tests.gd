@@ -116,3 +116,4 @@ func _run_all() -> void:
 	await controls._test_two_thumbs_do_not_interfere()
 	await movement._test_auto_dash_is_a_real_choice()
 	await network._test_two_taps_make_one_session()
+	network._test_a_shared_report_hides_who_it_is()

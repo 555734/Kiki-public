@@ -23,6 +23,11 @@ var _lines: PackedStringArray = []
 var _started_ms: int = 0
 var _http: HTTPRequest = null
 var _run_button: Button = null
+## Identifiers shown on this screen but not put in a copy: raw -> what the copy
+## says instead. The report is meant to be pasted into a message to whoever is
+## helping, and they need to know that the device signed in and which network
+## it is on, not who it is or its address.
+var _private: Dictionary = {}
 
 func _ready() -> void:
 	layer = 30
@@ -148,15 +153,36 @@ func _button(text: String, handler: Callable) -> Button:
 	return b
 
 func _copy() -> void:
-	DisplayServer.clipboard_set(report())
-	_say("(コピーしました)")
+	DisplayServer.clipboard_set(report(true))
+	_say("(コピーしました。IDとIPアドレスは伏せてあります)")
 
 func _rerun() -> void:
 	_lines.clear()
+	_private.clear()
 	_run()
 
-func report() -> String:
-	return "\n".join(_lines)
+## The report. `for_sharing` is the copied version, with every identifier
+## noted by _keep_private replaced -- wherever it appears, so a journal line
+## that happens to repeat one is covered too.
+func report(for_sharing: bool = false) -> String:
+	var text := "\n".join(_lines)
+	return masked(text, _private) if for_sharing else text
+
+func _keep_private(raw: String, shown: String) -> void:
+	if not raw.is_empty():
+		_private[raw] = shown
+
+## Longest first, so an identifier that contains another is replaced whole.
+static func masked(text: String, private: Dictionary) -> String:
+	var keys: Array = private.keys()
+	keys.sort_custom(func(a, b): return String(a).length() > String(b).length())
+	for raw in keys:
+		text = text.replace(String(raw), String(private[raw]))
+	return text
+
+## Enough of an ID to tell two reports apart, not enough to be the ID.
+static func short_id(id: String) -> String:
+	return "…" + id.right(4) if id.length() > 4 else "…"
 
 ## One line, stamped with how long the whole run has taken so far. The elapsed
 ## time is the useful part: a DNS failure and a blocked port look identical
@@ -184,6 +210,7 @@ func _run() -> void:
 # ------------------------------------------------------------------- steps
 
 func _describe_device() -> void:
+	_keep_private(NetLink.client_id(), short_id(NetLink.client_id()))
 	_say("メロスゲーム 接続診断")
 	_say(TranslationServer.translate("時刻 %s") % Time.get_datetime_string_from_system(true))
 	_say(TranslationServer.translate("ビルド %s / 通信プロトコル v%d") % [Balance.BUILD_ID, Protocol.VERSION])
@@ -200,6 +227,7 @@ func _describe_device() -> void:
 		if one.begins_with("127.") or one.begins_with("::") or one.begins_with("fe80"):
 			continue
 		addresses.append(one)
+		_keep_private(one, "<IPv6>" if one.contains(":") else "<IPv4>")
 	_say(TranslationServer.translate("この端末のIP %s") % (", ".join(addresses) if not addresses.is_empty() else "(なし)"))
 	_say("")
 
@@ -208,6 +236,7 @@ func _check_eos() -> void:
 	if not EosRuntime.last_error.is_empty():
 		_say(TranslationServer.translate("  最後のエラー: %s") % EosRuntime.last_error)
 	var puid := EosRuntime.product_user_id()
+	_keep_private(puid, short_id(puid))
 	_say("  Product User ID: %s" % (puid if not puid.is_empty() else "未取得"))
 
 func _check_relay_reachable() -> void:
