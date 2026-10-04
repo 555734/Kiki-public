@@ -50,6 +50,9 @@ func _physics_process(delta: float) -> void:
 
 func _ready() -> void:
 	process_physics_priority = -200
+	# The やめる button asks before it leaves; a saved "don't ask" would make
+	# the button check below really leave.
+	UiPrefs.set_skip_quit_confirm(false)
 	links = VersusLoopback.mesh(2, 0.1) # 200ms RTT must not re-kill a respawn.
 	for i in range(2):
 		var view := SubViewport.new()
@@ -74,11 +77,11 @@ func _ready() -> void:
 			"peer %d unused hub cannot consume touch" % i)
 		# The やめる button is a real Button: the hub reads fingers before the
 		# GUI and must leave a press on it alone, or it can never be pressed.
-		# (Its handler is swapped for a counter so the probe does not leave.)
+		# (It opens the やめる question, which is closed again below, so the
+		# probe never leaves.)
 		var leave: Button = scene._leave_button
 		var leave_pressed := [0]
 		var count := func() -> void: leave_pressed[0] += 1
-		leave.pressed.disconnect(scene.leave_versus)
 		leave.pressed.connect(count)
 		var on_leave: Vector2 = leave.get_global_rect().get_center()
 		_touch(i, 9, on_leave, true)
@@ -90,9 +93,10 @@ func _ready() -> void:
 		await _ticks(2)
 		check(not scene.input.hubs[0]._gui_fingers.has(9),
 			"peer %d and forgets it on release" % i)
-		check(leave_pressed[0] == 1, "peer %d the menu button is pressed by touch" % i)
+		check(leave_pressed[0] == 1 and scene._quit.asking(),
+			"peer %d the menu button is pressed by touch, and asks first" % i)
 		leave.pressed.disconnect(count)
-		leave.pressed.connect(scene.leave_versus)
+		scene._quit.cancel()
 		check(scene.level._dynamic.get_child_count() == 0,
 			"peer %d builds the arena without 1-1's pickups or enemies" % i)
 		var layout := ControlLayout.layout("shared", Vector2(1280, 720), false)

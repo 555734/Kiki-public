@@ -91,6 +91,10 @@ func _ready() -> void:
 		ready = ready and s.waiting() and s.local_team == s._seat and s.controls != null \
 			and s.guardian != null and s.runners.size() == 8
 	check(ready, "each person drives their own one of eight runners, with the rifle")
+	var own_shown := true
+	for s in scenes:
+		own_shown = own_shown and s.runners[s.local_team].visible
+	check(own_shown, "and sees that runner on their own screen once seated")
 	check(host.can_start(), "three people is enough to start")
 	var followed := true
 	for sc in scenes:

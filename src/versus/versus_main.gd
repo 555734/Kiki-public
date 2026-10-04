@@ -121,6 +121,15 @@ func _ready() -> void:
 		_debug_copy_button.pressed.connect(_copy_debug_log)
 		layer.add_child(_debug_copy_button)
 	_build_menu(layer)
+	_quit = QuitConfirm.new()
+	_quit.name = "Quit"
+	_quit.with_button = false
+	_quit.input_hub = input.hubs[0]
+	_quit.on_quit = leave_versus
+	_quit.pause_while_asking = mode == Mode.SOLO
+	_quit.detail = tr("スタート画面に戻ります") if mode == Mode.SOLO \
+		else tr("部屋から抜けて、スタート画面に戻ります")
+	add_child(_quit)
 	_layer = layer
 	# The hub reads fingers before the GUI does; the menu's buttons are real
 	# Buttons and would never hear a press otherwise.
@@ -178,6 +187,7 @@ func _take_seat(seat: int) -> void:
 	if local_team < 0 or local_team >= sides:
 		return
 	var r := runners[local_team]
+	r.visible = true
 	r.input_hub = input.hubs[0]
 	r.global_position = VersusStageData.start_positions()[local_team]
 	r.facing = VersusStageData.start_facing()[local_team]
@@ -742,6 +752,8 @@ func _drop_holo(key: String, include_main: bool = true) -> void:
 ## Real buttons for what the keyboard did before: start, play again, leave.
 ## A phone has no R and no Esc, and a mode you cannot start or leave from the
 ## screen is not a mode a phone can play.
+## The やめる question (QuitConfirm); the button itself is _leave_button.
+var _quit: QuitConfirm = null
 var _start_button: Button = null
 var _again_button: Button = null
 var _leave_button: Button = null
@@ -754,11 +766,13 @@ func _build_menu(layer: CanvasLayer) -> void:
 	layer.add_child(_menu)
 	_start_button = _menu_button("スタート", start_match)
 	_again_button = _menu_button("もういちど", rematch)
-	_leave_button = _menu_button("やめる", leave_versus)
+	_leave_button = _menu_button("やめる", func() -> void: _quit.request())
 	_refresh_menu()
 
 ## Whether a screen point is on one of the buttons shown right now.
 func _over_button(at: Vector2) -> bool:
+	if _quit != null and _quit.claims(at):
+		return true
 	for b in [_start_button, _again_button, _leave_button, _debug_copy_button]:
 		if b != null and b.is_visible_in_tree() and b.get_global_rect().has_point(at):
 			return true
@@ -1070,7 +1084,13 @@ func _update_activity() -> void:
 	if local_team >= 0 and runners[local_team].is_physics_processing() != active:
 		runners[local_team].set_physics_process(active)
 	for i in range(sides):
-		if i != local_team:
+		if i == local_team:
+			# Your own runner is always drawn. A free-for-all guest has no
+			# chair until the WELCOME, and until then this loop treated their
+			# runner as an empty chair and hid it -- then, once seated, skipped
+			# it as their own and never showed it again: a ring with nobody in it.
+			runners[i].visible = true
+		else:
 			runners[i].visible = not waiting() \
 				and _seat_taken(VersusRoster.runner_seat_in(room_mode, i))
 
@@ -1642,7 +1662,7 @@ func leave_versus() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \
 			and event.physical_keycode == KEY_ESCAPE:
-		leave_versus()
+		_quit.request()
 
 # ---------------------------------------------------------------------- paint
 ## Stars, platforms, rings and strikes go on an overlay above the scenery:
@@ -1701,7 +1721,8 @@ func _builds() -> void:
 
 func _markers() -> void:
 	for i in range(sides):
-		if _respawn_in[i] > 0:
+		# Nobody in an empty chair: no ring either.
+		if _respawn_in[i] > 0 or not runners[i].visible:
 			continue
 		var at: Vector2 = runners[i].global_position \
 			+ Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5)

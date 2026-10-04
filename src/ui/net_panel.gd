@@ -110,10 +110,14 @@ func _ready() -> void:
 	elif Stage.current() == Stage.Which.TOWER or Stage.current() == Stage.Which.CAVE:
 		_stage_page = 2
 
-	if _open_play_after_reload:
+	# Between stages of a kept room (CoopRoom) this is the stage list, with
+	# the room on it, whatever the last screen was.
+	CoopRoom.changed.connect(_on_room_changed)
+	if _open_play_after_reload and not CoopRoom.holding():
 		_open_play_after_reload = false
 		_show_play_screen()
 	else:
+		_open_play_after_reload = false
 		_show_stage_screen()
 
 var _phase_label: Label = null
@@ -202,7 +206,13 @@ func _show_stage_screen() -> void:
 	_screen_host.add_child(box)
 
 	box.add_child(_title("—  ステージを選択  —", 30, Color("073f89")))
-	box.add_child(_title("遊ぶステージをタップ。左右にスワイプして切り替え。", 19, Color("37638d")))
+	if CoopRoom.holding():
+		box.add_child(_room_bar())
+	else:
+		if not CoopRoom.parting_words.is_empty():
+			box.add_child(_title(CoopRoom.parting_words, 19, Color("b8420f")))
+			CoopRoom.parting_words = ""
+		box.add_child(_title("遊ぶステージをタップ。左右にスワイプして切り替え。", 19, Color("37638d")))
 	box.add_child(_spacer(8))
 
 	var row := HBoxContainer.new()
@@ -253,9 +263,36 @@ func _show_stage_screen() -> void:
 	var versus := _button("⚔  2対2 たいせん", _on_versus, false)
 	versus.custom_minimum_size = Vector2(240, 54)
 	versus.add_theme_color_override("font_color", Color("b8420f"))
+	# Not from inside a co-op room: that would be leaving it by another door.
+	versus.visible = not CoopRoom.holding()
 	navigation.add_child(versus)
 
-	box.add_child(_title("カードを選ぶと、遊び方と難易度の画面へ進みます", 18, Color("416b91")))
+	if not CoopRoom.holding():
+		box.add_child(_title("カードを選ぶと、遊び方と難易度の画面へ進みます", 18, Color("416b91")))
+
+## The room this pair are still in, between stages: its code, who chooses,
+## and the one way out of it.
+func _room_bar() -> HBoxContainer:
+	var bar := HBoxContainer.new()
+	bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	bar.add_theme_constant_override("separation", 18)
+	var text := tr("ルーム %s に接続中") % _spaced(CoopRoom.room_code)
+	text += "  ·  " + (tr("次のステージを選んでください") if CoopRoom.is_host
+		else tr("ホストがステージを選んでいます…"))
+	bar.add_child(_title(text, 19, Color("0b6b3a")))
+	var leave := _button("接続を切る", _on_leave_room, false)
+	leave.custom_minimum_size = Vector2(180, 48)
+	leave.add_theme_color_override("font_color", Color("b8420f"))
+	bar.add_child(leave)
+	return bar
+
+func _on_leave_room() -> void:
+	CoopRoom.close()
+
+## The room ended (接続を切る, or the partner went) or moved on.
+func _on_room_changed() -> void:
+	if is_instance_valid(self) and not CoopRoom.holding():
+		_show_stage_screen()
 
 func _change_stage_page(direction: int) -> void:
 	var pages := ceili(float(_cards().size()) / STAGES_PER_PAGE)
@@ -622,6 +659,16 @@ func _selected_stage_info() -> Dictionary:
 ## scene guarantees every stage-owned object uses the same Stage value; trying
 ## to swap only terrain in place is how scenery, enemies and checkpoints drift.
 func _select_stage(which: int) -> void:
+	if CoopRoom.holding():
+		# In a kept room the host's choice starts the stage on both devices;
+		# the guest's cards only show what is coming.
+		if not CoopRoom.is_host:
+			return
+		if not Entitlement.can_play(which):
+			_show_purchase(which)
+			return
+		CoopRoom.start_stage(which)
+		return
 	if main != null and main.link != null and main.link.busy():
 		return
 	# A stage this player has not bought does not open the play screen; it
@@ -731,6 +778,7 @@ func _refresh_stage_buttons() -> void:
 		button.add_theme_stylebox_override("normal",
 			_stage_style(accent if selected else Color.WHITE, 0.30 if selected else 0.94,
 				18, 5 if selected else 2))
+		button.disabled = CoopRoom.holding() and not CoopRoom.is_host
 	if _local != null:
 		_local.disabled = _locked_actions.has(_local)
 

@@ -281,7 +281,10 @@ func _take_entitlement(token: String) -> void:
 		String(who.get("room_kind", "")))
 
 func _exit_tree() -> void:
-	Entitlement.revoke_guest()
+	# Not while the room is only moving to the next stage (CoopRoom): the
+	# pass lasts as long as the pair are together.
+	if not CoopRoom.holding():
+		Entitlement.revoke_guest()
 
 func _send_event(payload: PackedByteArray) -> void:
 	if transport != null:
@@ -366,6 +369,8 @@ func _handle(packet: Dictionary) -> void:
 			# now a live reading of where they are looking, not the place the
 			# reticle happened to start.
 			main.input_hub.remote_aim = true
+		Protocol.Msg.ROOM_MENU:
+			main.call_deferred("_room_menu_from_partner")
 		Protocol.Msg.RUNNER_INPUT:
 			if remote_role != "runner":
 				return

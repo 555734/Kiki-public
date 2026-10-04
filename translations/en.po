@@ -1098,3 +1098,43 @@ msgstr "Runners collect stars; guardians help by shooting"
 
 msgid "射撃"
 msgstr "Shoot"
+
+msgctxt "quit"
+msgid "やめる"
+msgstr "Quit"
+
+msgid "ゲームをやめますか？"
+msgstr "Quit the game?"
+
+msgid "次回から確認しない"
+msgstr "Don't ask again"
+
+msgid "続ける"
+msgstr "Keep playing"
+
+msgid "ステージ選択に戻ります。接続はそのままです"
+msgstr "Back to stage select. You stay connected."
+
+msgid "スタート画面に戻ります"
+msgstr "Back to the start screen."
+
+msgid "部屋から抜けて、スタート画面に戻ります"
+msgstr "Leave the room and go back to the start screen."
+
+msgid "ステージ選択へ"
+msgstr "Stage select"
+
+msgid "ルーム %s に接続中"
+msgstr "Connected to room %s"
+
+msgid "次のステージを選んでください"
+msgstr "Choose the next stage"
+
+msgid "ホストがステージを選んでいます…"
+msgstr "The host is choosing a stage…"
+
+msgid "接続を切る"
+msgstr "Disconnect"
+
+msgid "相手との接続が切れました"
+msgstr "Lost connection to your partner"
