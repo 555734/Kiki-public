@@ -188,10 +188,10 @@ static func stage_name() -> String:
 ## suite down with it. Locking happens where a player starts a game -- the menu
 ## and the room-creation path -- not where the data is read.
 ##
-## 1-3 through 1-5 remain in the reviewed full-game purchase. The newer
-## 1-6 through 1-8 stages are free while they have not been submitted for review.
+## 1-1 and 1-2 are free; everything from 1-3 to 1-8 is the full game.
+## tools/release-check.sh compares this with the store listing's paid range.
 const FREE_STAGES: Array[int] = [
-	Which.GREENFIELD, Which.HORROR, Which.DESERT, Which.TOWER, Which.CAVE,
+	Which.GREENFIELD, Which.HORROR,
 ]
 
 static func is_free(which: int = -1) -> bool:

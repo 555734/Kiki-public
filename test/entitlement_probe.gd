@@ -71,19 +71,15 @@ func _free_player() -> void:
 	check(Entitlement.can_host(Stage.Which.GREENFIELD)
 		and Entitlement.can_host(Stage.Which.HORROR),
 		"and can make a room on either of them")
-	var new_stages := [Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]
-	var all_new_free := true
-	for which in new_stages:
-		all_new_free = all_new_free and Stage.is_free(which) \
-			and Entitlement.can_play(which) and Entitlement.can_host(which)
-	check(all_new_free, "1-6, 1-7 and 1-8 can be played and hosted without purchase")
-	var paid := [Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]
+	check(Stage.FREE_STAGES.size() == 2, "only 1-1 and 1-2 are free")
+	var paid := [Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP,
+		Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]
 	var blocked := true
 	var unhostable := true
 	for which in paid:
 		blocked = blocked and not Entitlement.can_play(which)
 		unhostable = unhostable and not Entitlement.can_host(which)
-	check(blocked, "a free player cannot play 1-3, 1-4 or 1-5 alone")
+	check(blocked, "a free player cannot play 1-3 to 1-8 alone")
 	# The other half of requirement 5: two free players cannot put a paid stage
 	# on the wire at all, because neither of them can create the room.
 	check(unhostable, "and cannot create a room on one, so two free players cannot start it")
