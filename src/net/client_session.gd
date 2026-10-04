@@ -10,18 +10,18 @@ extends Node
 ## ghost of a construct the moment they ask for it. That is what keeps the UI
 ## from ever feeling like it is waiting -- docs/netcode.md section 6.
 
-## How far behind the newest snapshot to render, in ticks. Widened when arrivals
-## get jittery so the buffer does not run dry mid-jump.
-const INTERP_MIN: int = 3
-const INTERP_MAX: int = 8
-const BUFFER_MAX: int = 20
-
 var main: Node2D = null
 var transport: NetTransport = null
 var local_role: String = "guardian"
 
-var _buffer: Array[Snapshot] = []
-var _interp_ticks: int = INTERP_MIN
+## The host's snapshots and the point between them being drawn. See there.
+var snapshots := SnapshotBuffer.new()
+var _migration := MigrationReceiver.new()
+# Read-only, for the agreement probe.
+var _buffer: Array[Snapshot]:
+	get: return snapshots.snapshots
+var _interp_ticks: int:
+	get: return snapshots.interp_ticks
 var _seq: int = 1
 var _pending: Dictionary = {}      ## seq -> ghost Node2D
 var _aim_history: Array[Vector2] = [Vector2.ZERO, Vector2.ZERO]
@@ -86,9 +86,6 @@ var _retry_in: float = 0.0
 var _tries: int = 0
 var _runner_input_accumulator: float = 0.0
 var _runner_input_sequence: int = 0
-var _migration_parts: Dictionary = {}
-var _latest_migration: Dictionary = {}
-var _latest_migration_received_ms: int = -1
 
 signal disconnected
 ## The host has answered the handshake. Not the same event as the transport
@@ -316,19 +313,17 @@ func _send_hello() -> void:
 			Entitlement.local_token(), main.input_hub.jump_press_sequence))
 
 func migration_state_is_fresh() -> bool:
-	return not _latest_migration.is_empty() and _latest_migration_received_ms >= 0 \
-		and Time.get_ticks_msec() - _latest_migration_received_ms <= MigrationState.MAX_AGE_MS
+	return _migration.is_fresh()
 
 func latest_migration_state() -> Dictionary:
-	return _latest_migration.duplicate(true) if migration_state_is_fresh() else {}
+	return _migration.latest()
 
 func _recovered() -> void:
 	_down_for = -1.0
 	_tries = 0
 	_link().enter(NetLink.Phase.PLAYING, "復帰")
-	# The buffer is full of snapshots from before the gap. Interpolating out of
-	# them would drag the runner backwards across the stage before catching up.
-	_buffer.clear()
+	# The buffer is full of snapshots from before the gap.
+	snapshots.clear()
 	# Not clear yet: the link is up but the world has not been handed back.
 	# Saying "connected" here and then refusing the first thing the guardian
 	# builds is worse than saying what is actually happening.
@@ -340,21 +335,16 @@ func _recovered() -> void:
 ## The tick this device is currently drawing. Sent with every command so the
 ## host knows which past the guardian was looking at.
 func view_tick() -> int:
-	return maxi(0, Clock.tick - _interp_ticks)
+	return snapshots.view_tick()
 
 func _render_interpolated() -> void:
-	if _buffer.size() < 2:
+	var between := snapshots.bracket()
+	if between.is_empty():
 		return
-	var target := float(view_tick())
-	var a: Snapshot = _buffer[0]
-	var b: Snapshot = _buffer[_buffer.size() - 1]
-	for i in range(_buffer.size() - 1):
-		if float(_buffer[i].tick) <= target and float(_buffer[i + 1].tick) >= target:
-			a = _buffer[i]
-			b = _buffer[i + 1]
-			break
-	var span := float(b.tick - a.tick)
-	var t := 0.0 if span <= 0.0 else clampf((target - float(a.tick)) / span, 0.0, 1.0)
+	var a: Snapshot = between[0]
+	var b: Snapshot = between[1]
+	var t: float = between[2]
+	var span: float = between[3]
 
 	_derive_movement(a, b)
 
@@ -394,17 +384,10 @@ func _render_interpolated() -> void:
 		if who != null and is_instance_valid(who):
 			who.global_position = Vector2(float(e["x"]), float(e["y"]))
 
-## Cubic through both endpoints using the velocities as tangents. Linear
-## interpolation turns a jump into a folded line and flattens the apex -- the
-## one part of the arc the guardian is aiming at.
+## See SnapshotBuffer.hermite.
 static func _hermite(p0: Vector2, v0: Vector2, p1: Vector2, v1: Vector2,
 		t: float, dt: float) -> Vector2:
-	var t2 := t * t
-	var t3 := t2 * t
-	return (2.0 * t3 - 3.0 * t2 + 1.0) * p0 \
-		+ (t3 - 2.0 * t2 + t) * v0 * dt \
-		+ (-2.0 * t3 + 3.0 * t2) * p1 \
-		+ (t3 - t2) * v1 * dt
+	return SnapshotBuffer.hermite(p0, v0, p1, v1, t, dt)
 
 # ------------------------------------------------------------------ outgoing
 
@@ -481,7 +464,7 @@ func _handle(packet: Dictionary) -> void:
 	var b: StreamPeerBuffer = parsed[1]
 	match kind:
 		Protocol.Msg.MIGRATION_CHUNK:
-			_absorb_migration_chunk(b)
+			_migration.absorb_chunk(b)
 		Protocol.Msg.WELCOME:
 			_link().enter(NetLink.Phase.PLAYING)
 			Clock.tick = int(b.get_u32())
@@ -563,45 +546,6 @@ func _handle(packet: Dictionary) -> void:
 		Protocol.Msg.AUTHORITY_READY:
 			b.get_u32()
 			Clock.follow_target = int(b.get_u32())
-
-func _absorb_migration_chunk(b: StreamPeerBuffer) -> void:
-	var generation := int(b.get_u32())
-	var tick := int(b.get_u32())
-	var index := int(b.get_u16())
-	var total := int(b.get_u16())
-	var payload_size := int(b.get_u16())
-	var digest_result := b.get_data(8)
-	if digest_result[0] != OK or total <= 0 or total > 64 or index >= total:
-		return
-	var data_result := b.get_data(b.get_available_bytes())
-	if data_result[0] != OK:
-		return
-	if not _migration_parts.has(generation):
-		_migration_parts = {generation: {
-			"tick": tick, "total": total, "size": payload_size,
-			"digest": digest_result[1], "parts": {},
-		}}
-	var frame: Dictionary = _migration_parts[generation]
-	if frame["total"] != total or frame["size"] != payload_size \
-			or frame["digest"] != digest_result[1]:
-		_migration_parts.erase(generation)
-		return
-	frame["parts"][index] = data_result[1]
-	if frame["parts"].size() != total:
-		return
-	var payload := PackedByteArray()
-	for part_index in total:
-		if not frame["parts"].has(part_index):
-			return
-		payload.append_array(frame["parts"][part_index])
-	if payload.size() != payload_size or MigrationState.digest(payload) != frame["digest"]:
-		_migration_parts.erase(generation)
-		return
-	var decoded := MigrationState.decode(payload)
-	if not decoded.is_empty():
-		_latest_migration = decoded
-		_latest_migration_received_ms = Time.get_ticks_msec()
-	_migration_parts.clear()
 
 ## Jump and landing, worked out rather than sent.
 ##
@@ -721,18 +665,7 @@ func _enemy_near(at: Vector2) -> Node2D:
 	return best
 
 func _absorb(s: Snapshot) -> void:
-	_buffer.append(s)
-	_buffer.sort_custom(func(x, y): return x.tick < y.tick)
-	while _buffer.size() > BUFFER_MAX:
-		_buffer.pop_front()
-	# Keep the render point far enough back that the buffer never empties, but
-	# no further: every extra tick is latency the guardian has to lead by.
-	var newest := _buffer[_buffer.size() - 1].tick
-	var behind := Clock.tick - newest
-	if behind > _interp_ticks:
-		_interp_ticks = mini(INTERP_MAX, _interp_ticks + 1)
-	elif behind < _interp_ticks - 2:
-		_interp_ticks = maxi(INTERP_MIN, _interp_ticks - 1)
+	snapshots.absorb(s)
 
 func _confirm_hologram(b: StreamPeerBuffer) -> void:
 	var net_id := b.get_u16()
