@@ -1,27 +1,25 @@
 extends RefCounted
 ## Stage 1-5 climbs out of the poison marsh: the bright green pool stays at the
-## bottom, lethal as ever, and the route goes up a hollow, moss-grown cliff
-## of rotten ledges, drifting log lifts and columns of marsh gas.
+## bottom, lethal as ever, and the route goes up a hollow, moss-grown cliff.
 ##
-## Built like 1-7 and 1-8 (one chamber of four ledges at a time, zig-zagging
-## so every turn is a sideways jump rather than a ledge directly overhead),
-## but shorter and gentler: it is the first of the climbing stages.
-##
-##   step rise 125px  -- under the 154px jump, through one-way ledges
-##   chambers 14      -- about 7,300px of climb (1-8 is 13,000)
+## It is a cliff with few ledges. Where the moss gives out, the guardian has to
+## build the next step (`gap`, `chasm`); where it forks, the pair choose between
+## a long way past crawlers and a short cut over the guardian's platform; and
+## between them, drifting log lifts, columns of marsh gas, rot that gives way and
+## a lure the guardian shoots to raise a ledge. The rooms are laid out by
+## ClimbBuilder, which also records how each is meant to be climbed (`route`).
+
+const ClimbBuilder = preload("res://src/levels/climb_builder.gd")
 
 const BASE_Y := 8200.0
-const CHAMBER_RISE := 520.0
-const STEP_RISE := 125.0
-const CHAMBERS := 14
-const LEDGE_W := 240.0
-const LEDGE_H := 50.0
 ## The poison sits a little under the starting bank, as it did on the flat.
 const WATER_Y := BASE_Y + 60.0
 const KILL_Y := BASE_Y + 200.0
 const STAGE_NAME := "THE POISON MARSH"
 const STAGE_NUMBER := "1-5"
 const OBJECTIVE := "Climb out of the poison marsh"
+
+static var _built: ClimbBuilder = null
 
 static func kill_y_value() -> float: return KILL_Y
 static func water_y_value() -> float: return WATER_Y
@@ -30,140 +28,106 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
-static func _top(chamber: int, step: int) -> float:
-	return BASE_Y - float(chamber) * CHAMBER_RISE - float(step + 1) * STEP_RISE
+static func _theme() -> Dictionary:
+	var phase := [0.0]
+	return {
+		"ground": func(at: Vector2, patrol: float) -> Dictionary:
+			return {"type": "walker", "skin": "walker_spiky",
+				"pos": at + Vector2(0, -21), "patrol": patrol},
+		"air": func(at: Vector2, patrol: float) -> Dictionary:
+			return {"type": "flyer", "pos": at, "patrol": patrol},
+		"lift": func(at: Vector2, span: Vector2, travel: Vector2) -> Dictionary:
+			phase[0] += 0.37
+			return {"type": "moving_platform", "pos": at, "span": span,
+				"travel": travel, "speed": 70.0, "phase": phase[0]},
+		"air_column": func(at: Vector2, span: Vector2) -> Dictionary:
+			return {"type": "updraft", "pos": at, "span": span},
+		# Rotten stones: they hold one landing, then go.
+		"blink": func(at: Vector2, _k: int) -> Dictionary:
+			return {"type": "crumble", "pos": at + Vector2(0, 5), "span": Vector2(150, 36)},
+	}
 
-static func _x(chamber: int, step: int) -> float:
-	if chamber == 0 and step == 0:
-		return -150.0
-	var path := [-290.0, -85.0, 115.0, 290.0] if chamber % 2 == 0 \
-		else [115.0, 290.0, 85.0, -115.0]
-	return path[step]
+static func _b() -> ClimbBuilder:
+	if _built != null:
+		return _built
+	var b := ClimbBuilder.new(Rect2(-520, BASE_Y, 1040, 320), _theme())
+	b.stairs(1, false)
+	b.gap()
+	b.nook()
+	b.lift()
+	b.fork()
+	b.chimney()
+	b.gap(true)
+	b.mirage("marsh_rise_1")
+	b.blinks()
+	b.chasm()
+	b.lift()
+	b.spring()
+	b.chimney()
+	b.gap(true)
+	b.nook()
+	b.mirage("marsh_rise_2")
+	b.blinks()
+	b.lift()
+	b.spring()
+	b.chasm()
+	b.chimney()
+	b.lift()
+	b.gap(true)
+	b.chimney()
+	b.gap()
+	b.finish()
+	_built = b
+	return b
 
-## What each ledge is. The fourth of every chamber is always plain moss, so
-## the climb has a sure footing to read the next chamber from.
-static func _kind(chamber: int, step: int) -> String:
-	if step == 3 or chamber == 0:
-		return "moss"
-	match chamber % 5:
-		1: return "rot" if step == 1 or step == 2 else "moss"
-		2: return "lift" if step == 1 else "moss"
-		3: return "gas" if step == 1 else "moss"
-		4: return "echo" if step == 2 else ("rot" if step == 0 else "moss")
-		_: return "lift" if step == 2 else "moss"
-
-static func _last_top() -> float:
-	return _top(CHAMBERS - 1, 3)
-
-## The dry bank at the top, a jump above the last ledge.
-static func _shelf() -> Rect2:
-	return Rect2(-460, _last_top() - 130.0, 760, 110)
-
-static func ground() -> Array[Rect2]:
-	var out: Array[Rect2] = [Rect2(-520, BASE_Y, 1040, 320)]
-	for chamber in CHAMBERS:
-		for step in 4:
-			if _kind(chamber, step) == "moss":
-				out.append(Rect2(_x(chamber, step) - LEDGE_W * 0.5,
-					_top(chamber, step), LEDGE_W, LEDGE_H))
-	out.append(_shelf())
-	return out
-
+static func route() -> Array[Dictionary]: return _b().route
+static func ground() -> Array[Rect2]: return _b().ground
 static func solid_decor() -> Array[Rect2]: return []
 static func veils() -> Array[Dictionary]: return []
 
 static func hazards() -> Array[Dictionary]:
 	# The pool's surface: one sensor, no spikes drawn -- the green is the warning.
-	return [{"pos": Vector2(0, WATER_Y + 34), "size": Vector2(3200, 68),
-		"draw_spikes": false}]
+	var out: Array[Dictionary] = [{"pos": Vector2(0, WATER_Y + 34),
+		"size": Vector2(3200, 68), "draw_spikes": false}]
+	out.append_array(_b().hazards)
+	return out
 
 static func enemies() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	# The climbing chaser from 1-3: it rises from the pool, so the climb cannot
-	# be taken at leisure; the guardian's shot knocks it back down.
-	out.append({"type": "sky_pursuer", "pos": start_position() + Vector2(0, 420),
-		"delay": 2.0, "speed": 195.0, "catchup": 460.0, "stun": 1.5,
-		"direction": Vector2.UP})
-	for chamber in range(1, CHAMBERS):
-		# A spiked crawler on the first ledge of every other chamber; it turns
-		# at the ledge's edge, so it is a timing question, not a wall.
-		if chamber % 2 == 1 and _kind(chamber, 0) == "moss":
-			out.append({"type": "walker", "skin": "walker_spiky",
-				"pos": Vector2(_x(chamber, 0), _top(chamber, 0) - 21.0), "patrol": 70.0})
-		# A marsh fly across the middle of the chamber, in the jump arcs.
-		if chamber % 3 == 2:
-			out.append({"type": "flyer", "pos": Vector2(0, _top(chamber, 1) - 80.0),
-				"patrol": 150.0})
+	# The climbing chaser from 1-3 first: it rises from the pool, so the climb
+	# cannot be taken at leisure; the guardian's shot knocks it back down.
+	var out: Array[Dictionary] = [{"type": "sky_pursuer",
+		"pos": start_position() + Vector2(0, 420), "delay": 2.0, "speed": 195.0,
+		"catchup": 460.0, "stun": 1.5, "direction": Vector2.UP}]
+	out.append_array(_b().enemies)
 	return out
 
-static func gimmicks() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for chamber in CHAMBERS:
-		for step in 3:
-			var x := _x(chamber, step)
-			var top := _top(chamber, step)
-			match _kind(chamber, step):
-				"rot":
-					out.append({"type": "crumble", "pos": Vector2(x, top + 18.0),
-						"span": Vector2(LEDGE_W - 40.0, 36)})
-				"lift":
-					out.append({"type": "moving_platform", "pos": Vector2(x, top + 13.0),
-						"span": Vector2(LEDGE_W - 30.0, 26), "travel": Vector2(0, -95),
-						"speed": 70.0, "phase": float(chamber) * 0.37})
-				"gas":
-					out.append({"type": "updraft", "pos": Vector2(x, top + 130.0),
-						"span": Vector2(170, 350)})
-				"echo":
-					# The guardian shoots the lure; the runner gets a ledge.
-					var id := "marsh_rise_%d" % chamber
-					out.append({"type": "switch", "id": id,
-						"pos": Vector2(_x(chamber, 1), _top(chamber, 1) - 80.0),
-						"hold": 11.0})
-					out.append({"type": "switch_bridge", "id": id,
-						"pos": Vector2(x, top + 13.0), "span": Vector2(LEDGE_W, 26)})
-	return out
-
-static func springs() -> Array[Vector2]:
-	var out: Array[Vector2] = []
-	for chamber in [4, 9]:
-		out.append(Vector2(_x(chamber, 3) + 60.0, _top(chamber, 3)))
-	return out
-
-static func checkpoints() -> Array[Vector2]:
-	var out: Array[Vector2] = []
-	for chamber in range(1, CHAMBERS, 2):
-		out.append(Vector2(_x(chamber, 3), _top(chamber, 3) - 52.0))
-	return out
+static func gimmicks() -> Array[Dictionary]: return _b().gimmicks
+static func springs() -> Array[Vector2]: return _b().springs
+static func checkpoints() -> Array[Vector2]: return _b().checkpoints
 
 static func goal() -> Vector2:
-	return Vector2(_shelf().position.x + 120.0, _shelf().position.y - 55.0)
+	var s := _b().shelf
+	return Vector2(s.position.x + 120.0, s.position.y - 55.0)
 
 static func key_position() -> Vector2:
-	return Vector2(_shelf().end.x - 110.0, _shelf().position.y - 4.0)
+	var s := _b().shelf
+	return Vector2(s.end.x - 110.0, s.position.y - 4.0)
 
-static func coins() -> Array[Vector2]:
-	var out: Array[Vector2] = []
-	for chamber in CHAMBERS:
-		for step in 4:
-			out.append(Vector2(_x(chamber, step), _top(chamber, step) - 76.0))
-	return out
-
-static func crystals() -> Array[Vector2]:
-	return [Vector2(0, _top(3, 2) - 150.0), Vector2(0, _top(7, 2) - 150.0),
-		Vector2(0, _top(11, 2) - 150.0)]
+static func coins() -> Array[Vector2]: return _b().coins
+static func crystals() -> Array[Vector2]: return _b().crystals
 
 static func decor() -> Array[Dictionary]:
+	var top := _b().shelf.position.y
 	var out: Array[Dictionary] = [
 		{"type": "swamp_tree", "pos": Vector2(-470, BASE_Y), "height": 300.0},
 		{"type": "swamp_reeds", "pos": Vector2(-60, BASE_Y)},
 		{"type": "swamp_mushroom", "pos": Vector2(300, BASE_Y)},
-		{"type": "swamp_tree", "pos": Vector2(250, _shelf().position.y), "height": 260.0,
-			"flip": true},
-		{"type": "swamp_reeds", "pos": Vector2(-300, _shelf().position.y)},
+		{"type": "swamp_tree", "pos": Vector2(250, top), "height": 260.0, "flip": true},
+		{"type": "swamp_reeds", "pos": Vector2(-300, top)},
 	]
-	for chamber in range(1, CHAMBERS):
-		var x := _x(chamber, 3)
-		var top := _top(chamber, 3)
-		out.append({"type": "swamp_mushroom" if chamber % 2 == 0 else "swamp_reeds",
-			"pos": Vector2(x + (60.0 if chamber % 2 == 0 else -60.0), top)})
+	var i := 0
+	for spot in _b().decor_spots:
+		out.append({"type": "swamp_mushroom" if i % 2 == 0 else "swamp_reeds",
+			"pos": spot + Vector2(60.0 if i % 2 == 0 else -60.0, 0)})
+		i += 1
 	return out

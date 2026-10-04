@@ -24,17 +24,31 @@ func run() -> void:
 	check(Stage.water_y() > Stage.start().y and Stage.water_y() < Stage.kill_y(),
 		"the poison lies under the starting bank, above the fall sensor")
 	var climb := Stage.start().y - Stage.goal().y
-	check(climb > 6000.0 and climb < Stage.start().y,
+	check(climb > 5500.0 and climb < Stage.start().y,
 		"a long climb that stays inside the online codec (%.0fpx)" % climb)
 	var poison := Stage.hazards()
-	check(poison.size() == 1 and not bool(poison[0].get("draw_spikes", true)),
+	check(poison.size() >= 1 and not bool(poison[0].get("draw_spikes", true)),
 		"the pool's surface kills without drawing spikes")
 	var counts := {}
 	for spec in Stage.gimmicks():
 		counts[String(spec["type"])] = int(counts.get(String(spec["type"]), 0)) + 1
-	check(counts.get("crumble", 0) >= 4 and counts.get("moving_platform", 0) >= 3
+	check(counts.get("crumble", 0) >= 4 and counts.get("moving_platform", 0) >= 2
 		and counts.get("updraft", 0) >= 2 and counts.get("switch_bridge", 0) >= 2,
 		"rot, log lifts, gas columns and guardian ledges along the way (%s)" % str(counts))
+	var assists := 0
+	var ends := {}
+	var forks := 0
+	for step in Stage.route():
+		if String(step["via"]) == "assist":
+			assists += 1
+		var key := str((step["to"] as Rect2).position)
+		ends[key] = int(ends.get(key, 0)) + 1
+		if ends[key] == 2:
+			forks += 1
+	check(assists >= 5, "the guardian has to build the way up (%d assisted steps)" % assists)
+	check(forks >= 1, "the route forks (%d)" % forks)
+	var per_km := float(Stage.ground().size()) * 1000.0 / climb
+	check(per_km < 6.0, "fewer ledges than the old staircase (%.1f per 1000px)" % per_km)
 	check(Stage.checkpoints().size() >= 6, "regular checkpoints on the climb")
 	var kinds := {}
 	for spec in Stage.enemies():
@@ -74,7 +88,7 @@ func run() -> void:
 		await get_tree().physics_frame
 
 	var failed: Array[String] = await ClimbRoute.climb_all(get_tree(), main, 140.0)
-	check(failed.is_empty(), "every solid step of the climb is jumpable (%d failed: %s)"
+	check(failed.is_empty(), "every jump and guardian-assisted step of the route works (%d failed: %s)"
 		% [failed.size(), ", ".join(failed.slice(0, 4))])
 	main.queue_free()
 	await get_tree().process_frame

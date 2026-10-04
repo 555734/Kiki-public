@@ -486,6 +486,15 @@ static func needs_key() -> bool:
 
 ## Where the key rests: on the lowest ground under a point ~60% of the way from
 ## start to goal, nudged along until it is on a floor with no hazard on it.
+## How a room-built climb is meant to be climbed (see ClimbBuilder); empty
+## for every other stage.
+static func route() -> Array[Dictionary]:
+	if is_swamp():
+		return _data("level_swamp_data").route()
+	if is_desert():
+		return _data("level_desert_data").route()
+	return []
+
 static func key_position() -> Vector2:
 	if is_cave():
 		return _data("level_cave_data").key_position()
