@@ -69,9 +69,9 @@ func make_hubs(parent: Node, local_shared: bool = true) -> void:
 		# Godot enables overridden input callbacks when the node enters the
 		# tree. Disable the unused hub AFTER add_child, or it steals the touch
 		# before the local runner's hub ever receives it. scripted only disables
-		# desktop polling; it does not disable _unhandled_input.
+		# desktop polling; set_listening turns off both touch passes.
 		if not shared_keyboard and i != 0:
-			hub.set_process_unhandled_input(false)
+			hub.set_listening(false)
 		hubs.append(hub)
 
 ## Touch and keyboard share the same monotonic edge count.

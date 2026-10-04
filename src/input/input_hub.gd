@@ -535,33 +535,85 @@ func _poll_desktop() -> void:
 
 # ---------------------------------------------------------------------- touch
 
-## Read real fingers before any Control can consume a press. The gameplay HUD
-## is painted, but an overlapping GUI node could previously swallow a jump.
+## Touches are read in two passes, and which pass takes a press is the point.
+##
+## A press on one of the painted game controls (stick, jump, tool slots, the
+## zoom slider) is claimed in _input, before any Control sees it: an
+## overlapping GUI node used to swallow those, which is how a jump went missing.
+## A press on open ground waits for _unhandled_input, so a real Button over
+## the world still gets it first. Once a finger is the hub's, its drags and its
+## release are claimed in _input too, wherever they land; a finger the hub
+## never took is left alone in both passes.
 func _input(event: InputEvent) -> void:
+	if _claim(event, false):
+		get_viewport().set_input_as_handled()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _claim(event, true):
+		get_viewport().set_input_as_handled()
+
+## Both passes in the order the viewport runs them, for callers -- tests -- that
+## hand the hub events directly. Returns whether the hub kept the event.
+func feed(event: InputEvent) -> bool:
+	return _claim(event, false) or _claim(event, true)
+
+## Switches the hub's reading of touches and the mouse on or off as one. Both
+## passes have to go together: turning off only one of them left a stand-in
+## hub (or a hub behind a menu) eating every touch through the other.
+func set_listening(on: bool) -> void:
+	set_process_input(on)
+	set_process_unhandled_input(on)
+
+func is_listening() -> bool:
+	return is_processing_input() and is_processing_unhandled_input()
+
+## One event, one pass. `late` is the unhandled pass, after the GUI has had it.
+func _claim(event: InputEvent, late: bool) -> bool:
 	if event is InputEventScreenTouch:
 		_has_touch = true
-		if event.pressed:
-			_touch_down(event.index, event.position)
-		else:
-			_touch_up(event.index, event.position)
-		get_viewport().set_input_as_handled()
-	elif event is InputEventScreenDrag:
+		return _claim_finger(event.index, event.position, event.pressed, late)
+	if event is InputEventScreenDrag:
 		_has_touch = true
+		if late or not _touch_owner.has(event.index):
+			return false
 		_touch_move(event.index, event.position)
-		get_viewport().set_input_as_handled()
+		return true
 	# The mouse goes down the same path as a finger -- but only on a device that
 	# has never produced a real one.
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
-			and not _has_touch:
-		if event.pressed:
-			_touch_down(MOUSE_FINGER, event.position)
-		else:
-			_touch_up(MOUSE_FINGER)
-		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseMotion and not _has_touch \
-			and _touch_owner.has(MOUSE_FINGER):
+	if _has_touch:
+		return false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		return _claim_finger(MOUSE_FINGER, event.position, event.pressed, late)
+	if event is InputEventMouseMotion and not late and _touch_owner.has(MOUSE_FINGER):
 		_touch_move(MOUSE_FINGER, event.position)
-		get_viewport().set_input_as_handled()
+		return true
+	return false
+
+func _claim_finger(index: int, position: Vector2, pressed: bool, late: bool) -> bool:
+	if not pressed:
+		if late or not _touch_owner.has(index):
+			return false
+		_touch_up(index, position if index != MOUSE_FINGER else Vector2(INF, INF))
+		return true
+	if not late:
+		# Android can cancel a contact without delivering its release when focus
+		# or the system gesture layer changes. A reused finger index is a new
+		# press, whoever ends up taking it.
+		if _touch_owner.has(index):
+			_touch_up(index, Vector2(INF, INF), true)
+		if not _on_a_control(position):
+			return false
+	_touch_down(index, position)
+	return _touch_owner.has(index)
+
+## Whether a press here belongs to a painted game control rather than to the
+## world under it. Same tests _touch_down routes by.
+func _on_a_control(position: Vector2) -> bool:
+	var size := _screen_size()
+	var mirrored := not runner_on_left
+	if scope_engaged and TouchLayout.hit_rect(position, TouchLayout.ZOOM_SLIDER, size, mirrored):
+		return true
+	return ControlLayout.hit(layout_mode(), size, mirrored, position) != ""
 
 func _screen_to_world(position: Vector2) -> Vector2:
 	var viewport := get_viewport()
@@ -624,7 +676,7 @@ func _touch_down(index: int, position: Vector2) -> void:
 		_touch_up(index, Vector2(INF, INF), true)
 	_last_position[index] = position
 	# Set here too so direct calls into the touch handlers switch off desktop
-	# polling, just like events routed through _input.
+	# polling, just like events routed through _claim.
 	if index != MOUSE_FINGER:
 		_has_touch = true
 	var size := _screen_size()

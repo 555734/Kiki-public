@@ -3778,7 +3778,7 @@ func _test_the_finger_decides_where_it_landed() -> void:
 	var to_world := func(p: Vector2) -> Vector2:
 		return main.get_viewport().get_canvas_transform().affine_inverse() * p
 	# Real events through the real entry point. Calling _touch_up(index, where)
-	# by hand would skip _unhandled_input, which is the exact line that was
+	# by hand would skip the hub's event entry, which is the exact line that was
 	# throwing the release position away -- a test that skips it cannot see the
 	# bug at all.
 	var down := func(i: int, at: Vector2) -> void:
@@ -3786,18 +3786,18 @@ func _test_the_finger_decides_where_it_landed() -> void:
 		e.index = i
 		e.position = at
 		e.pressed = true
-		hub._unhandled_input(e)
+		hub.feed(e)
 	var drag := func(i: int, at: Vector2) -> void:
 		var e := InputEventScreenDrag.new()
 		e.index = i
 		e.position = at
-		hub._unhandled_input(e)
+		hub.feed(e)
 	var up := func(i: int, at: Vector2) -> void:
 		var e := InputEventScreenTouch.new()
 		e.index = i
 		e.position = at
 		e.pressed = false
-		hub._unhandled_input(e)
+		hub.feed(e)
 
 	# A tap: down and up at one place. The release is the ONLY position this
 	# gesture ever reports, so a handler that ignores it has nothing at all.

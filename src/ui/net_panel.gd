@@ -68,7 +68,7 @@ func _ready() -> void:
 	# Suppressing only the touch path left that one wide open, because the
 	# suppression is what kept _has_touch false and the poll running.
 	if main != null and main.input_hub != null:
-		main.input_hub.set_process_input(false)
+		main.input_hub.set_listening(false)
 		main.input_hub.set_process(false)
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -883,7 +883,7 @@ static func _spaced(code: String) -> String:
 
 func _exit_tree() -> void:
 	if main != null and is_instance_valid(main) and main.input_hub != null:
-		main.input_hub.set_process_input(true)
+		main.input_hub.set_listening(true)
 		main.input_hub.set_process(true)
 		if main.has_method("resume_from_home"):
 			var local_start: bool = fresh_run \
