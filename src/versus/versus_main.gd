@@ -4,28 +4,18 @@ extends Node2D
 ## and a host-owned star ledger (VersusMatch; the ledger calls them coins).
 ## Seven stars held wins. Free for every player -- nothing here reads
 ## Entitlement (docs/versus-2v2-stars.md).
+##
+## This scene is the composition root and the tick: it seats this machine,
+## builds the world and the runners, steps the match each physics frame and
+## answers the HUD. The separate jobs live in their own parts, under scene/:
+## the connection (VersusConnection), the guardians' platforms
+## (VersusPlatforms), deaths and respawns (VersusLives), the camera and sky
+## (VersusView), the world-space overlay (VersusOverlay), the menu
+## (VersusMenu) and the on-device log (VersusDiagnostics).
 
 const RunnerVisualScript = preload("res://src/runner/runner_visual.gd")
 
 enum Mode { SOLO, HOST, CLIENT }
-
-const COL_COIN := Color(1.0, 0.82, 0.29)
-const COL_COIN_EDGE := Color(0.62, 0.45, 0.10)
-## A loose star's drawn radius. Big enough to read across a phone screen.
-const STAR_RADIUS: float = 44.0
-## A guardian's construct, in its own team's colour. Read off the shared team
-## palette rather than restated, so a platform is unmistakably one side's.
-## Drawn nearly solid: the first version was translucent and vanished against
-## 1-1's bright grass, which made a platform something you found by walking
-## into it.
-func build_fill(team: int) -> Color:
-	var c: Color = colour_of(team)
-	return Color(c.r, c.g, c.b, 0.80)
-
-func build_edge(team: int) -> Color:
-	var c: Color = colour_of(team)
-	return Color(minf(1.0, c.r + 0.35), minf(1.0, c.g + 0.35),
-		minf(1.0, c.b + 0.35), 1.0)
 
 var mode: int = Mode.SOLO
 var match_rules: VersusMatch = null       ## host and solo only
@@ -35,23 +25,12 @@ var link: VersusTransport = null
 ## Over EOS (what ships) or the old WebSocket relay (editor, probes).
 var use_eos: bool = false
 var eos_room: EosVersusLobby = null
-## Set once the EOS lobby has been told the match began.
-var _marked_started: bool = false
 ## The client's rematch counter last acted on.
 var _seen_epoch_changes: int = 0
-var _menu: Control = null
 var room_code: String = ""
 var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 var controls: Control = null
 var status: String = ""
-var _debug_lines: Array[String] = []
-var _debug_file: FileAccess = null
-var _debug_copy_button: Button = null
-var _relay_probe: HTTPRequest = null
-var _relay_probe_detail: String = ""
-var _last_match_state: String = ""
-var _last_input_direction: int = 0
-var _input_trace_ticks: int = 0
 
 var runners: Array[Runner] = []
 var input: VersusInput = null
@@ -61,28 +40,54 @@ var guardian: Guardian = null
 ## Which runner this machine drives, or -1 for a guardian. Solo drives both.
 var local_team: int = 0
 var level: LevelBuilder = null
-var _camera: Camera2D = null
-var _built_body: StaticBody2D = null
-var _built: Array[Rect2] = []
-var _built_revision: int = -1
-var _build_owner: Array[int] = []
 ## How many sides this match has: 2 for 2v2 and 1v1, 8 chairs in a
 ## free-for-all (a solo test on one machine is always 2).
 var sides: int = 2
-var _respawn_in: Array[int] = []
-## Where each runner was when it died, so it comes back at the checkpoint
-## behind THAT rather than behind wherever its corpse drifted to.
-var _died_at: Array[Vector2] = []
 var _seat: int = VersusRoster.SEAT_A_RUNNER
+
+## The scene's parts. See the note at the top.
+var connection := VersusConnection.new(self)
+var platforms := VersusPlatforms.new(self)
+var view := VersusView.new(self)
+var diagnostics: VersusDiagnostics = null
+var lives: VersusLives = null
+var menu: VersusMenu = null
+var _overlay: VersusOverlay = null
+
+# Read-only views of the parts' state, for the HUD, the enemies and the probes.
+var _built: Array[Rect2]:
+	get: return platforms.built
+var _holos: Dictionary:
+	get: return platforms.holos
+var _respawn_in: Array[int]:
+	get: return lives.respawn_in
+var bumps_felt: int:
+	get: return lives.bumps_felt
+var enemies_downed: int:
+	get: return lives.enemies_downed
+var _camera: Camera2D:
+	get: return view.camera
+var _sky: Node:
+	get: return view.sky
+var _world_view: Node:
+	get: return view.world_view
+var _start_button: Button:
+	get: return menu.start_button if menu != null else null
+var _again_button: Button:
+	get: return menu.again_button if menu != null else null
+var _leave_button: Button:
+	get: return menu.leave_button if menu != null else null
 
 func _ready() -> void:
 	process_physics_priority = 100
 	z_index = 5
 	_read_command_line()
 	sides = VersusRoster.sides_for(room_mode) if mode != Mode.SOLO else 2
-	for i in range(sides):
-		_respawn_in.append(0)
-		_died_at.append(Vector2.ZERO)
+	lives = VersusLives.new(self, sides)
+	diagnostics = VersusDiagnostics.new()
+	diagnostics.name = "Diagnostics"
+	diagnostics.arena = self
+	add_child(diagnostics)
 	if OS.has_feature("editor"):
 		_start_debug_log()
 	_build_world()
@@ -98,12 +103,10 @@ func _ready() -> void:
 
 	_build_runners()
 	_finish_world()
-	_overlay = Node2D.new()
-	_overlay.name = "Overlay"
-	_overlay.z_index = 20
-	_overlay.draw.connect(_draw_overlay)
+	_overlay = VersusOverlay.new()
+	_overlay.arena = self
 	add_child(_overlay)
-	_build_camera()
+	view.build_camera(runners[maxi(local_team, 0)].global_position)
 
 	# In a CanvasLayer, because the camera moves now: the scoreboard belongs to
 	# the screen, not to a place on the stage.
@@ -114,13 +117,10 @@ func _ready() -> void:
 	hud.arena = self
 	layer.add_child(hud)
 	if mode != Mode.SOLO and OS.has_feature("editor"):
-		_debug_copy_button = Button.new()
-		_debug_copy_button.text = "接続ログをコピー"
-		_debug_copy_button.custom_minimum_size = Vector2(200, 44)
-		_debug_copy_button.size = Vector2(200, 44)
-		_debug_copy_button.pressed.connect(_copy_debug_log)
-		layer.add_child(_debug_copy_button)
-	_build_menu(layer)
+		diagnostics.add_copy_button(layer)
+	menu = VersusMenu.new(self)
+	layer.add_child(menu)
+	menu.refresh()
 	_layer = layer
 	_build_controls()
 
@@ -138,10 +138,9 @@ func _ready() -> void:
 	if combined() and mode != Mode.SOLO:
 		for r in runners:
 			r.set_physics_process(false)
-	_add_world_view()
+	view.add_world_view()
 
 var _layer: CanvasLayer = null
-var _overlay: Node2D = null
 ## The solo test on a touch screen: P1 on touch, P2 stands still.
 var touch_solo: bool = false
 
@@ -179,7 +178,7 @@ func _take_seat(seat: int) -> void:
 	r.global_position = VersusStageData.start_positions()[local_team]
 	r.facing = VersusStageData.start_facing()[local_team]
 	level.runner = r
-	_camera.global_position = r.global_position
+	view.camera.global_position = r.global_position
 	_build_shooter()
 	_build_controls()
 	_debug("SEATED as P%d" % (seat + 1))
@@ -249,6 +248,16 @@ func colour_of(side: int) -> Color:
 
 var _relay: String = Balance.DEFAULT_RELAY
 
+func relay() -> String:
+	return _relay
+
+func is_solo() -> bool:
+	return mode == Mode.SOLO
+
+## For the log: what this machine is in the room.
+func role_name() -> String:
+	return "HOST" if mode == Mode.HOST else ("JOIN" if mode == Mode.CLIENT else "SOLO")
+
 # ------------------------------------------------------------------- the world
 ## The collision world the COINS fall through. The runners use the real
 ## StaticBody2D that LevelBuilder made; coins are not characters and do not
@@ -259,7 +268,7 @@ var _relay: String = Balance.DEFAULT_RELAY
 ## of it, or the lap they are about to enter is a hole until the instant they
 ## wrap into it.
 func _collision_rects() -> Array[Rect2]:
-	return VersusStageData.collision_rects(_built)
+	return VersusStageData.collision_rects(platforms.built)
 
 ## The arena, painted and collided by 1-1's own terrain and decor painters.
 ## See VersusLevelBuilder: nothing of 1-1's course -- no enemy, no hazard --
@@ -275,8 +284,6 @@ func _build_world() -> void:
 ## Which stage's art this arena is painted in. A guest starts in the default
 ## and switches when the host's WELCOME says otherwise.
 var _theme: int = Stage.Which.GREENFIELD
-var _sky: Node = null
-var _world_view: Node = null
 
 ## Rebuild the arena as another stage: its ground (each stage has its own
 ## shape), its art and its sky. A guest does this on the host's WELCOME,
@@ -299,31 +306,15 @@ func _apply_theme(which: int) -> void:
 	level.build()
 	level.add_actors(self)
 	level.set_riders(_riders())
-	if _sky != null:
-		_sky.queue_free()
-	var offset: float = _sky.scroll_offset if _sky != null else 0.0
-	_sky = preload("res://src/render/sky.gd").new()
-	_sky.name = "Sky"
-	_sky.camera = _camera
-	_sky.scroll_offset = offset
-	add_child(_sky)
+	view.replace_sky()
 	# A new stage is new ground: everyone goes to its starts. Online this is
 	# the lobby (a guest repaints on the WELCOME, before anyone can move).
 	if mode == Mode.SOLO or not can_move():
 		_reset_bodies()
-		if _camera != null:
-			_camera.global_position = runners[maxi(_view_team(), 0)].global_position
-	if _world_view != null:
-		_world_view.queue_free()
-		_world_view = null
-	_add_world_view()
-
-## The 3D view, for the stages co-op draws in 3D (1-3) and only those: 1-1,
-## 1-2, 1-4 and 1-5 are painted 2D stages, here exactly as in co-op.
-func _add_world_view() -> void:
-	if Balance.USE_3D and Stage.world_3d() and _world_view == null:
-		_world_view = load("res://src/render/three/world_view.gd").new()
-		add_child(_world_view)
+		if view.camera != null:
+			view.camera.global_position = runners[maxi(_view_team(), 0)].global_position
+	view.drop_world_view()
+	view.add_world_view()
 
 func theme() -> int:
 	return _theme
@@ -383,62 +374,7 @@ func report_enemy_hit(id: int) -> void:
 			if client != null:
 				client.request_enemy_shot(id)
 
-## A guest hears none of the host's events, so its own runner reacts to an
-## enemy at once, as the host's rule will see it: bounced off a head it lands
-## on, knocked back by one it walks into. The star is still only the host's.
-var _enemy_quiet: int = 0
-
-func _predict_enemies(i: int) -> void:
-	if _enemy_quiet > 0:
-		_enemy_quiet -= 1
-	var me := runners[i]
-	if _respawn_in[i] > 0 or me.state == Runner.State.DEAD:
-		return
-	var specs: Array = match_rules.enemies if match_rules != null else VersusStageData.enemy_specs()
-	for k in range(specs.size()):
-		if not enemy_alive(k):
-			continue
-		var body := VersusEnemies.body_of(specs[k], _clock)
-		var at := VersusStageData.nearest_image(me.global_position, body.get_center())
-		if VersusMatch.is_stomp_on(at, Vector2(me.velocity.x, fall_speed(i)), body):
-			me.velocity.y = VersusRules.STOMP_BOUNCE
-			return
-		if _enemy_quiet == 0 and not me.is_invulnerable() \
-				and VersusMatch.touches_enemy(at, body):
-			var dir := signf(at.x - body.get_center().x)
-			_apply_events([{"kind": "hurt", "side": i, "by": -1,
-				"dir": dir if dir != 0.0 else 1.0, "how": "enemy"}])
-			_enemy_quiet = VersusRules.HIT_IMMUNE_TICKS
-			return
-
-func _build_camera() -> void:
-	_camera = Camera2D.new()
-	_camera.name = "Camera"
-	_camera.position_smoothing_enabled = false   # smoothed by hand, below
-	_camera.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM
-	_camera.global_position = runners[maxi(local_team, 0)].global_position
-	add_child(_camera)
-	_camera.make_current()
-
-	_sky = preload("res://src/render/sky.gd").new()
-	_sky.name = "Sky"
-	_sky.camera = _camera
-	add_child(_sky)
-
-## Follows YOUR runner, with the same lead and the same smoothing the
-## cooperative camera uses -- a guardian is reading the road ahead of their own
-## runner here exactly as they do there. A guardian's view follows the runner
-## on their own team.
-func _update_camera(delta: float) -> void:
-	var who := runners[maxi(_view_team(), 0)]
-	if who == null or not is_instance_valid(who):
-		return
-	var lead := clampf(who.velocity.x / Balance.RUNNER_RUN_SPEED, -1.0, 1.0) \
-		* Balance.CAMERA_LOOKAHEAD
-	var target := who.global_position + Vector2(lead, -40.0)
-	var t := clampf(delta * Balance.CAMERA_SMOOTH, 0.0, 1.0)
-	_camera.global_position = _camera.global_position.lerp(target, t)
-
+## Whose runner the camera follows: your own, or a guardian's team's.
 func _view_team() -> int:
 	if local_team >= 0:
 		return local_team
@@ -446,49 +382,14 @@ func _view_team() -> int:
 	return VersusRoster.team_of(maxi(_seat, 0))
 
 func _process(delta: float) -> void:
-	if _camera != null:
-		_update_camera(delta)
-
-	_refresh_menu()
-	if _debug_copy_button != null:
-		_debug_copy_button.visible = waiting()
-		var viewport_size := get_viewport_rect().size
-		_debug_copy_button.position = Vector2(viewport_size.x * 0.5 - 100.0,
-			viewport_size.y * 0.5 + 214.0)
-
-## The guardians' constructs are ordinary ground for both teams. Rebuilt as one
-## body whenever the list changes rather than added one at a time, so the shape
-## of the world is always exactly the list.
-func _refresh_ground() -> void:
-	if _built_body == null:
-		_built_body = StaticBody2D.new()
-		_built_body.name = "Built"
-		_built_body.collision_layer = 1
-		_built_body.collision_mask = 0
-		add_child(_built_body)
-	for child in _built_body.get_children():
-		child.queue_free()
-	# One lap either side as well, so a platform on the join is solid from
-	# whichever side it is reached.
-	for rect in _built_laps():
-		var shape := CollisionShape2D.new()
-		var box := RectangleShape2D.new()
-		box.size = rect.size
-		shape.shape = box
-		shape.position = rect.position + rect.size * 0.5
-		_built_body.add_child(shape)
-
-func _built_laps() -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for lap in VersusStageData.LAPS:
-		for r in _built:
-			out.append(Rect2(r.position + Vector2(VersusStageData.WIDTH * float(lap), 0.0), r.size))
-	return out
+	view.follow(runners[maxi(_view_team(), 0)], delta)
+	if menu != null:
+		menu.refresh()
+	diagnostics.place_copy_button(waiting(), get_viewport_rect().size)
 
 ## Where to draw something canonical (in lap 0): the copy nearest the camera.
 func _near(at: Vector2) -> Vector2:
-	return VersusStageData.nearest_image(at, _camera.global_position) \
-		if _camera != null else at
+	return view.near(at)
 
 ## Bring this machine's own runners back into the middle lap when they run
 ## off one end. The world is periodic, so moving a runner by exactly one lap
@@ -505,12 +406,8 @@ func _wrap_bodies() -> void:
 		if is_equal_approx(was, now):
 			continue
 		r.global_position.x = now
-		if i == _view_team() and _camera != null:
-			_camera.global_position.x += now - was
-			# The backdrop scrolls on as if nothing moved: without this it
-			# jumped a lap's worth of parallax at the join.
-			if _sky != null:
-				_sky.scroll_offset -= now - was
+		if i == _view_team():
+			view.shift(now - was)
 
 func _build_runners() -> void:
 	runners.clear()
@@ -561,7 +458,7 @@ func _apply_puppets() -> void:
 ## traced platforms (6s, two at a time), launch triggers, aim assist, tracer
 ## and sounds -- with the same two tools 1-1's shared layout has (platform and
 ## shot). Nothing is routed: the Guardian acts locally, and what the others
-## need is passed on afterwards (_sync_holograms, report_shot_hit).
+## need is passed on afterwards (VersusPlatforms.sync_holograms, report_shot_hit).
 ## A 2v2 guardian seat has the guardian layout; every other seat is one
 ## person playing both on 1-1's one-device screen (ControlLayout "shared"),
 ## drawn by the same painter (ControlPainter).
@@ -602,7 +499,7 @@ func _my_side() -> int:
 func can_shoot_at(side: int) -> bool:
 	if side == _my_side() or side < 0 or side >= sides:
 		return false
-	if not runners[side].visible or _respawn_in[side] > 0:
+	if not runners[side].visible or lives.respawn_in[side] > 0:
 		return false
 	return not waiting() and countdown_ticks() == 0 \
 		and phase() == VersusMatch.Phase.PLAYING
@@ -611,7 +508,7 @@ func can_shoot_at(side: int) -> bool:
 ## over your head is cover -- the shot comes down from above
 ## (VersusRules.SHOT_FROM) and a stomp comes down from the stomper -- so the
 ## rifle, the host's ruling and the stomp all ask this. Platforms are
-## everyone's here (_sync_holograms), so every machine agrees.
+## everyone's here (VersusPlatforms.sync_holograms), so every machine agrees.
 func line_clear(from: Vector2, to: Vector2) -> bool:
 	if not is_inside_tree():
 		return true
@@ -642,367 +539,29 @@ func report_shot_hit(side: int) -> void:
 			if client != null:
 				client.request_shot(at)
 
-# ------------------------------------------------------------ platforms
-## Every platform on this machine, by "seat:id": the Hologram plus its copies
-## one lap either side (the field is a loop). Own platforms are the
-## Guardian's; the others arrive from the host.
-var _holos: Dictionary = {}
-var _next_holo_id: int = 1
-
-func _sync_holograms() -> void:
-	# Mine: anything new the Guardian made goes out; anything gone is ended.
-	if guardian != null and _seat >= 0:
-		var mine: Dictionary = {}
-		for holo in guardian.holograms_of(Hologram.Kind.PLATFORM):
-			if not is_instance_valid(holo) or holo.is_queued_for_deletion():
-				continue
-			if not holo.has_meta("vs_id"):
-				holo.set_meta("vs_id", _next_holo_id)
-				_next_holo_id = (_next_holo_id % 0xFFFF) + 1
-				var payload := VersusProtocol.holo(_seat, int(holo.get_meta("vs_id")),
-					int(holo.kind), Vector2(VersusStageData.wrap_x(holo.global_position.x),
-						holo.global_position.y), holo.path)
-				_send_holo(payload)
-				_holos["%d:%d" % [_seat, int(holo.get_meta("vs_id"))]] = {
-					"main": holo, "copies": _lap_copies(holo.kind, holo.global_position, holo.path)}
-			mine["%d:%d" % [_seat, int(holo.get_meta("vs_id"))]] = true
-		for key in _holos.keys():
-			if String(key).begins_with("%d:" % _seat) and not mine.has(key):
-				var id := int(String(key).split(":")[1])
-				_drop_holo(key)
-				_send_holo(VersusProtocol.unholo(_seat, id))
-	# Theirs.
-	var inbox: Array[PackedByteArray] = []
-	if host != null:
-		inbox = host.holo_inbox
-	elif client != null:
-		inbox = client.holo_inbox
-	for payload in inbox:
-		match VersusProtocol.kind_of(payload):
-			VersusProtocol.Msg.HOLO:
-				var h := VersusProtocol.read_holo(payload)
-				var key := "%d:%d" % [int(h["seat"]), int(h["holo_id"])]
-				_drop_holo(key)
-				var main := _remote_holo(int(h["kind"]), h["at"], h["path"])
-				_holos[key] = {"main": main,
-					"copies": _lap_copies(int(h["kind"]), h["at"], h["path"])}
-			VersusProtocol.Msg.UNHOLO:
-				var u := VersusProtocol.read_unholo(payload)
-				_drop_holo("%d:%d" % [int(u["seat"]), int(u["holo_id"])])
-	inbox.clear()
-	# Copies follow their original out (expiry is each one's own 6 s).
-	for key in _holos.keys():
-		var entry: Dictionary = _holos[key]
-		if not is_instance_valid(entry["main"]) or entry["main"].is_queued_for_deletion():
-			_drop_holo(key, false)
-
-func _send_holo(payload: PackedByteArray) -> void:
-	if host != null:
-		host.send_holo(payload)
-	elif client != null:
-		client.send_holo(payload)
-
-## Somebody else's platform: the same Hologram, built the same way, but not
-## the local Guardian's (it does not count against this player's two) and
-## its launch trigger throws nobody here.
-func _remote_holo(kind: int, at: Vector2, path: PackedVector2Array) -> Hologram:
-	var holo := Hologram.create(kind, at, path)
-	add_child(holo)
-	if holo.trigger != null:
-		holo.trigger.runner = null
-	return holo
-
-func _lap_copies(kind: int, at: Vector2, path: PackedVector2Array) -> Array:
-	var out: Array = []
-	for lap in [-1, 1]:
-		var copy_at := at + Vector2(VersusStageData.WIDTH * float(lap), 0.0)
-		# Only near the join is a copy ever reachable or on screen.
-		if copy_at.x < VersusStageData.LEFT - VersusStageData.LAP_MARGIN - 300.0 \
-				or copy_at.x > VersusStageData.RIGHT + VersusStageData.LAP_MARGIN + 300.0:
-			continue
-		out.append(_remote_holo(kind, copy_at, path))
-	return out
-
-func _drop_holo(key: String, include_main: bool = true) -> void:
-	if not _holos.has(key):
-		return
-	var entry: Dictionary = _holos[key]
-	var nodes: Array = entry["copies"].duplicate()
-	if include_main and not String(key).begins_with("%d:" % _seat):
-		nodes.append(entry["main"])
-	for n in nodes:
-		if is_instance_valid(n) and not n.is_queued_for_deletion():
-			n.expire()
-	_holos.erase(key)
-
-# ------------------------------------------------------------------ the menu
-## Real buttons for what the keyboard did before: start, play again, leave.
-## A phone has no R and no Esc, and a mode you cannot start or leave from the
-## screen is not a mode a phone can play.
-var _start_button: Button = null
-var _again_button: Button = null
-var _leave_button: Button = null
-
-func _build_menu(layer: CanvasLayer) -> void:
-	_menu = VBoxContainer.new()
-	_menu.name = "VersusMenu"
-	_menu.add_theme_constant_override("separation", 10)
-	_menu.custom_minimum_size = Vector2(300, 0)
-	layer.add_child(_menu)
-	_start_button = _menu_button("スタート", start_match)
-	_again_button = _menu_button("もういちど", rematch)
-	_leave_button = _menu_button("やめる", leave_versus)
-	_refresh_menu()
-
-func _menu_button(text: String, handler: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(300, 56)
-	b.add_theme_font_size_override("font_size", 24)
-	b.focus_mode = Control.FOCUS_NONE
-	b.pressed.connect(handler)
-	_menu.add_child(b)
-	return b
-
-func _refresh_menu() -> void:
-	if _menu == null:
-		return
-	var over := phase() == VersusMatch.Phase.OVER
-	var pre := waiting()
-	_start_button.visible = pre and is_host()
-	_start_button.disabled = not can_start()
-	_again_button.visible = over and (mode == Mode.HOST or mode == Mode.SOLO)
-	# Runners have their own 戻る circle during play; a guardian has none.
-	var broken := not link_error().is_empty()
-	# Always there: the old 戻る circle went with the attack and build buttons.
-	_leave_button.visible = true
-	var view := get_viewport_rect().size
-	var shown := 0
-	for b in [_start_button, _again_button, _leave_button]:
-		if b.visible:
-			shown += 1
-	_menu.size = Vector2(300, shown * 66)
-	if pre or over or broken:
-		_menu.custom_minimum_size = Vector2(300, 0)
-		_leave_button.custom_minimum_size = Vector2(300, 56)
-		_menu.position = Vector2(view.x * 0.5 - 150.0, view.y * 0.5 + 90.0)
-	else:
-		# Top left during play, clear of the stick and of the scoreboard.
-		_menu.custom_minimum_size = Vector2(130, 0)
-		_leave_button.custom_minimum_size = Vector2(130, 44)
-		_menu.size = Vector2(130, 44)
-		_menu.position = Vector2(16.0, 12.0)
-	_menu.visible = shown > 0
-
-# ----------------------- on-device diagnostic log (also in user://)
+# ----------------------------------------------------------- parts' hooks
+## Kept here, not in the parts, because tests replace them to stand in a
+## loopback link or to keep the log quiet.
 func _start_debug_log() -> void:
-	_debug_lines.clear()
-	_debug_file = FileAccess.open("user://versus-debug.log", FileAccess.WRITE)
-	_debug("build=versus diag-v1 role=%s room=%s mode=%d protocol=%d" % [
-		"HOST" if mode == Mode.HOST else ("JOIN" if mode == Mode.CLIENT else "SOLO"),
-		room_code, room_mode, VersusProtocol.VERSION])
-	_debug("relay=%s (WebSocket uses /room4/<code>)" % _relay.strip_edges().rstrip("/"))
-	if _debug_file == null:
-		_debug("user://versus-debug.log could not be opened: %d" % FileAccess.get_open_error())
+	diagnostics.start_log()
 
+func _open_link(as_host: bool) -> void:
+	connection.open(as_host)
+
+## The log's entry point; links, hosts and guests are wired to it directly.
 func _debug(message: String) -> void:
-	if not OS.has_feature("editor"):
-		return
-	var line := "%s %s" % [Time.get_time_string_from_system(), message]
-	print("[versus] " + line)
-	_debug_lines.append(line)
-	if _debug_lines.size() > 9:
-		_debug_lines.pop_front()
-	if _debug_file != null:
-		_debug_file.store_line(line)
-		_debug_file.flush()
+	if diagnostics != null:
+		diagnostics.debug(message)
 
 func debug_lines() -> Array[String]:
-	return _debug_lines.duplicate()
-
-func _copy_debug_log() -> void:
-	var content := FileAccess.get_file_as_string("user://versus-debug.log")
-	if content.is_empty():
-		content = "\n".join(_debug_lines)
-	DisplayServer.clipboard_set(content)
-	_debug("log copied to clipboard")
-
-## A GET without Upgrade MUST return 426 on our deployed /room4 handler.
-## 404 instead means the worker serving this URL does not have /room4.
-## WebSocketPeer itself does not expose HTTP handshake response status.
-func _probe_relay_route() -> void:
-	if not OS.has_feature("editor"):
-		return
-	var base := _relay.strip_edges().rstrip("/")
-	if base.begins_with("wss://"):
-		base = "https://" + base.substr(6)
-	elif base.begins_with("ws://"):
-		base = "http://" + base.substr(5)
-	elif not base.begins_with("https://") and not base.begins_with("http://"):
-		base = "https://" + base
-	_relay_probe = HTTPRequest.new()
-	_relay_probe.name = "VersusRelayProbe"
-	_relay_probe.timeout = 10.0
-	add_child(_relay_probe)
-	_relay_probe.request_completed.connect(_on_relay_probe_complete)
-	var url := "%s/room4/%s" % [base, room_code]
-	_debug("PROBE GET " + url + " (expected HTTP 426; no websocket upgrade)")
-	var err := _relay_probe.request(url)
-	if err != OK:
-		_relay_probe_detail = TranslationServer.translate("接続先のHTTP検査を開始できません (%d)") % err
-		_debug("PROBE request error=%d" % err)
-
-func _on_relay_probe_complete(result: int, http_status: int,
-		_headers: PackedStringArray, body: PackedByteArray) -> void:
-	_debug("PROBE result=%d HTTP=%d body=%s" % [result, http_status,
-		body.get_string_from_utf8().substr(0, 120).replace("\n", " ")])
-	if result != HTTPRequest.RESULT_SUCCESS:
-		_relay_probe_detail = TranslationServer.translate("中継HTTP接続失敗 result=%d (DNS/通信を確認)") % result
-	elif http_status == 426:
-		_relay_probe_detail = ""
-		_debug("PROBE /room4 exists on deployed relay")
-	elif http_status == 404:
-		_relay_probe_detail = "中継に /room4 がありません (サーバーの更新が必要)"
-	elif http_status == 429:
-		_relay_probe_detail = "中継の接続回数制限 HTTP 429"
-	else:
-		_relay_probe_detail = TranslationServer.translate("中継の /room4 が HTTP %d を返しました") % http_status
-
-## The value Runner actually reads, plus touch owner and the local actor.
-## Emit on direction changes and at 3-second intervals so a stuck input can
-## be diagnosed from the copyable log without recording every physics frame.
-func _trace_local_input() -> void:
-	if not OS.has_feature("editor"):
-		return
-	if mode == Mode.SOLO or local_team < 0 or input.hubs.is_empty():
-		return
-	var h: InputHub = input.hubs[0]
-	var direction := int(signf(h.move_axis))
-	_input_trace_ticks += 1
-	if direction == _last_input_direction and _input_trace_ticks < 180:
-		return
-	_last_input_direction = direction
-	_input_trace_ticks = 0
-	_debug("INPUT team=%d axis=%.2f y=%.2f touch=%s fingers=%s left=%s scripted=%s physics=%s x=%.1f vx=%.1f" % [
-		local_team, h.move_axis, h.move_axis_y, str(h._has_touch),
-		str(h._touch_owner), str(h.runner_on_left), str(h.scripted),
-		str(runners[local_team].is_physics_processing()),
-		runners[local_team].global_position.x, runners[local_team].velocity.x])
-
-func _record_match_state() -> void:
-	var info := ""
-	if host != null:
-		info = "HOST authenticated=%d can_play=%s playing=%s" % [
-			host.roster.peers_filled(), str(host.roster.can_play()), str(host.playing)]
-	elif client != null:
-		info = "JOIN connected=%s refused=%s seen_world=%s phase=%d seat=%d" % [
-			str(client.connected), str(client.refused), str(client.seen_world),
-			client.phase, client.seat]
-	if not info.is_empty() and info != _last_match_state:
-		_last_match_state = info
-		_debug(info)
-
-# --------------------------------------------------------------------- the link
-func _open_link(as_host: bool) -> void:
-	if use_eos:
-		_open_eos(as_host)
-		return
-	var ws := VersusWsTransport.new()
-	ws.diagnostic.connect(_debug)
-	link = ws
-	if as_host and room_code.is_empty():
-		room_code = VersusWsTransport.new_code()
-	_probe_relay_route()
-	var err := ws.open_room(_relay, room_code, "versus-%d" % (Time.get_ticks_usec() & 0xffff))
-	if not err.is_empty():
-		status = err
-		_debug("open_room failed: " + err)
-		return
-	status = "room %s - waiting" % room_code
-
-## EOS sign-in, then the four-person lobby, then P2P -- the same path co-op
-## rooms take, in a bucket of their own. Asynchronous: the arena is already up
-## and says what it is doing while this runs.
-var _link_error: String = ""
-
-func _open_eos(as_host: bool) -> void:
-	var room := EosVersusLobby.new(room_mode)
-	eos_room = room
-	if as_host:
-		room.room_code = room_code if EosVersusLobby.valid_code(room_code) \
-			else EosVersusLobby.new_code()
-		room_code = room.room_code
-		room.room_code_chosen.connect(func(code: String) -> void:
-			if room == eos_room:
-				room_code = code)
-	status = "EOSに接続中"
-	_debug("EOS versus %s room=%s" % ["host" if as_host else "join", room_code])
-	if not await EosRuntime.ensure_ready():
-		_link_failed(room, EosRuntime.last_error)
-		return
-	if room != eos_room:
-		room.leave()
-		return
-	var ok := false
-	if as_host:
-		ok = await room.create_room()
-	else:
-		ok = await room.join_room(room_code)
-	if room != eos_room:
-		room.leave()
-		return
-	if not ok:
-		_link_failed(room, room.last_error)
-		return
-	var t := VersusEosTransport.new()
-	t.diagnostic.connect(_debug)
-	var err := t.open(room)
-	if not err.is_empty():
-		_link_failed(room, err)
-		return
-	link = t
-	status = "room %s" % room_code
-
-func _link_failed(room: EosVersusLobby, reason: String) -> void:
-	if room != eos_room:
-		return
-	_link_error = reason
-	status = reason
-	_debug("EOS failed: " + reason)
-
-func _network_ready() -> void:
-	if host != null or client != null:
-		return
-	if link == null or not link.is_open():
-		return
-	if mode == Mode.HOST:
-		if link.local_peer() != VersusTransport.HOST_PEER:
-			status = "room %s is already hosted elsewhere" % room_code
-			_debug("HOST rejected: relay assigned index=%d (expected 0)" % link.local_peer())
-			return
-		host = VersusHost.new()
-		host.diagnostic.connect(_debug)
-		host.start(link, ArenaStage.new(_collision_rects()), 0, room_mode)
-		host.stage = _theme
-		match_rules = host.match_rules
-		_debug("HOST ready: peer=%d roster=%s" % [
-			link.local_peer(), host.roster.describe()])
-		status = "room %s" % room_code
-	else:
-		client = VersusClient.new()
-		client.diagnostic.connect(_debug)
-		client.start(link, _seat, room_mode)
-		_debug("JOIN ready: peer=%d" % link.local_peer())
-		status = "room %s" % room_code
+	return diagnostics.lines()
 
 # --------------------------------------------------------------------- the tick
 func _physics_process(_delta: float) -> void:
-	if link != null:
-		link.poll_socket()
-		_network_ready()
+	connection.poll()
 
 	var seqs := input.poll()
-	_trace_local_input()
+	diagnostics.trace_local_input()
 	_sync_clock()
 
 	if phase() == VersusMatch.Phase.OVER and mode != Mode.CLIENT \
@@ -1017,19 +576,19 @@ func _physics_process(_delta: float) -> void:
 		Mode.CLIENT:
 			_tick_client(seqs)
 	_solid_bodies()
-	_sync_holograms()
+	platforms.sync_holograms()
 	_star_sounds()
-	_remember_fall()
+	lives.remember_fall()
 	_update_activity()
-	_mark_started()
-	_record_match_state()
+	connection.mark_started()
+	diagnostics.record_match_state()
 	_redraw()
 
 ## Only a runner who is in the match is something to bump into: an empty
 ## chair's body (hidden at its start) or one waiting to respawn is not.
 func _solid_bodies() -> void:
 	for i in range(sides):
-		var solid := runners[i].visible and _respawn_in[i] <= 0 \
+		var solid := runners[i].visible and lives.respawn_in[i] <= 0 \
 			and runners[i].state != Runner.State.DEAD
 		runners[i].collision_layer = Runner.LAYER_RUNNER if solid else 0
 
@@ -1070,14 +629,6 @@ func can_move() -> bool:
 	return not waiting() and countdown_ticks() == 0 \
 		and phase() == VersusMatch.Phase.PLAYING
 
-## The lobby stops advertising the room once the countdown starts.
-func _mark_started() -> void:
-	if _marked_started or eos_room == null or host == null:
-		return
-	if host.playing or host.counting():
-		_marked_started = true
-		eos_room.mark_started()
-
 ## The overlay (stars, rings) moves with the world and is redrawn every tick.
 ## The HUD -- scoreboard, map, edge arrows, banners -- at most 20 times a
 ## second, and at once when something it states changes (a star taken, the
@@ -1088,7 +639,7 @@ var _hud_said: Array = []
 func _redraw() -> void:
 	if _overlay != null:
 		_overlay.queue_redraw()
-	var said: Array = [phase(), countdown_ticks(), waiting(), status, _link_error]
+	var said: Array = [phase(), countdown_ticks(), waiting(), status, connection.error]
 	for i in range(sides):
 		said.append(held_by(i))
 	if said != _hud_said or Engine.get_physics_frames() % 3 == 0:
@@ -1100,7 +651,7 @@ func _observe(i: int, seq: int) -> VersusMatch.Seat:
 	s.team = i
 	s.position = runners[i].global_position
 	s.facing = runners[i].facing
-	s.alive = runners[i].state != Runner.State.DEAD and _respawn_in[i] <= 0
+	s.alive = runners[i].state != Runner.State.DEAD and lives.respawn_in[i] <= 0
 	# Being untouchable does not stop you acting: Runner.respawn grants a
 	# second of it, and folding that into can_act meant nobody could take a
 	# coin for the first second of the match.
@@ -1110,18 +661,9 @@ func _observe(i: int, seq: int) -> VersusMatch.Seat:
 	s.velocity = Vector2(runners[i].velocity.x, fall_speed(i))
 	return s
 
-## How fast `i` is coming down. Bodies are solid now, so the frame a runner
-## lands on a head its fall has already been stopped by that head; the speed
-## it arrived with is last frame's.
+## How fast `i` is coming down; see VersusLives.fall_speed.
 func fall_speed(i: int) -> float:
-	return maxf(runners[i].velocity.y, _last_vy[i] if i < _last_vy.size() else 0.0)
-
-var _last_vy: Array[float] = []
-
-func _remember_fall() -> void:
-	_last_vy.resize(sides)
-	for i in range(sides):
-		_last_vy[i] = runners[i].velocity.y
+	return lives.fall_speed(i)
 
 ## Before and after play: where the runner stands, alive, and not acting.
 func _idle(i: int, seq: int) -> VersusMatch.Seat:
@@ -1130,37 +672,18 @@ func _idle(i: int, seq: int) -> VersusMatch.Seat:
 	s.can_act = false
 	return s
 
-## A stomp feels like a stomp only if the bounce is immediate, so the
-## stomper's own machine bounces as soon as its feet meet a head; the host
-## judges the hit from the same observation and takes the star.
-func _stomp_bounce(i: int) -> void:
-	var me := runners[i]
-	if not me.is_physics_processing() or _respawn_in[i] > 0:
-		return
-	for j in range(sides):
-		if j == i or not runners[j].visible or _respawn_in[j] > 0:
-			continue
-		if VersusMatch.is_stomp(me.global_position,
-				Vector2(me.velocity.x, fall_speed(i)), runners[j].global_position) \
-				and line_clear(me.global_position, VersusStageData.nearest_image(
-					runners[j].global_position, me.global_position)):
-			me.velocity.y = VersusRules.STOMP_BOUNCE
-			if i < _last_vy.size():
-				_last_vy[i] = VersusRules.STOMP_BOUNCE
-			return
-
 func _tick_solo(seqs: Array[int]) -> void:
 	_wrap_bodies()
 	if phase() == VersusMatch.Phase.OVER:
 		return
-	_apply_respawns()
-	_catch_deaths()
+	lives.apply_respawns()
+	lives.catch_deaths()
 	# The touch test's partner never swings: one strike count drives both
 	# hubs' sequences on a phone, and it must not be P2's.
 	match_rules.step([_observe(0, seqs[0]), _observe(1, 0 if touch_solo else seqs[1])])
-	_apply_events(match_rules.events)
+	lives.apply_events(match_rules.events)
 	for i in range(sides):
-		_stomp_bounce(i)
+		lives.stomp_bounce(i)
 
 func _tick_host(seqs: Array[int]) -> void:
 	if host == null:
@@ -1170,20 +693,20 @@ func _tick_host(seqs: Array[int]) -> void:
 	var live := host.playing and phase() == VersusMatch.Phase.PLAYING
 	_wrap_bodies()
 	if live:
-		_apply_respawns()
-		_catch_deaths()
+		lives.apply_respawns()
+		lives.catch_deaths()
 	host.step(_observe(0, seqs[0]) if live else _idle(0, seqs[0]))
 	if live:
-		_stomp_bounce(0)
+		lives.stomp_bounce(0)
 	match_rules = host.match_rules
 	if match_rules != null and not match_rules.line_clear.is_valid():
 		match_rules.line_clear = line_clear
-	_sync_builds(host.builds, host.world_revision)
+	platforms.sync_builds(host.builds, host.world_revision)
 	# Everyone else is wherever their own machine says they are.
 	for i in range(1, sides):
 		var other := host.reported_runner(i)
 		_place_puppet(i, other.position, other.facing)
-	_apply_events(host.out_events)
+	lives.apply_events(host.out_events)
 
 func _tick_client(seqs: Array[int]) -> void:
 	if client == null:
@@ -1197,13 +720,13 @@ func _tick_client(seqs: Array[int]) -> void:
 		# goes back to its start too, and whatever was built is gone.
 		_seen_epoch_changes = client.epoch_changes
 		_reset_bodies()
-		_built_revision = -1
+		platforms.forget_revision()
 	var mine = null
 	if local_team >= 0:
 		_wrap_bodies()
 		if can_move():
-			_apply_respawns()
-			_catch_deaths_local()
+			lives.apply_respawns()
+			lives.catch_death_of(local_team)
 			mine = _observe(local_team, seqs[0])
 		elif client.connected:
 			# The host needs this runner's start and ALIVE state before the
@@ -1211,10 +734,10 @@ func _tick_client(seqs: Array[int]) -> void:
 			mine = _idle(local_team, seqs[0])
 	client.step(mine, _seat)
 	if local_team >= 0 and can_move():
-		_stomp_bounce(local_team)
-		_predict_bump(local_team)
-		_predict_enemies(local_team)
-	_sync_builds_from_snapshot(client.builds, client.world_revision)
+		lives.stomp_bounce(local_team)
+		lives.predict_bump(local_team)
+		lives.predict_enemies(local_team)
+	platforms.sync_builds_from_snapshot(client.builds, client.world_revision)
 	# Everyone the host describes and this machine does not own.
 	for i in range(sides):
 		if i == local_team:
@@ -1237,28 +760,6 @@ func _place_puppet(i: int, at: Vector2, facing: int) -> void:
 	else:
 		r.global_position = r.global_position.lerp(here, 0.35)
 	r.facing = facing
-
-func _sync_builds(from: Array, revision: int) -> void:
-	if revision == _built_revision:
-		return
-	_built.clear()
-	_build_owner.clear()
-	for g in from:
-		_built.append(g["rect"])
-		_build_owner.append(int(g["seat"]))
-	_built_revision = revision
-	_refresh_ground()
-
-func _sync_builds_from_snapshot(from: Array, revision: int) -> void:
-	if revision == _built_revision:
-		return
-	_built.clear()
-	_build_owner.clear()
-	for g in from:
-		_built.append(Rect2(g["position"], g["size"]))
-		_build_owner.append(int(g["seat"]))
-	_built_revision = revision
-	_refresh_ground()
 
 # ------------------------------------------------------------------- readouts
 ## One place the HUD asks, whichever side of the network this machine is on.
@@ -1348,10 +849,7 @@ func map_marks() -> Array[Dictionary]:
 
 ## The world rectangle currently on screen, for the HUD's edge arrows.
 func view_rect() -> Rect2:
-	if _camera == null:
-		return Rect2()
-	var size := get_viewport_rect().size / _camera.zoom
-	return Rect2(_camera.get_screen_center_position() - size * 0.5, size)
+	return view.rect()
 
 ## Everything on the map that is NOT on screen, with where on the screen's edge
 ## to point at it: the other team's runner, your own when a guardian has lost
@@ -1401,12 +899,12 @@ func is_host() -> bool:
 ## Show the room's state, not the two locally spawned avatars.
 func waiting_detail() -> String:
 	var code := room_code if not room_code.is_empty() else "------"
-	if not _link_error.is_empty():
-		return _link_error
+	if not connection.error.is_empty():
+		return connection.error
 	if link != null and not link.last_error().is_empty():
 		return TranslationServer.translate("通信エラー: %s") % link.last_error()
-	if not _relay_probe_detail.is_empty():
-		return "room %s · %s" % [code, _relay_probe_detail]
+	if not diagnostics.relay_probe_detail.is_empty():
+		return "room %s · %s" % [code, diagnostics.relay_probe_detail]
 	if link == null:
 		return TranslationServer.translate("オンラインに接続中…")
 	if mode == Mode.HOST:
@@ -1433,11 +931,7 @@ func waiting_detail() -> String:
 ## Why the room stopped working, or "". Shown over play as well as over the
 ## waiting screen: a host who leaves mid-match ends it for everyone.
 func link_error() -> String:
-	if not _link_error.is_empty():
-		return _link_error
-	if link != null:
-		return link.last_error()
-	return ""
+	return connection.link_error()
 
 ## One line per chair, for the waiting screen: who the room has and who it is
 ## still waiting for.
@@ -1477,151 +971,25 @@ func rematch() -> void:
 		if not host.restart_match():
 			return
 		match_rules = host.match_rules
-		_built.clear()
-		_build_owner.clear()
-		_built_revision = -1
-		_refresh_ground()
+		platforms.clear_builds()
 		_reset_bodies()
 
 # ---------------------------------------------------------------- lives, deaths
 func _start_solo() -> void:
-	_built.clear()
-	_build_owner.clear()
-	_refresh_ground()
+	platforms.clear_builds()
 	match_rules.setup(ArenaStage.new(_collision_rects()),
 		int(Time.get_ticks_usec() & 0x7fffffff))
 	_reset_bodies()
 
 func _reset_bodies() -> void:
-	var starts := VersusStageData.start_positions()
-	var facings := VersusStageData.start_facing()
-	for i in range(sides):
-		runners[i].respawn(starts[i])
-		runners[i].facing = facings[i]
-		runners[i].velocity = Vector2.ZERO
-		_respawn_in[i] = 0
-	# Every platform goes with the old match: this player's own, and the
-	# copies of everyone else's (each machine clears its own the same way).
-	if guardian != null:
-		guardian.clear_constructs()
-	for key in _holos.keys():
-		_drop_holo(key)
-
-func _apply_events(events: Array) -> void:
-	for e in events:
-		match String(e.get("kind", "")):
-			"hurt":
-				var side: int = e["side"]
-				if not _owns(side):
-					continue
-				runners[side].facing = -int(e["dir"])
-				runners[side].take_damage(1)
-				if runners[side].state == Runner.State.DEAD:
-					_begin_respawn(side)
-			"bounce":
-				# The host's verdict on a stomp. The stomper's own machine has
-				# usually bounced already (_stomp_bounce); doing it again is
-				# harmless, a fresh bounce from the same height.
-				if _owns(e["side"]) and runners[e["side"]].velocity.y > 0.0:
-					runners[e["side"]].velocity.y = VersusRules.STOMP_BOUNCE
-			"bump":
-				# Both are thrown apart on their own machines; the stars are
-				# the host's (VersusMatch._bump).
-				var side: int = e["side"]
-				if _owns(side) and runners[side].state != Runner.State.DEAD:
-					runners[side].launch(Vector2(
-						VersusRules.BUMP_KNOCK.x * float(e["dir"]), VersusRules.BUMP_KNOCK.y))
-					Audio.play("hurt", 4.0, 0.0, 0.7)
-					bumps_felt += 1
-			"enemy_down":
-				Audio.play("hurt", 7.0, 0.0, 0.8)
-				enemies_downed += 1
-			"fell":
-				if _owns(e["side"]):
-					runners[e["side"]].die("fell")
-					_begin_respawn(e["side"])
-
-## A guest hears nothing of the host's events, so its own runner is thrown
-## apart the moment it touches someone, as the host's rule will see it
-## (VersusMatch.is_bump); the stars are still only the host's to drop.
-var _bump_quiet: int = 0
-
-func _predict_bump(i: int) -> void:
-	if _bump_quiet > 0:
-		_bump_quiet -= 1
-		return
-	if _respawn_in[i] > 0 or runners[i].state == Runner.State.DEAD:
-		return
-	for j in range(sides):
-		if j == i or not runners[j].visible or _respawn_in[j] > 0:
-			continue
-		var them := VersusStageData.nearest_image(runners[j].global_position,
-			runners[i].global_position)
-		if VersusMatch.is_bump(runners[i].global_position, them):
-			var dir := -signf(them.x - runners[i].global_position.x)
-			if dir == 0.0:
-				dir = -1.0
-			_apply_events([{"kind": "bump", "side": i, "dir": dir}])
-			_bump_quiet = VersusRules.HIT_IMMUNE_TICKS
-			return
-
-## For the probes: enemies this machine has seen go down (host and solo).
-var enemies_downed: int = 0
-
-## For the probes: bumps this machine's own runner has been thrown by.
-var bumps_felt: int = 0
+	lives.reset_bodies()
+	platforms.clear_holograms()
 
 func _owns(side: int) -> bool:
 	return mode == Mode.SOLO or side == local_team
 
-## Every way a runner can stop being in the match, in one place. Written as "is
-## it dead" rather than as a list of causes: the first version handled only the
-## two this file creates and missed 1-1's spike strip, which the runner detects
-## and dies to entirely on its own.
-func _catch_deaths() -> void:
-	for i in range(sides):
-		if not _owns(i):
-			continue
-		_catch_death(i)
-
-func _catch_deaths_local() -> void:
-	if local_team >= 0:
-		_catch_death(local_team)
-
-func _catch_death(i: int) -> void:
-	if _respawn_in[i] > 0:
-		return
-	if runners[i].state == Runner.State.DEAD:
-		_begin_respawn(i)
-	elif runners[i].global_position.y > VersusStageData.kill_y():
-		runners[i].die("pit")
-		_begin_respawn(i)
-
-func _begin_respawn(side: int) -> void:
-	if _respawn_in[side] > 0:
-		return
-	_died_at[side] = runners[side].global_position
-	if match_rules != null:
-		match_rules.note_death(side)
-	_respawn_in[side] = VersusRules.RESPAWN_TICKS
-
-func _apply_respawns() -> void:
-	for i in range(sides):
-		if _respawn_in[i] <= 0:
-			continue
-		_respawn_in[i] -= 1
-		if _respawn_in[i] > 0:
-			continue
-		# Back at their own team's start, a short run from anywhere.
-		runners[i].respawn(VersusStageData.respawn_for(i, _died_at[i]))
-		runners[i].facing = VersusStageData.start_facing()[i]
-
 func leave_versus() -> void:
-	if link != null:
-		link.close()
-	elif eos_room != null:
-		eos_room.leave()
-	eos_room = null
+	connection.close()
 	# Back to the co-op stage that was selected before versus.
 	if VersusLaunch.previous_stage >= 0:
 		Stage.use(VersusLaunch.previous_stage)
@@ -1633,107 +1001,3 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \
 			and event.physical_keycode == KEY_ESCAPE:
 		leave_versus()
-
-# ---------------------------------------------------------------------- paint
-## Stars, platforms, rings and strikes go on an overlay above the scenery:
-## drawn on the arena itself they sat underneath its children -- the level's
-## ground, trees and signposts -- and a star behind a tree was a star nobody
-## could see.
-func _draw_overlay() -> void:
-
-	_builds()
-	_markers()
-	_coins()
-	_heads()
-
-## How many stars each runner is carrying, over their head. Pips, not a number: what
-## you need at a glance is "more than them". World space, which is why it lives
-## here and not in the HUD.
-func _heads() -> void:
-	for i in range(sides):
-		var held := held_by(i)
-		if held <= 0:
-			continue
-		var centre: Vector2 = runners[i].global_position
-		var y := centre.y - Balance.RUNNER_SIZE.y * 0.5 - 18.0
-		var pitch := 18.0
-		var x0 := centre.x - pitch * float(held - 1) * 0.5
-		for k in range(held):
-			_star_shape(Vector2(x0 + pitch * float(k), y), 9.0, COL_COIN)
-
-func _star_shape(at: Vector2, r: float, fill: Color) -> void:
-	var pts := PackedVector2Array()
-	for k in range(10):
-		var rr := r if k % 2 == 0 else r * 0.45
-		var a := -PI * 0.5 + float(k) * TAU / 10.0
-		pts.append(at + Vector2(cos(a), sin(a)) * rr)
-	_overlay.draw_colored_polygon(pts, fill)
-	pts.append(pts[0])
-	_overlay.draw_polyline(pts, COL_COIN_EDGE, maxf(1.5, r * 0.12))
-
-func _builds() -> void:
-	for i in range(_built.size()):
-		var team := VersusRoster.side_of_in(room_mode, _build_owner[i]) \
-			if i < _build_owner.size() else 0
-		# A dark outline under the bright one. Team A's colour is a sky blue and
-		# 1-1's sky is behind half the arena, so a platform drawn in it alone
-		# disappeared into the background -- something you found by walking into
-		# it rather than by looking.
-		var box := Rect2(_near(_built[i].position), _built[i].size)
-		_overlay.draw_rect(box.grow(2.0), Color(0.06, 0.07, 0.10, 0.85), false, 5.0)
-		_overlay.draw_rect(box, build_fill(team))
-		_overlay.draw_rect(box, build_edge(team), false, 3.0)
-		# A highlight along the top, so which side of it you can stand on is
-		# obvious from across the arena.
-		_overlay.draw_line(box.position + Vector2(0.0, 1.5),
-			box.position + Vector2(box.size.x, 1.5),
-			Color(1, 1, 1, 0.75), 3.0)
-
-func _markers() -> void:
-	for i in range(sides):
-		if _respawn_in[i] > 0:
-			continue
-		var at: Vector2 = runners[i].global_position \
-			+ Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5)
-		_overlay.draw_arc(at, 17.0, 0.0, TAU, 20, build_edge(i), 3.0)
-
-func _coins() -> void:
-	for c in coins():
-		if int(c["state"]) != ArenaCoin.State.WORLD:
-			continue
-		var at: Vector2 = _near(c["position"])
-		var fill := COL_COIN
-		if c.has("world_since"):
-			var left := VersusRules.STALE_TICKS - (world_tick() - int(c["world_since"]))
-			if left <= 90:
-				fill.a = 0.35 + 0.65 * absf(sin(float(left) * 0.25))
-		if _world_view == null:
-			_star_shape(at, STAR_RADIUS, fill)
-		if c.has("pickup_tick") and world_tick() < int(c["pickup_tick"]):
-			_overlay.draw_arc(at, STAR_RADIUS + 4.0, 0.0, TAU, 20, Color(1, 1, 1, 0.45), 2.0)
-
-## The strike while it is live, and the wind-up before it. Both shown: the whole
-## fight is about whether eight frames was enough warning.
-func _strikes() -> void:
-	if match_rules == null:
-		for i in range(sides):
-			if client == null or client.runners.size() <= i:
-				continue
-			var r: Dictionary = client.runners[i]
-			if int(r["combat_phase"]) == ArenaCombat.Phase.ACTIVE:
-				_strike_box_at(_near(r["position"]), int(r["combat_dir"]))
-		return
-	for i in range(sides):
-		var c := match_rules.combat[i]
-		var at: Vector2 = runners[i].global_position
-		if c.phase == ArenaCombat.Phase.STARTUP:
-			_overlay.draw_arc(at + Vector2(float(c.attack_dir) * 22.0, 0.0), 7.0,
-				0.0, TAU, 12, Color(1, 1, 1, 0.45), 2.0)
-		elif c.phase == ArenaCombat.Phase.ACTIVE:
-			_strike_box_at(at, c.attack_dir)
-
-func _strike_box_at(at: Vector2, dir: int) -> void:
-	var mid := Vector2(at.x + float(dir) * VersusRules.STRIKE_REACH, at.y)
-	var box := Rect2(mid - VersusRules.STRIKE_SIZE * 0.5, VersusRules.STRIKE_SIZE)
-	_overlay.draw_rect(box, Color(1.0, 0.95, 0.70, 0.30))
-	_overlay.draw_rect(box, Color(1.0, 0.95, 0.70, 0.85), false, 2.0)
