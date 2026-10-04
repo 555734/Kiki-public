@@ -312,6 +312,11 @@ export async function handleEntitlement(request, env, url) {
   if (request.method === "GET" && url.pathname === "/entitlement/apple-check") {
     return json(await appleCheck(env));
   }
+  if (request.method === "GET" && url.pathname === "/entitlement/recent") {
+    if (!env.ENTITLEMENTS) return json({ message: "entitlements not configured" }, 503);
+    const stub = env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("global"));
+    return stub.fetch("https://entitlement.local/recent");
+  }
   if (request.method !== "POST") return json({ message: "method not allowed" }, 405);
   let body;
   try {
@@ -351,14 +356,44 @@ export class Entitlements {
 
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === "/recent") {
+      return json({ recent: (await this.state.storage.get("recent")) || [] });
+    }
     const body = await request.json();
+    let response;
     switch (url.pathname) {
-      case "/verify": return this.verify(body);
-      case "/renew": return this.renew(body);
-      case "/dev-enrol": return this.devEnrol(body);
-      case "/review-enrol": return this.reviewEnrol(body);
+      case "/verify": response = await this.verify(body); break;
+      case "/renew": response = await this.renew(body); break;
+      case "/dev-enrol": response = await this.devEnrol(body); break;
+      case "/review-enrol": response = await this.reviewEnrol(body); break;
       default: return json({ message: "not found" }, 404);
     }
+    await this.remember(url.pathname, body, response);
+    return response;
+  }
+
+  // The last few requests, kept so a failed purchase or restore on someone's
+  // phone can be read back afterwards (GET /entitlement/recent) instead of
+  // having to be watched live. Nothing identifying: the route, the platform,
+  // the last four digits of the ids, and what was answered.
+  async remember(route, body, response) {
+    const tail = (v) => (v ? `…${String(v).slice(-4)}` : "");
+    let answer = {};
+    try { answer = await response.clone().json(); } catch { /* not JSON */ }
+    const entry = {
+      at: new Date().toISOString(),
+      route,
+      platform: String(body.platform || ""),
+      transaction: tail(body.transaction_id || body.purchase_token),
+      original: tail(body.original_transaction_id),
+      status: response.status,
+      outcome: answer.token ? "token" : String(answer.message || ""),
+      apple: this.lastApple || "",
+    };
+    this.lastApple = "";
+    const recent = (await this.state.storage.get("recent")) || [];
+    recent.unshift(entry);
+    await this.state.storage.put("recent", recent.slice(0, 30));
   }
 
   async verify(body) {
@@ -513,9 +548,18 @@ export class Entitlements {
     const ids = [...new Set([body.original_transaction_id, body.transaction_id]
       .filter((id) => id))];
     let answer = { ok: false, reason: "not-found" };
-    for (const id of ids) {
-      answer = await askApple(this.env, id);
-      if (answer.ok || answer.reason !== "not-found") break;
+    const seen = [];
+    try {
+      for (const id of ids) {
+        answer = await askApple(this.env, id);
+        seen.push(`${answer.ok ? "ok" : answer.reason}`);
+        if (answer.ok || answer.reason !== "not-found") break;
+      }
+    } catch (err) {
+      seen.push(`error: ${String(err && err.message || err)}`);
+      throw err;
+    } finally {
+      this.lastApple = seen.join(", ");
     }
     return answer;
   }

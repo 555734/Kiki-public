@@ -199,6 +199,18 @@ async function main() {
   check(!none.ok && none.missing.includes("APPLE_ASC_KEY"), "and names a missing setting");
   globalThis.fetch = realFetch;
 
+  // --- the record of recent requests ---------------------------------------
+  const logged = new Entitlements({ storage: fakeStorage() }, env);
+  logged.askStore = async () => ({ ok: false, reason: "not-found" });
+  await logged.fetch(new Request("https://entitlement.local/verify", { method: "POST",
+    body: JSON.stringify({ platform: "ios", transaction_id: "2000000099",
+      original_transaction_id: "1000000001", puid: "p" }) }));
+  const recent = (await (await logged.fetch(
+    new Request("https://entitlement.local/recent"))).json()).recent;
+  check(recent.length === 1 && recent[0].status === 402 && recent[0].transaction === "…0099"
+      && recent[0].original === "…0001" && !JSON.stringify(recent).includes("1000000001"),
+    "a refused restore is recorded, with only the ids' last digits");
+
   // --- developers ----------------------------------------------------------
   const clean = fakeStorage();
   const dev = new Entitlements({ storage: clean }, { ...env, DEV_ENROL_MAX: 2 });
