@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 BUNDLE_ID="${BUNDLE_ID:-}"
-APP_VERSION="${APP_VERSION:-0.9.2}"
+APP_VERSION="${APP_VERSION:-0.9.3}"
 ASC_KEY_ID="${ASC_KEY_ID:-}"
 ASC_ISSUER_ID="${ASC_ISSUER_ID:-}"
 ASC_PRIVATE_KEY="${ASC_PRIVATE_KEY:-}"
@@ -77,6 +77,15 @@ if [ -z "$PROJ" ]; then
 	exit 1
 fi
 
+# The StoreKit plugin is linked only when the preset turns it on; a project
+# without it builds and uploads fine and has no store at all (0.9.2 build
+# 398118 shipped that way). Refuse to go on without it.
+if ! grep -q 'inappstore' "$PROJ/project.pbxproj"; then
+	echo "the exported Xcode project does not link the StoreKit plugin (inappstore)" >&2
+	exit 1
+fi
+echo "   StoreKit plugin linked: yes"
+
 INFO_PLIST="$(find "$STAGE" -maxdepth 3 -name '*-Info.plist' -print -quit)"
 if [ -n "$INFO_PLIST" ]; then
 	python3 tools/ios-plist-clean.py "$INFO_PLIST"
@@ -117,10 +126,38 @@ fi
 cp "$IPA" "$OUT/side-sky-appstore.ipa"
 IPA="$OUT/side-sky-appstore.ipa"
 
+# The same check on what was actually built: the singleton's name is a string
+# literal in the plugin, so a binary without it has no StoreKit.
+CHECK_DIR="$(mktemp -d)"
+unzip -q "$IPA" 'Payload/*' -d "$CHECK_DIR"
+APP_BIN="$(find "$CHECK_DIR/Payload" -maxdepth 2 -type f -perm -u+x ! -name '*.dylib' | head -1)"
+if ! grep -aq 'InAppStore' "$APP_BIN"; then
+	echo "the signed app binary has no InAppStore singleton" >&2
+	exit 1
+fi
+echo "   InAppStore in the app binary: yes"
+rm -rf "$CHECK_DIR"
+
 echo "== validate and upload to App Store Connect =="
-app-store-connect publish \
-	--path "$IPA" \
-	--enable-package-validation
+if [ "${SUBMIT_FOR_REVIEW:-false}" = "true" ]; then
+	# What's New comes from the listing, the one place release notes are kept.
+	NOTES="$STAGE/whats-new.txt"
+	python3 tools/release-notes.py ja > "$NOTES"
+	[ -s "$NOTES" ] || { echo "docs/store-listing.md has no release notes for this version" >&2; exit 1; }
+	app-store-connect publish \
+		--path "$IPA" \
+		--enable-package-validation \
+		--app-store \
+		--version-string "$APP_VERSION" \
+		--release-type AFTER_APPROVAL \
+		--cancel-previous-submissions \
+		--max-build-processing-wait 90 \
+		--whats-new "@file:$NOTES"
+else
+	app-store-connect publish \
+		--path "$IPA" \
+		--enable-package-validation
+fi
 
 echo "== submitted =="
 echo "App Store Connect accepted the signed upload. Apple will process it before it appears in TestFlight/App Store Connect."
