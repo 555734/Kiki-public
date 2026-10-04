@@ -1,0 +1,65 @@
+name: Godot checks
+
+# The whole of tools/verify.sh -- logic tests, the stage and versus probes,
+# movement, agreement between two devices -- and the per-stage draw-call
+# budget. The mobile workflows run a short smoke list before packaging; this
+# is the full suite, on every push and pull request that touches the game.
+#
+# Checks that were already failing when this gate was added are listed in
+# test/known_failures.txt; only a new failure fails the run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "test/**"
+      - "tools/**"
+      - "project.godot"
+      - ".github/workflows/godot.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "test/**"
+      - "tools/**"
+      - "project.godot"
+      - ".github/workflows/godot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+      - name: tools/verify.sh
+        run: bash tools/verify.sh "$GODOT"
+
+  performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+      - name: Import project
+        run: xvfb-run -a "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
+      # Software GL under xvfb: frame times here mean nothing, but draw calls
+      # and object counts are the scene's own and match a phone's.
+      - name: Draw-call and object budgets (tools/perf_budgets.cfg)
+        run: xvfb-run -a -s "-screen 0 1280x720x24" bash tools/perf-gate.sh "$GODOT"

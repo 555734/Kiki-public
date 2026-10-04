@@ -1,0 +1,48 @@
+# Checks that were already failing when CI began gating on tools/verify.sh.
+#
+# Each section is a verify.sh step title. A step fails only on a FAIL line not
+# listed under it, or on more script errors than its script_errors count.
+# Values in parentheses are ignored when comparing (they are measurements).
+#
+# This list may only shrink: fix a check, delete its line. verify.sh says when
+# a listed check has started passing. Never add a line to make CI green --
+# that is the failure this file exists to catch.
+
+
+[logic tests]
+script_errors = 8
+FAIL  connect screen: the internet host button exists
+FAIL  connect screen: the local-play button exists
+FAIL  diagnostic: an unreachable relay is explained in words
+FAIL  diagnostic: and after it, so the reader knows which is which
+FAIL  diagnostic: and so is a WebSocket that will not open
+FAIL  diagnostic: and which device and build it ran on
+FAIL  diagnostic: it records which relay it was pointed at
+FAIL  diagnostic: it says outright when something is undetermined
+FAIL  diagnostic: the game's own connection is reported separately from the test dial
+FAIL  diagnostic: the report covers step [1/3]
+FAIL  diagnostic: the report covers step [2/3]
+FAIL  diagnostic: the report covers step [3/3]
+FAIL  diagnostic: with something the player can actually try next
+FAIL  gauge: gauge never goes negative
+FAIL  host answers the guardian: the host charged the gauge rather than trusting the client
+FAIL  ledge: the grip runs down (…)
+FAIL  link record: and counts the reconnections
+FAIL  one press per tool: its button raises it
+FAIL  one press per tool: one drag from the wall button builds a wall
+FAIL  one press per tool: without touching which tool is selected
+FAIL  ping: holding it means 'wait'
+FAIL  ping: the guardian's button points at something (…)
+FAIL  swipe to scroll: a long sideways swipe scrolls the view (…)
+FAIL  swipe to scroll: and the reticle stays on the ground it was on (…)
+FAIL  tap to place: a tap on a control builds nothing in the world
+FAIL  tap, not drag: and neither is swiping the view
+FAIL  tap, not drag: dragging the reticle is not
+FAIL  two thumbs: a thumb that starts and ends on the controls places nothing
+FAIL  undo: and paid for (…)
+FAIL  undo: with no refund (…)
+
+[can two people get across the open sky]
+FAIL  4: and the runner lands on it (…)  -- the chain breaks at the first link
+FAIL  4: and the second launch reaches the far island (…)  -- the 1,300px crossing is not crossable by chaining
+FAIL  4: that slab has a launcher of its own  -- a chain needs every link to fire

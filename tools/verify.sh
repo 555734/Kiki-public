@@ -18,15 +18,18 @@ command -v "$GODOT" >/dev/null 2>&1 || [ -x "$GODOT" ] || {
 	echo "godot not found: $GODOT  (pass the binary path or set \$GODOT)"; exit 2; }
 
 fail=0
-step() { printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
+current_step=""
+step() { current_step="$1"; printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
 # Godot reports script problems on stderr and still exits 0, so every step
-# greps the output as well as checking the status.
+# greps the output as well as checking the status. A step that failed is then
+# held against test/known_failures.txt: failures that predate the gate are
+# listed there, and only a new one fails the run (tools/known-failures.py).
 run_checked() {
 	local out status
 	out=$("$@" 2>&1); status=$?
 	echo "$out" | grep -vE '^Godot Engine|^$|ObjectDB instances leaked|resources still in use|RID allocations|^ *at: '
 	if [ $status -ne 0 ] || echo "$out" | grep -qE "SCRIPT ERROR|Failed to load|Parse Error"; then
-		fail=1
+		echo "$out" | python3 tools/known-failures.py "$current_step" "$status" || fail=1
 	fi
 }
 

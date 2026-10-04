@@ -1,0 +1,35 @@
+name: Set up Godot
+description: Download (and cache) the Godot editor binary and xvfb; exports GODOT.
+inputs:
+  version:
+    description: Godot version, e.g. 4.7.2
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install xvfb and Mesa
+      shell: bash
+      run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+
+    - name: Cache Godot
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/godot-editor
+        key: godot-editor-${{ inputs.version }}-stable
+
+    - name: Download Godot
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        BASE="https://github.com/godotengine/godot-builds/releases/download/${{ inputs.version }}-stable"
+        mkdir -p ~/godot-editor
+        curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${{ inputs.version }}-stable_linux.x86_64.zip"
+        unzip -q /tmp/godot.zip -d ~/godot-editor
+        chmod +x ~/godot-editor/Godot_v${{ inputs.version }}-stable_linux.x86_64
+        rm -f /tmp/godot.zip
+
+    - name: Export GODOT
+      shell: bash
+      run: echo "GODOT=$HOME/godot-editor/Godot_v${{ inputs.version }}-stable_linux.x86_64" >> "$GITHUB_ENV"
