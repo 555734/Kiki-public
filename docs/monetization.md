@@ -151,6 +151,9 @@ SQLite-backed Durable Objects・1日10万リクエストまで）。
 ### 機種変更・再インストール
 
 同じストアアカウントなら同じ purchase token / originalTransactionId が返る。
+iOS（StoreKit 1）の**復元は毎回新しい transactionId** を返すので、鍵は
+`original_transaction_id`（プラグインに `tools/patches/inappstore-original-id.patch`
+を当てて取り出す）。Apple への照会も元の id を先に、だめなら復元の id で行う。
 Worker は `bind:<platform>:<receipt>` の行を**新しい端末に付け替える**。
 だから機種変更は動き、レシートの使い回しで2本目のコピーにはならない。
 
@@ -353,8 +356,11 @@ Apple のリジェクト事由でもある。プラグインが入っていな�
   報告がある。**プリビルドは無い**（上記）ので commit 固定でソースビルドする
 
 iOS の弱さは設計で吸収してある: **復元の正はサーバ側のキャッシュ**であり、
-プラグインは transaction id を取り出す役でしかない。同じストアアカウントなら
-同じ id が返り、Worker はそれをすでに知っている。
+プラグインは取引 id を取り出す役でしかない。ただし StoreKit 1 の復元は
+**新しい** transactionId を返す（元の購入は `originalTransaction`）。素の
+プラグインはそれを返さないため、0.9.x の最初のリリースでは再インストール後の
+復元が「購入が見つかりませんでした」になっていた。ビルド時にパッチで
+`original_transaction_id` を足し、Worker はそれで購入を引く。
 
 `src/store/iap_android.gd` と `iap_ios.gd` はどちらも **addon の型名を一切
 書かない**（`load()` で動的に読む）。書いてしまうと、プラグインを入れていない

@@ -1,0 +1,26 @@
+diff --git a/plugins/inappstore/in_app_store.mm b/plugins/inappstore/in_app_store.mm
+index 568b9cb..db4b33f 100644
+--- a/plugins/inappstore/in_app_store.mm
++++ b/plugins/inappstore/in_app_store.mm
+@@ -262,6 +262,8 @@ InAppStore *InAppStore::instance = NULL;
+ 				ret["result"] = "ok";
+ 
+ 				ret["transaction_id"] = transactionId;
++				// Patched (Kiki-public): the id Apple's server API knows the purchase by.
++				ret["original_transaction_id"] = transactionId;
+ 
+ 				NSData *receipt = nil;
+ 				int sdk_version = [[[UIDevice currentDevice] systemVersion] intValue];
+@@ -303,6 +305,12 @@ InAppStore *InAppStore::instance = NULL;
+ 				ret["type"] = "restore";
+ 				ret["result"] = "ok";
+ 				ret["transaction_id"] = transactionId;
++				// Patched (Kiki-public): StoreKit 1 gives a restore a NEW transaction
++				// id; the purchase it restores is originalTransaction's.
++				SKPaymentTransaction *original = transaction.originalTransaction;
++				NSString *originalId = (original != nil && original.transactionIdentifier != nil)
++						? original.transactionIdentifier : transaction.transactionIdentifier;
++				ret["original_transaction_id"] = String::utf8([originalId UTF8String]);
+ 
+ 				NSData *receipt = nil;
+ 				int sdk_version = [[[UIDevice currentDevice] systemVersion] intValue];

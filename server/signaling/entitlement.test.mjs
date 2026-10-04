@@ -136,6 +136,60 @@ async function main() {
   check(strangerDuringOutage.status === 503,
     "but an unseen receipt during an outage is 'try later', not 'you bought it'");
 
+  // --- iOS: a reinstall's restore -----------------------------------------
+  // StoreKit 1 gives every restore a NEW transaction id; the purchase is its
+  // original. The binding is keyed by the original, so a restore finds it.
+  storeAnswer = { ok: true, orderId: "1000000001" };
+  storeCalls = 0;
+  const bought = { platform: "ios", transaction_id: "1000000001",
+    original_transaction_id: "1000000001", puid: "phone-1" };
+  check(!!(await (await unit.verify(bought)).json()).token, "an iOS purchase produces a token");
+  const restored = { platform: "ios", transaction_id: "2000000099",
+    original_transaction_id: "1000000001", puid: "phone-1-reinstalled" };
+  const restoredAnswer = await (await unit.verify(restored)).json();
+  check(!!restoredAnswer.token && storeCalls === 1,
+    "a restore after reinstalling finds the purchase by its original id");
+  check(storage.map.get("bind:ios:1000000001").puid === "phone-1-reinstalled",
+    "and the purchase moves to the reinstalled app");
+  check(_internals.receiptKey({ platform: "ios", transaction_id: "1000000001" })
+      === "ios:1000000001",
+    "a purchase recorded before the original id was sent keeps its key");
+
+  // Apple is asked with the original id first, and the restore's own id only
+  // if Apple does not know the original.
+  const ec = await webcrypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pkcs8 = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", ec.privateKey));
+  const ascPem = `-----BEGIN PRIVATE KEY-----\n${pkcs8.toString("base64")}\n-----END PRIVATE KEY-----`;
+  const apple = new Entitlements({ storage: fakeStorage() },
+    { ...env, APPLE_ASC_KEY: ascPem, APPLE_ASC_KEY_ID: "K", APPLE_ASC_ISSUER_ID: "I" });
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  const signed = (claims) => ({ signedTransactionInfo:
+    `x.${_internals.b64urlEncode(new TextEncoder().encode(JSON.stringify(claims)))}.y` });
+  globalThis.fetch = async (url) => {
+    const id = decodeURIComponent(String(url).split("/").pop());
+    asked.push(id);
+    if (id === "1000000001") {
+      return new Response(JSON.stringify(signed(
+        { productId: "full_unlock", originalTransactionId: "1000000001" })), { status: 200 });
+    }
+    return new Response("{}", { status: 404 });
+  };
+  const viaOriginal = await apple.askStore(restored);
+  check(viaOriginal.ok && asked[0] === "1000000001",
+    "Apple is asked about the original transaction first");
+  asked.length = 0;
+  const swapped = await apple.askStore({ platform: "ios",
+    original_transaction_id: "3000000000", transaction_id: "1000000001" });
+  check(swapped.ok && asked.includes("1000000001"),
+    "and about the restore's own id when Apple does not know the original");
+  asked.length = 0;
+  const nowhere = await apple.askStore({ platform: "ios", transaction_id: "4000000000" });
+  check(!nowhere.ok && nowhere.reason === "not-found",
+    "an id Apple knows nowhere is not found");
+  globalThis.fetch = realFetch;
+
   // --- developers ----------------------------------------------------------
   const clean = fakeStorage();
   const dev = new Entitlements({ storage: clean }, { ...env, DEV_ENROL_MAX: 2 });

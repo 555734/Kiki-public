@@ -245,6 +245,8 @@ async function askApple(env, transactionId) {
     const response = await fetch(
       `${base}/inApps/v1/transactions/${encodeURIComponent(transactionId)}`,
       { headers: { authorization: `Bearer ${jwt}` } });
+    console.log(`apple ${base === APPLE_SANDBOX ? "sandbox" : "production"} `
+      + `transaction ${transactionId}: ${response.status}`);
     if (response.status === 404) continue;
     if (!response.ok) throw new Error(`apple ${response.status}`);
     const body = await response.json();
@@ -265,9 +267,15 @@ async function askApple(env, transactionId) {
 
 // --------------------------------------------------------------- the routes
 
+// An iOS purchase is keyed by its ORIGINAL transaction id. StoreKit 1 hands
+// every restore a brand-new transaction id, so keying by transaction_id made a
+// reinstall's restore a stranger to its own purchase. For the purchase itself
+// the two ids are the same, so rows written before this change still match.
 function receiptKey(body) {
   if (body.platform === "android") return `android:${body.purchase_token || ""}`;
-  if (body.platform === "ios") return `ios:${body.transaction_id || ""}`;
+  if (body.platform === "ios") {
+    return `ios:${body.original_transaction_id || body.transaction_id || ""}`;
+  }
   return "";
 }
 
@@ -353,6 +361,7 @@ export class Entitlements {
     }
 
     if (!answer.ok) {
+      console.log(`verify ${key}: refused (${answer.reason})`);
       if (existing) await this.state.storage.delete(`bind:${key}`);
       const message = answer.reason === "refunded" || answer.reason === "cancelled"
         ? "この購入は取り消されています。"
@@ -463,9 +472,20 @@ export class Entitlements {
    * out is a test of itself.
    */
   async askStore(body) {
-    return String(body.platform) === "android"
-      ? askGoogle(this.env, body.purchase_token)
-      : askApple(this.env, body.transaction_id);
+    if (String(body.platform) === "android") {
+      return askGoogle(this.env, body.purchase_token);
+    }
+    // The original id first: it is the one Apple's server API is sure to
+    // know. The restore's own id is only a fallback (an app from before the
+    // plugin reported original_transaction_id sends nothing else).
+    const ids = [...new Set([body.original_transaction_id, body.transaction_id]
+      .filter((id) => id))];
+    let answer = { ok: false, reason: "not-found" };
+    for (const id of ids) {
+      answer = await askApple(this.env, id);
+      if (answer.ok || answer.reason !== "not-found") break;
+    }
+    return answer;
   }
 
   async issue(puid, kind, platform) {
