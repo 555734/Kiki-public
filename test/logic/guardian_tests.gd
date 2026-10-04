@@ -14,21 +14,23 @@ func _test_gauge_rules() -> void:
 		Balance.GAUGE_REGEN_PER_SEC * 0.25, "regenerates at the documented rate")
 
 	# Cost is deducted, and a tool that cannot be afforded is refused rather
-	# than half-applied.
+	# than half-applied. The platform and the shot are free now (Balance), so
+	# the wall is the tool that still spends.
+	check(Balance.COST_WALL > 0.0, "the wall is the tool that still costs")
 	g.gauge = Balance.GAUGE_MAX
-	g.select_slot(1)
+	g.select_slot(2)
 	g.use_active(Vector2(600, 250))
-	check_near(g.gauge, Balance.GAUGE_MAX - Balance.COST_PLATFORM, 1.0,
-		"platform deducts its cost")
+	check_near(g.gauge, Balance.GAUGE_MAX - Balance.COST_WALL, 1.0,
+		"a wall deducts its cost")
 
 	var refusals: Array[String] = []
 	var handler := func(_slot: int, reason: String) -> void: refusals.append(reason)
 	Events.ability_refused.connect(handler)
-	g.gauge = Balance.COST_PLATFORM - 1.0
-	var alive_before: int = g.holograms_of(Hologram.Kind.PLATFORM).size()
+	g.gauge = Balance.COST_WALL - 1.0
+	var alive_before: int = g.holograms_of(Hologram.Kind.WALL).size()
 	g.use_active(Vector2(800, 250))
 	check(refusals.has("gauge"), "refuses when the gauge is short")
-	check(g.holograms_of(Hologram.Kind.PLATFORM).size() == alive_before,
+	check(g.holograms_of(Hologram.Kind.WALL).size() == alive_before,
 		"a refused build creates nothing")
 	check(g.gauge >= 0.0, "gauge never goes negative")
 	Events.ability_refused.disconnect(handler)
@@ -142,35 +144,17 @@ func _test_one_press_tools() -> void:
 			"and it is built where the ghost was (%.0fpx)"
 				% built.back().global_position.distance_to(ghost))
 
-	# ...and the same for the wall, from a standing start, without selecting it.
-	#
-	# Somewhere else on purpose. This used to aim at the same point as the
-	# platform above and pass anyway, because the reticle was stored as a SCREEN
-	# point and the camera scrolled it off the platform between the two taps --
-	# a test that only passed because of the bug it should have caught.
-	var wall_at: Vector2 = main.runner.global_position + Vector2(-300, -120)
-	hub.aim_at_world(wall_at)
-	g.gauge = Balance.GAUGE_MAX
-	var walls: int = g.holograms_of(Hologram.Kind.WALL).size()
-	hub._touch_down(4, _place("slot_2", view, "shared"))
-	hub._touch_move(4, main.get_viewport().get_canvas_transform() * wall_at)
-	var wall_ghost: Vector2 = hub.aim_world()
-	hub._touch_up(4)
-	await _frames(3)
-	var made: Array = g.holograms_of(Hologram.Kind.WALL)
-	check(made.size() == walls + 1, "one drag from the wall button builds a wall")
-	if made.size() > walls:
-		check(made.back().global_position.distance_to(wall_ghost) < 2.0,
-			"at the place the ghost was showing (%.0fpx)"
-				% made.back().global_position.distance_to(wall_ghost))
+	# The wall has no button any more (ControlLayout: the guardian's screens
+	# carry the platform and the shot only), so there is no drag to test here.
 
-	# The scope is its own button and a state, not a tool.
+	# The scope is a state, not a tool. Its touch button is retired; the key
+	# (p2_scope -> press_scope) is what raises it now.
 	check(not g.scope_active, "the scope is down to begin with")
-	hub._touch_down(5, _place("scope", view, "shared"))
-	hub._touch_up(5)
+	var tool_before: int = g.active_slot
+	hub.press_scope()
 	await _frames(3)
-	check(g.scope_active, "its button raises it")
-	check(g.active_slot == 2, "without touching which tool is selected")
+	check(g.scope_active, "pressing scope raises it")
+	check(g.active_slot == tool_before, "without touching which tool is selected")
 
 	# And it no longer refuses anything. Somewhere clear: the two constructs
 	# just built are sitting on `at`, and "blocked" is a different rule.
@@ -184,8 +168,7 @@ func _test_one_press_tools() -> void:
 	check((g.abilities[4] as GuardianAbility).check(g, clear_spot) == "",
 		"and so is a warp gate")
 
-	hub._touch_down(6, _place("scope", view, "shared"))
-	hub._touch_up(6)
+	hub.press_scope()
 	await _frames(3)
 	check(not g.scope_active, "a second press lowers it again")
 
@@ -469,19 +452,20 @@ func _test_the_guardian_can_take_one_back() -> void:
 	main.runner.global_position = Vector2(2600, 300)
 	await _physics(4)
 
-	g.select_slot(1)
+	# A wall: the tool that still costs, so "no refund" means something.
+	g.select_slot(2)
 	g.use_active(Vector2(2600, 180))
 	await _physics(3)
-	check(g.holograms_of(Hologram.Kind.PLATFORM).size() == 1, "a platform is placed")
+	check(g.holograms_of(Hologram.Kind.WALL).size() == 1, "a wall is placed")
 	var spent: float = g.gauge
 	check(spent < Balance.GAUGE_MAX, "and paid for (%.0f)" % spent)
 
 	check(g.undo_last(), "it can be taken back")
 	await _physics(3)
-	check(g.holograms_of(Hologram.Kind.PLATFORM).is_empty(), "and it is gone")
+	check(g.holograms_of(Hologram.Kind.WALL).is_empty(), "and it is gone")
 	# The gauge regenerates on its own, so this is not an equality: what must
 	# not happen is the COST coming back.
-	check(g.gauge < spent + Balance.COST_PLATFORM * 0.5,
+	check(g.gauge < spent + Balance.COST_WALL * 0.5,
 		"with no refund (%.1f against %.1f spent)" % [g.gauge, spent])
 	check(not g.undo_last(), "a second undo does nothing")
 
@@ -511,44 +495,31 @@ func _test_either_of_them_can_point() -> void:
 		said.append({"at": at, "kind": kind, "runner": from_runner})
 	Events.pinged.connect(watch)
 
-	hub.solo_role = "guardian"
-	await _frames(2)
-	var where: Vector2 = main.runner.global_position + Vector2(220.0, -90.0)
-	hub.aim_at_world(where)
-	await _frames(2)
-	hub._touch_down(31, _place("ping", view, "guardian"))
-	hub._touch_up(31)
-	await _frames(4)
-	check(said.size() == 1, "the guardian's button points at something (%d)" % said.size())
-	if said.size() > 0:
-		check(Vector2(said[0]["at"]).distance_to(where) < 2.0,
-			"at the reticle, not at the button")
-		check(int(said[0]["kind"]) == 1, "and it means 'here'")
-
-	# Held, it means the other thing. One button, two things, and the
-	# difference is how long the thumb stays on it.
-	said.clear()
-	hub._touch_down(32, _place("ping", view, "guardian"))
-	hub.touch.ping.down_ms -= InputHub.PING_HOLD_MS + 40
-	hub._touch_up(32)
-	await _frames(4)
-	check(said.size() == 1 and int(said[0]["kind"]) == 2,
-		"holding it means 'wait'")
-
-	# The runner has one too, and theirs marks where they are.
-	said.clear()
+	# The guardian's ping button is retired (ControlLayout); the runner's is
+	# the one on screen, and it carries both meanings.
 	hub.solo_role = "runner"
 	await _frames(2)
 	var stood_at: Vector2 = main.runner.global_position
 	hub._touch_down(33, _place("ping", view, "runner"))
 	hub._touch_up(33)
 	await _frames(4)
-	check(said.size() == 1, "the runner can point too (%d)" % said.size())
+	check(said.size() == 1, "the runner's button points at something (%d)" % said.size())
 	if said.size() > 0:
 		check(bool(said[0]["runner"]), "and it is marked as theirs")
+		check(int(said[0]["kind"]) == 1, "a tap means 'here'")
 		check(Vector2(said[0]["at"]).distance_to(stood_at) < 40.0,
 			"pointing at where they are (%.0fpx)"
 				% Vector2(said[0]["at"]).distance_to(stood_at))
+
+	# Held, it means the other thing. One button, two things, and the
+	# difference is how long the thumb stays on it.
+	said.clear()
+	hub._touch_down(32, _place("ping", view, "runner"))
+	hub.touch.ping.down_ms -= InputHub.PING_HOLD_MS + 40
+	hub._touch_up(32)
+	await _frames(4)
+	check(said.size() == 1 and int(said[0]["kind"]) == 2,
+		"holding it means 'wait'")
 
 	Events.pinged.disconnect(watch)
 	hub.solo_role = ""
@@ -1078,7 +1049,8 @@ func _test_a_tap_puts_it_where_you_pointed() -> void:
 	g.clear_constructs()
 	g.gauge = Balance.GAUGE_MAX
 	var kept: float = g.gauge
-	hub._touch_down(11, _place("scope", view, "shared"))
+	# A tap (no drag) on a tool button chooses the tool; it places nothing.
+	hub._touch_down(11, _place("slot_1", view, "shared"))
 	hub._touch_up(11)
 	await _frames(4)
 	check(g.holograms_of(Hologram.Kind.PLATFORM).is_empty(),
@@ -1129,6 +1101,14 @@ func _test_a_swipe_scrolls_the_view() -> void:
 	main.runner.global_position = Vector2(2600, 300)
 	main.runner.velocity = Vector2.ZERO
 	await _physics(6)
+	# With the platform tool chosen a drag on the world DRAWS the platform
+	# (trace mode); the view scrolls under the other tool.
+	main.guardian.select_slot(1)
+	await _physics(2)
+	check(hub.trace_mode, "with the platform tool a drag draws")
+	main.guardian.select_slot(3)
+	await _physics(2)
+	check(not hub.trace_mode, "and with the shot it does not")
 	main.guardian_pan = 0.0
 
 	# A small touch aims and does NOT scroll: putting the reticle somewhere

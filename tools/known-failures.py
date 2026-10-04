@@ -3,15 +3,18 @@
 
     <step output> | tools/known-failures.py "<step title>" <exit status>
 
-Some checks were already failing when CI started gating on this suite --
-stale tests for removed controls, a crossing in 1-S, a retired gauge. They are
-listed per step in test/known_failures.txt. A step passes when every FAIL line
-it printed is on that list and it raised no more script errors than the list
-allows. Anything new fails it. A listed failure that has started passing is
-reported, so the list only ever shrinks.
+Run on every step, whatever its exit status: a test that prints FAIL and
+still exits 0 is caught here, not trusted.
+
+Checks that were failing when CI started gating on this suite are listed per
+step in test/known_failures.txt, by their exact message. A script error is
+listed the same way -- its message and where it was raised -- never as a
+count, so a new error cannot hide behind an old one being fixed. Anything not
+listed fails the step. A listed failure that has started passing is reported,
+so the list only ever shrinks.
 
 Values in parentheses are measurements ("x=5546", "0 attempts") and vary from
-run to run, so lines are compared with them blanked out.
+run to run, so FAIL lines are compared with them blanked out.
 """
 import pathlib
 import re
@@ -20,7 +23,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 KNOWN = ROOT / "test" / "known_failures.txt"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-SCRIPT_ERROR = re.compile(r"SCRIPT ERROR|Failed to load|Parse Error")
+SCRIPT_ERROR = re.compile(r"(SCRIPT ERROR: .*|.*Failed to load.*|.*Parse Error.*)")
+WHERE = re.compile(r"^\s*at: (.*)$")
 
 
 def normalise(line: str) -> str:
@@ -29,21 +33,39 @@ def normalise(line: str) -> str:
     return re.sub(r"\([^()]*\)", "(…)", line)
 
 
+def script_errors(output: str) -> list:
+    """Each error as 'message @ location' (location from the next 'at:' line)."""
+    lines = [ANSI.sub("", l) for l in output.splitlines()]
+    found = []
+    for i, line in enumerate(lines):
+        m = SCRIPT_ERROR.search(line)
+        if not m:
+            continue
+        where = ""
+        for nxt in lines[i + 1:i + 3]:
+            w = WHERE.match(nxt)
+            if w:
+                where = w.group(1).strip()
+                break
+        found.append(f"{m.group(1).strip()} @ {where}")
+    return found
+
+
 def load(step: str):
-    allowed, errors, section = set(), 0, None
+    fails, errors, section = set(), set(), None
     if not KNOWN.exists():
-        return allowed, errors
+        return fails, errors
     for raw in KNOWN.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
         if line.startswith("[") and line.endswith("]"):
             section = line[1:-1]
-        elif section == step and line.startswith("script_errors"):
-            errors = int(line.split("=", 1)[1])
+        elif section == step and line.startswith("script_error:"):
+            errors.add(line.split(":", 1)[1].strip())
         elif section == step:
-            allowed.add(normalise(line))
-    return allowed, errors
+            fails.add(normalise(line))
+    return fails, errors
 
 
 def main() -> int:
@@ -51,27 +73,25 @@ def main() -> int:
     output = sys.stdin.read()
     seen = {normalise(l) for l in output.splitlines()
             if re.match(r"^\s*FAIL\b", ANSI.sub("", l))}
-    errors = len(SCRIPT_ERROR.findall(output))
+    errors = script_errors(output)
     allowed, allowed_errors = load(step)
 
-    new = sorted(seen - allowed)
-    fixed = sorted(allowed - seen)
     ok = True
-    for line in new:
+    for line in sorted(seen - allowed):
         print(f"  NEW   {line}")
         ok = False
-    if errors > allowed_errors:
-        print(f"  NEW   {errors} script errors, {allowed_errors} known")
+    for err in sorted(set(errors) - allowed_errors):
+        print(f"  NEW   {err}")
         ok = False
-    if status != 0 and not seen and errors == 0:
+    if status != 0 and not seen and not errors:
         print(f"  exited {status} without saying which check failed")
         ok = False
-    for line in fixed:
+    for line in sorted(allowed - seen):
         print(f"  note  now passing -- remove from test/known_failures.txt: {line}")
-    if errors < allowed_errors:
-        print(f"  note  {errors} script errors, {allowed_errors} known -- lower the count")
+    for err in sorted(allowed_errors - set(errors)):
+        print(f"  note  gone -- remove from test/known_failures.txt: script_error: {err}")
     if ok and (seen or errors):
-        print(f"  known failures only ({len(seen)} checks, {errors} script errors)")
+        print(f"  known failures only ({len(seen)} checks, {len(errors)} script errors)")
     return 0 if ok else 1
 
 

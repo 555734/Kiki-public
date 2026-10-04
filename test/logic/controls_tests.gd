@@ -19,14 +19,21 @@ func _test_connect_screen_responds_to_touch() -> void:
 	check(panel != null, "the connect screen is shown at startup")
 	if panel == null:
 		return
-	check(_find_button(panel, "1台") != null, "the local-play button exists")
-	check(_find_button(panel, "部屋を作る") != null, "the internet host button exists")
-	check(not main.input_hub.is_processing_unhandled_input(),
+	# It opens on the stage cards; how to play comes after a stage is chosen.
+	check(panel._stage_view != null, "it opens on the stage list")
+	panel._show_play_screen()
+	await _frames(2)
+	# By their full labels, translated: the machine's locale decides the text.
+	check(_find_button(panel, TranslationServer.translate("▶  この1台で 2人プレイを始める")) != null,
+		"the local-play button exists")
+	check(_find_button(panel, TranslationServer.translate("＋  部屋を作る")) != null,
+		"the internet host button exists")
+	check(not main.input_hub.is_listening(),
 		"the game's input router stands down while the panel is up")
 
 	panel.free()
 	await _frames(2)
-	check(main.input_hub.is_processing_unhandled_input(),
+	check(main.input_hub.is_listening(),
 		"and gets its input back when the panel goes")
 
 ## The virtual stick has to respond to a press, not only to a drag.
@@ -142,9 +149,9 @@ func _test_device_ownership() -> void:
 
 	g.select_slot(1)
 	var aim_before: Vector2 = hub.aim_screen
-	for slot in [2, 3]:
-		# Where those buttons WOULD be if this device showed them. It does not,
-		# so the touch has to fall through to nothing.
+	for slot in [1, 3]:
+		# Where the guardian's buttons WOULD be if this device showed them. It
+		# does not, so the touch has to fall through to nothing.
 		hub._touch_down(7, _place("slot_%d" % slot, view, "guardian"))
 		hub._touch_up(7)
 	check(hub.take_slot_choice() == -1,
@@ -318,7 +325,7 @@ func _test_two_thumbs_do_not_interfere() -> void:
 	hub._touch_down(73, button)
 	hub._touch_move(73, button + Vector2(10.0, -10.0))
 	await _physics(2)
-	hub._touch_up(73, _place("scope", view, "guardian"))
+	hub._touch_up(73, _place("slot_3", view, "guardian"))
 	var latched := hub.take_place_at()
 	check(latched.x == INF,
 		"a thumb that starts and ends on the controls places nothing")
@@ -482,6 +489,10 @@ func _test_only_a_tap_counts_as_a_tap() -> void:
 	var hub: InputHub = main.input_hub
 	var view: Vector2 = main.get_viewport().get_visible_rect().size
 	hub.solo_role = "guardian"
+	# Under the shot. With the platform tool chosen a drag draws a platform
+	# (trace mode), which is a placement by design; see "swipe to scroll".
+	main.guardian.select_slot(3)
+	await _frames(2)
 
 	var start := Vector2(view.x * 0.6, view.y * 0.45)
 	hub._touch_down(1, start)

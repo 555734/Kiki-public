@@ -21,16 +21,15 @@ fail=0
 current_step=""
 step() { current_step="$1"; printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
 # Godot reports script problems on stderr and still exits 0, so every step
-# greps the output as well as checking the status. A step that failed is then
-# held against test/known_failures.txt: failures that predate the gate are
-# listed there, and only a new one fails the run (tools/known-failures.py).
+# greps the output as well as checking the status. Every step's output is held
+# against test/known_failures.txt (tools/known-failures.py): a FAIL line or a
+# script error not listed there by its exact message fails the run.
 run_checked() {
 	local out status
 	out=$("$@" 2>&1); status=$?
 	echo "$out" | grep -vE '^Godot Engine|^$|ObjectDB instances leaked|resources still in use|RID allocations|^ *at: '
-	if [ $status -ne 0 ] || echo "$out" | grep -qE "SCRIPT ERROR|Failed to load|Parse Error"; then
-		echo "$out" | python3 tools/known-failures.py "$current_step" "$status" || fail=1
-	fi
+	# Every step, whatever its status: a FAIL line with exit 0 is still a failure.
+	echo "$out" | python3 tools/known-failures.py "$current_step" "$status" || fail=1
 }
 
 # First, and without Godot: the things that decide whether this tree may be

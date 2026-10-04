@@ -17,7 +17,9 @@ func _ready() -> void:
 	hp = Balance.TURRET_HP
 	super._ready()
 	collision_mask = 0
-	_cooldown = randf_range(0.4, Balance.TURRET_FIRE_INTERVAL)
+	# Staggered by name rather than at random, so a turret's first shot comes
+	# at the same moment on every run and on both devices.
+	_cooldown = lerpf(0.4, Balance.TURRET_FIRE_INTERVAL, fposmod(float(net_id) * 0.618034, 1.0))
 
 func _build_body() -> void:
 	_add_box(Balance.TURRET_SIZE)

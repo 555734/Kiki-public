@@ -491,8 +491,10 @@ func _test_host_answers_the_guardian() -> void:
 	check(r.global_position.y < fallen.y,
 		"the runner ends up above where they had fallen to (%.0f -> %.0f)"
 			% [fallen.y, r.global_position.y])
-	check(main.guardian.gauge < Balance.GAUGE_MAX,
-		"the host charged the gauge rather than trusting the client")
+	# The host applies its own cost table rather than whatever the client
+	# deducted. (The platform costs nothing now; this is still the host's sum.)
+	check_near(main.guardian.gauge, Balance.GAUGE_MAX - Balance.COST_PLATFORM, 1.0,
+		"the host charged the gauge by its own costs, not the client's")
 
 	# And the answer came back, backdated, tagged with the sequence the client
 	# used so it can retire the right ghost.
@@ -1037,7 +1039,10 @@ func _test_the_link_records_what_happened() -> void:
 	check(joined.contains("ABC123"), "the report names the room")
 	check(joined.contains("guest") and joined.contains("host"),
 		"and both the role asked for and the one given")
-	check(joined.contains("再接続回数: 2"), "and counts the reconnections")
+	# Through TranslationServer, as the report is: the test runs in whatever
+	# locale the machine has.
+	check(joined.contains(TranslationServer.translate("再接続回数: %d") % 2),
+		"and counts the reconnections")
 	check(link.journal_lines().size() >= 3, "the journal kept the transitions")
 
 	link.finish()
@@ -1184,56 +1189,32 @@ func _test_a_refused_handshake_is_visible() -> void:
 ## that is the only time anyone runs it. Pointed at a dead port on purpose.
 func _test_the_diagnostic_reports_every_step() -> void:
 	_current = "diagnostic"
+	# The report reads EOS and the live connection only; the relay dial it once
+	# ran ([1/3]-[3/3]) went with the Cloudflare relay. Every line passes
+	# through tr(), so it is compared in the machine's own locale.
+	var t := func(text: String) -> String: return TranslationServer.translate(text)
 	var panel := NetDiagnostics.new()
-	# Port 9 is the discard port: refused immediately, so this costs no time.
-	panel.relay = "http://127.0.0.1:9"
 	add_child(panel)
 	var waited := 0.0
-	while not panel.report().contains("===") and waited < 60.0:
+	var done: String = t.call("=== ここまでをコピーして送ってください ===")
+	while not panel.report().contains(done) and waited < 60.0:
 		await get_tree().process_frame
 		waited += 0.016
 	var text := panel.report()
-	check(text.contains("==="), "the report finishes even with nothing reachable")
-	for step in ["[1/3]", "[2/3]", "[3/3]"]:
-		check(text.contains(step), "the report covers step %s" % step)
-	check(text.contains("中継URL http://127.0.0.1:9"),
-		"it records which relay it was pointed at")
-	check(text.contains("端末 ") and text.contains("Godot "),
-		"and which device and build it ran on")
-	check(text.split("\n").size() > 15,
-		"the report is long enough to diagnose from (%d lines)"
-			% text.split("\n").size())
-	# The failures have to be EXPLAINED, not just numbered. Naming the actual
-	# sentences: a first version of this asked only whether an arrow appeared
-	# anywhere, and the arrows in the step headings made it pass with every
-	# explanation deleted.
-	check(text.contains("この端末からインターネットに出られていないか"),
-		"an unreachable relay is explained in words")
-	check(text.contains("WebSocketがつながりません"),
-		"and so is a WebSocket that will not open")
-	check(text.contains("テザリング"),
-		"with something the player can actually try next")
+	check(text.contains(done), "the report finishes")
+	check(text.contains(t.call("ビルド %s / 通信プロトコル v%d") % [Balance.BUILD_ID, Protocol.VERSION]),
+		"it names the build and the protocol it speaks")
+	check(text.contains("Godot "), "and the engine it ran on")
+	check(text.contains("Product User ID"), "it reports the EOS sign-in")
 
-	# The two connections have to be told apart.
-	#
-	# Steps 1-3 open a BRAND NEW socket from this device. Passing them proves
-	# the network and the relay can carry a connection; it says nothing about
-	# the one the game is holding, which may have been made minutes ago, to a
-	# different room, and be dead. A report that ran the three steps and
-	# concluded "your connection is fine" was answering a question nobody asked.
-	check(text.contains("いま動いているゲーム接続"),
-		"the game's own connection is reported separately from the test dial")
-	var own := text.find("[3/3]")
-	var live := text.find("いま動いているゲーム接続")
-	check(own >= 0 and live > own,
-		"and after it, so the reader knows which is which")
-
-	# And where the evidence runs out, it says so rather than picking the
-	# likeliest story. There is no session at all in this test, so the one
-	# thing the report must NOT do is tell the player their room code is wrong.
-	check(not text.contains("部屋が違"),
+	# The game's own connection has its own section. There is no game above
+	# this panel here, so the one thing the report must NOT do is invent a
+	# room mismatch: it has to say it does not know.
+	check(text.contains(t.call("── いま動いているゲーム接続 ──")),
+		"the game's own connection is reported in its own section")
+	check(not text.contains(t.call("部屋が違")),
 		"it does not assert a room mismatch it has no evidence for")
-	check(text.contains("未確定"),
+	check(text.contains(t.call("  この画面からゲーム本体が見つかりません（未確定）")),
 		"it says outright when something is undetermined")
 
 	panel.queue_free()

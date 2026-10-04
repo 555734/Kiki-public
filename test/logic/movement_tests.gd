@@ -495,6 +495,11 @@ func _test_the_runner_can_catch_an_edge() -> void:
 	var r: Runner = main.runner
 	var hub: InputHub = main.input_hub
 	main._respawn_timer = -1.0
+	# The block hangs in 1-1's sky, where the crows patrol: one flying into the
+	# hanging runner knocks them off mid-test. Stop the stage's enemies, as the
+	# game does once a stage is cleared.
+	for e in get_tree().get_nodes_in_group("enemy"):
+		(e as Node).process_mode = Node.PROCESS_MODE_DISABLED
 
 	# A block with a clear top, in open air, on the terrain layer -- the only
 	# layer an edge is looked for on.
@@ -521,11 +526,13 @@ func _test_the_runner_can_catch_an_edge() -> void:
 	check(r.grip_left() > 0.8, "with a full grip (%.2f)" % r.grip_left())
 	check(r.velocity.is_zero_approx(), "and is not moving")
 
-	# It runs out.
-	await _wait(Balance.LEDGE_HANG_TIME * 0.5)
+	# It runs out. In physics frames, not real seconds: the grip is game time,
+	# and headless runs physics uncapped, so a real second is many game ones.
+	var tps := Engine.physics_ticks_per_second
+	await _physics(int(Balance.LEDGE_HANG_TIME * 0.5 * tps))
 	var half := r.grip_left()
 	check(half < 0.7 and half > 0.2, "the grip runs down (%.2f)" % half)
-	await _wait(Balance.LEDGE_HANG_TIME * 0.6)
+	await _physics(int(Balance.LEDGE_HANG_TIME * 0.6 * tps))
 	check(not r.hanging(), "and lets go when it is gone")
 
 	# Jumping off it works, and the same edge does not give a second rest.
