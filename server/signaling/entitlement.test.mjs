@@ -15,7 +15,7 @@
  * things only a real store account proves.
  */
 import { webcrypto } from "node:crypto";
-import { Entitlements, _internals, appleCheck } from "./entitlement.js";
+import { Entitlements, _internals, appleCheck, googleCheck, signingCheck } from "./entitlement.js";
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -198,6 +198,17 @@ async function main() {
   const none = await appleCheck(env);
   check(!none.ok && none.missing.includes("APPLE_ASC_KEY"), "and names a missing setting");
   globalThis.fetch = realFetch;
+
+  // --- health: the signing key's public half, and a missing Google account --
+  const signing = await signingCheck(env);
+  const spki = new Uint8Array(await webcrypto.subtle.exportKey("spki", publicKey));
+  const expected = Buffer.from(await webcrypto.subtle.digest("SHA-256", spki)).toString("hex");
+  check(signing.ok && signing.public_key_sha256 === expected,
+    "health reports the fingerprint of the signing key's public half");
+  check(!(await signingCheck({})).ok, "and a missing signing key");
+  const noGoogle = await googleCheck({});
+  check(!noGoogle.ok && noGoogle.missing.includes("GOOGLE_SERVICE_ACCOUNT"),
+    "and a missing Google service account");
 
   // --- the record of recent requests ---------------------------------------
   const logged = new Entitlements({ storage: fakeStorage() }, env);

@@ -279,14 +279,22 @@ function receiptKey(body) {
   return "";
 }
 
-// A health check for the App Store Server API credentials, for whoever is
-// debugging a restore: asks Apple about a transaction that cannot exist.
-// 404 from Apple means the key is good; 401 means it is the wrong key (an App
-// Store Connect API key, not an In-App Purchase key) or the wrong issuer.
-// Nothing secret is returned -- only HTTP statuses and which setting is absent.
+// A health check of everything purchase verification depends on, for CI to
+// run after every deploy and for whoever is debugging a purchase:
+//
+//   apple    asks Apple about a transaction that cannot exist: 404 means the
+//            key works; 401 means it is the wrong key or issuer
+//   google   gets a Play API token and asks about a purchase token that cannot
+//            exist, for every package: 400/404 means the service account is
+//            accepted for that app; 401/403 means it is not
+//   signing  the sha256 of the public half of ENTITLEMENT_SIGNING_KEY, to
+//            compare with the app's entitlement_key.json
+//
+// Nothing secret is returned: statuses, which settings are absent, and a
+// public-key fingerprint.
 export async function appleCheck(env) {
-  const missing = ["APPLE_ASC_KEY", "APPLE_ASC_KEY_ID", "APPLE_ASC_ISSUER_ID",
-    "ENTITLEMENT_SIGNING_KEY"].filter((name) => !env[name]);
+  const missing = ["APPLE_ASC_KEY", "APPLE_ASC_KEY_ID", "APPLE_ASC_ISSUER_ID"]
+    .filter((name) => !env[name]);
   if (missing.length) return { ok: false, missing };
   let jwt;
   try {
@@ -300,15 +308,68 @@ export async function appleCheck(env) {
       const response = await fetch(`${base}/inApps/v1/transactions/2000000000000000`,
         { headers: { authorization: `Bearer ${jwt}` } });
       statuses[name] = response.status;
-    } catch (err) {
-      statuses[name] = `unreachable`;
+    } catch {
+      statuses[name] = "unreachable";
     }
   }
   const ok = Object.values(statuses).every((s) => s === 404);
   return { ok, statuses };
 }
 
+export async function googleCheck(env) {
+  if (!env.GOOGLE_SERVICE_ACCOUNT) return { ok: false, missing: ["GOOGLE_SERVICE_ACCOUNT"] };
+  let access;
+  try {
+    access = await googleAccessToken(env);
+  } catch (err) {
+    return { ok: false, auth: String(err && err.message || err) };
+  }
+  const statuses = {};
+  for (const packageName of ANDROID_PACKAGES) {
+    try {
+      const response = await fetch("https://androidpublisher.googleapis.com/androidpublisher/v3/"
+        + `applications/${packageName}/purchases/products/${PRODUCT_ID}/tokens/health-check-token`,
+      { headers: { authorization: `Bearer ${access}` } });
+      statuses[packageName] = response.status;
+    } catch {
+      statuses[packageName] = "unreachable";
+    }
+  }
+  // Every package must accept the account: askGoogle stops at the first
+  // package that answers anything but 404, so one refusing package breaks all.
+  const ok = Object.values(statuses).every((s) => s === 400 || s === 404 || s === 410);
+  return { ok, statuses };
+}
+
+export async function signingCheck(env) {
+  if (!env.ENTITLEMENT_SIGNING_KEY) return { ok: false, missing: ["ENTITLEMENT_SIGNING_KEY"] };
+  try {
+    const priv = await crypto.subtle.importKey("pkcs8",
+      pemToArrayBuffer(env.ENTITLEMENT_SIGNING_KEY),
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]);
+    const jwk = await crypto.subtle.exportKey("jwk", priv);
+    const pub = await crypto.subtle.importKey("jwk",
+      { kty: "RSA", n: jwk.n, e: jwk.e, alg: "RS256", ext: true },
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["verify"]);
+    const spki = await crypto.subtle.exportKey("spki", pub);
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", spki));
+    const sha256 = [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
+    return { ok: true, public_key_sha256: sha256 };
+  } catch (err) {
+    return { ok: false, key: `unusable: ${String(err && err.name || "error")}` };
+  }
+}
+
+export async function health(env) {
+  const [apple, google, signing] = await Promise.all(
+    [appleCheck(env), googleCheck(env), signingCheck(env)]);
+  return { ok: apple.ok && google.ok && signing.ok, apple, google, signing };
+}
+
 export async function handleEntitlement(request, env, url) {
+  if (request.method === "GET" && url.pathname === "/entitlement/health") {
+    return json(await health(env));
+  }
   if (request.method === "GET" && url.pathname === "/entitlement/apple-check") {
     return json(await appleCheck(env));
   }
