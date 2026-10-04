@@ -25,6 +25,34 @@ static func _data(file: String) -> Script:
 		_data_scripts[file] = load("res://src/levels/%s.gd" % file)
 	return _data_scripts[file]
 
+## The data script behind each stage, keyed by Which.
+const _DATA_FILES := {
+	Which.GREENFIELD: "level_01_data",
+	Which.CROSSING: "level_02_data",
+	Which.WORKSHOP: "level_03_data",
+	Which.HORROR: "level_horror_data",
+	Which.QUIET: "level_quiet_data",
+	Which.KEEPER: "level_keeper_data",
+	Which.SKY: "level_sky_data",
+	Which.SKYWARD_RUINS: "level_skyward_ruins_data",
+	Which.SEA: "level_sea_data",
+	Which.SWAMP: "level_swamp_data",
+	Which.DESERT: "level_desert_data",
+	Which.TOWER: "level_tower_data",
+	Which.CAVE: "level_cave_data",
+}
+
+## The current stage's data script.
+static func data() -> Script:
+	return _data(_DATA_FILES[_which])
+
+## An optional rule the current stage's data may declare. A stage that says
+## nothing gets `fallback`, so a new rule never needs an entry in every file --
+## and shared code never needs to ask which stage it is in.
+static func _rule(method: String, fallback: Variant, args: Array = []) -> Variant:
+	var script := data()
+	return script.callv(method, args) if script.has_method(method) else fallback
+
 static func use(which: int) -> void:
 	_which = which
 
@@ -96,6 +124,16 @@ static func water_y() -> float:
 ## It is shared by camera framing and directional pursuit.
 static func progress_direction() -> Vector2:
 	return Vector2.UP if is_skyward_ruins() or is_tower() or is_cave() else Vector2.RIGHT
+
+## Whether the stage's platform gimmicks (moving, blinking, crumbling...) can
+## be jumped through from below. A stage-wide default; a gimmick spec can still
+## say `"one_way"` for itself.
+static func platforms_one_way() -> bool:
+	return bool(_rule("platforms_one_way", false))
+
+## Whether a piece of the stage's own ground can be jumped through from below.
+static func ground_is_one_way(rect: Rect2) -> bool:
+	return bool(_rule("ground_one_way", false, [rect]))
 
 ## Stages that only work with one player per device. On a shared screen there is
 ## nobody to hide anything from, so the whole design collapses into a walk.

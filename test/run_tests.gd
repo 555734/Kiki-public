@@ -82,6 +82,7 @@ func _boot(dismiss_home: bool = true) -> void:
 
 func _run_all() -> void:
 	_test_eos_contracts()
+	_test_stage_rules_reach_gimmicks()
 	await _test_gauge_rules()
 	await _test_platform_limits()
 	await _test_wall_limits()
@@ -390,6 +391,40 @@ func _walkers_in_data() -> int:
 		if String(e.get("type", "")) == "walker":
 			count += 1
 	return count
+
+## Pass-through is a property LevelBuilder sets from the stage data. A gimmick
+## used to read Stage.is_cave() itself, so the cave's rule leaked into every
+## stage that places the same piece.
+func _test_stage_rules_reach_gimmicks() -> void:
+	_current = "stage rules reach gimmicks"
+	var previous: int = Stage.current()
+	Stage.use(Stage.Which.GREENFIELD)
+	check(not Stage.platforms_one_way(), "1-1 platforms are solid from below")
+	check(not Stage.ground_is_one_way(Stage.ground()[0]), "and so is its ground")
+	var plain := MovingPlatform.new()
+	LevelBuilder.configure_gimmick(plain, {})
+	check(not plain.one_way, "a 1-1 platform is built solid")
+	var asked := Conveyor.new()
+	LevelBuilder.configure_gimmick(asked, {"one_way": true})
+	check(asked.one_way, "unless its own spec asks for one-way")
+
+	Stage.use(Stage.Which.CAVE)
+	check(Stage.platforms_one_way(), "1-8 platforms default to one-way")
+	var cave := BlinkBlock.new()
+	LevelBuilder.configure_gimmick(cave, {})
+	check(cave.one_way, "so a 1-8 blink block is built one-way")
+	var solid := CrumblingFloor.new()
+	LevelBuilder.configure_gimmick(solid, {"one_way": false})
+	check(not solid.one_way, "and a 1-8 spec can still opt a piece out")
+	var floor_rect := Rect2(Stage.start() + Vector2(-100, 10), Vector2(400, 60))
+	check(not Stage.ground_is_one_way(floor_rect), "the cavern floor stays solid")
+	check(Stage.ground_is_one_way(Rect2(Stage.start() + Vector2(0, -400), Vector2(200, 48))),
+		"while a ledge above it can be jumped through")
+	add_child(cave)
+	check(cave._shape.one_way_collision, "and the collision shape carries it")
+	for n in [plain, asked, cave, solid]:
+		n.free()
+	Stage.use(previous)
 
 # ------------------------------------------------------------------ netcode
 

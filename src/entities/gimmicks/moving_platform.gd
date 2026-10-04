@@ -14,6 +14,10 @@ extends AnimatableBody2D
 
 var _origin: Vector2 = Vector2.ZERO
 
+## Pass-through from below. A property of this piece, set by whoever builds
+## it -- the stage data decides, never the piece itself.
+var one_way: bool = false
+
 func _ready() -> void:
 	collision_layer = 1   # terrain, so everything already treats it as ground
 	collision_mask = 0
@@ -24,7 +28,7 @@ func _ready() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = span
 	shape.shape = rect
-	shape.one_way_collision = Stage.is_cave()
+	shape.one_way_collision = one_way
 	add_child(shape)
 
 func _physics_process(_delta: float) -> void:

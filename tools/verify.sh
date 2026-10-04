@@ -36,6 +36,9 @@ run_checked() {
 step "release readiness (no engine needed)"
 bash tools/release-check.sh || fail=1
 
+step "shared entities do not ask which stage they are in (no engine needed)"
+python3 tools/check-stage-leaks.py || fail=1
+
 step "import pass (registers class_name globals)"
 # --editor --quit quits on the first frame, which is BEFORE the filesystem
 # scan finishes ("Scan thread aborted"), so on a fresh clone it leaves some

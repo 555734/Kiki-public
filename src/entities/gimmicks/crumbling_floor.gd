@@ -13,6 +13,10 @@ var _respawn: float = 0.0
 var _shake: float = 0.0
 var _shape: CollisionShape2D = null
 
+## Pass-through from below. A property of this piece, set by whoever builds
+## it -- the stage data decides, never the piece itself.
+var one_way: bool = false
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0
@@ -23,7 +27,7 @@ func _ready() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = span
 	_shape.shape = rect
-	_shape.one_way_collision = Stage.is_cave()
+	_shape.one_way_collision = one_way
 	add_child(_shape)
 
 	# A thin sensor across the top surface tells us the runner has arrived.

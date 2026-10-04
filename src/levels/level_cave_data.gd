@@ -14,6 +14,12 @@ static func stage_name_value() -> String: return "THE UNDERGROVE"
 static func stage_number_value() -> String: return "1-8"
 static func objective_value() -> String: return "Climb out of the cavern"
 
+## A vertical climb: every ledge and platform above the cavern floor is taken
+## from below, so all of them let the runner jump up through them.
+static func platforms_one_way() -> bool: return true
+static func ground_one_way(rect: Rect2) -> bool:
+	return rect.position.y < start_position().y
+
 static func _top(chamber: int, step: int) -> float:
 	return BASE_Y - float(chamber) * CHAMBER_RISE - float(step + 1) * 120.0
 

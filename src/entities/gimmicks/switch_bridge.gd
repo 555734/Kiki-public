@@ -14,6 +14,10 @@ var _active := false
 var _start_tick := -1
 var _expires_at_tick := -1
 
+## Pass-through from below. A property of this piece, set by whoever builds
+## it -- the stage data decides, never the piece itself.
+var one_way: bool = false
+
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0
@@ -22,7 +26,7 @@ func _ready() -> void:
 	var box := RectangleShape2D.new()
 	box.size = span
 	_shape.shape = box
-	_shape.one_way_collision = Stage.is_cave()
+	_shape.one_way_collision = one_way
 	_shape.disabled = true
 	add_child(_shape)
 	Events.switch_activated.connect(_on_switch)

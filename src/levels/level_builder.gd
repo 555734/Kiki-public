@@ -83,7 +83,7 @@ func _build_ground_bodies() -> void:
 		shape.position = rect.position + rect.size * 0.5
 		# A vertical platformer needs pass-through ledges: the runner may jump
 		# through stone from below and land on its top on the way down.
-		shape.one_way_collision = Stage.is_cave() and rect.position.y < Stage.start().y
+		shape.one_way_collision = Stage.ground_is_one_way(rect)
 		body.add_child(shape)
 	_static_root.add_child(body)
 
@@ -184,6 +184,7 @@ func rebuild_dynamic() -> void:
 		var node := _make_gimmick(g)
 		if node != null:
 			node.global_position = g["pos"]
+			configure_gimmick(node, g)
 			_dynamic.add_child(node)
 			if node is CaveTrap:
 				_cave_traps.append(node)
@@ -384,6 +385,14 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			t.runner = runner
 			return t
 	return null
+
+## What the stage decides about a piece, rather than the piece itself. Pieces
+## that can be stood on take their pass-through from the spec, else from the
+## stage default; the piece never asks which stage it is in. Runs before the
+## node enters the tree, so its _ready already sees the answer.
+static func configure_gimmick(node: Node2D, spec: Dictionary) -> void:
+	if "one_way" in node:
+		node.one_way = bool(spec.get("one_way", Stage.platforms_one_way()))
 
 func _make_gimmick(spec: Dictionary) -> Node2D:
 	match String(spec.get("type", "")):
