@@ -297,14 +297,14 @@ export async function appleCheck(env) {
   const statuses = {};
   for (const [name, base] of [["production", APPLE_PRODUCTION], ["sandbox", APPLE_SANDBOX]]) {
     try {
-      const response = await fetch(`${base}/inApps/v1/transactions/0`,
+      const response = await fetch(`${base}/inApps/v1/transactions/2000000000000000`,
         { headers: { authorization: `Bearer ${jwt}` } });
       statuses[name] = response.status;
     } catch (err) {
       statuses[name] = `unreachable`;
     }
   }
-  const ok = Object.values(statuses).every((s) => s === 404 || s === 400);
+  const ok = Object.values(statuses).every((s) => s === 404);
   return { ok, statuses };
 }
 
