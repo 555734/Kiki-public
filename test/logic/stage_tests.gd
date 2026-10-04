@@ -79,7 +79,14 @@ func _test_every_stage_keeps_the_contract() -> void:
 			% [Stage._DATA_FILES[which], missing])
 		for spec in Stage.gimmicks():
 			types[String(spec.get("type", ""))] = spec
+		var unknown := LevelBuilder.unknown_types(Stage.enemies(), Stage.gimmicks())
+		check(unknown.is_empty(), "%s names only types the builder knows (unknown %s)"
+			% [Stage._DATA_FILES[which], unknown])
 	Stage.use(previous)
+	# And the check itself catches a one-letter slip, which used to build
+	# nothing and say nothing.
+	check(LevelBuilder.unknown_types([{"type": "walkre"}], [{"type": "moving_platfrom"}])
+		== ["enemy:walkre", "gimmick:moving_platfrom"], "a misspelt type is reported")
 	for type in types:
 		check(LevelBuilder.GIMMICKS.has(type), "gimmick type '%s' is registered" % type)
 		if not LevelBuilder.GIMMICKS.has(type):

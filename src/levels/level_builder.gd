@@ -289,8 +289,34 @@ func _veil(node: Node2D, layer: String, moving: bool = false) -> void:
 func veil_field() -> VeilField:
 	return _veils
 
+## Every enemy type a stage spec can name; _make_enemy builds exactly these.
+## Listed so a typo in a stage file is an error rather than an enemy that is
+## silently not there -- see unknown_types().
+const ENEMY_TYPES: Array[String] = [
+	"cave_enemy", "desert_enemy", "chaser", "sky_pursuer", "thornmite", "walker",
+	"flyer", "shieldbearer", "keeper", "mine", "seedling", "golem", "turret",
+]
+
+## Spec types the builder does not know, as "enemy:<type>" / "gimmick:<type>".
+## Empty for a stage that builds everything it lists.
+static func unknown_types(enemies: Array, gimmicks: Array) -> Array[String]:
+	var out: Array[String] = []
+	for spec in enemies:
+		var type := String(spec.get("type", ""))
+		if not ENEMY_TYPES.has(type):
+			out.append("enemy:" + type)
+	for spec in gimmicks:
+		var type := String(spec.get("type", ""))
+		if not GIMMICKS.has(type):
+			out.append("gimmick:" + type)
+	return out
+
 func _make_enemy(spec: Dictionary) -> Node2D:
-	match String(spec.get("type", "")):
+	var type := String(spec.get("type", ""))
+	if not ENEMY_TYPES.has(type):
+		push_error("Stage %s: unknown enemy type '%s' at %s" % [Stage.stage_number(), type, spec.get("pos")])
+		return null
+	match type:
 		"cave_enemy":
 			var cave := CaveEnemy.new()
 			cave.kind = String(spec.get("kind", "burrower"))
@@ -415,8 +441,12 @@ const GIMMICKS := {
 }
 
 func _make_gimmick(spec: Dictionary) -> Node2D:
-	var script: Script = GIMMICKS.get(String(spec.get("type", "")))
-	return script.from_spec(spec, runner) if script != null else null
+	var type := String(spec.get("type", ""))
+	var script: Script = GIMMICKS.get(type)
+	if script == null:
+		push_error("Stage %s: unknown gimmick type '%s' at %s" % [Stage.stage_number(), type, spec.get("pos")])
+		return null
+	return script.from_spec(spec, runner)
 
 func reset_to_checkpoint() -> void:
 	rebuild_dynamic()
