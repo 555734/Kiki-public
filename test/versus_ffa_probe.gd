@@ -58,13 +58,16 @@ func _ready() -> void:
 	var panel: Control = load("res://src/ui/versus_panel.gd").new()
 	add_child(panel)
 	await get_tree().process_frame
+	panel._choose_mode(VersusRoster.RoomMode.FREE_FOR_ALL)
+	await get_tree().process_frame
 	check(panel._room_mode() == VersusRoster.RoomMode.FREE_FOR_ALL and not panel._seat.visible,
-		"the menu opens on みんなで, with no chair to pick")
-	panel._mode.select(1)
-	panel._update_mode()
-	check(panel._room_mode() == VersusRoster.RoomMode.TEAM_SPLIT and panel._seat.visible,
-		"and 2対2 still asks which chair")
-	check(panel._stage.item_count == 5, "and offers 1-1 to 1-5")
+		"みんなで asks for no chair")
+	panel._on_back()
+	panel._choose_mode(VersusRoster.RoomMode.TEAM_SPLIT)
+	await get_tree().process_frame
+	check(panel._room_mode() == VersusRoster.RoomMode.TEAM_SPLIT and panel._seat.visible
+		and panel._seat_buttons.size() == 3, "and 2対2 still asks which chair")
+	check(panel._stage_cards.size() == 5, "and offers 1-1 to 1-5")
 	panel.queue_free()
 	links = VersusLoopback.mesh(PEOPLE, 0.04)
 	for i in range(PEOPLE):

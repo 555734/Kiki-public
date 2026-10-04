@@ -1138,3 +1138,78 @@ msgstr "Disconnect"
 
 msgid "相手との接続が切れました"
 msgstr "Lost connection to your partner"
+
+msgid "スターを あつめて かて！  無料版でも すべて あそべます"
+msgstr "Collect the stars to win! Everything is playable in the free version"
+
+msgid "あそびかたを えらんでください"
+msgstr "Choose how to play"
+
+msgid "みんなで"
+msgstr "Free-for-all"
+
+msgid "2対2"
+msgstr "2 vs 2"
+
+msgid "ひとり1キャラの 個人戦・2〜8人"
+msgstr "Every player for themselves · 2-8 players"
+
+msgid "ランナーと ガーディアンを 2人で分担・最大4人"
+msgstr "Two players share a runner and a guardian · up to 4"
+
+msgid "★ を さきに %d こ もった人の かち"
+msgstr "★ First player to hold %d wins"
+
+msgid "★ を さきに %d こ もったチームの かち"
+msgstr "★ First team to hold %d wins"
+
+msgid "えらぶ  ›"
+msgstr "Choose  ›"
+
+msgid "★ 射撃・踏みつけで 当てると スターを 1こ おとす"
+msgstr "★ A shot or a stomp knocks one star loose"
+
+msgid "ぶつかると ふたりとも おとす"
+msgstr "Bump into someone and you both drop one"
+
+msgid "てきは ふむか うつと たおせる"
+msgstr "Stomp or shoot enemies to beat them"
+
+msgid "‹  あそびかた"
+msgstr "‹  Modes"
+
+msgid "ステージ"
+msgstr "Stage"
+
+msgid "部屋を作る人が えらびます。入る人は 作った人の ステージに なります"
+msgstr "Picked by whoever makes the room. Everyone who joins plays on that stage"
+
+msgid "または"
+msgstr "or"
+
+msgid "入る席"
+msgstr "Your seat"
+
+msgid "Aチーム"
+msgstr "Team A"
+
+msgid "Bチーム"
+msgstr "Team B"
+
+msgid "はしって スターを とる"
+msgstr "Runs and grabs the stars"
+
+msgid "射撃で たすける"
+msgstr "Helps with the rifle"
+
+msgid "すすめかた"
+msgstr "How it works"
+
+msgid "① 部屋を作ると 6けたの 番号が でます"
+msgstr "① Make a room to get a 6-digit code"
+
+msgid "② 友達は その番号を 入れて 入ります"
+msgstr "② Friends enter that code to join"
+
+msgid "③ そろったら 作った人が スタート"
+msgstr "③ When everyone is in, the room's maker starts"

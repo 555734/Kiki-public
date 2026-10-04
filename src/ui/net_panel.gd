@@ -157,6 +157,10 @@ func _clear_screen() -> void:
 ## column of sky. That is what these used to be: 1-1 showed the bare parallax
 ## backdrop with no ground in it at all.
 func _cards() -> Array[Dictionary]:
+	return cards()
+
+## The card data, for the star battle's stage picker as well.
+static func cards() -> Array[Dictionary]:
 	return [
 		{"number": "1-1", "name": "GREENFIELD PLAINS",
 			"blurb": "走る・跳ぶ・助け合う最初の一歩",
