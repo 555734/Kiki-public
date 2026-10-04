@@ -244,7 +244,11 @@ func _refresh_cave_activity() -> void:
 			continue
 		# Include patrol travel and one timer interval of runner movement beyond
 		# the screen, so a moving enemy is active before it can enter the view.
-		var near := absf(enemy.spawn_position.y - centre_y) <= \
+		# Never on the guest's device: there the host moves every enemy
+		# (ClientSession switched them off), and switching them back on made
+		# each one walk its own patrol as well -- the guest saw it somewhere
+		# other than where it hit the runner.
+		var near := Clock.is_host and absf(enemy.spawn_position.y - centre_y) <= \
 			half_view_y + 850.0
 		if enemy.is_physics_processing() != near:
 			enemy.set_physics_process(near)

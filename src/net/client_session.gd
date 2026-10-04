@@ -142,7 +142,10 @@ func _take_entitlement(token: String) -> void:
 ## The borrowed unlock dies with the room. Nothing about it is written down, so
 ## there is nothing to clean up on disk -- this is the whole of the revocation.
 func _exit_tree() -> void:
-	Entitlement.revoke_guest()
+	# Not while the room is only moving to the next stage (CoopRoom): the
+	# pass lasts as long as the pair are together.
+	if not CoopRoom.holding():
+		Entitlement.revoke_guest()
 
 ## Switch off everything the host owns. Leaving these running would not just
 ## waste frames -- a locally simulated runner would visibly disagree with the
@@ -546,6 +549,10 @@ func _handle(packet: Dictionary) -> void:
 		Protocol.Msg.AUTHORITY_READY:
 			b.get_u32()
 			Clock.follow_target = int(b.get_u32())
+		Protocol.Msg.ROOM_MENU:
+			main.call_deferred("_room_menu_from_partner")
+		Protocol.Msg.STAGE_GO:
+			main.call_deferred("_stage_go_from_host", int(b.get_u8()))
 
 ## Jump and landing, worked out rather than sent.
 ##

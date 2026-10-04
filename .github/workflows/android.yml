@@ -125,6 +125,9 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_stage_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/tower_stage_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/cave_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_chaser_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/quit_confirm_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/coop_room_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_menu_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/entitlement_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/guardian_clear_probe.tscn

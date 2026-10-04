@@ -24,6 +24,9 @@ var zoom: ZoomGesture
 var _owners: Dictionary = {}
 ## finger index -> where it was last seen, in screen pixels.
 var _last_position: Dictionary = {}
+## Fingers whose gesture began on a button hub.gui_passthrough claims: the
+## GUI's, from the press to the release.
+var _gui_fingers: Dictionary = {}
 
 func _init(owner_hub: InputHub) -> void:
 	hub = owner_hub
@@ -62,6 +65,8 @@ func owns(index: int) -> bool:
 ## its drags and its release are claimed in the first pass, wherever they land;
 ## a finger we never took is left alone in both. Returns whether we kept it.
 func claim(event: InputEvent, late: bool) -> bool:
+	if _left_to_gui(event, late):
+		return false
 	if event is InputEventScreenTouch:
 		hub._has_touch = true
 		return _claim_finger(event.index, event.position, event.pressed, late)
@@ -81,6 +86,39 @@ func claim(event: InputEvent, late: bool) -> bool:
 		move(InputHub.MOUSE_FINGER, event.position)
 		return true
 	return false
+
+## Whether this event is a press on (or the rest of a gesture that began on) a
+## button hub.gui_passthrough claims. Decided in the first pass; the late pass
+## only reads the answer.
+func _left_to_gui(event: InputEvent, late: bool) -> bool:
+	var index := -1
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		index = event.index
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT \
+			and not hub._has_touch:
+		index = InputHub.MOUSE_FINGER
+	elif event is InputEventMouseMotion and not hub._has_touch:
+		return _gui_fingers.has(InputHub.MOUSE_FINGER)
+	else:
+		return false
+	if late:
+		return _gui_fingers.has(index)
+	var down: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) \
+		and event.pressed
+	if down:
+		if hub.gui_passthrough.is_valid() and bool(hub.gui_passthrough.call(event.position)):
+			# A recycled index that the hub still owned is a lost release.
+			if _owners.has(index):
+				up(index, Vector2(INF, INF), true)
+			_gui_fingers[index] = true
+			return true
+		_gui_fingers.erase(index)
+		return false
+	if not _gui_fingers.has(index):
+		return false
+	if not (event is InputEventScreenDrag or event is InputEventMouseMotion):
+		_gui_fingers.erase(index)
+	return true
 
 func _claim_finger(index: int, position: Vector2, pressed: bool, late: bool) -> bool:
 	if not pressed:
@@ -143,6 +181,7 @@ func release_all() -> void:
 		up(int(index), Vector2(INF, INF), true)
 	_owners.clear()
 	_last_position.clear()
+	_gui_fingers.clear()
 	for gesture in gestures():
 		gesture.reset()
 

@@ -185,10 +185,10 @@ static func stage_name() -> String:
 ## suite down with it. Locking happens where a player starts a game -- the menu
 ## and the room-creation path -- not where the data is read.
 ##
-## 1-3 through 1-5 remain in the reviewed full-game purchase. The newer
-## 1-6 through 1-8 stages are free while they have not been submitted for review.
+## 1-1 and 1-2 are free; everything from 1-3 to 1-8 is the full game.
+## tools/release-check.sh compares this with the store listing's paid range.
 const FREE_STAGES: Array[int] = [
-	Which.GREENFIELD, Which.HORROR, Which.DESERT, Which.TOWER, Which.CAVE,
+	Which.GREENFIELD, Which.HORROR,
 ]
 
 static func is_free(which: int = -1) -> bool:
@@ -240,8 +240,17 @@ static func springs() -> Array[Vector2]:
 static func crystals() -> Array[Vector2]:
 	return data().crystals()
 
-## Where the key rests: on the lowest ground under a point ~60% of the way from
-## start to goal, nudged along until it is on a floor with no hazard on it.
+## How a room-built climb is meant to be climbed (see ClimbBuilder); empty
+## for every other stage.
+static func route() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	out.assign(_rule("route", []))
+	return out
+
+## Where the key rests. A stage may place it itself (the climbs keep it on the
+## top bank, beside the goal); otherwise it goes on the lowest ground under a
+## point ~60% of the way from start to goal, nudged along until it is on a
+## floor with no hazard on it.
 static func key_position() -> Vector2:
 	if data().has_method("key_position"):
 		return data().key_position()

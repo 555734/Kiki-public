@@ -32,11 +32,12 @@ const SHOTS := [
 	# beach, and the stage stopped being a beach when it was rebuilt.
 	{"which": Stage.Which.SEA, "file": "card_1_4.png",
 		"at": Vector2(4720, -180), "zoom": 2.5, "runner": Vector2(4800, -220)},
-	# Two stepping stones and the gap between them, which is the whole stage.
+	# The climb out of the marsh: moss ledges and a log lift over the pool.
 	{"which": Stage.Which.SWAMP, "file": "card_1_5.png",
-		"at": Vector2(1120, 300), "zoom": 2.9, "runner": Vector2(1024, 330)},
+		"at": Vector2(0, 6930), "zoom": 1.55, "runner": Vector2(-290, 7010)},
+	# Up the sandglass ruins: a wind column and blinking stones above the dunes.
 	{"which": Stage.Which.DESERT, "file": "card_1_6.png",
-		"at": Vector2(1170, 245), "zoom": 1.6, "runner": Vector2(1080, 277)},
+		"at": Vector2(0, 6980), "zoom": 1.55, "runner": Vector2(-280, 7085)},
 	{"which": Stage.Which.TOWER, "file": "card_1_7.png",
 		"at": Vector2(0, 13475), "zoom": 1.45, "runner": Vector2(300, 13632)},
 	{"which": Stage.Which.CAVE, "file": "card_1_8.png",
@@ -62,7 +63,7 @@ func _capture(shot: Dictionary) -> void:
 	await get_tree().process_frame
 	# The card is the stage, not the interface: the home screen, the HUD and
 	# the guardian's two ability rings all belong to the live game.
-	for name in ["NetPanel", "Hud", "PlacementPreview", "Scope"]:
+	for name in ["NetPanel", "Hud", "PlacementPreview", "Scope", "Quit"]:
 		var node := main.get_node_or_null(name)
 		if node != null:
 			node.queue_free()

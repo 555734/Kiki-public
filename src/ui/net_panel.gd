@@ -50,6 +50,16 @@ var _banner: RoomBanner = null
 # Read-only handles for the probes.
 var _stage_view: Control:
 	get: return _select_view.row if _select_view != null else null
+var _stage_1_1: Button:
+	get: return _card(Stage.Which.GREENFIELD)
+var _stage_1_2: Button:
+	get: return _card(Stage.Which.HORROR)
+var _stage_1_3: Button:
+	get: return _card(Stage.Which.SKYWARD_RUINS)
+var _stage_1_4: Button:
+	get: return _card(Stage.Which.SEA)
+var _stage_1_5: Button:
+	get: return _card(Stage.Which.SWAMP)
 var _stage_1_6: Button:
 	get: return _card(Stage.Which.DESERT)
 var _stage_1_7: Button:
@@ -63,6 +73,10 @@ func _card(which: int) -> Button:
 	return _select_view.cards.get(which) if _select_view != null else null
 
 func _cards() -> Array[Dictionary]:
+	return StageCards.all()
+
+## The card data, for the star battle's stage picker as well.
+static func cards() -> Array[Dictionary]:
 	return StageCards.all()
 
 func _ready() -> void:
@@ -121,10 +135,14 @@ func _ready() -> void:
 	_root.add_child(_screen_host)
 	_stage_page = StageCards.page_of(Stage.current(), StageSelectView.PER_PAGE)
 
-	if _open_play_after_reload:
+	# Between stages of a kept room (CoopRoom) this is the stage list, with
+	# the room on it, whatever the last screen was.
+	CoopRoom.changed.connect(_on_room_changed)
+	if _open_play_after_reload and not CoopRoom.holding():
 		_open_play_after_reload = false
 		_show_play_screen()
 	else:
+		_open_play_after_reload = false
 		_show_stage_screen()
 
 func _clear_screen() -> void:
@@ -162,6 +180,14 @@ func _show_stage_screen() -> void:
 	_screen_host.add_child(_select_view)
 	_refresh_stage_buttons()
 
+func _on_leave_room() -> void:
+	CoopRoom.close()
+
+## The room ended (接続を切る, or the partner went) or moved on.
+func _on_room_changed() -> void:
+	if is_instance_valid(self) and not CoopRoom.holding():
+		_show_stage_screen()
+
 func _change_stage_page(direction: int) -> void:
 	var destination := clampi(_stage_page + direction, 0, StageSelectView.page_count() - 1)
 	if destination == _stage_page:
@@ -196,6 +222,16 @@ func _show_play_screen() -> void:
 ## scene guarantees every stage-owned object uses the same Stage value; trying
 ## to swap only terrain in place is how scenery, enemies and checkpoints drift.
 func _select_stage(which: int) -> void:
+	if CoopRoom.holding():
+		# In a kept room the host's choice starts the stage on both devices;
+		# the guest's cards only show what is coming.
+		if not CoopRoom.is_host:
+			return
+		if not Entitlement.can_play(which):
+			_purchase.show(which)
+			return
+		CoopRoom.start_stage(which)
+		return
 	if main != null and main.link != null and main.link.busy():
 		return
 	# A stage this player has not bought does not open the play screen; it

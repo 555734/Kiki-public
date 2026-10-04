@@ -40,6 +40,12 @@ git -C "$WORK" remote add origin "$REPO"
 git -C "$WORK" fetch -q --depth 1 origin "$COMMIT"
 git -C "$WORK" checkout -q FETCH_HEAD
 
+# StoreKit 1 hands a restore a NEW transaction id, which Apple's server API
+# does not know the purchase by; the patch adds original_transaction_id to the
+# purchase and restore events. It must apply cleanly to the pinned commit.
+git -C "$WORK" apply "$PROJECT/tools/patches/inappstore-original-id.patch" \
+	|| { echo "tools/patches/inappstore-original-id.patch no longer applies" >&2; exit 1; }
+
 echo "== fetch the engine headers @ $GODOT_TAG =="
 # The build only reads headers out of this tree; nothing in it is compiled.
 # A tag-depth-1 clone is about a tenth of the full history.

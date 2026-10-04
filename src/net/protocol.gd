@@ -53,6 +53,11 @@ enum Msg {
 	MIGRATION_CHUNK = 40, ## authority -> standby: chunked complete checkpoint
 	RUNNER_INPUT = 41,    ## remote runner -> authority after host migration
 	AUTHORITY_READY = 42, ## new authority -> returning peer
+	## Either way: leave the stage for the stage screen, keeping the room.
+	## See CoopRoom.
+	ROOM_MENU = 43,
+	## host -> client, at the stage screen: start this stage together.
+	STAGE_GO = 44,
 }
 
 ## The things the host does that the guardian's device cannot derive for itself.
@@ -98,7 +103,7 @@ enum World {
 ## 20: runner input carries a cumulative jump-press count so brief taps survive
 ##     the 30 Hz send interval and dropped unreliable packets. HELLO supplies
 ##     its baseline when authority changes or a client reconnects.
-const VERSION: int = 20
+const VERSION: int = 21
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -347,6 +352,14 @@ static func enemy_die(id: int, cause: int) -> PackedByteArray:
 static func simple(kind: int, value: int = 0) -> PackedByteArray:
 	var b := _buf(kind)
 	b.put_u32(value)
+	return b.data_array
+
+static func room_menu() -> PackedByteArray:
+	return _buf(Msg.ROOM_MENU).data_array
+
+static func stage_go(stage: int) -> PackedByteArray:
+	var b := _buf(Msg.STAGE_GO)
+	b.put_u8(stage)
 	return b.data_array
 
 static func notice(text: String) -> PackedByteArray:

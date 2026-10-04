@@ -53,6 +53,8 @@ var diagnostics: VersusDiagnostics = null
 var lives: VersusLives = null
 var menu: VersusMenu = null
 var _overlay: VersusOverlay = null
+## The やめる question (QuitConfirm); the button itself is the menu's.
+var _quit: QuitConfirm = null
 
 # Read-only views of the parts' state, for the HUD, the enemies and the probes.
 var _built: Array[Rect2]:
@@ -121,7 +123,19 @@ func _ready() -> void:
 	menu = VersusMenu.new(self)
 	layer.add_child(menu)
 	menu.refresh()
+	_quit = QuitConfirm.new()
+	_quit.name = "Quit"
+	_quit.with_button = false
+	_quit.input_hub = input.hubs[0]
+	_quit.on_quit = leave_versus
+	_quit.pause_while_asking = mode == Mode.SOLO
+	_quit.detail = tr("スタート画面に戻ります") if mode == Mode.SOLO \
+		else tr("部屋から抜けて、スタート画面に戻ります")
+	add_child(_quit)
 	_layer = layer
+	# The hub reads fingers before the GUI does; the menu's buttons are real
+	# Buttons and would never hear a press otherwise.
+	input.hubs[0].gui_passthrough = _over_button
 	_build_controls()
 
 	match mode:
@@ -174,6 +188,7 @@ func _take_seat(seat: int) -> void:
 	if local_team < 0 or local_team >= sides:
 		return
 	var r := runners[local_team]
+	r.visible = true
 	r.input_hub = input.hubs[0]
 	r.global_position = VersusStageData.start_positions()[local_team]
 	r.facing = VersusStageData.start_facing()[local_team]
@@ -619,7 +634,13 @@ func _update_activity() -> void:
 	if local_team >= 0 and runners[local_team].is_physics_processing() != active:
 		runners[local_team].set_physics_process(active)
 	for i in range(sides):
-		if i != local_team:
+		if i == local_team:
+			# Your own runner is always drawn. A free-for-all guest has no
+			# chair until the WELCOME, and until then this loop treated their
+			# runner as an empty chair and hid it -- then, once seated, skipped
+			# it as their own and never showed it again: a ring with nobody in it.
+			runners[i].visible = true
+		else:
 			runners[i].visible = not waiting() \
 				and _seat_taken(VersusRoster.runner_seat_in(room_mode, i))
 
@@ -988,6 +1009,23 @@ func _reset_bodies() -> void:
 func _owns(side: int) -> bool:
 	return mode == Mode.SOLO or side == local_team
 
+## やめる: asks first (QuitConfirm), then leave_versus.
+func request_leave() -> void:
+	_quit.request()
+
+## Whether a screen point is on one of the real buttons shown right now. The
+## hub reads fingers before the GUI does, so it leaves presses here alone.
+func _over_button(at: Vector2) -> bool:
+	if _quit != null and _quit.claims(at):
+		return true
+	var buttons: Array = [diagnostics.copy_button]
+	if menu != null:
+		buttons.append_array([menu.start_button, menu.again_button, menu.leave_button])
+	for b in buttons:
+		if b != null and b.is_visible_in_tree() and b.get_global_rect().has_point(at):
+			return true
+	return false
+
 func leave_versus() -> void:
 	connection.close()
 	# Back to the co-op stage that was selected before versus.
@@ -1000,4 +1038,4 @@ func leave_versus() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \
 			and event.physical_keycode == KEY_ESCAPE:
-		leave_versus()
+		request_leave()

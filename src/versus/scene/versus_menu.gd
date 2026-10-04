@@ -16,7 +16,7 @@ func _init(owner_arena) -> void:
 	custom_minimum_size = Vector2(300, 0)
 	start_button = _button("スタート", arena.start_match)
 	again_button = _button("もういちど", arena.rematch)
-	leave_button = _button("やめる", arena.leave_versus)
+	leave_button = _button("やめる", arena.request_leave)
 
 func _button(text: String, handler: Callable) -> Button:
 	var b := Button.new()

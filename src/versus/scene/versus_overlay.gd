@@ -86,7 +86,8 @@ func _builds() -> void:
 
 func _markers() -> void:
 	for i in range(arena.sides):
-		if arena.lives.respawn_in[i] > 0:
+		# Nobody in an empty chair: no ring either.
+		if arena.lives.respawn_in[i] > 0 or not arena.runners[i].visible:
 			continue
 		var at: Vector2 = arena.runners[i].global_position \
 			+ Vector2(0.0, Balance.RUNNER_SIZE.y * 0.5)

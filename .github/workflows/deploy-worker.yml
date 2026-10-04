@@ -1,0 +1,104 @@
+name: Deploy signalling worker
+
+# The Cloudflare Worker behind online play and purchase verification
+# (server/signaling). Tests first; the Worker's own secrets (signing key,
+# App Store Connect key, ...) live in Cloudflare and are kept by a deploy.
+on:
+  push:
+    branches: [main, ccr-6f147420-l6xq7d]
+    paths:
+      - "server/signaling/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/signaling
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Entitlement tests
+        run: node entitlement.test.mjs
+      - name: Install the App Store Server API key
+        # A dedicated In-App Purchase key (APPLE_IAP_*) when there is one;
+        # otherwise the App Store Connect upload key (ASC_*), which the owner
+        # approved for this and which the App Store Server API accepts (the
+        # health step at the end checks it after every deploy).
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          IAP_KEY: ${{ secrets.APPLE_IAP_KEY }}
+          IAP_KEY_ID: ${{ secrets.APPLE_IAP_KEY_ID }}
+          IAP_ISSUER_ID: ${{ secrets.APPLE_IAP_ISSUER_ID }}
+          ASC_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          # One whole key, never a mix: half an APPLE_IAP_* set paired with
+          # the ASC_* rest would be a key Apple refuses.
+          iap_set=0
+          [ -n "$IAP_KEY" ] && iap_set=$((iap_set+1))
+          [ -n "$IAP_KEY_ID" ] && iap_set=$((iap_set+1))
+          [ -n "$IAP_ISSUER_ID" ] && iap_set=$((iap_set+1))
+          if [ "$iap_set" = 3 ]; then
+            APPLE_IAP_KEY="$IAP_KEY"; APPLE_IAP_KEY_ID="$IAP_KEY_ID"; APPLE_IAP_ISSUER_ID="$IAP_ISSUER_ID"
+          elif [ "$iap_set" = 0 ]; then
+            APPLE_IAP_KEY="$ASC_KEY"; APPLE_IAP_KEY_ID="$ASC_KEY_ID"; APPLE_IAP_ISSUER_ID="$ASC_ISSUER_ID"
+          else
+            echo "APPLE_IAP_KEY, APPLE_IAP_KEY_ID and APPLE_IAP_ISSUER_ID must be set together" >&2
+            exit 1
+          fi
+          if [ -z "$APPLE_IAP_KEY" ] || [ -z "$APPLE_IAP_KEY_ID" ] || [ -z "$APPLE_IAP_ISSUER_ID" ]; then
+            echo "no Apple key in the secrets; leaving the Worker's as it is (health below decides)"
+            exit 0
+          fi
+          printf '%s' "$APPLE_IAP_KEY" | npx --yes wrangler@4 secret put APPLE_ASC_KEY
+          printf '%s' "$APPLE_IAP_KEY_ID" | npx --yes wrangler@4 secret put APPLE_ASC_KEY_ID
+          printf '%s' "$APPLE_IAP_ISSUER_ID" | npx --yes wrangler@4 secret put APPLE_ASC_ISSUER_ID
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN secret is missing" >&2; exit 1; }
+          npx --yes wrangler@4 deploy
+
+      # Everything purchase verification needs, checked against the deployed
+      # Worker: Apple's and Google's APIs accept our credentials, and the
+      # signing key is the other half of the app's entitlement_key.json.
+      - name: Health of the deployed Worker
+        run: |
+          set -euo pipefail
+          want=$(sed -n 's/.*sha256 = \([0-9a-f]*\).*/\1/p' ../../entitlement_key.json | head -1)
+          for i in $(seq 1 20); do
+            body=$(curl -sS -m 30 https://side-sky-signalling.a3506124.workers.dev/entitlement/health || true)
+            case "$body" in *signing*) break ;; esac
+            sleep 6
+          done
+          echo "$body"
+          WANT="$want" BODY="$body" python3 - <<'PY'
+          import json, os, sys
+          h = json.loads(os.environ["BODY"])
+          problems = []
+          for part in ("apple", "google", "signing"):
+              if not h.get(part, {}).get("ok"):
+                  problems.append(f"{part}: {h.get(part)}")
+          if h.get("signing", {}).get("public_key_sha256") != os.environ["WANT"]:
+              problems.append("the Worker's signing key is not the one entitlement_key.json names")
+          if problems:
+              print("\n".join(problems)); sys.exit(1)
+          print("health ok")
+          PY

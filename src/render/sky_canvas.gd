@@ -271,11 +271,24 @@ static var _floor_cache: Dictionary = {}
 ## mirroring makes the seam match by construction, which for scenery this soft
 ## is invisible. Only the copies actually on screen are emitted, so a 16,000px
 ## stage costs the same two draws as a 900px one.
+## Where the painted backdrop's top edge sits on screen. Side-scrolling, it
+## follows the camera's height at its parallax rate. Climbing (1-5, 1-6), that
+## rate would carry it off the bottom within a few chambers, so instead it
+## slides from its ground (at the start) to its sky (at the top) over the whole
+## climb, always covering the screen.
+func _panorama_top(view: Vector2, h: float) -> float:
+	if Stage.progress_direction() != Vector2.UP:
+		return _base(view, PANORAMA_RATE) - h * PANORAMA_HORIZON
+	var from_y := Stage.start().y
+	var to_y := Stage.goal().y
+	var p := clampf((from_y - sky.vertical()) / maxf(from_y - to_y, 1.0), 0.0, 1.0)
+	return lerpf(view.y - h, 0.0, p)
+
 func _panorama_covers(view: Vector2) -> bool:
 	if not Balance.USE_TEXTURES or Art.tex("parallax") == null:
 		return false
 	var h := view.y * PANORAMA_SCALE
-	return _base(view, PANORAMA_RATE) - h * PANORAMA_HORIZON <= 0.0
+	return _panorama_top(view, h) <= 0.0
 
 func _panorama(view: Vector2, offset: float) -> bool:
 	var t := Art.tex("parallax")
@@ -283,7 +296,7 @@ func _panorama(view: Vector2, offset: float) -> bool:
 		return false
 	var h := view.y * PANORAMA_SCALE
 	var w := h * (float(t.get_width()) / maxf(float(t.get_height()), 1.0))
-	var top := _base(view, PANORAMA_RATE) - h * PANORAMA_HORIZON
+	var top := _panorama_top(view, h)
 	var span := _visible_range(offset, w, view.x)
 	for i in range(span[0], span[1] + 1):
 		var x := float(i) * w - offset

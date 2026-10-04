@@ -253,8 +253,8 @@ func _test_the_pit() -> void:
 	var r: Runner = arena.runners[0]
 	_give_to(m, 0, [1, 2])
 	check(_held_of(m, 0, [1, 2]) == 2, "the runner is carrying the two stars")
-	# Down the middle of 1-1's pit (x 1220..1360), below its edges.
-	r.global_position = Vector2(1290.0, 500.0)
+	# Down the middle of 1-1's pit (x 1000..1140), below its column of wind.
+	r.global_position = Vector2(1070.0, 700.0)
 	r.velocity = Vector2.ZERO
 	await _tick(60)
 	check(m.ledger.count_held_by(0) == 0, "falling into a pit costs the whole hand")

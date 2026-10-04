@@ -13,6 +13,8 @@ var level: LevelBuilder = null
 var camera: Camera2D = null
 var scope: Scope = null
 var hud: Hud = null
+## The やめる button and its question, on every stage.
+var quit: QuitConfirm = null
 var sky: CanvasLayer = null
 var preview: Node2D = null
 var fx: Node2D = null
@@ -139,6 +141,16 @@ func _ready() -> void:
 		boss_bar.name = "BossBar"
 		add_child(boss_bar)
 
+	quit = QuitConfirm.new()
+	quit.name = "Quit"
+	quit.input_hub = input_hub
+	quit.on_quit = quit_stage
+	quit.shown_when = func() -> bool:
+		return not _home_active and not runner.cleared \
+			and get_node_or_null("NetPanel") == null
+	add_child(quit)
+	input_hub.gui_passthrough = quit.claims
+
 	Events.runner_died.connect(_on_runner_died)
 	Events.stage_cleared.connect(_on_stage_cleared)
 	Events.checkpoint_reached.connect(_on_checkpoint)
@@ -146,12 +158,17 @@ func _ready() -> void:
 	GameState.reset_run(Stage.start())
 	Clock.reset(0)
 
-	# Offline until someone chooses otherwise, so nothing about the existing
-	# shared-screen game changes for anyone who ignores this.
-	var panel := NetPanel.new()
-	panel.name = "NetPanel"
-	panel.main = self
-	add_child(panel)
+	# A room carried over from the last stage (CoopRoom) goes straight into
+	# play: the host chose this stage for both of them.
+	if CoopRoom.state == CoopRoom.State.STARTING:
+		CoopRoom.attach.call_deferred(self)
+	else:
+		# Offline until someone chooses otherwise, so nothing about the
+		# existing shared-screen game changes for anyone who ignores this.
+		var panel := NetPanel.new()
+		panel.name = "NetPanel"
+		panel.main = self
+		add_child(panel)
 	# The runner is always the painted 2D LIRA, so the painted 2D stages need
 	# no 3D view at all.
 	if Stage.world_3d():
@@ -483,6 +500,11 @@ func _offer_reconnect() -> void:
 	add_child(panel)
 
 func _process(delta: float) -> void:
+	if quit != null:
+		var online := net_mode != Net.OFFLINE
+		quit.pause_while_asking = not online
+		quit.detail = tr("ステージ選択に戻ります。接続はそのままです") if online \
+			else tr("スタート画面に戻ります")
 	if _respawn_timer >= 0.0:
 		_respawn_timer -= delta
 		if _respawn_timer <= 0.0:
@@ -598,6 +620,23 @@ func _on_stage_cleared(_stats: Dictionary) -> void:
 		input_hub.move_axis_y = 0.0
 		input_hub.set_listening(false)
 		input_hub.set_process(false)
+
+## やめる, or the button on the clear panel. Online the pair go back to the
+## stage screen together and the room stays (CoopRoom); offline it is the
+## start screen, as a fresh launch would show it.
+func quit_stage() -> void:
+	if net_mode != Net.OFFLINE and CoopRoom.go_to_menu(self):
+		return
+	_end_any_session()
+	get_tree().reload_current_scene()
+
+func _room_menu_from_partner() -> void:
+	if net_mode != Net.OFFLINE:
+		CoopRoom.go_to_menu(self, false)
+
+func _stage_go_from_host(which: int) -> void:
+	if net_mode == Net.CLIENT:
+		CoopRoom.follow_into(self, which)
 
 func _on_runner_died(_cause: String) -> void:
 	if runner.cleared:

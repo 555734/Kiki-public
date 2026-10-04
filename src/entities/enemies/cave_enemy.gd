@@ -17,6 +17,7 @@ func _ready() -> void:
 	hp = 2 if kind == "burrower" else 1
 	super._ready()
 	_origin = global_position
+	_last_x = global_position.x
 	if kind == "bat" or kind == "beetle":
 		collision_mask = 0
 	z_index = 5
@@ -53,6 +54,20 @@ func _physics_process(delta: float) -> void:
 	if is_on_wall() or absf(global_position.x - _origin.x) > patrol_half_width \
 			or (is_on_floor() and not _ground_ahead()):
 		direction = -direction
+	_redraw_if_near()
+
+## The guest's copy does not simulate (the host's snapshots place it), so its
+## wings and bounce are kept going here, and it faces the way it is moving.
+var _last_x: float = 0.0
+
+func _process(delta: float) -> void:
+	if Clock.is_host or is_physics_processing():
+		return
+	phase += delta
+	var moved := global_position.x - _last_x
+	_last_x = global_position.x
+	if absf(moved) > 0.5:
+		direction = 1 if moved > 0.0 else -1
 	_redraw_if_near()
 
 func _redraw_if_near() -> void:

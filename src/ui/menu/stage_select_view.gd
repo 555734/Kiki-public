@@ -31,7 +31,14 @@ func _init(owner_panel, on_page: int) -> void:
 	add_theme_constant_override("separation", 12)
 
 	add_child(UiKit.heading("—  ステージを選択  —", 30, Color("073f89")))
-	add_child(UiKit.heading("遊ぶステージをタップ。左右にスワイプして切り替え。", 19, Color("37638d")))
+	# Between stages of a kept room (CoopRoom) this is the room's stage list.
+	if CoopRoom.holding():
+		add_child(_room_bar())
+	else:
+		if not CoopRoom.parting_words.is_empty():
+			add_child(UiKit.heading(CoopRoom.parting_words, 19, Color("b8420f")))
+			CoopRoom.parting_words = ""
+		add_child(UiKit.heading("遊ぶステージをタップ。左右にスワイプして切り替え。", 19, Color("37638d")))
 	add_child(UiKit.spacer(8))
 
 	row = HBoxContainer.new()
@@ -72,9 +79,28 @@ func _init(owner_panel, on_page: int) -> void:
 	var versus := UiKit.action_button("⚔  2対2 たいせん", panel._on_versus)
 	versus.custom_minimum_size = Vector2(240, 54)
 	versus.add_theme_color_override("font_color", Color("b8420f"))
+	# Not from inside a co-op room: that would be leaving it by another door.
+	versus.visible = not CoopRoom.holding()
 	navigation.add_child(versus)
 
-	add_child(UiKit.heading("カードを選ぶと、遊び方と難易度の画面へ進みます", 18, Color("416b91")))
+	if not CoopRoom.holding():
+		add_child(UiKit.heading("カードを選ぶと、遊び方と難易度の画面へ進みます", 18, Color("416b91")))
+
+## The room this pair are still in, between stages: its code, who chooses,
+## and the one way out of it.
+func _room_bar() -> HBoxContainer:
+	var bar := HBoxContainer.new()
+	bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	bar.add_theme_constant_override("separation", 18)
+	var text := tr("ルーム %s に接続中") % RoomBanner.spaced(CoopRoom.room_code)
+	text += "  ·  " + (tr("次のステージを選んでください") if CoopRoom.is_host
+		else tr("ホストがステージを選んでいます…"))
+	bar.add_child(UiKit.heading(text, 19, Color("0b6b3a")))
+	var leave := UiKit.action_button("接続を切る", panel._on_leave_room)
+	leave.custom_minimum_size = Vector2(180, 48)
+	leave.add_theme_color_override("font_color", Color("b8420f"))
+	bar.add_child(leave)
+	return bar
 
 static func page_count() -> int:
 	return ceili(float(StageCards.all().size()) / PER_PAGE)
@@ -97,6 +123,8 @@ func refresh() -> void:
 		button.add_theme_stylebox_override("normal",
 			UiKit.stage_style(accent if selected else Color.WHITE, 0.30 if selected else 0.94,
 				18, 5 if selected else 2))
+		# In a kept room only the host chooses; the guest's cards show what is coming.
+		button.disabled = CoopRoom.holding() and not CoopRoom.is_host
 
 func _card(info: Dictionary) -> Button:
 	var number: String = info["number"]

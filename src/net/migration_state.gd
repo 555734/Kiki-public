@@ -7,6 +7,13 @@ const VERSION := 1
 const MAX_AGE_MS := 500
 const SEND_EVERY_TICKS := 15 # 250 ms at 60 Hz; leaves transit budget.
 const CHUNK_BYTES := 1000
+## A captured frame is var_to_bytes, deflated: 1-8's frame (110 coins, 52
+## enemies) is 19 KB raw -- twenty reliable packets every 250 ms -- and 2 KB
+## deflated, in under half a millisecond. Marked so decode() can still read an
+## uncompressed frame.
+const PACKED_MAGIC := 0x015A4D4B   ## "KMZ" + 1, little-endian
+## No real frame comes near this; a corrupt size must not allocate gigabytes.
+const MAX_RAW_BYTES := 1 << 20
 
 static func capture(main: Node2D) -> PackedByteArray:
 	var state := {
@@ -45,9 +52,24 @@ static func capture(main: Node2D) -> PackedByteArray:
 					"reached", "birth_tick", "death_tick", "placed_tick",
 					"wounded_this_stagger", "_shock_spent", "armed", "kind"] ))
 		state["groups"][group] = rows
-	return var_to_bytes(state)
+	return pack(var_to_bytes(state))
+
+static func pack(raw: PackedByteArray) -> PackedByteArray:
+	var b := StreamPeerBuffer.new()
+	b.big_endian = false
+	b.put_u32(PACKED_MAGIC)
+	b.put_u32(raw.size())
+	b.put_data(raw.compress(FileAccess.COMPRESSION_DEFLATE))
+	return b.data_array
 
 static func decode(payload: PackedByteArray) -> Dictionary:
+	if payload.size() >= 8 and payload.decode_u32(0) == PACKED_MAGIC:
+		var raw_size := payload.decode_u32(4)
+		if raw_size <= 0 or raw_size > MAX_RAW_BYTES:
+			return {}
+		payload = payload.slice(8).decompress(raw_size, FileAccess.COMPRESSION_DEFLATE)
+		if payload.size() != raw_size:
+			return {}
 	var value = bytes_to_var(payload)
 	if typeof(value) != TYPE_DICTIONARY or int(value.get("version", -1)) != VERSION:
 		return {}
@@ -101,20 +123,37 @@ static func _node_state(node: Object, fields: Array) -> Dictionary:
 	if node == null or not is_instance_valid(node):
 		return {}
 	var out := {"name": String((node as Node).name) if node is Node else ""}
-	var properties := {}
-	for info in node.get_property_list():
-		properties[String(info["name"])] = true
+	var properties := _properties_of(node)
 	for key in fields:
 		if properties.has(key):
 			out[key] = node.get(key)
 	return out
 
-static func _apply_node_state(node: Object, values: Dictionary) -> void:
-	if node == null or not is_instance_valid(node):
-		return
+## Which properties a node has, by its class and script. get_property_list()
+## builds an array of dictionaries for every property the class has; calling it
+## for each of 1-8's 166 nodes was 20 ms of every capture, four times a second,
+## on the host only -- the host's stutter. Nodes of one script all answer the
+## same, so it is asked once per script.
+static var _property_cache: Dictionary = {}
+
+static func _properties_of(node: Object) -> Dictionary:
+	var script = node.get_script()
+	var key := "%s|%s" % [node.get_class(),
+		script.resource_path if script != null else ""]
+	if script != null and String(script.resource_path).is_empty():
+		key += "|%d" % script.get_instance_id()
+	if _property_cache.has(key):
+		return _property_cache[key]
 	var properties := {}
 	for info in node.get_property_list():
 		properties[String(info["name"])] = true
+	_property_cache[key] = properties
+	return properties
+
+static func _apply_node_state(node: Object, values: Dictionary) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var properties := _properties_of(node)
 	for key in values:
 		if key != "name" and properties.has(key):
 			node.set(key, values[key])

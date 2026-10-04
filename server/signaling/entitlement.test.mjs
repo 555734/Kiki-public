@@ -15,7 +15,7 @@
  * things only a real store account proves.
  */
 import { webcrypto } from "node:crypto";
-import { Entitlements, _internals } from "./entitlement.js";
+import { Entitlements, _internals, appleCheck, googleCheck, signingCheck } from "./entitlement.js";
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -135,6 +135,92 @@ async function main() {
     { platform: "android", purchase_token: "never-seen", puid: "device-d" });
   check(strangerDuringOutage.status === 503,
     "but an unseen receipt during an outage is 'try later', not 'you bought it'");
+
+  // --- iOS: a reinstall's restore -----------------------------------------
+  // StoreKit 1 gives every restore a NEW transaction id; the purchase is its
+  // original. The binding is keyed by the original, so a restore finds it.
+  storeAnswer = { ok: true, orderId: "1000000001" };
+  storeCalls = 0;
+  const bought = { platform: "ios", transaction_id: "1000000001",
+    original_transaction_id: "1000000001", puid: "phone-1" };
+  check(!!(await (await unit.verify(bought)).json()).token, "an iOS purchase produces a token");
+  const restored = { platform: "ios", transaction_id: "2000000099",
+    original_transaction_id: "1000000001", puid: "phone-1-reinstalled" };
+  const restoredAnswer = await (await unit.verify(restored)).json();
+  check(!!restoredAnswer.token && storeCalls === 1,
+    "a restore after reinstalling finds the purchase by its original id");
+  check(storage.map.get("bind:ios:1000000001").puid === "phone-1-reinstalled",
+    "and the purchase moves to the reinstalled app");
+  check(_internals.receiptKey({ platform: "ios", transaction_id: "1000000001" })
+      === "ios:1000000001",
+    "a purchase recorded before the original id was sent keeps its key");
+
+  // Apple is asked with the original id first, and the restore's own id only
+  // if Apple does not know the original.
+  const ec = await webcrypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pkcs8 = Buffer.from(await webcrypto.subtle.exportKey("pkcs8", ec.privateKey));
+  const ascPem = `-----BEGIN PRIVATE KEY-----\n${pkcs8.toString("base64")}\n-----END PRIVATE KEY-----`;
+  const apple = new Entitlements({ storage: fakeStorage() },
+    { ...env, APPLE_ASC_KEY: ascPem, APPLE_ASC_KEY_ID: "K", APPLE_ASC_ISSUER_ID: "I" });
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  const signed = (claims) => ({ signedTransactionInfo:
+    `x.${_internals.b64urlEncode(new TextEncoder().encode(JSON.stringify(claims)))}.y` });
+  globalThis.fetch = async (url) => {
+    const id = decodeURIComponent(String(url).split("/").pop());
+    asked.push(id);
+    if (id === "1000000001") {
+      return new Response(JSON.stringify(signed(
+        { productId: "full_unlock", originalTransactionId: "1000000001" })), { status: 200 });
+    }
+    return new Response("{}", { status: 404 });
+  };
+  const viaOriginal = await apple.askStore(restored);
+  check(viaOriginal.ok && asked[0] === "1000000001",
+    "Apple is asked about the original transaction first");
+  asked.length = 0;
+  const swapped = await apple.askStore({ platform: "ios",
+    original_transaction_id: "3000000000", transaction_id: "1000000001" });
+  check(swapped.ok && asked.includes("1000000001"),
+    "and about the restore's own id when Apple does not know the original");
+  asked.length = 0;
+  const nowhere = await apple.askStore({ platform: "ios", transaction_id: "4000000000" });
+  check(!nowhere.ok && nowhere.reason === "not-found",
+    "an id Apple knows nowhere is not found");
+  // The credential check: Apple's 404 for a made-up id means the key works.
+  globalThis.fetch = async () => new Response("{}", { status: 404 });
+  const good = await appleCheck(apple.env);
+  check(good.ok && good.statuses.production === 404, "apple-check passes with a working key");
+  globalThis.fetch = async () => new Response("{}", { status: 401 });
+  const bad = await appleCheck(apple.env);
+  check(!bad.ok && bad.statuses.sandbox === 401, "and reports Apple's 401 for a wrong key");
+  const none = await appleCheck(env);
+  check(!none.ok && none.missing.includes("APPLE_ASC_KEY"), "and names a missing setting");
+  globalThis.fetch = realFetch;
+
+  // --- health: the signing key's public half, and a missing Google account --
+  const signing = await signingCheck(env);
+  const spki = new Uint8Array(await webcrypto.subtle.exportKey("spki", publicKey));
+  const expected = Buffer.from(await webcrypto.subtle.digest("SHA-256", spki)).toString("hex");
+  check(signing.ok && signing.public_key_sha256 === expected,
+    "health reports the fingerprint of the signing key's public half");
+  check(!(await signingCheck({})).ok, "and a missing signing key");
+  const noGoogle = await googleCheck({});
+  check(!noGoogle.ok && noGoogle.missing.includes("GOOGLE_SERVICE_ACCOUNT"),
+    "and a missing Google service account");
+
+  // --- the record of recent requests ---------------------------------------
+  const logged = new Entitlements({ storage: fakeStorage() }, env);
+  logged.askStore = async () => ({ ok: false, reason: "not-found" });
+  await logged.fetch(new Request("https://entitlement.local/verify", { method: "POST",
+    body: JSON.stringify({ platform: "ios", transaction_id: "2000000099",
+      original_transaction_id: "1000000001", puid: "p" }) }));
+  const recent = (await (await logged.fetch(
+    new Request("https://entitlement.local/recent"))).json()).recent;
+  check(recent.length === 1 && recent[0].status === 402 && recent[0].transaction === "…0099"
+      && recent[0].original === "…0001" && !JSON.stringify(recent).includes("1000000001"),
+    "a refused restore is recorded, with only the ids' last digits");
 
   // --- developers ----------------------------------------------------------
   const clean = fakeStorage();

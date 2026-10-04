@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
 OUT="${OUT:-$PWD/build/android}"
 VERSION_CODE="${VERSION_CODE:?set the Google Play version code explicitly}"
-VERSION_NAME="${VERSION_NAME:-0.2.4}"
+VERSION_NAME="${VERSION_NAME:?set the public version name}"
 
 : "${GODOT_ANDROID_KEYSTORE_RELEASE_PATH:?set the stable Play upload keystore path}"
 : "${GODOT_ANDROID_KEYSTORE_RELEASE_USER:?set the Play upload key alias}"
@@ -21,6 +21,14 @@ esac
 	echo "Play upload keystore not found" >&2
 	exit 1
 }
+
+# The Play bundle must carry billing. The plugin is installed and enabled by
+# tools/install-iap-plugins.sh android; without it the export succeeds and the
+# game ships showing a price it cannot take.
+[ -f addons/GodotGooglePlayBilling/plugin.cfg ] \
+	|| { echo "Google Play Billing plugin is not installed (tools/install-iap-plugins.sh android)" >&2; exit 1; }
+grep -q 'GodotGooglePlayBilling/plugin.cfg' project.godot \
+	|| { echo "Google Play Billing plugin is not enabled in project.godot" >&2; exit 1; }
 
 mkdir -p "$OUT"
 rm -f "$OUT/side-sky-play.aab"
@@ -67,4 +75,11 @@ jarsigner -verify "$OUT/side-sky-play.aab" >/dev/null 2>&1 || {
 }
 bash tools/verify-play-aab-signature.sh "$OUT/side-sky-play.aab"
 unzip -tq "$OUT/side-sky-play.aab" >/dev/null
+# And check what was built, not only what was configured: the billing
+# permission in the manifest and the Play Billing library in the code.
+unzip -p "$OUT/side-sky-play.aab" base/manifest/AndroidManifest.xml | grep -aq 'com.android.vending.BILLING' \
+	|| { echo "the AAB's manifest has no com.android.vending.BILLING permission" >&2; exit 1; }
+unzip -p "$OUT/side-sky-play.aab" 'base/dex/*.dex' | grep -aq 'com/android/billingclient' \
+	|| { echo "the AAB has no Play Billing library" >&2; exit 1; }
+echo "   billing permission and library: present"
 echo "Store artifact: $OUT/side-sky-play.aab"

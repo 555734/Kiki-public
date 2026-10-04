@@ -17,6 +17,9 @@ var display: TextureRect
 var bindings: Dictionary = {}
 var surfaces: Dictionary = {}
 var hidden: Array = []
+## Painted visuals this view stopped animating, started again when it goes:
+## the versus arena swaps a 3D stage for a 2D one in place.
+var stopped: Array = []
 var coin_models: Array[MeshInstance3D] = []
 var arena_models: Array[Node3D] = []
 var elapsed := 0.0
@@ -185,6 +188,7 @@ func _register(node: Node) -> void:
 			else:
 				_hide(node.visual)
 				node.visual.set_process(false)
+				stopped.append(weakref(node.visual))
 
 func _body_size(node: Node2D, fallback: Vector2) -> Vector2:
 	for child in node.get_children():
@@ -392,3 +396,6 @@ func _exit_tree() -> void:
 	for record in hidden:
 		var node=record[0].get_ref()
 		if node!=null: node.self_modulate=record[1]
+	for reference in stopped:
+		var visual=reference.get_ref()
+		if visual!=null: visual.set_process(true)

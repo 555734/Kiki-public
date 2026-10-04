@@ -106,6 +106,9 @@ var _slot_finger: int:
 	get: return touch.slot.finger
 var _zoom_finger: int:
 	get: return touch.zoom.finger
+## Fingers whose gesture belongs to a real Button (gui_passthrough).
+var _gui_fingers: Dictionary:
+	get: return touch._gui_fingers
 ## Test seam. When true, _process stops polling the keyboard and mouse, so a
 ## headless capture or a unit test can write the intent fields directly. Nothing
 ## in the shipping game sets this.
@@ -117,6 +120,11 @@ var runner_driven_remotely: bool = false
 ## A versus runner always has the stick on the left; global co-op role-swap
 ## signals must never mirror the versus touch map independently of its HUD.
 var force_runner_left: bool = false
+## Screen points that belong to a real Button over the play field (the star
+## battle's スタート / やめる, the quit confirmation). The hub reads presses
+## before the GUI, so a press there is left alone -- down, drags and up -- or
+## the button never hears it. Unset where every control is painted.
+var gui_passthrough: Callable = Callable()
 
 func _ready() -> void:
 	process_priority = -100
