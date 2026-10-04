@@ -185,7 +185,7 @@ static func cards() -> Array[Dictionary]:
 		{"number": "1-6", "name": "THE SANDGLASS RUINS",
 			"blurb": "奇妙な敵が待つ砂漠の遺跡へ",
 			"which": Stage.Which.DESERT, "accent": Color("e6a44b"),
-			"art": preload("res://assets/menu/card_1_6.png"), "crop_top": 180.0},
+			"art": preload("res://assets/menu/card_1_6.png"), "crop_top": 330.0},
 		{"number": "1-7", "name": "THE CLOCKWORK TOWER",
 			"blurb": "仕掛けだらけの塔をふたりで登る",
 			"which": Stage.Which.TOWER, "accent": Color("8c8a78"),

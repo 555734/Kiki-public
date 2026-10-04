@@ -1,174 +1,180 @@
 extends RefCounted
-## Stage 1-6: a readable run of escalating platforming beats. Short jumps
-## teach the rhythm before the crumbling causeway, guardian gap, lift, blinking
-## steps and final sprint. Every free jump stays within the measured ~300px
-## sprint arc; the 550px gap is deliberately a guardian task.
+## Stage 1-6 climbs the sandglass ruins: a broken sandstone tower standing out
+## of the dunes, climbed ledge by ledge to the open sky at its top. Sand belts,
+## blinking cyan stones, falling causeway stones, lifts, the desert wind, and
+## the two co-op pieces the flat stage had -- mirage ledges the guardian's shot
+## makes solid, and arrow pads that throw the runner up and across.
+##
+## Built like 1-7 and 1-8 (four ledges a chamber, zig-zagging so every turn is
+## a sideways jump), a little longer than 1-5 and shorter than 1-7.
+##
+##   step rise 124px  -- under the 154px jump, through one-way ledges
+##   chambers 16      -- about 8,700px of climb
 
-const BASE := 900.0
-const START := Vector2(-1040, 350)
-const KILL_Y := 760.0
+const BASE_Y := 9400.0
+const CHAMBER_RISE := 540.0
+const STEP_RISE := 124.0
+const CHAMBERS := 16
+const LEDGE_W := 240.0
+const LEDGE_H := 50.0
+const KILL_Y := BASE_Y + 380.0
 
 static func kill_y_value() -> float: return KILL_Y
-static func start_position() -> Vector2: return START
+static func start_position() -> Vector2: return Vector2(-300, BASE_Y - 50.0)
 static func stage_name_value() -> String: return "THE SANDGLASS RUINS"
 static func stage_number_value() -> String: return "1-6"
-static func objective_value() -> String: return "Cross the desert ruins"
+static func objective_value() -> String: return "Climb the sandglass ruins"
 
-const SLABS := [
-	[-1400.0, -360.0, 400.0], # A: acceleration and first scarab
-	[-175.0, 190.0, 360.0],   # A: 40px step up
-	[375.0, 690.0, 300.0],    # A: 60px step up
-	[870.0, 1350.0, 300.0],   # B: hop past cactus and thorns
-	[1510.0, 1930.0, 250.0],  # B: rope bridge to high bank
-	[2100.0, 2350.0, 150.0],  # C: launch into crumbling causeway
-	[3070.0, 3650.0, 130.0],  # C: brief landing, then co-op crossing
-	[4200.0, 4660.0, 220.0],  # D: guardian landing
-	[5100.0, 5550.0, 20.0],   # E: top of the lift
-	[6270.0, 6740.0, 80.0],   # F: blinking-step landing
-	[6920.0, 7360.0, 170.0],  # G: downhill running jumps
-	[7540.0, 7960.0, 250.0],
-	[8140.0, 8630.0, 300.0],  # H: final falling causeway
-	[9430.0, 10300.0, 320.0], # H: goal bank
-]
+static func _top(chamber: int, step: int) -> float:
+	return BASE_Y - float(chamber) * CHAMBER_RISE - float(step + 1) * STEP_RISE
+
+static func _x(chamber: int, step: int) -> float:
+	if chamber == 0 and step == 0:
+		return -150.0
+	var path := [-280.0, -80.0, 115.0, 285.0] if chamber % 2 == 0 \
+		else [115.0, 285.0, 80.0, -115.0]
+	return path[step]
+
+## What each ledge is. The fourth of every chamber is always sandstone.
+static func _kind(chamber: int, step: int) -> String:
+	if step == 3 or chamber == 0:
+		return "stone"
+	match chamber % 6:
+		1: return "belt" if step == 0 else ("blink" if step == 1 else "stone")
+		2: return "fall" if step == 1 or step == 2 else "stone"
+		3: return "lift" if step == 1 else "stone"
+		4: return "wind" if step == 1 else ("blink" if step == 2 else "stone")
+		5: return "mirage" if step == 2 else "stone"
+		_: return "belt" if step == 1 else "stone"
+
+static func _last_top() -> float:
+	return _top(CHAMBERS - 1, 3)
+
+## The top of the ruin, a jump above the last ledge, open to the sky.
+static func _shelf() -> Rect2:
+	return Rect2(-460, _last_top() - 128.0, 760, 110)
 
 static func ground() -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for slab in SLABS:
-		out.append(Rect2(slab[0], slab[2], slab[1] - slab[0], BASE - slab[2]))
+	var out: Array[Rect2] = [Rect2(-520, BASE_Y, 1040, 360)]
+	for chamber in CHAMBERS:
+		for step in 4:
+			if _kind(chamber, step) == "stone":
+				out.append(Rect2(_x(chamber, step) - LEDGE_W * 0.5,
+					_top(chamber, step), LEDGE_W, LEDGE_H))
+	out.append(_shelf())
 	return out
 
-static func solid_decor() -> Array[Rect2]:
-	# The bridge is a real floor; its painted deck lines up with this rectangle.
-	return [Rect2(1350, 290, 160, 22)]
+static func solid_decor() -> Array[Rect2]: return []
+static func veils() -> Array[Dictionary]: return []
+
+static func hazards() -> Array[Dictionary]:
+	# None: on a climb every ledge is both a landing and a take-off, and a
+	# thorn strip on either end is where a runner has to put their feet.
+	return []
+
+static func enemies() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	# The climbing chaser from 1-3: it rises out of the dunes behind the pair.
+	out.append({"type": "sky_pursuer", "pos": start_position() + Vector2(0, 420),
+		"delay": 2.0, "speed": 200.0, "catchup": 470.0, "stun": 1.45,
+		"direction": Vector2.UP})
+	for chamber in range(1, CHAMBERS):
+		# Ground walkers on plain ledges: the scarab runs, the cactus creeps.
+		if _kind(chamber, 0) == "stone" and chamber % 2 == 0:
+			out.append({"type": "desert_enemy", "kind": "scarab",
+				"pos": Vector2(_x(chamber, 0), _top(chamber, 0) - 27.0), "patrol": 60.0})
+		elif _kind(chamber, 2) == "stone" and chamber % 3 == 1:
+			out.append({"type": "desert_enemy", "kind": "cactus",
+				"pos": Vector2(_x(chamber, 2), _top(chamber, 2) - 33.0), "patrol": 40.0})
+		# The floaters hang across the middle of a chamber, in the jump arcs.
+		if chamber % 4 == 2:
+			out.append({"type": "desert_enemy", "kind": "jelly",
+				"pos": Vector2(0, _top(chamber, 1) - 85.0), "patrol": 120.0})
+		elif chamber % 4 == 0:
+			out.append({"type": "desert_enemy", "kind": "fin",
+				"pos": Vector2(0, _top(chamber, 2) - 70.0), "patrol": 110.0})
+	return out
+
+static func gimmicks() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for chamber in CHAMBERS:
+		for step in 3:
+			var x := _x(chamber, step)
+			var top := _top(chamber, step)
+			match _kind(chamber, step):
+				"belt":
+					out.append({"type": "conveyor", "pos": Vector2(x, top + 13.0),
+						"span": Vector2(LEDGE_W, 26), "speed": 110.0, "flip": 3.2,
+						"dir": 1 if chamber % 2 == 0 else -1})
+				"blink":
+					out.append({"type": "blink", "pos": Vector2(x, top + 13.0),
+						"span": Vector2(LEDGE_W, 26), "beat": 1.6,
+						"colour": (chamber + step) % 2, "phase": float(chamber) * 0.31})
+				"fall":
+					out.append({"type": "crumble", "pos": Vector2(x, top + 18.0),
+						"span": Vector2(LEDGE_W - 30.0, 36)})
+				"lift":
+					out.append({"type": "moving_platform", "pos": Vector2(x, top + 13.0),
+						"span": Vector2(LEDGE_W - 20.0, 26), "travel": Vector2(0, -100),
+						"speed": 75.0, "phase": float(chamber) * 0.43})
+				"wind":
+					out.append({"type": "updraft", "pos": Vector2(x, top + 130.0),
+						"span": Vector2(170, 355)})
+				"mirage":
+					# The guardian shoots the sigil; the ghost ledge turns solid.
+					var id := "desert_mirage_%d" % chamber
+					out.append({"type": "switch", "id": id,
+						"pos": Vector2(_x(chamber, 1), _top(chamber, 1) - 80.0),
+						"hold": 10.0})
+					out.append({"type": "switch_bridge", "id": id,
+						"pos": Vector2(x, top + 13.0), "span": Vector2(LEDGE_W, 26)})
+	# Two arrow pads on the safe ledges halfway up: a big throw up and across
+	# for a runner who trusts it.
+	for chamber in [6, 12]:
+		out.append({"type": "trick_pad",
+			"pos": Vector2(_x(chamber, 3), _top(chamber, 3)),
+			"dir": -1 if chamber % 2 == 0 else 1, "forward": 200.0, "rise": 1050.0})
+	return out
+
+static func springs() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for chamber in [3, 9, 13]:
+		out.append(Vector2(_x(chamber, 3) + 55.0, _top(chamber, 3)))
+	return out
+
+static func checkpoints() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for chamber in range(1, CHAMBERS, 2):
+		out.append(Vector2(_x(chamber, 3), _top(chamber, 3) - 52.0))
+	return out
+
+static func goal() -> Vector2:
+	return Vector2(_shelf().position.x + 120.0, _shelf().position.y - 55.0)
+
+static func key_position() -> Vector2:
+	return Vector2(_shelf().end.x - 110.0, _shelf().position.y - 4.0)
+
+static func coins() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for chamber in CHAMBERS:
+		for step in 4:
+			out.append(Vector2(_x(chamber, step), _top(chamber, step) - 76.0))
+	return out
+
+static func crystals() -> Array[Vector2]: return []
 
 static func decor() -> Array[Dictionary]:
 	var out: Array[Dictionary] = [
-		{"type": "desert_arch", "pos": Vector2(-850, 400), "height": 235.0},
-		{"type": "desert_flower", "pos": Vector2(-1180, 400)},
-		{"type": "desert_crystal", "pos": Vector2(-420, 400)},
-		{"type": "desert_cactus", "pos": Vector2(515, 300)},
-		{"type": "desert_crystal", "pos": Vector2(1010, 300)},
-		{"type": "desert_arch", "pos": Vector2(1720, 250), "height": 190.0},
-		{"type": "desert_flower", "pos": Vector2(2240, 150)},
-		{"type": "desert_crystal", "pos": Vector2(3190, 130)},
-		{"type": "desert_cactus", "pos": Vector2(3500, 130)},
-		{"type": "desert_flower", "pos": Vector2(4320, 220)},
-		{"type": "desert_arch", "pos": Vector2(5320, 20), "height": 200.0},
-		{"type": "desert_crystal", "pos": Vector2(5400, 20)},
-		{"type": "desert_cactus", "pos": Vector2(6630, 80)},
-		{"type": "desert_flower", "pos": Vector2(7170, 170)},
-		{"type": "desert_crystal", "pos": Vector2(7770, 250)},
-		{"type": "desert_cactus", "pos": Vector2(8360, 300)},
-		{"type": "desert_arch", "pos": Vector2(9930, 320), "height": 210.0},
-		{"type": "desert_bridge", "rect": Rect2(1350, 290, 160, 22)},
+		{"type": "desert_arch", "pos": Vector2(-380, BASE_Y), "height": 235.0},
+		{"type": "desert_flower", "pos": Vector2(60, BASE_Y)},
+		{"type": "desert_cactus", "pos": Vector2(360, BASE_Y)},
+		{"type": "desert_arch", "pos": Vector2(150, _shelf().position.y), "height": 210.0},
+		{"type": "desert_crystal", "pos": Vector2(-300, _shelf().position.y)},
 	]
+	for chamber in range(1, CHAMBERS):
+		var x := _x(chamber, 3)
+		var top := _top(chamber, 3)
+		var kinds := ["desert_crystal", "desert_flower", "desert_cactus"]
+		out.append({"type": kinds[chamber % 3],
+			"pos": Vector2(x + (55.0 if chamber % 2 == 0 else -55.0), top)})
 	return out
-
-static func hazards() -> Array[Dictionary]:
-	# Two short strips make a deliberate hop on otherwise safe banks.
-	return [
-		{"pos": Vector2(1170, 292), "size": Vector2(110, 18)},
-		{"pos": Vector2(7830, 242), "size": Vector2(90, 18)},
-	]
-
-static func enemies() -> Array[Dictionary]:
-	return [
-		# The chaser from 1-2 and 1-4: it wakes behind the start and has to be
-		# outrun, or shot by the guardian to buy time.
-		{"type": "sky_pursuer", "pos": START + Vector2(-900, -15), "delay": 2.5,
-			"speed": 225.0, "catchup": 520.0, "stun": 1.4},
-		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(-610, 373), "patrol": 155.0},
-		{"type": "desert_enemy", "kind": "fin", "pos": Vector2(-75, 340), "patrol": 70.0},
-		{"type": "desert_enemy", "kind": "cactus", "pos": Vector2(1250, 267), "patrol": 60.0},
-		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(1740, 125), "patrol": 135.0},
-		{"type": "desert_enemy", "kind": "fin", "pos": Vector2(2220, 130), "patrol": 90.0},
-		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(2710, 0), "patrol": 100.0},
-		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(3390, 103), "patrol": 140.0},
-		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(3890, 45), "patrol": 115.0},
-		{"type": "desert_enemy", "kind": "cactus", "pos": Vector2(4470, 187), "patrol": 100.0},
-		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(4870, 45), "patrol": 90.0},
-		{"type": "desert_enemy", "kind": "fin", "pos": Vector2(5360, 0), "patrol": 100.0},
-		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(5900, -95), "patrol": 110.0},
-		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(6530, 53), "patrol": 100.0},
-		{"type": "desert_enemy", "kind": "cactus", "pos": Vector2(7700, 217), "patrol": 80.0},
-		{"type": "desert_enemy", "kind": "fin", "pos": Vector2(8380, 280), "patrol": 100.0},
-		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(8990, 160), "patrol": 100.0},
-		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(9840, 293), "patrol": 135.0},
-	]
-
-static func gimmicks() -> Array[Dictionary]:
-	return [
-		# C: keep moving. Each ledge falls 0.45s after contact.
-		{"type": "crumble", "pos": Vector2(2460, 165), "span": Vector2(110, 30)},
-		{"type": "crumble", "pos": Vector2(2670, 165), "span": Vector2(110, 30)},
-		{"type": "crumble", "pos": Vector2(2880, 155), "span": Vector2(110, 30)},
-		# A hidden causeway answers the guardian's shot in two beats. The ghost
-		# outlines make the surprise legible before anyone commits to the jump.
-		{"type": "switch", "id": "desert_mirage", "pos": Vector2(3500, -5),
-			"hold": 8.0},
-		{"type": "switch_bridge", "id": "desert_mirage", "pos": Vector2(3830, 205),
-			"span": Vector2(155, 26)},
-		{"type": "switch_bridge", "id": "desert_mirage", "pos": Vector2(4025, 205),
-			"span": Vector2(155, 26), "delay": 0.30},
-		# The arrow pad fires sideways over hazards and patrols, unlike a spring.
-		{"type": "trick_pad", "pos": Vector2(1080, 300)},
-		# E: wait for the lift, then make a 170px jump to the high bank.
-		{"type": "moving_platform", "pos": Vector2(4860, 205),
-			"span": Vector2(140, 26), "travel": Vector2(0, -190), "speed": 85.0},
-		# F: the cyan platforms from the board become a three-beat rhythm.
-		{"type": "blink", "pos": Vector2(5690, 20), "span": Vector2(120, 26),
-			"beat": 1.35, "colour": 0, "phase": 0.0},
-		{"type": "blink", "pos": Vector2(5890, 35), "span": Vector2(120, 26),
-			"beat": 1.35, "colour": 1, "phase": 0.45},
-		{"type": "blink", "pos": Vector2(6090, 60), "span": Vector2(120, 26),
-			"beat": 1.35, "colour": 0, "phase": 0.90},
-		# G: the belt changes direction before the downhill section.
-		{"type": "conveyor", "pos": Vector2(6520, 67),
-			"span": Vector2(260, 26), "speed": 120.0, "flip": 3.2},
-		{"type": "trick_pad", "pos": Vector2(8330, 300), "forward": 360.0},
-		# G: the runner reads the switches, the guardian reads the gate's mark
-		# and shoots the matching target. The high door blocks every normal jump.
-		{"type": "switch", "id": "desert_oracle", "pos": Vector2(7030, 95),
-			"sigil": 1, "hold": 8.0},
-		{"type": "switch", "id": "desert_oracle", "pos": Vector2(7150, 0),
-			"sigil": 2, "hold": 8.0},
-		{"type": "gate", "id": "desert_oracle", "pos": Vector2(7290, 55),
-			"span": Vector2(54, 230), "wants": 2},
-		# H: one last run across falling stones to the goal bank.
-		{"type": "crumble", "pos": Vector2(8790, 315), "span": Vector2(110, 30)},
-		{"type": "switch", "id": "desert_last_mirage", "pos": Vector2(8500, 185),
-			"hold": 9.0},
-		{"type": "switch_bridge", "id": "desert_last_mirage", "pos": Vector2(9000, 315),
-			"span": Vector2(120, 30)},
-		{"type": "crumble", "pos": Vector2(9210, 315), "span": Vector2(110, 30)},
-	]
-static func veils() -> Array[Dictionary]: return []
-static func checkpoints() -> Array[Vector2]:
-	return [Vector2(940, 250), Vector2(1800, 200), Vector2(3180, 80),
-		Vector2(4290, 170), Vector2(5180, -30), Vector2(6360, 30),
-		Vector2(6980, 120), Vector2(8220, 250), Vector2(9540, 270)]
-static func goal() -> Vector2: return Vector2(10150, 265)
-
-static func coins() -> Array[Vector2]:
-	return [
-		Vector2(-760, 340), Vector2(-590, 325),
-		Vector2(-280, 265), Vector2(-115, 235), Vector2(65, 245),
-		Vector2(285, 220), Vector2(450, 185), Vector2(610, 205),
-		Vector2(1130, 185), Vector2(1425, 205), Vector2(1580, 170),
-		Vector2(1780, 145), Vector2(2090, 80), Vector2(2300, 55),
-		Vector2(2460, 85), Vector2(2670, 85), Vector2(2880, 75),
-		Vector2(3220, 30), Vector2(3500, 45),
-		Vector2(3780, 20), Vector2(3910, -10), Vector2(4050, 20),
-		Vector2(4420, 120), Vector2(4790, 95), Vector2(4860, -5),
-		Vector2(5220, -80), Vector2(5440, -70),
-		Vector2(5690, -50), Vector2(5890, -35), Vector2(6090, -10),
-		Vector2(6410, 10), Vector2(6800, 20),
-		Vector2(7080, 70), Vector2(7260, 100),
-		Vector2(7550, 150), Vector2(7750, 170),
-		Vector2(8100, 210), Vector2(8480, 230),
-		Vector2(8790, 235), Vector2(9000, 235), Vector2(9210, 235),
-		Vector2(9680, 250), Vector2(9940, 235),
-	]
-
-static func crystals() -> Array[Vector2]: return []
-static func springs() -> Array[Vector2]: return [Vector2(100, 360)]

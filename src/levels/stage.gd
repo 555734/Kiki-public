@@ -95,7 +95,8 @@ static func water_y() -> float:
 ## Unit vector in the direction the stage asks the team to make progress.
 ## It is shared by camera framing and directional pursuit.
 static func progress_direction() -> Vector2:
-	return Vector2.UP if is_skyward_ruins() or is_tower() or is_cave() else Vector2.RIGHT
+	return Vector2.UP if is_skyward_ruins() or is_tower() or is_cave() \
+		or is_swamp() or is_desert() else Vector2.RIGHT
 
 ## Stages that only work with one player per device. On a shared screen there is
 ## nobody to hide anything from, so the whole design collapses into a walk.
@@ -488,6 +489,11 @@ static func needs_key() -> bool:
 static func key_position() -> Vector2:
 	if is_cave():
 		return _data("level_cave_data").key_position()
+	# The climbing stages keep the key on the top bank, beside the goal.
+	if is_swamp():
+		return _data("level_swamp_data").key_position()
+	if is_desert():
+		return _data("level_desert_data").key_position()
 	var s := start()
 	var g := goal()
 	var base_x := lerpf(s.x, g.x, 0.6)

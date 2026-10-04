@@ -83,7 +83,8 @@ func _build_ground_bodies() -> void:
 		shape.position = rect.position + rect.size * 0.5
 		# A vertical platformer needs pass-through ledges: the runner may jump
 		# through stone from below and land on its top on the way down.
-		shape.one_way_collision = Stage.is_cave() and rect.position.y < Stage.start().y
+		shape.one_way_collision = (Stage.is_cave() or Stage.is_swamp() or Stage.is_desert()) \
+			and rect.position.y < Stage.start().y
 		body.add_child(shape)
 	_static_root.add_child(body)
 
