@@ -1,0 +1,31 @@
+name: Store rehearsal
+
+# The store builds are manual, which is right -- they use the permanent Play
+# upload key, the App Store certificate and production EOS credentials -- but
+# it meant the most fragile path (StoreKit, provisioning, signing, the store
+# exports) was first exercised on release day. This walks both of them once a
+# week with the real secrets and uploads nothing: the signed Play bundle is not
+# kept, and the signed IPA stops before `app-store-connect publish`.
+on:
+  schedule:
+    - cron: "17 3 * * 1"   # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    uses: ./.github/workflows/android-play.yml
+    with:
+      # Never uploaded, so it need not exceed the last real version code.
+      version_code: "1"
+      version_name: rehearsal
+      rehearsal: true
+    secrets: inherit
+
+  ios:
+    uses: ./.github/workflows/ios.yml
+    with:
+      rehearsal: true
+    secrets: inherit

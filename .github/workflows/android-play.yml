@@ -13,6 +13,19 @@ on:
         description: "Public version name"
         required: true
         default: "0.9.0"
+  # store-rehearsal.yml: the same signed bundle, built and thrown away.
+  workflow_call:
+    inputs:
+      version_code:
+        required: true
+        type: string
+      version_name:
+        required: true
+        type: string
+      rehearsal:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -115,6 +128,7 @@ jobs:
         run: bash tools/build-android-play.sh
 
       - name: Upload store artifact
+        if: ${{ !inputs.rehearsal }}
         uses: actions/upload-artifact@v4
         with:
           name: side-sky-play-com.sasakiful.melos-${{ inputs.version_code }}

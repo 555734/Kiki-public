@@ -117,6 +117,15 @@ fi
 cp "$IPA" "$OUT/side-sky-appstore.ipa"
 IPA="$OUT/side-sky-appstore.ipa"
 
+# A rehearsal proves everything up to here -- StoreKit, the certificate and
+# profile, signing, the App Store export -- and stops before anything leaves
+# the runner. See .github/workflows/store-rehearsal.yml.
+if [ "${SKIP_UPLOAD:-0}" = "1" ]; then
+	echo "== rehearsal: signed App Store IPA built, not uploaded =="
+	ls -l "$IPA"
+	exit 0
+fi
+
 echo "== validate and upload to App Store Connect =="
 app-store-connect publish \
 	--path "$IPA" \

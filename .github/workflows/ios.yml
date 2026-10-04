@@ -9,10 +9,20 @@ on:
         required: false
         default: false
         type: boolean
+      rehearsal:
+        description: "Take the signed App Store path but stop before uploading"
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       submit_to_app_store_connect:
         description: "Sign and upload to App Store Connect"
+        required: false
+        default: false
+        type: boolean
+      rehearsal:
+        description: "Take the signed App Store path but stop before uploading"
         required: false
         default: false
         type: boolean
@@ -53,7 +63,7 @@ jobs:
           EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
           EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
           EOS_BUILD_VERSION: ${{ github.sha }}
-          EOS_ALLOW_PLACEHOLDER: ${{ inputs.submit_to_app_store_connect && 'false' || 'true' }}
+          EOS_ALLOW_PLACEHOLDER: ${{ (inputs.submit_to_app_store_connect || inputs.rehearsal) && 'false' || 'true' }}
         run: python3 tools/write-eos-credentials.py
 
       - name: Cache Godot and export templates
@@ -81,7 +91,7 @@ jobs:
       - name: Select iOS distribution mode
         id: asc
         env:
-          MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect }}
+          MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect || inputs.rehearsal }}
         run: |
           set -euo pipefail
           requested="${MANUAL_SUBMIT:-false}"
@@ -136,6 +146,8 @@ jobs:
 
       - name: Build, sign, and upload to App Store Connect
         if: steps.asc.outputs.ready == 'true'
+        env:
+          SKIP_UPLOAD: ${{ inputs.rehearsal && '1' || '0' }}
         run: |
           set -euo pipefail
           export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
@@ -175,7 +187,7 @@ jobs:
           if-no-files-found: error
 
       - name: Summarize App Store Connect submission
-        if: steps.asc.outputs.ready == 'true' && success()
+        if: steps.asc.outputs.ready == 'true' && success() && !inputs.rehearsal
         run: |
           {
             echo "## iOS submission accepted"
