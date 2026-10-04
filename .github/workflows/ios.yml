@@ -51,6 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Before the 17-minute StoreKit build, not after it.
+      - name: Release checks
+        if: inputs.submit_to_app_store_connect
+        run: bash tools/release-check.sh
+
       - name: Install pinned EOSG for macOS host and iOS target
         run: bash tools/install-eosg.sh macos ios
 

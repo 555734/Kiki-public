@@ -73,7 +73,7 @@ else
 		|| bad "android-play.yml defaults to version_name $play_version, not $VERSION"
 
 	codes=$(sed -n 's/^version\/code=\([0-9]*\)$/\1/p' export_presets.cfg | sort -u | tr '\n' ' ')
-	case "$(echo "$codes" | wc -w)" in
+	case "$(echo "$codes" | wc -w | tr -d " ")" in
 		1) ok "android versionCode $codes" ;;
 		*) bad "the Android presets disagree about versionCode: $codes" ;;
 	esac
