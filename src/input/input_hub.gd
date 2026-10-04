@@ -159,13 +159,13 @@ func _refresh_jump_held() -> void:
 
 ## Drive the RUNNER half of this hub from values the caller already has.
 ##
-## The seam a second player enters through. `_poll_desktop` reads the `p1_*`
+## The seam a second player enters through. `DesktopInput.poll` reads the `p1_*`
 ## actions, and an action fires for every device and every key bound to it, so
 ## two runners on one machine cannot be told apart that way -- the arrow keys
 ## are a second binding on `p1_left`, and a second runner driven from them would
 ## move the first as well.
 ##
-## Everything still goes through the same latches `_poll_desktop` uses, so the
+## Everything still goes through the same latches `DesktopInput.poll` uses, so the
 ## jump release sequence, the buffered press and the dash edge behave exactly as
 ## they do in co-op. A hub being driven should have `scripted = true` set, which
 ## is what stops it also reading the keyboard for itself.
@@ -209,12 +209,6 @@ const TAP_SLOP: float = 18.0
 ## multiple of its reach) a touch still belongs to the runner.
 const RUNNER_CONTROL_MARGIN: float = 1.35
 
-## A traced platform keeps the stroke's shape, simplified: points closer than
-## TRACE_SPACING are finger jitter, bends smaller than TRACE_TOLERANCE are
-## straightened, and at most TRACE_MAX_POINTS corners go over the wire.
-const TRACE_SPACING: float = 8.0
-const TRACE_TOLERANCE: float = 4.0
-const TRACE_MAX_POINTS: int = 16
 
 ## A finger index no touchscreen will produce, for the mouse to borrow.
 const MOUSE_FINGER: int = 90
@@ -300,71 +294,9 @@ func take_place_path() -> PackedVector2Array:
 	_place_path = PackedVector2Array()
 	return value
 
-## The platform a finished stroke describes: the stroke itself -- level,
-## sloped, upright or bent -- smoothed down to a few straight pieces and cut
-## off at TRACE_MAX_LENGTH. Returns [centre, path relative to centre], or []
-## when the stroke was too short to be anything but a tap.
+## The platform a finished stroke describes; see StrokePath.from_points.
 static func path_from_stroke(points: PackedVector2Array) -> Array:
-	if points.size() < 2:
-		return []
-	# Drop the jitter of a finger that is barely moving.
-	var spaced := PackedVector2Array([points[0]])
-	for i in range(1, points.size()):
-		if points[i].distance_to(spaced[spaced.size() - 1]) >= TRACE_SPACING:
-			spaced.append(points[i])
-	if spaced.size() < 2 and points[points.size() - 1] != points[0]:
-		spaced.append(points[points.size() - 1])
-	if spaced.size() < 2:
-		return []
-	# Cut at the longest a platform may be.
-	var capped := PackedVector2Array([spaced[0]])
-	var length := 0.0
-	for i in range(1, spaced.size()):
-		var step := spaced[i - 1].distance_to(spaced[i])
-		if length + step >= Balance.TRACE_MAX_LENGTH:
-			var left := Balance.TRACE_MAX_LENGTH - length
-			capped.append(spaced[i - 1] + (spaced[i] - spaced[i - 1]).normalized() * left)
-			length = Balance.TRACE_MAX_LENGTH
-			break
-		capped.append(spaced[i])
-		length += step
-	if length < Balance.TRACE_MIN_WIDTH:
-		return []
-	var tolerance := TRACE_TOLERANCE
-	var simple := _simplify(capped, tolerance)
-	while simple.size() > TRACE_MAX_POINTS:
-		tolerance *= 1.5
-		simple = _simplify(capped, tolerance)
-	var lo := simple[0]
-	var hi := simple[0]
-	for p in simple:
-		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
-		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
-	var centre := ((lo + hi) * 0.5).round()
-	var local := PackedVector2Array()
-	for p in simple:
-		local.append((p - centre).round())
-	return [centre, local]
-
-## Ramer-Douglas-Peucker: the fewest corners that stay within `tolerance`.
-static func _simplify(p: PackedVector2Array, tolerance: float) -> PackedVector2Array:
-	if p.size() <= 2:
-		return p
-	var worst := 0.0
-	var at := 0
-	for i in range(1, p.size() - 1):
-		var near := Geometry2D.get_closest_point_to_segment(p[i], p[0], p[p.size() - 1])
-		var d := near.distance_to(p[i])
-		if d > worst:
-			worst = d
-			at = i
-	if worst <= tolerance:
-		return PackedVector2Array([p[0], p[p.size() - 1]])
-	var left := _simplify(p.slice(0, at + 1), tolerance)
-	var right := _simplify(p.slice(at), tolerance)
-	left.remove_at(left.size() - 1)
-	left.append_array(right)
-	return left
+	return StrokePath.from_points(points)
 
 ## Did the press that take_slot just returned involve a drag? A tap means "you
 ## decide"; a drag means "here". Consume this in the same frame as take_slot.
@@ -469,47 +401,7 @@ func aim_world() -> Vector2:
 func _process(_delta: float) -> void:
 	if _has_touch or scripted:
 		return
-	_poll_desktop()
-
-func _poll_desktop() -> void:
-	if not runner_driven_remotely:
-		move_axis = Input.get_axis("p1_left", "p1_right")
-		move_axis_y = Input.get_axis("p1_up", "p1_down") if InputMap.has_action("p1_down") else 0.0
-		_jump_from_button = Input.is_action_pressed("p1_jump")
-		_refresh_jump_held()
-		dash_held = Input.is_action_pressed("p1_dash")
-		if Input.is_action_just_pressed("p1_jump"):
-			_latch_jump_press()
-		if Input.is_action_just_pressed("p1_dash"):
-			press_dash()
-
-	var viewport := get_viewport()
-	if viewport != null and owns_guardian_controls():
-		aim_at_screen(viewport.get_mouse_position())
-	if not owns_guardian_controls():
-		return
-	# No "commit" key. Each tool's own key uses that tool, which is the same
-	# rule as the touch buttons -- there is nothing left for a separate fire
-	# button, or a left click, to mean. Binding one to "whatever was used last"
-	# would be re-inventing the mode this was meant to remove, and on Android,
-	# where touch is emulated as a mouse, it is also how a tap on a menu once
-	# spent 30 gauge and dropped a slab on the runner's head.
-	if Input.is_action_just_pressed("p2_scope"):
-		press_scope()
-	for slot in range(1, TouchLayout.SLOT_COUNT + 1):
-		if Input.is_action_just_pressed("p2_slot_%d" % slot):
-			press_slot(slot)
-	if Input.is_action_just_pressed("p2_zoom_in"):
-		_zoom_latched = 1
-	if Input.is_action_just_pressed("p2_zoom_out"):
-		_zoom_latched = -1
-	if InputMap.has_action("p2_undo") and Input.is_action_just_pressed("p2_undo"):
-		_undo_latched = true
-	if InputMap.has_action("p2_ping") and Input.is_action_just_pressed("p2_ping"):
-		_ping_latched = 1
-	if Input.is_action_just_pressed("p2_count"):
-		_countdown_latched = true
-	pan_axis = Input.get_axis("p2_pan_left", "p2_pan_right")
+	DesktopInput.poll(self)
 
 # ---------------------------------------------------------------------- touch
 # The fingers themselves are TouchRouter's; see there for why touches are read
