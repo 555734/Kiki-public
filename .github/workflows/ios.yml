@@ -59,7 +59,7 @@ jobs:
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
       IOS_CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERTIFICATE_PRIVATE_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Before the 17-minute StoreKit build, not after it.
       - name: Release checks
@@ -82,7 +82,7 @@ jobs:
 
       - name: Cache Godot and export templates
         id: godot-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/godot
@@ -95,9 +95,9 @@ jobs:
           set -euo pipefail
           BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
           mkdir -p ~/godot "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
-          curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          bash tools/godot-download.sh "Godot_v${GODOT_VERSION}-stable_macos.universal.zip" /tmp/godot.zip
           unzip -q /tmp/godot.zip -d ~/godot
-          curl -sSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          bash tools/godot-download.sh "Godot_v${GODOT_VERSION}-stable_export_templates.tpz" /tmp/templates.tpz
           unzip -q -j /tmp/templates.tpz 'templates/ios*' \
             -d "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           rm -f /tmp/godot.zip /tmp/templates.tpz
@@ -142,7 +142,7 @@ jobs:
           set -euo pipefail
           # Homebrew Python is externally managed; install scons in a venv.
           python3 -m venv "$RUNNER_TEMP/scons-venv"
-          "$RUNNER_TEMP/scons-venv/bin/pip" install --quiet --disable-pip-version-check scons
+          "$RUNNER_TEMP/scons-venv/bin/pip" install --quiet --disable-pip-version-check scons==4.11.1
           echo "$RUNNER_TEMP/scons-venv/bin" >> "$GITHUB_PATH"
           export PATH="$RUNNER_TEMP/scons-venv/bin:$PATH"
           bash tools/install-iap-plugins.sh ios
@@ -155,7 +155,7 @@ jobs:
           "$RUNNER_TEMP/codemagic-cli/bin/pip" install --disable-pip-version-check "codemagic-cli-tools==${CODEMAGIC_CLI_VERSION}"
           echo "$RUNNER_TEMP/codemagic-cli/bin" >> "$GITHUB_PATH"
           if ! ruby -e 'require "xcodeproj"' >/dev/null 2>&1; then
-            gem install --user-install xcodeproj --no-document
+            gem install --user-install xcodeproj -v 1.28.1 --no-document
           fi
 
       - name: Build, sign, and upload to App Store Connect
@@ -187,7 +187,7 @@ jobs:
 
       - name: Collect build logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ios-build-logs
           path: |
@@ -197,7 +197,7 @@ jobs:
 
       - name: Upload unsigned fallback artifact
         if: steps.asc.outputs.ready != 'true' && success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: side-sky-ipa
           path: build/ios/side-sky-unsigned.ipa

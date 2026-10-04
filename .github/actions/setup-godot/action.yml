@@ -13,7 +13,7 @@ runs:
 
     - name: Cache Godot
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ~/godot-editor
         key: godot-editor-${{ inputs.version }}-stable
@@ -25,7 +25,7 @@ runs:
         set -euo pipefail
         BASE="https://github.com/godotengine/godot-builds/releases/download/${{ inputs.version }}-stable"
         mkdir -p ~/godot-editor
-        curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${{ inputs.version }}-stable_linux.x86_64.zip"
+        bash tools/godot-download.sh "Godot_v${{ inputs.version }}-stable_linux.x86_64.zip" /tmp/godot.zip
         unzip -q /tmp/godot.zip -d ~/godot-editor
         chmod +x ~/godot-editor/Godot_v${{ inputs.version }}-stable_linux.x86_64
         rm -f /tmp/godot.zip

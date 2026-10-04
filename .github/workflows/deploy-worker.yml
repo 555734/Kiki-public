@@ -25,12 +25,17 @@ jobs:
       run:
         working-directory: server/signaling
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - name: Entitlement tests
-        run: node entitlement.test.mjs
+      # The lockfile is the dependency tree, wrangler included: this job holds
+      # the Cloudflare token and the App Store key, so what runs here is the
+      # pinned copy, never whatever the newest 4.x happens to be today.
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Entitlement rules, co-op rooms and the versus relay
+        run: bash ../../tools/server-tests.sh
       - name: Install the App Store Server API key
         # A dedicated In-App Purchase key (APPLE_IAP_*) when there is one;
         # otherwise the App Store Connect upload key (ASC_*), which the owner
@@ -65,16 +70,16 @@ jobs:
             echo "no Apple key in the secrets; leaving the Worker's as it is (health below decides)"
             exit 0
           fi
-          printf '%s' "$APPLE_IAP_KEY" | npx --yes wrangler@4 secret put APPLE_ASC_KEY
-          printf '%s' "$APPLE_IAP_KEY_ID" | npx --yes wrangler@4 secret put APPLE_ASC_KEY_ID
-          printf '%s' "$APPLE_IAP_ISSUER_ID" | npx --yes wrangler@4 secret put APPLE_ASC_ISSUER_ID
+          printf '%s' "$APPLE_IAP_KEY" | npx --no-install wrangler secret put APPLE_ASC_KEY
+          printf '%s' "$APPLE_IAP_KEY_ID" | npx --no-install wrangler secret put APPLE_ASC_KEY_ID
+          printf '%s' "$APPLE_IAP_ISSUER_ID" | npx --no-install wrangler secret put APPLE_ASC_ISSUER_ID
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN secret is missing" >&2; exit 1; }
-          npx --yes wrangler@4 deploy
+          npx --no-install wrangler deploy
 
       # Everything purchase verification needs, checked against the deployed
       # Worker: Apple's and Google's APIs accept our credentials, and the
