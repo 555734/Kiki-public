@@ -148,6 +148,24 @@ jobs:
             echo "PLAY_SERVICE_ACCOUNT_JSON is not set: the bundle was built but not sent to Google Play" >&2
             exit 1
           }
+          # Names what is wrong with the pasted key, never its values.
+          python3 - <<'PY'
+          import json, os, sys
+          try:
+              key = json.loads(os.environ["PLAY_SERVICE_ACCOUNT_JSON"])
+          except Exception as err:
+              sys.exit(f"PLAY_SERVICE_ACCOUNT_JSON is not valid JSON (pasted only part of the file?): {type(err).__name__}")
+          problems = []
+          if key.get("type") != "service_account":
+              problems.append("type is not service_account")
+          if key.get("client_email") != "melos-play-purchase-verifier@taiman-akinator.iam.gserviceaccount.com":
+              problems.append("client_email is not the Play purchase-verifier account")
+          if "-----BEGIN PRIVATE KEY-----" not in key.get("private_key", ""):
+              problems.append("private_key is missing or incomplete")
+          if problems:
+              sys.exit("PLAY_SERVICE_ACCOUNT_JSON: " + "; ".join(problems))
+          print("service account key looks complete")
+          PY
 
       - name: Upload to Google Play (production, sent for review)
         if: inputs.submit_to_play
