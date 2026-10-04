@@ -76,6 +76,10 @@ for target in "$@"; do
 				bash tools/build-ios-iap-plugin.sh
 			test -e "ios/plugins/inappstore.gdip" \
 				|| { echo "ios: ios/plugins/inappstore.gdip missing after build" >&2; exit 1; }
+			# Godot exports an iOS plugin only when the preset turns it on;
+			# without this line the App Store build has no store at all.
+			grep -q '^plugins/InAppStore=true$' export_presets.cfg \
+				|| { echo "ios: plugins/InAppStore=true is missing from export_presets.cfg" >&2; exit 1; }
 			echo "ios plugin installed" ;;
 		*) echo "unsupported target: $target" >&2; exit 2 ;;
 	esac
