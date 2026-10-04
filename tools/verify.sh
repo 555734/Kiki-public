@@ -41,6 +41,9 @@ bash tools/release-check.sh || fail=1
 step "shared entities do not ask which stage they are in (no engine needed)"
 python3 tools/check-stage-leaks.py || fail=1
 
+step "every test scene is classified, and every gated one is run (no engine needed)"
+python3 tools/check-test-manifest.py || fail=1
+
 step "import pass (registers class_name globals)"
 # --editor --quit quits on the first frame, which is BEFORE the filesystem
 # scan finishes ("Scan thread aborted"), so on a fresh clone it leaves some
@@ -211,6 +214,64 @@ step "boot the coin battle headlessly"
 # menu does not reach this (P5). Booted anyway, because a scene that only ever
 # runs by hand is a scene that is broken for a fortnight before anyone notices.
 run_checked "$GODOT" --headless --path . --quit-after 300 res://src/arena/arena_main.tscn
+
+# Probes that only the Android smoke list used to run, and a few that nothing
+# ran at all (test/manifest.txt says which every scene is). A test that no
+# gate runs is a test that has already stopped meaning anything.
+
+step "the 1-8 cave"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/cave_stage_probe.tscn
+
+step "the 1-6 desert climb"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_stage_probe.tscn
+
+step "the 1-7 tower"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/tower_stage_probe.tscn
+
+step "the 1-2 village"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/horror_stage_probe.tscn
+
+step "the chasers on every stage"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_chaser_probe.tscn
+
+step "the black-hole chaser"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/chaser_probe.tscn
+
+step "a co-op room that outlives its stage"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/coop_room_probe.tscn
+
+step "EOS lobby and transport contracts"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/eos_contract_probe.tscn
+
+step "a cleared stage leaves the guardian's constructs alone"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/guardian_clear_probe.tscn
+
+step "every string has a translation"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/locale_probe.tscn
+
+step "the purchase screen fits"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/purchase_layout_probe.tscn
+
+step "the quit question"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/quit_confirm_probe.tscn
+
+step "the stage menu: pages, swipes, locks"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_menu_probe.tscn
+
+step "the HUD's guardian controls and the stage-clear button"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/hud_flow_probe.tscn
+
+step "StoreKit wiring on iOS"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/iap_ios_probe.tscn
+
+step "a remote runner's jump presses survive the wire"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/remote_jump_probe.tscn
+
+step "the room-code field"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/room_code_probe.tscn
+
+step "controls stay inside the safe area"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/safe_area_probe.tscn
 
 if [ "$SHOTS" = "1" ]; then
 	if command -v xvfb-run >/dev/null 2>&1; then

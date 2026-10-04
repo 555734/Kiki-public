@@ -6,6 +6,12 @@ extends Area2D
 
 @export var index: int = 1
 
+## Where the post meets the ground, below the node.
+const FOOT_Y := 76.0
+## The checkpoint art's transparent margin under the post, in drawn pixels
+## (6 rows of 176, at 152 tall).
+const SPRITE_PAD := 6.0 * 152.0 / 176.0
+
 var reached: bool = false
 var _pulse: float = 0.0
 var _flash: float = 0.0
@@ -39,9 +45,16 @@ func _draw() -> void:
 	var base := Vector2(0, 74.0)
 	if Balance.USE_TEXTURES and Art.tex("checkpoint_off") != null:
 		var wave := sin(_pulse * 2.6) * 0.03
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0 + wave, 1.0 - wave))
+		# Squash and stretch about the foot of the post, not the node's origin:
+		# scaled about the origin the base rose off the grass and sank into it
+		# with every breath.
+		var sy := 1.0 - wave
+		draw_set_transform(Vector2(0.0, FOOT_Y * (1.0 - sy)), 0.0, Vector2(1.0 + wave, sy))
+		# The art has 6 transparent rows under the post (of 176): the sprite's
+		# box goes that much lower so the post itself stands on the grass. The
+		# seating probe measured the gap at ~5px floating.
 		Art.draw_sprite(self, "checkpoint_on" if reached else "checkpoint_off",
-			Vector2(0.0, 76.0), 152.0)
+			Vector2(0.0, FOOT_Y + SPRITE_PAD), 152.0)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		if reached and _flash > 0.0:
 			draw_circle(Vector2(0, -60.0), 10.0 + _flash * 34.0,

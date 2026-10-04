@@ -1,30 +1,20 @@
 name: Godot checks
 
 # The whole of tools/verify.sh -- logic tests, the stage and versus probes,
-# movement, agreement between two devices -- and the per-stage draw-call
-# budget. The mobile workflows run a short smoke list before packaging; this
+# movement, agreement between two devices, and (--shots, under xvfb) the UI
+# driven by real touches, seating and screenshots -- and the per-stage
+# draw-call budget. The mobile workflows run a short smoke list before packaging; this
 # is the full suite, on every push and pull request that touches the game.
 #
-# Checks that were already failing when this gate was added are listed in
-# test/known_failures.txt; only a new failure fails the run.
+# test/known_failures.txt lists, by exact message, any check allowed to fail
+# (none at present); anything else fails the run.
+# No paths filter: tools/verify.sh also checks export presets, the store
+# workflows, translations and the entitlement key (tools/release-check.sh), and
+# a filter that forgot one of those let a PR that broke it skip the gate.
 on:
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "assets/**"
-      - "test/**"
-      - "tools/**"
-      - "project.godot"
-      - ".github/workflows/godot.yml"
   pull_request:
-    paths:
-      - "src/**"
-      - "assets/**"
-      - "test/**"
-      - "tools/**"
-      - "project.godot"
-      - ".github/workflows/godot.yml"
   workflow_dispatch:
 
 permissions:
@@ -40,14 +30,14 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup-godot
         with:
           version: ${{ env.GODOT_VERSION }}
-      - name: tools/verify.sh
-        run: bash tools/verify.sh "$GODOT"
+      - name: tools/verify.sh --shots
+        run: bash tools/verify.sh "$GODOT" --shots
 
   performance:
     runs-on: ubuntu-latest
