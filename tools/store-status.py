@@ -91,8 +91,12 @@ def apple_status():
         if confirmed != description:
             raise RuntimeError("Apple description readback did not match the selected source")
         print("Confirmed Japanese description for Apple version " + version, flush=True)
+    response = apple.api("builds", {"filter[app]": app_id, "sort": "-uploadedDate", "limit": 5, "include": "preReleaseVersion"})
+    releases = {item["id"]: item["attributes"]["version"] for item in response.get("included", []) if item["type"] == "preReleaseVersions"}
+    builds = [{"id": b["id"], "build_number": b["attributes"]["version"], "processing": b["attributes"]["processingState"],
+        "version": releases.get(b["relationships"]["preReleaseVersion"]["data"]["id"])} for b in response["data"]]
     return {"app_id": app_id, "versions": [{"id": v["id"], "version": v["attributes"]["versionString"],
-        "state": v["attributes"]["appStoreState"]} for v in versions]}
+        "state": v["attributes"]["appStoreState"]} for v in versions], "recent_builds": builds}
 
 
 if __name__ == "__main__":
