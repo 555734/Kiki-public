@@ -70,7 +70,7 @@ func _ready() -> void:
 		var scene = scenes[i]
 		check(not scene.waiting(), "peer %d leaves waiting" % i)
 		check(scene.runners[i].is_physics_processing(), "peer %d local physics enabled" % i)
-		check(not scene.input.hubs[1].is_processing_unhandled_input(),
+		check(not scene.input.hubs[1].is_processing_input() and not scene.input.hubs[1].is_processing_unhandled_input(),
 			"peer %d unused hub cannot consume touch" % i)
 		check(scene.level._dynamic.get_child_count() == 0,
 			"peer %d builds the arena without 1-1's pickups or enemies" % i)
@@ -241,11 +241,22 @@ func _ready() -> void:
 	get_tree().quit(0 if failures.is_empty() else 1)
 
 func _touch(peer: int, finger: int, at: Vector2, pressed: bool) -> void:
+	var start := at
+	var stick: Dictionary = ControlLayout.layout("shared", Vector2(1280, 720), false)["stick"]
+	var steering := pressed and finger == 0 and at.distance_to(stick["center"]) < float(stick["radius"])
+	if steering:
+		start = stick["center"]
 	var event := InputEventScreenTouch.new()
 	event.index = finger
-	event.position = at
+	event.position = start
 	event.pressed = pressed
 	views[peer].push_input(event, true)
+	if steering:
+		var drag := InputEventScreenDrag.new()
+		drag.index = finger
+		drag.position = at
+		drag.relative = at - start
+		views[peer].push_input(drag, true)
 
 func _drag(peer: int, finger: int, from: Vector2, to: Vector2) -> void:
 	_touch(peer, finger, from, true)

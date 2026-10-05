@@ -12,6 +12,9 @@ func _draw() -> void:
 	var view := size
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
+	if Stage.current() == Stage.Which.ROYAL_ARENA:
+		_royal_background(view, scroll)
+		return
 	if Stage.is_horror() or Stage.is_sea() or Stage.is_swamp() or Stage.is_desert():
 		_split_land_background(view, scroll)
 		return
@@ -574,3 +577,14 @@ func _late_background(view: Vector2, camera_y: float) -> void:
 		var roof_y := view.y * 0.5 + (1080.0 - camera_y) * Balance.CAMERA_ZOOM
 		if roof_y > 0:
 			draw_rect(Rect2(0, 0, view.x, minf(roof_y, view.y)), Color("c6d9d7"))
+
+func _royal_background(view: Vector2, scroll: float) -> void:
+	var painting := Art.tex("parallax")
+	if painting == null: return
+	var pixels := Vector2(painting.get_size())
+	var factor := maxf(view.x / pixels.x, view.y / pixels.y) * 1.035
+	var extent := pixels * factor
+	var position := (view - extent) * 0.5
+	position.x += sin(scroll * 0.0003) * (extent.x - view.x) * 0.45
+	draw_texture_rect(painting, Rect2(position, extent), false)
+	draw_rect(Rect2(Vector2.ZERO, view), Color(0.75, 0.86, 1.0, 0.13))

@@ -185,7 +185,7 @@ func _go(how: int, code: String, seat: int) -> void:
 	VersusLaunch.link = VersusLaunch.Link.EOS
 	# A guest paints whatever the host chose; the WELCOME says which.
 	VersusLaunch.stage = _stage.get_item_id(_stage.selected) \
-		if how != VersusLaunch.How.JOIN else Stage.Which.GREENFIELD
+		if how != VersusLaunch.How.JOIN else VersusStageData.DEFAULT_THEME
 	get_tree().change_scene_to_file("res://src/versus/versus_main.tscn")
 
 # ------------------------------------------------------------------- widgets

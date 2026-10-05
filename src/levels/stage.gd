@@ -8,7 +8,7 @@ extends RefCounted
 
 
 ## New stages go on the END: the value is what travels in the handshake.
-enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE }
+enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE, ROYAL_ARENA }
 
 ## A fresh launch starts at 1-1. The start panel can switch to 1-2 before play.
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
@@ -38,7 +38,8 @@ static func current() -> int:
 static func world_3d() -> bool:
 	return Balance.USE_3D and _which != Which.GREENFIELD and _which != Which.HORROR \
 		and _which != Which.SEA and _which != Which.SWAMP and _which != Which.DESERT \
-		and _which != Which.TOWER and _which != Which.CAVE and _which != Which.SKYWARD_RUINS
+		and _which != Which.TOWER and _which != Which.CAVE and _which != Which.SKYWARD_RUINS \
+		and _which != Which.ROYAL_ARENA
 
 static func is_crossing() -> bool:
 	return _which == Which.CROSSING
@@ -155,6 +156,8 @@ static func start() -> Vector2:
 	return Level02Data.START if is_crossing() else Level01Data.START
 
 static func stage_name() -> String:
+	if _which == Which.ROYAL_ARENA:
+		return "ROYAL ARENA"
 	if is_cave():
 		return _data("level_cave_data").stage_name_value()
 	if is_tower():

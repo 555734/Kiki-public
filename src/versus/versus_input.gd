@@ -71,6 +71,7 @@ func make_hubs(parent: Node, local_shared: bool = true) -> void:
 		# before the local runner's hub ever receives it. scripted only disables
 		# desktop polling; it does not disable _unhandled_input.
 		if not shared_keyboard and i != 0:
+			hub.set_process_input(false)
 			hub.set_process_unhandled_input(false)
 		hubs.append(hub)
 

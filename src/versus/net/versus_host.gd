@@ -26,7 +26,7 @@ var world: ArenaStage = null
 
 var seed_value: int = 0
 ## Which stage's art the arena is painted in; told to every guest.
-var stage: int = Stage.Which.GREENFIELD
+var stage: int = VersusStageData.DEFAULT_THEME
 var tick: int = 0
 ## False until the match is under way: while people are still arriving, and
 ## through the countdown. Nothing is scored and no star appears before it.

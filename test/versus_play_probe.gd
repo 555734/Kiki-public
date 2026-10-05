@@ -23,6 +23,9 @@ func check(ok: bool, label: String) -> void:
 		print("  FAIL  %s" % label)
 
 func _ready() -> void:
+	VersusLaunch.clear()
+	VersusLaunch.how = VersusLaunch.How.SOLO
+	VersusLaunch.stage = Stage.Which.GREENFIELD
 	arena = load("res://src/versus/versus_main.tscn").instantiate()
 	add_child(arena)
 	# The scene polls the keyboard itself; nothing is pressed in a probe, so the

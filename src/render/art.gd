@@ -6,6 +6,57 @@ extends RefCounted
 const BASE := "res://assets/"
 
 const MANIFEST := {
+	"royal_arch_module_center": "versus/royal/architecture/arch_module_center.png",
+	"royal_arch_module_left": "versus/royal/architecture/arch_module_left.png",
+	"royal_broken_wall_set": "versus/royal/architecture/broken_wall_set.png",
+	"royal_pillar_short_left": "versus/royal/architecture/pillar_short_left.png",
+	"royal_pillar_short_right": "versus/royal/architecture/pillar_short_right.png",
+	"royal_pillar_tall_left": "versus/royal/architecture/pillar_tall_left.png",
+	"royal_pillar_tall_right": "versus/royal/architecture/pillar_tall_right.png",
+	"royal_side_castle_left": "versus/royal/architecture/side_castle_left.png",
+	"royal_side_castle_right": "versus/royal/architecture/side_castle_right.png",
+	"royal_royal_sky_kingdom": "versus/royal/background/royal_sky_kingdom.png",
+	"royal_banner_large": "versus/royal/decor/banner_large.png",
+	"royal_banner_medium": "versus/royal/decor/banner_medium.png",
+	"royal_banner_small": "versus/royal/decor/banner_small.png",
+	"royal_crest_round": "versus/royal/decor/crest_round.png",
+	"royal_crest_wide": "versus/royal/decor/crest_wide.png",
+	"royal_crest_winged": "versus/royal/decor/crest_winged.png",
+	"royal_crown_pedestal_large": "versus/royal/decor/crown_pedestal_large.png",
+	"royal_crown_pedestal_medium": "versus/royal/decor/crown_pedestal_medium.png",
+	"royal_gold_spires_set": "versus/royal/decor/gold_spires_set.png",
+	"royal_red_flag": "versus/royal/decor/red_flag.png",
+	"royal_royal_planter": "versus/royal/decor/royal_planter.png",
+	"royal_cloud_bank": "versus/royal/effects/cloud_bank.png",
+	"royal_cloud_large": "versus/royal/effects/cloud_large.png",
+	"royal_waterfall_narrow": "versus/royal/effects/waterfall_narrow.png",
+	"royal_waterfall_set": "versus/royal/effects/waterfall_set.png",
+	"royal_waterfall_tall": "versus/royal/effects/waterfall_tall.png",
+	"royal_waterfall_wide": "versus/royal/effects/waterfall_wide.png",
+	"royal_platform_long_bottom": "versus/royal/hologram/platform_long_bottom.png",
+	"royal_platform_long_top": "versus/royal/hologram/platform_long_top.png",
+	"royal_platform_medium_bottom": "versus/royal/hologram/platform_medium_bottom.png",
+	"royal_platform_medium_top": "versus/royal/hologram/platform_medium_top.png",
+	"royal_platform_short_bottom": "versus/royal/hologram/platform_short_bottom.png",
+	"royal_platform_short_top": "versus/royal/hologram/platform_short_top.png",
+	"royal_floating_island_castle": "versus/royal/scenery/floating_island_castle.png",
+	"royal_floating_island_large": "versus/royal/scenery/floating_island_large.png",
+	"royal_floating_island_lighthouse": "versus/royal/scenery/floating_island_lighthouse.png",
+	"royal_floating_island_small": "versus/royal/scenery/floating_island_small.png",
+	"royal_garden_foliage_set": "versus/royal/scenery/garden_foliage_set.png",
+	"royal_royal_garden_pillar": "versus/royal/scenery/royal_garden_pillar.png",
+	"royal_center_arena_emblem": "versus/royal/terrain/center_arena_emblem.png",
+	"royal_floating_platform_large_left": "versus/royal/terrain/floating_platform_large_left.png",
+	"royal_floating_platform_large_right": "versus/royal/terrain/floating_platform_large_right.png",
+	"royal_floating_platform_medium": "versus/royal/terrain/floating_platform_medium.png",
+	"royal_floating_platform_small": "versus/royal/terrain/floating_platform_small.png",
+	"royal_floating_rock_large": "versus/royal/terrain/floating_rock_large.png",
+	"royal_floating_rock_medium": "versus/royal/terrain/floating_rock_medium.png",
+	"royal_main_platform": "versus/royal/terrain/main_platform.png",
+	"royal_modular_ledge_set": "versus/royal/terrain/modular_ledge_set.png",
+	"royal_side_platform_left": "versus/royal/terrain/side_platform_left.png",
+	"royal_side_platform_right": "versus/royal/terrain/side_platform_right.png",
+
 	"s17_pendulum_ball": "split/1-7/gimmicks/pendulum_ball.png",
 	"s17_piston_head": "split/1-7/gimmicks/piston_head.png",
 	"s16_terrain_arch": "split/1-6/background/arch.png",
@@ -447,6 +498,11 @@ static func _prefer(keys: Array) -> String:
 static func _resolved_key(key: String) -> String:
 	# Resolve by stage before legacy skins so other stages retain their art.
 	match Stage.current():
+		Stage.Which.ROYAL_ARENA:
+			match key:
+				"parallax": return "royal_royal_sky_kingdom"
+				"moving_platform": return "royal_floating_platform_medium"
+				"platform": return "royal_platform_medium_top"
 		Stage.Which.HORROR:
 			match key:
 				"parallax": return "s12_background"

@@ -418,3 +418,11 @@ of its 12 boards. Labels, demo actors and panel borders are excluded; opaque
 blue/purple board backgrounds are keyed out of sprites. Small tower/cave
 images are enlarged with Lanczos, not generated. Source coordinates and keying
 are recorded in `tools/integrate_late_stage_assets.py`.
+
+## Owner-supplied Royal Arena pack (2026-10-05)
+
+`assets/versus/royal`: 50 PNGs from `Kiki_versus_royal_arena_assets.zip`,
+supplied by the project owner. The background is retained; sprite alpha is
+cleaned and cropped to remove neighbouring sheet fragments by
+`tools/integrate_royal_arena_assets.py`. No generated artwork is used.
+See `docs/royal-arena.md` for the runtime layout and mappings.
