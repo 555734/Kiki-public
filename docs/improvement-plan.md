@@ -79,7 +79,7 @@
 | CI の paths filter に穴 | 正しい | **修正**。Godot checks は paths filter なしで全 PR・main push に実行 |
 | テスト scene の未実行 | 正しい（18本） | **修正**。`test/manifest.txt` で全67 scene を分類し、gated なのに実行されていないものがあれば `verify.sh` が失敗する。Android の smoke にしかなかった12本と未参照の6本を verify に追加 |
 | supply-chain | 正しい | **修正**。Actions を SHA 固定、Godot を SHA-512 検証、scons / xcodeproj を版固定、Worker デプロイは lockfile の wrangler を使用 |
-| 性能ゲートは「悪化防止」のみ | 正しい | 地形の描画方式の改善で 1-5 / 1-7 を下げる（§7）。最終判断は実機（`docs/release-acceptance.md` C1・C2） |
+| 性能ゲートは「悪化防止」のみ | 正しい | **一部実施**。地形の板を1枚ずつの子ノードにして画面外を描かないようにし、レンガ・苔を種類ごとにまとめて描画。1-5 は 1,608→513、1-7 は 1,208→332、他も 1-6 を除き 61〜113 に下がり、上限もその値に下げた。1-5 はまだ目標（250〜300）を超えるので §7 で続ける。最終判断は実機（`docs/release-acceptance.md` C1・C2） |
 | 実機 E2E が不足 | 正しい | `docs/release-acceptance.md` に提出ごとの実機確認表を用意（自動化できないものだけを残す方針） |
 | 通信 version 分離が未実装 | 正しい | 計画のまま（§1）。旧版との互換を一度切るため、次の提出に合わせて実施 |
 | Stage の型安全化は半分 | 正しい | 計画のまま（§2） |
@@ -172,8 +172,12 @@ README・`docs/status.md`・コメント中の数値（ステージ数、draw ca
 
 `src/render/decor.gd`（720行）を `GreenfieldDecor` / `HorrorDecor` / `SeaDecor` …の
 テーマ別 renderer に分け、`Stage` のデータファイルが自分の renderer を指す形にする
-（§2 の Stage 表と同じ考え方）。その作業の中で、1-5（759 draw calls）と 1-7（1,203）
-を他のステージ並みに下げる。下げた分だけ `tools/perf_budgets.cfg` の上限も下げる。
+（§2 の Stage 表と同じ考え方）。
+
+重いステージ：地形の改善（2026-10-05）で 1-5 は 513、1-7 は 332 draw calls まで
+下がった（以前は 1,608 と 1,208）。1-6 は登攀の追加で 232。残りが何の描画かはまだ
+測っていない。内訳を測ったうえで、decor の分割と合わせて 1-5 を 300 未満にする。下げた分だけ `tools/perf_budgets.cfg`
+の上限も下げる。
 
 ## 8. リポジトリ軽量化（要判断）
 
