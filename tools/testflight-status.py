@@ -70,13 +70,14 @@ def main():
             if state["processing"] in ("FAILED", "INVALID"):
                 raise RuntimeError("Apple processing rejected the build")
             if state["processing"] == "VALID" and state["internal"] in ("IN_BETA_TESTING", "READY_FOR_BETA_TESTING"):
-                groups = api("builds/" + build["id"] + "/betaGroups")["data"]
-                if not groups and not assigned:
+                groups = [item for item in builds.get("included", []) if item["type"] == "betaGroups"]
+                if state["internal"] == "READY_FOR_BETA_TESTING" and not groups and not assigned:
                     assigned = True
-                    for group in api("betaGroups", {"filter[app]": app_id, "filter[isInternalGroup]": "true"})["data"]:
+                    available_groups = api("betaGroups", {"filter[app]": app_id, "filter[isInternalGroup]": "true"})["data"]
+                    for group in available_groups:
                         if not group["attributes"].get("hasAccessToAllBuilds", False):
                             api("betaGroups/" + group["id"] + "/relationships/builds", body={"data": [{"type": "builds", "id": build["id"]}]})
-                    groups = api("builds/" + build["id"] + "/betaGroups")["data"]
+                    groups = available_groups
                 state["beta_groups"] = [{"id": group["id"], "name": group["attributes"]["name"]} for group in groups]
                 output = Path("build/ios/testflight-status.json")
                 output.parent.mkdir(parents=True, exist_ok=True)
