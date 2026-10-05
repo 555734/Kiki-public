@@ -87,6 +87,8 @@ var _pan_drag: float = 0.0
 const PAN_DRAG_SCALE := 2.2
 
 var _has_touch: bool = false
+## Mouse-operated virtual controls stay visible without disabling the keyboard.
+var _has_pointer_controls: bool = false
 ## Every finger on the screen, and the gesture each one belongs to.
 var touch: TouchRouter = TouchRouter.new(self)
 ## Which gesture owns each finger, by role name. Read-only: for diagnostics and
@@ -493,5 +495,5 @@ func stick_visual() -> Dictionary:
 		"thumb": touch.stick.thumb,
 		"axis": move_axis,
 		"jumping": _jump_from_stick,
-		"touch_mode": _has_touch,
+		"touch_mode": _has_touch or _has_pointer_controls,
 	}

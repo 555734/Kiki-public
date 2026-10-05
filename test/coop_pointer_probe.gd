@@ -68,6 +68,7 @@ func exercise(mouse: bool, role: String, fixed: bool) -> void:
 	check(hub.move_axis > 0.9, label + " keeps steering across frames")
 	check(main.runner.global_position.x > before.x + 30.0, label + " moves the live runner")
 	check(hub._has_touch == not mouse, label + " preserves input source")
+	check(hub.stick_visual()["touch_mode"], label + " shows the virtual controls")
 	press(mouse, origin + Vector2(80, 0), false)
 	await get_tree().process_frame
 	check(hub.move_axis == 0.0 and hub._stick_finger == -1, label + " releases the stick")
