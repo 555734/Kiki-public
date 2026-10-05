@@ -276,7 +276,7 @@ godot --path . --rendering-method gl_compatibility --rendering-driver opengl3   
 - [x] `docs/privacy-policy.md` の連絡先を埋めた（a3506124@gmail.com）
 - [x] GitHub Pages を有効にし、ポリシーURLが**ブラウザで開けた**
 - [ ] ✅ 署名鍵が本番のもので、Worker に対になる秘密鍵が入っている
-- [ ] ✅ バージョンが 0.9.4 / versionCode 31 で全箇所一致している
+- [ ] ✅ バージョンが 0.9.5 / versionCode 32 で全箇所一致している
 - [ ] ✅ 課金プラグインがピン留めされ、CIで有効
 - [ ] Play Console: `full_unlock` を**管理対象アイテム（非消費型）**として作成し、**有効化**した
 - [ ] Play Console: サービスアカウントを作り、Worker に `GOOGLE_SERVICE_ACCOUNT` を入れた
@@ -306,3 +306,7 @@ App Review が 3.1.1 として扱う可能性は残る。
 天空の遺跡の浮島を見やすくし、海岸にフグ、火山にゴーレムを追加しました。
 ステージ1-5を溶岩の峡谷に変更しました。
 ゲームは従来どおり横画面で遊べます。
+
+## 0.9.5 更新内容
+
+ステージ1-6〜1-8の背景・敵・足場・罠を添付素材へ更新。横画面の実プレイと協力ギミックの動作を検証。

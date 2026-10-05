@@ -86,6 +86,9 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		_draw_cracks(r)
 		return
+	if Art.draw_late_platform(self, "crumble", r):
+		_draw_cracks(r)
+		return
 	if Stage.is_cave():
 		draw_rect(r, Color("a67b5b"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("c69b70"))

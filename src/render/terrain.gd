@@ -68,8 +68,10 @@ func _palette() -> Dictionary:
 	}
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
-	if Stage.is_horror() or Stage.is_skyward_ruins() or Stage.is_sea() or Stage.is_swamp():
+	if Stage.is_horror() or Stage.is_skyward_ruins() or Stage.is_sea() or Stage.is_swamp() or Stage.is_desert():
 		_draw_split_slab(rect, seed_index)
+		return
+	if Stage.is_tower() and Art.draw_late_platform(self, "terrain_ground", rect):
 		return
 	if Stage.is_tower():
 		_draw_tower_slab(rect, seed_index)
@@ -299,6 +301,9 @@ func _draw_split_slab(rect: Rect2, index: int) -> void:
 	elif Stage.is_swamp():
 		key = "s15_volcano_asset_04"
 		body = Color("512e34")
+	elif Stage.is_desert():
+		key = "s16_terrain_ground"
+		body = Color("b96e34")
 	if not Stage.is_skyward_ruins():
 		draw_rect(rect, body)
 	var texture := Art.tex(key)
@@ -310,7 +315,7 @@ func _draw_split_slab(rect: Rect2, index: int) -> void:
 	# broad cap (measured from alpha coverage) with the actual collision top.
 	var surface_rows := {"s12_ground_long_a": 45.0, "s12_ground_long_b": 39.0,
 		"s13_sky_asset_02": 35.0, "s13_sky_asset_05": 4.0,
-		"s14_coast_asset_02": 5.0, "s15_volcano_asset_04": 4.0}
+		"s14_coast_asset_02": 5.0, "s15_volcano_asset_04": 4.0, "s16_terrain_ground": 4.0}
 	var source_y: float = surface_rows[key]
 	var sections := maxi(1, int(ceilf(rect.size.x / 460.0)))
 	var width := rect.size.x / float(sections)

@@ -68,6 +68,9 @@ func _draw() -> void:
 		# An amber edge communicates the coming change without a rapid alpha
 		# strobe across a staircase full of these blocks.
 		c = Color("c7a987", 0.80) if Stage.is_tower() else Color("f4c488", 0.80)
+	if Art.draw_late_platform(self, "blink", Rect2(-span * 0.5, span), c):
+		if warning_now: draw_rect(Rect2(-span * 0.5, span), Color("ffc85b"), false, 3)
+		return
 	if Stage.is_skyward_ruins() and Art.draw_stretched(self, "s13_sky_asset_14", Rect2(-span * 0.5, span), c):
 		return
 	draw_rect(Rect2(-span * 0.5, span), c)

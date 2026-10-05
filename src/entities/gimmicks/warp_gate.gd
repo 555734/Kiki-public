@@ -32,6 +32,8 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
+	if Stage.is_tower() and Art.draw_stretched(self, "s17_warp_exit" if is_exit else "s17_warp", Rect2(-size * 0.5, size)):
+		return
 	if Stage.is_tower():
 		var frame := Rect2(-size.x * 0.5, -size.y * 0.5, size.x, size.y)
 		DrawUtil.rounded_rect(self, frame.grow(7), 23, Color("6b6057"))

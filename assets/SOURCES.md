@@ -409,3 +409,12 @@ a photograph of.
 outer padding trimmed by `tools/integrate_split_assets.py`. Active runtime
 mappings, placement, and verification are documented in `docs/split-assets.md`.
 The 1-2 through 1-5 menu cards were recaptured from the integrated stages.
+
+## Owner-supplied stage 1-6 through 1-8 pack (2026-10-05)
+
+`Kiki_stage_1-6_to_1-8_split.zip`, supplied directly by the project owner.
+129 runtime images in `assets/split/1-6` through `1-8` are deterministic crops
+of its 12 boards. Labels, demo actors and panel borders are excluded; opaque
+blue/purple board backgrounds are keyed out of sprites. Small tower/cave
+images are enlarged with Lanczos, not generated. Source coordinates and keying
+are recorded in `tools/integrate_late_stage_assets.py`.

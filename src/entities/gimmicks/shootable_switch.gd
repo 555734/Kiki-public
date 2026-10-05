@@ -90,6 +90,11 @@ func _draw_body() -> void:
 	var lit := Color("8b93a1") if _locked > 0.0 \
 		else (Color("ffd24a") if active else Color("8b93a1"))
 	var glow := 0.5 + 0.5 * sin(_pulse * (7.0 if active else 2.2))
+	if Art.late_pack() != "" and Art.draw_sprite(self, "switch_on" if active else "switch_off", Vector2(0, 26), 52, false, Color("a7ffff") if active else Color.WHITE):
+		if active:
+			var remaining := clampf(_remaining / maxf(hold_time, 0.001), 0, 1)
+			draw_arc(Vector2.ZERO, 30, -PI * 0.5, -PI * 0.5 + TAU * remaining, 40, Color("ffd24a"), 3)
+		return
 	if Stage.is_cave():
 		draw_circle(Vector2.ZERO, 24, Color("65717b"))
 		draw_circle(Vector2.ZERO, 18, Color("aaa99b"))

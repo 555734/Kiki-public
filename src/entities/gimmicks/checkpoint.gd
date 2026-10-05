@@ -41,7 +41,8 @@ func _draw() -> void:
 		var wave := sin(_pulse * 2.6) * 0.03
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0 + wave, 1.0 - wave))
 		Art.draw_sprite(self, "checkpoint_on" if reached else "checkpoint_off",
-			Vector2(0.0, 76.0), 152.0)
+			Vector2(0.0, 52.0) if Art.late_pack() != "" else Vector2(0.0, 76.0),
+			128.0 if Art.late_pack() != "" else 152.0)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		if reached and _flash > 0.0:
 			draw_circle(Vector2(0, -60.0), 10.0 + _flash * 34.0,

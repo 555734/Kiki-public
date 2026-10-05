@@ -1,5 +1,5 @@
 extends Node
-## Verify pack completeness and stage isolation across one process (Art caches).
+## Verify both packs, completeness and stage isolation across one process (Art caches).
 var failures: Array[String] = []
 
 func check(ok: bool, message: String) -> void:
@@ -14,14 +14,20 @@ func _ready() -> void:
 		if String(key).begins_with("s1"):
 			count += 1
 			check(Art.tex(key) != null, "imported: " + String(key))
-	check(count == 107, "all 107 supplied assets are registered")
+	check(count == 236, "all 236 supplied assets are registered")
 	for stage in [Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS,
-			Stage.Which.SEA, Stage.Which.SWAMP]:
+			Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
 		Stage.use(stage)
 		check(not Stage.world_3d(), "stage uses the new painted world")
 		var texture := Art.tex("parallax")
 		check(texture != null and texture.resource_path.contains("split/" + Stage.stage_number()),
 			"backdrop matches " + Stage.stage_number())
+	for stage in [Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
+		Stage.use(stage)
+		for key in ["parallax", "moving_platform", "ground_block", "spring", "switch_off", "goal"]:
+			check(Art.tex(key).resource_path.contains("split/" + Stage.stage_number()), "late-stage skin: " + key)
+		for key in ["lift", "crumble", "conveyor", "updraft"]:
+			check(Art.tex(Art.late_pack() + key) != null, "late-stage machinery: " + key)
 	Stage.use(Stage.Which.GREENFIELD)
 	check(Art.tex("parallax").resource_path == "res://assets/bg/parallax.png",
 		"switching back to 1-1 restores its original backdrop")

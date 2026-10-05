@@ -12,7 +12,7 @@ on:
       version_name:
         description: "Public version name"
         required: true
-        default: "0.9.4"
+        default: "0.9.5"
       submit_to_play:
         description: "Upload to the production track and send for review"
         required: false
@@ -118,6 +118,9 @@ jobs:
           "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/sea_stage_probe.tscn
           "$GODOT" --headless --path . --fixed-fps 60 res://test/swamp_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/tower_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/cave_stage_probe.tscn
 
       - name: Build signed Play bundle
         env:

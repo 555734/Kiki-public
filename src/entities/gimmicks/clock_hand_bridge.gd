@@ -29,6 +29,8 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		return
 	var body := Rect2(0, -13, length, 26)
+	if Stage.is_tower() and Art.draw_stretched(self, "s17_clock_hand", Rect2(-24, -20, length + 24, 40)):
+		return
 	draw_rect(body, Color("77664f"))
 	draw_rect(Rect2(0, -13, length, 7), Color("c5ab79"))
 	draw_rect(Rect2(0, 8, length, 5), Color("544d46"))

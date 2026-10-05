@@ -65,6 +65,8 @@ func _draw_body() -> void:
 	if has_meta("model_3d"): return
 	var lift := _open_amount * span.y * 0.92
 	var r := Rect2(-span.x * 0.5, -span.y * 0.5 - lift, span.x, span.y)
+	if (Stage.is_desert() or Stage.is_tower()) and Art.draw_stretched(self, "gate", r):
+		return
 	if Stage.is_cave():
 		draw_rect(Rect2(-span.x * 0.5 - 7, -span.y * 0.5 - 10,
 			span.x + 14, 12), Color("a88666"))

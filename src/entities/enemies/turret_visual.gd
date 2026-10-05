@@ -71,7 +71,10 @@ func _draw_painted(dir: Vector2) -> bool:
 		rot = PI * 0.5 * signf(dir.y)
 		flip = false
 	draw_set_transform(-dir * 4.0 * recoil, rot, Vector2.ONE)
-	var ok := Art.draw_sprite(self, "turret", Vector2(0.0, Balance.TURRET_SIZE.y * 0.5),
+	var key := "turret"
+	if Stage.is_tower(): key = "s17_turret_alert" if charge > 0.70 else "s17_turret_idle"
+	elif Stage.is_desert(): key = "s16_golem_2" if charge > 0.70 else "s16_golem_0"
+	var ok := Art.draw_sprite(self, key, Vector2(0.0, Balance.TURRET_SIZE.y * 0.5),
 		Balance.TURRET_SPRITE_H, flip)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if not ok:

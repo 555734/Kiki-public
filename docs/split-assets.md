@@ -48,3 +48,34 @@ It reports input/layout/network test failures on
 the unchanged public baseline. Its old test calls include `_unhandled_input`
 and removed layout dictionary keys. See `build/split-baseline-logic.log` and
 `build/split-logic-writable.log`; these failures are outside this asset change.
+
+## Stage 1-6 through 1-8 (0.9.5)
+
+Base public main: `95146a7`. The owner's second zip provides 12 composite
+boards; `tools/integrate_late_stage_assets.py` cuts 129 runtime images with
+recorded coordinates and blue/purple panel keying. The original zip is kept
+outside the repository. No labels or demo player figures become game sprites.
+
+- 1-6: sand banks, ruin arches, palms, crystals, scarab and mummy ground
+  patrols, flying birds, sand-sweeping scarabs, golem turret charge, mechanical
+  lifts/belts, stone crumble, springs, switches and golden exit portal.
+- 1-7: distant clock window, violet stone banks, banners/lamps/rails, charged
+  turrets and expanding mines, lift/clock-hand/gear platforms, blinking and
+  crumbling ledges, conveyors, wind columns, portals, sigil gates and three
+  clock-driven trap types.
+- 1-8: distant violet cavern, stone banks, crimson crystals, lamps and mine
+  rails, five enemy types with movement/airborne frames, cart lifts, timed
+  ledges, conveyors, wind columns, guardian-triggered bridges, rolling rocks,
+  dropping stalactites, key, checkpoint flags and exit marker.
+
+Stage enum IDs, networking, collision sizes, Clock phase functions, authored
+route and cooperative gate requirements stay stable. Decorations and carts
+hang below the true collision top. Cave scenery/terrain retain per-item
+culling. The roof still opens to daylight at the existing exit height.
+
+Validation: `desert_stage_probe`, `tower_stage_probe`, `cave_stage_probe`,
+`stage_menu_probe`, `versus_play_probe`, `split_assets_probe` (236 images from
+both packs), and `check_scripts`. Normal gameplay captures are 1280x720,
+including HUD, in `build/landscape/stage-1-{6,7,8}.png`; additional mid-route
+captures end in `-detail.png`. The menu cards intentionally remain portrait.
+Run `tools/capture_stage_cards.tscn -- --late-assets-only` to recapture them.

@@ -82,6 +82,9 @@ func holds(at: Vector2) -> bool:
 
 func _draw() -> void:
 	var rect := Rect2(-span.x * 0.5, -span.y, span.x, span.y)
+	if Art.late_pack() != "" and Art.draw_stretched(self, "sky_updraft", rect, Color(1, 1, 1, 0.70)):
+		_draw_motes(rect)
+		return
 	if Stage.is_cave():
 		draw_rect(rect, Color("82aeb5", 0.15))
 		for i in maxi(2, int(span.y / 90.0)):

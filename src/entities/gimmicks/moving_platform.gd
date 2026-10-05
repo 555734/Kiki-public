@@ -45,6 +45,8 @@ func position_at(at_tick: int) -> Vector2:
 
 func _draw() -> void:
 	var r := Rect2(-span * 0.5, span)
+	if Art.draw_late_platform(self, "lift", r):
+		return
 	if Stage.is_cave():
 		if visual_style == "minecart":
 			# Flat rim is the collision top; the wheels and rail are dressing below.

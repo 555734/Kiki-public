@@ -31,6 +31,8 @@ func _process(delta: float) -> void:
 		queue_free()
 
 func _draw() -> void:
+	if (Stage.is_desert() or Stage.is_cave()) and Art.draw_sprite(self, Art.late_pack() + "key", Vector2(0, 20), 48):
+		return
 	var bob := sin(_t * 3.0) * 5.0
 	var c := Vector2(0, -24 + bob)
 	draw_circle(c, 26.0, Color(1.0, 0.85, 0.3, 0.18 + 0.08 * sin(_t * 5.0)))

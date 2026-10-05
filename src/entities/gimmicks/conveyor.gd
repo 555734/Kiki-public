@@ -45,6 +45,9 @@ func warning() -> bool:
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
+	if Art.draw_late_platform(self, "conveyor", Rect2(-span * 0.5, span),
+			Color("ffd99b") if warning() else Color.WHITE, direction_at(Clock.tick) < 0):
+		return
 	draw_rect(Rect2(-span * 0.5, span),
 		Color("70695f") if Stage.is_tower() else
 		(Color("866046") if Stage.is_desert() else Color("2c3448")))

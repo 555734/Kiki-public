@@ -77,6 +77,16 @@ func _eyes(left: Vector2, right: Vector2) -> void:
 		draw_circle(at + Vector2(float(direction), 1), 2.3, Color("253044"))
 
 func _draw() -> void:
+	if Stage.is_cave():
+		var pose := "idle"
+		if kind == "bat" or kind == "beetle":
+			pose = "idle" if int(phase * 7.0) % 2 == 0 else "attack"
+		elif kind == "burrower": pose = "rise" if int(phase * 4.0) % 3 == 0 else "idle"
+		elif not is_on_floor(): pose = "jump"
+		else: pose = "idle" if int(phase * 5.0) % 2 == 0 else "move"
+		var heights := {"bat": 38.0, "beetle": 46.0, "slime": 43.0, "burrower": 53.0, "mushroom": 53.0}
+		if Art.draw_sprite(self, "s18_" + kind + "_" + pose, Vector2(0, 16 if kind == "bat" else 23), float(heights[kind]), direction < 0):
+			return
 	match kind:
 		"burrower":
 			draw_circle(Vector2(0, 5), 24, Color("a27858"))

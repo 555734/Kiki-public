@@ -12,17 +12,17 @@ func _draw() -> void:
 	var view := size
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
-	if Stage.is_horror() or Stage.is_sea() or Stage.is_swamp():
+	if Stage.is_horror() or Stage.is_sea() or Stage.is_swamp() or Stage.is_desert():
 		_split_land_background(view, scroll)
 		return
 	if Stage.is_skyward_ruins():
 		_split_sky_background(view)
 		return
 	if Stage.is_cave():
-		_cave_background(view, sky.vertical())
+		_late_background(view, sky.vertical())
 		return
 	if Stage.is_tower():
-		_tower_background(view, scroll, sky.vertical())
+		_late_background(view, sky.vertical())
 		return
 
 	# Every painted backdrop is opaque and, with the strip below it, reaches
@@ -545,3 +545,21 @@ func _split_land_background(view: Vector2, horizontal: float) -> void:
 		draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
 	var shade := Color("152843", 0.13) if Stage.is_horror() else Color(0.8, 0.9, 1.0, 0.10)
 	draw_rect(Rect2(Vector2.ZERO, view), shade)
+
+## Cover with the supplied distant painting. The camera pans gently within it;
+## foreground platforms, text and demonstration characters are excluded.
+func _late_background(view: Vector2, camera_y: float) -> void:
+	var painting := Art.tex("parallax")
+	if painting == null: return
+	var pixels := Vector2(painting.get_size())
+	var factor := maxf(view.x / pixels.x, view.y / pixels.y) * 1.12
+	var extent := pixels * factor
+	var progress := clampf((14000.0 - camera_y) / 14000.0, 0.0, 1.0)
+	var y := -(extent.y - view.y) * progress
+	draw_texture_rect(painting, Rect2((view.x - extent.x) * 0.5, y, extent.x, extent.y), false)
+	draw_rect(Rect2(Vector2.ZERO, view), Color("24172c", 0.40) if Stage.is_cave() else Color("25213f", 0.27))
+	# The real cave exit opens to daylight above the collision roof.
+	if Stage.is_cave():
+		var roof_y := view.y * 0.5 + (1080.0 - camera_y) * Balance.CAMERA_ZOOM
+		if roof_y > 0:
+			draw_rect(Rect2(0, 0, view.x, minf(roof_y, view.y)), Color("c6d9d7"))

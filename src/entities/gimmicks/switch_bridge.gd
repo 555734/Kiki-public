@@ -74,6 +74,8 @@ func _draw() -> void:
 		return
 	var body := Rect2(r.position.x, r.position.y + (1.0 - progress) * 70.0,
 		r.size.x, r.size.y)
+	if Stage.is_cave() and Art.draw_late_platform(self, "switch_bridge", body, Color(rim) if progress < 1.0 else Color.WHITE):
+		return
 	draw_rect(body, fill)
 	draw_rect(Rect2(body.position.x, body.position.y, body.size.x, 7.0), rim)
 	for i in 3:

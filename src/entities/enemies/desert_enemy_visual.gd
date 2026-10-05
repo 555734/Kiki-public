@@ -14,6 +14,22 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if enemy == null:
 		return
+	if Stage.is_desert():
+		var kind := "scarab"
+		var frame := int(enemy.phase * 7.0) % 3
+		var height := 64.0
+		match enemy.kind:
+			"cactus":
+				kind = "mummy"
+				frame = 2 if enemy.is_on_floor() else 4
+				height = 72.0
+			"jelly":
+				kind = "bird"
+				frame = int(enemy.phase * 8.0) % 3
+				height = 56.0
+			"fin": frame = 3 if sin(enemy.phase * 1.9) > 0.75 else 4
+		if Art.draw_sprite(self, "s16_" + kind + "_" + str(frame), Vector2(0, 27 if enemy.kind == "scarab" else (33 if enemy.kind == "cactus" else 22)), height, enemy.direction < 0):
+			return
 	match enemy.kind:
 		"scarab": _scarab()
 		"cactus": _cactus()

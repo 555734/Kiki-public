@@ -6,6 +6,135 @@ extends RefCounted
 const BASE := "res://assets/"
 
 const MANIFEST := {
+	"s17_pendulum_ball": "split/1-7/gimmicks/pendulum_ball.png",
+	"s17_piston_head": "split/1-7/gimmicks/piston_head.png",
+	"s16_terrain_arch": "split/1-6/background/arch.png",
+	"s16_background": "split/1-6/background/background.png",
+	"s16_terrain_broken_arch": "split/1-6/background/broken_arch.png",
+	"s16_terrain_broken_column": "split/1-6/background/broken_column.png",
+	"s16_terrain_column": "split/1-6/background/column.png",
+	"s16_terrain_ground": "split/1-6/background/ground.png",
+	"s16_terrain_rubble": "split/1-6/background/rubble.png",
+	"s16_terrain_stone": "split/1-6/background/stone.png",
+	"s16_bird_0": "split/1-6/enemies/bird_0.png",
+	"s16_bird_1": "split/1-6/enemies/bird_1.png",
+	"s16_bird_2": "split/1-6/enemies/bird_2.png",
+	"s16_bird_3": "split/1-6/enemies/bird_3.png",
+	"s16_bird_4": "split/1-6/enemies/bird_4.png",
+	"s16_bird_5": "split/1-6/enemies/bird_5.png",
+	"s16_golem_0": "split/1-6/enemies/golem_0.png",
+	"s16_golem_1": "split/1-6/enemies/golem_1.png",
+	"s16_golem_2": "split/1-6/enemies/golem_2.png",
+	"s16_golem_3": "split/1-6/enemies/golem_3.png",
+	"s16_golem_4": "split/1-6/enemies/golem_4.png",
+	"s16_golem_5": "split/1-6/enemies/golem_5.png",
+	"s16_mummy_0": "split/1-6/enemies/mummy_0.png",
+	"s16_mummy_1": "split/1-6/enemies/mummy_1.png",
+	"s16_mummy_2": "split/1-6/enemies/mummy_2.png",
+	"s16_mummy_3": "split/1-6/enemies/mummy_3.png",
+	"s16_mummy_4": "split/1-6/enemies/mummy_4.png",
+	"s16_mummy_5": "split/1-6/enemies/mummy_5.png",
+	"s16_mummy_6": "split/1-6/enemies/mummy_6.png",
+	"s16_scarab_0": "split/1-6/enemies/scarab_0.png",
+	"s16_scarab_1": "split/1-6/enemies/scarab_1.png",
+	"s16_scarab_2": "split/1-6/enemies/scarab_2.png",
+	"s16_scarab_3": "split/1-6/enemies/scarab_3.png",
+	"s16_scarab_4": "split/1-6/enemies/scarab_4.png",
+	"s16_scarab_5": "split/1-6/enemies/scarab_5.png",
+	"s16_bridge": "split/1-6/gimmicks/bridge.png",
+	"s16_bush": "split/1-6/gimmicks/bush.png",
+	"s16_checkpoint_off": "split/1-6/gimmicks/checkpoint_off.png",
+	"s16_checkpoint_on": "split/1-6/gimmicks/checkpoint_on.png",
+	"s16_conveyor": "split/1-6/gimmicks/conveyor.png",
+	"s16_crumble": "split/1-6/gimmicks/crumble.png",
+	"s16_crystal": "split/1-6/gimmicks/crystal.png",
+	"s16_gate": "split/1-6/gimmicks/gate.png",
+	"s16_goal": "split/1-6/gimmicks/goal.png",
+	"s16_grass": "split/1-6/gimmicks/grass.png",
+	"s16_key": "split/1-6/gimmicks/key.png",
+	"s16_lift": "split/1-6/gimmicks/lift.png",
+	"s16_palm": "split/1-6/gimmicks/palm.png",
+	"s16_palm_small": "split/1-6/gimmicks/palm_small.png",
+	"s16_rocks": "split/1-6/gimmicks/rocks.png",
+	"s16_spikes": "split/1-6/gimmicks/spikes.png",
+	"s16_spring": "split/1-6/gimmicks/spring.png",
+	"s16_switch_off": "split/1-6/gimmicks/switch_off.png",
+	"s16_switch_on": "split/1-6/gimmicks/switch_on.png",
+	"s16_updraft": "split/1-6/gimmicks/updraft.png",
+	"s17_background": "split/1-7/background/background.png",
+	"s17_terrain_banner": "split/1-7/background/banner.png",
+	"s17_terrain_chain": "split/1-7/background/chain.png",
+	"s17_terrain_clock": "split/1-7/background/clock.png",
+	"s17_terrain_column": "split/1-7/background/column.png",
+	"s17_terrain_gear": "split/1-7/background/gear.png",
+	"s17_terrain_ground": "split/1-7/background/ground.png",
+	"s17_terrain_lamp": "split/1-7/background/lamp.png",
+	"s17_terrain_platform": "split/1-7/background/platform.png",
+	"s17_terrain_wall": "split/1-7/background/wall.png",
+	"s17_terrain_window": "split/1-7/background/window.png",
+	"s17_mine_alert": "split/1-7/enemies/mine_alert.png",
+	"s17_mine_attack": "split/1-7/enemies/mine_attack.png",
+	"s17_mine_idle": "split/1-7/enemies/mine_idle.png",
+	"s17_turret_alert": "split/1-7/enemies/turret_alert.png",
+	"s17_turret_broken": "split/1-7/enemies/turret_broken.png",
+	"s17_turret_fire": "split/1-7/enemies/turret_fire.png",
+	"s17_turret_idle": "split/1-7/enemies/turret_idle.png",
+	"s17_blink": "split/1-7/gimmicks/blink.png",
+	"s17_clock_hand": "split/1-7/gimmicks/clock_hand.png",
+	"s17_conveyor": "split/1-7/gimmicks/conveyor.png",
+	"s17_crumble": "split/1-7/gimmicks/crumble.png",
+	"s17_gate": "split/1-7/gimmicks/gate.png",
+	"s17_gear": "split/1-7/gimmicks/gear.png",
+	"s17_lift": "split/1-7/gimmicks/lift.png",
+	"s17_pendulum": "split/1-7/gimmicks/pendulum.png",
+	"s17_piston": "split/1-7/gimmicks/piston.png",
+	"s17_rail": "split/1-7/gimmicks/rail.png",
+	"s17_spikes": "split/1-7/gimmicks/spikes.png",
+	"s17_spring": "split/1-7/gimmicks/spring.png",
+	"s17_switch": "split/1-7/gimmicks/switch.png",
+	"s17_updraft": "split/1-7/gimmicks/updraft.png",
+	"s17_warp": "split/1-7/gimmicks/warp.png",
+	"s17_warp_exit": "split/1-7/gimmicks/warp_exit.png",
+	"s18_background": "split/1-8/background/background.png",
+	"s18_terrain_bridge": "split/1-8/background/bridge.png",
+	"s18_terrain_crystal": "split/1-8/background/crystal.png",
+	"s18_terrain_crystal_small": "split/1-8/background/crystal_small.png",
+	"s18_terrain_distant": "split/1-8/background/distant.png",
+	"s18_terrain_ground": "split/1-8/background/ground.png",
+	"s18_terrain_lamp": "split/1-8/background/lamp.png",
+	"s18_terrain_platform": "split/1-8/background/platform.png",
+	"s18_terrain_stalactite": "split/1-8/background/stalactite.png",
+	"s18_terrain_wall": "split/1-8/background/wall.png",
+	"s18_terrain_waterfall": "split/1-8/background/waterfall.png",
+	"s18_bat_attack": "split/1-8/enemies/bat_attack.png",
+	"s18_bat_idle": "split/1-8/enemies/bat_idle.png",
+	"s18_bat_move": "split/1-8/enemies/bat_move.png",
+	"s18_beetle_attack": "split/1-8/enemies/beetle_attack.png",
+	"s18_beetle_idle": "split/1-8/enemies/beetle_idle.png",
+	"s18_beetle_move": "split/1-8/enemies/beetle_move.png",
+	"s18_burrower_idle": "split/1-8/enemies/burrower_idle.png",
+	"s18_burrower_rise": "split/1-8/enemies/burrower_rise.png",
+	"s18_mushroom_idle": "split/1-8/enemies/mushroom_idle.png",
+	"s18_mushroom_jump": "split/1-8/enemies/mushroom_jump.png",
+	"s18_mushroom_move": "split/1-8/enemies/mushroom_move.png",
+	"s18_slime_idle": "split/1-8/enemies/slime_idle.png",
+	"s18_slime_jump": "split/1-8/enemies/slime_jump.png",
+	"s18_slime_move": "split/1-8/enemies/slime_move.png",
+	"s18_blink": "split/1-8/gimmicks/blink.png",
+	"s18_boulder": "split/1-8/gimmicks/boulder.png",
+	"s18_checkpoint": "split/1-8/gimmicks/checkpoint.png",
+	"s18_conveyor": "split/1-8/gimmicks/conveyor.png",
+	"s18_crumble": "split/1-8/gimmicks/crumble.png",
+	"s18_crystal": "split/1-8/gimmicks/crystal.png",
+	"s18_goal": "split/1-8/gimmicks/goal.png",
+	"s18_key": "split/1-8/gimmicks/key.png",
+	"s18_lift": "split/1-8/gimmicks/lift.png",
+	"s18_rail": "split/1-8/gimmicks/rail.png",
+	"s18_spring": "split/1-8/gimmicks/spring.png",
+	"s18_stalactite": "split/1-8/gimmicks/stalactite.png",
+	"s18_switch": "split/1-8/gimmicks/switch.png",
+	"s18_switch_bridge": "split/1-8/gimmicks/switch_bridge.png",
+	"s18_updraft": "split/1-8/gimmicks/updraft.png",
 	# Owner supplied split pack; see docs/split-assets.md.
 	"s12_background": "split/1-2/background/background.png",
 	"s12_nightwolf_chase": "split/1-2/enemies/nightwolf_chase.png",
@@ -388,6 +517,51 @@ static func _resolved_key(key: String) -> String:
 				"ground_block": return "s15_volcano_asset_05"
 				"spikes": return "s15_volcano_asset_09"
 				"platform": return "s15_volcano_asset_12"
+		Stage.Which.DESERT:
+			match key:
+				"parallax": return "s16_background"
+				"moving_platform": return "s16_lift"
+				"ground_block": return "s16_crumble"
+				"platform": return "s16_lift"
+				"spring": return "s16_spring"
+				"switch_off": return "s16_switch_off"
+				"switch_on": return "s16_switch_on"
+				"gate": return "s16_gate"
+				"goal": return "s16_goal"
+				"checkpoint_off": return "s16_checkpoint_off"
+				"checkpoint_on": return "s16_checkpoint_on"
+				"spikes": return "s16_spikes"
+				"sky_updraft": return "s16_updraft"
+				"turret": return "s16_golem_0"
+		Stage.Which.TOWER:
+			match key:
+				"parallax": return "s17_background"
+				"moving_platform": return "s17_lift"
+				"ground_block": return "s17_crumble"
+				"platform": return "s17_blink"
+				"spring": return "s17_spring"
+				"switch_off": return "s17_switch"
+				"switch_on": return "s17_switch"
+				"gate": return "s17_gate"
+				"goal": return "s17_gate"
+				"sky_updraft": return "s17_updraft"
+				"checkpoint_off": return "s17_terrain_banner"
+				"checkpoint_on": return "s17_terrain_banner"
+				"turret": return "s17_turret_idle"
+				"spikes": return "s17_spikes"
+		Stage.Which.CAVE:
+			match key:
+				"parallax": return "s18_background"
+				"moving_platform": return "s18_lift"
+				"ground_block": return "s18_crumble"
+				"platform": return "s18_blink"
+				"spring": return "s18_spring"
+				"switch_off": return "s18_switch"
+				"switch_on": return "s18_switch"
+				"goal": return "s18_goal"
+				"checkpoint_off": return "s18_checkpoint"
+				"checkpoint_on": return "s18_checkpoint"
+				"sky_updraft": return "s18_updraft"
 	if Stage.is_desert():
 		match key:
 			"parallax": return "desert_panorama"
@@ -587,3 +761,26 @@ static func pending_unknown() -> Array:
 		if not MANIFEST.has(key):
 			unknown.append(key)
 	return unknown
+
+## Prefix for the late-stage boards; empty elsewhere so legacy art stays intact.
+static func late_pack() -> String:
+	match Stage.current():
+		Stage.Which.DESERT: return "s16_"
+		Stage.Which.TOWER: return "s17_"
+		Stage.Which.CAVE: return "s18_"
+	return ""
+
+## The flat source cap sits on the collision top. Wheels/stone hang underneath.
+static func draw_late_platform(ci: CanvasItem, key: String, rect: Rect2,
+		modulate: Color = Color.WHITE, flip_h: bool = false) -> bool:
+	var prefix := late_pack()
+	if prefix == "": return false
+	var texture := tex(prefix + key)
+	if texture == null: return false
+	var height := maxf(rect.size.y, minf(rect.size.x * texture.get_height() / texture.get_width(), 82.0))
+	var target := Rect2(rect.position, Vector2(rect.size.x, height))
+	if flip_h:
+		ci.draw_set_transform(Vector2(target.get_center().x * 2.0, 0), 0, Vector2(-1, 1))
+	ci.draw_texture_rect(texture, target, false, modulate)
+	if flip_h: ci.draw_set_transform(Vector2.ZERO)
+	return true
