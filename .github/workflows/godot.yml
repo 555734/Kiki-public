@@ -28,6 +28,11 @@ env:
   GODOT_VERSION: 4.7.2
 
 jobs:
+  store-state:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/store-status.yml
+    secrets: inherit
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 60
