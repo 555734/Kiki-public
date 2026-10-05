@@ -34,3 +34,5 @@ Godot 4.7.2、横画面1280×720。第一章1-1〜1-8、対戦の既定ステー
 今回開始時のストアAPI確認: Google Play production 0.9.7 (34)、App Store公開版0.9.3。テストAPKのversionCode36をPlayの提出済み番号と混同しないでください。実機UX・購入復元・Android↔iPhone・回線変更・長時間性能は未確認です。
 
 最新の提出結果は `release-results/` にソースcommit、ストアbuild番号、Actions run、APIの実状態を記録します。
+
+2026-10-06 04:51 JST: 0.9.10のGoogle Play (37)とApp Store (399994)を両方審査へ提出済み。App Store画面の『審査待ち』を確認。承認・公開と実機acceptanceは未確認。

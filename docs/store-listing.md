@@ -69,36 +69,19 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 | Short description | `One player runs. One rewrites the world. A co-op action game made for two.` |
 
 ```
-A co-op action game for exactly two people.
+A co-op action game for two players. Work together to cross the stage.
 
-THE RUNNER moves, jumps, wall-kicks and air-dashes. They can only see what is
-around them, and some gaps are simply too wide to cross alone.
+THE RUNNER runs, jumps, wall-kicks, and air-dashes.
 
-THE GUARDIAN sees the road ahead from above. They draw platforms, raise walls,
-snipe, and place warp gates -- and they can tap a platform to launch whoever is
-standing on it into the air.
+THE GUARDIAN draws platforms and shoots enemies and pursuers to make a path for the runner. Platforms that hit terrain keep the valid section before the collision.
 
-Every stage contains something one player cannot solve. That is the point: the
-game is the conversation between you.
+Explore eight stages in Chapter One: grassland, village outskirts, sky ruins, seaside, a lava canyon, sand ruins, a clockwork tower, and an underground grove. Connect with a friend using a six-character room code or play together on one device.
 
-EIGHT STAGES
-1-1 GREENFIELD PLAINS / 1-2 THE HOLLOW OUTSKIRTS / 1-3 THE SKYWARD RUINS
-1-4 THE SUNLIT COAST / 1-5 THE POISON MARSH / 1-6 THE SANDGLASS RUINS
-1-7 THE CLOCKWORK TOWER / 1-8 THE UNDERGROVE
+Star Battle is free for everyone. In Royal Arena, use jump pads and moving platforms to compete for stars in the air.
 
-STAR BATTLE
-A versus mode -- everyone, or two against two -- free for every player.
+Stages 1-1, 1-2, and 1-6 through 1-8 are free to play all the way through. A single non-consumable purchase unlocks stages 1-3, 1-4, and 1-5. Friends who have not purchased the full version can join a full-version owner's room.
 
-ONLINE OR SIDE BY SIDE
-Read a six-character room code out loud and you are connected. In the same
-room, one device works too.
-
-FREE TO START
-1-1 and 1-2 are free all the way through. One non-consumable purchase opens
-1-3 to 1-5 -- and a friend who has not bought it can join YOUR room and
-play every stage with you. One copy is enough for two people.
-
-No ads. No subscription. No stamina.
+No ads or subscriptions.
 ```
 
 ### キーワード（iOS、100文字、カンマ区切り）
@@ -338,4 +321,10 @@ App Review が 3.1.1 として扱う可能性は残る。
 <!-- release-notes:ja -->
 ```
 移動操作の反応を改善しました。足場と射撃の選択中のボタンが分かりやすくなり、足場は地形に当たる直前まで残るようになりました。射撃の照準操作で画面が横に動く機能を廃止しました。ロイヤル・アリーナのスターを空中に配置し、ジャンプして取り合う遊びに調整しました。描画とステージ設定の自動検証、配布時の確認も強化しています。
+```
+
+**English release notes (0.9.10, submitted to App Store Connect)**
+
+```
+Improved movement controls and made the selected platform or shooting button easier to recognize. Platforms now keep the valid section before hitting terrain. Aiming shots no longer scrolls the camera sideways. Stars in Royal Arena are now placed in the air for jump-based competition. Added automated checks for visuals, stage settings, and release verification.
 ```
