@@ -5,6 +5,10 @@ extends Enemy
 
 var runner: Runner = null
 
+@export var activation_distance: float = 0.0
+var _origin: Vector2 = Vector2.ZERO
+var _activated := false
+
 @export var wake_delay: float = 2.25
 @export var cruise_speed: float = 220.0
 @export var catchup_speed: float = 520.0
@@ -26,6 +30,8 @@ func _ready() -> void:
 	collision_mask = 0
 	add_to_group("instant_death")
 	_wake_left = wake_delay
+	if runner != null: _origin = runner.global_position
+	_activated = activation_distance <= 0.0
 
 func _build_body() -> void:
 	_add_box(Vector2(106, 92))
@@ -40,6 +46,10 @@ func _physics_process(delta: float) -> void:
 		return
 	if runner.state == Runner.State.DEAD:
 		return
+	if not _activated:
+		if runner.global_position.distance_to(_origin) < activation_distance:
+			return
+		_activated = true
 	if _wake_left > 0.0:
 		_wake_left = maxf(0.0, _wake_left - delta)
 		return

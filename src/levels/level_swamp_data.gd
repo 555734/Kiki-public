@@ -63,6 +63,9 @@ static func hazards() -> Array[Dictionary]:
 
 static func enemies() -> Array[Dictionary]:
 	return [
+		{"type": "sky_pursuer", "pos": start_position() + Vector2(-550, -24),
+			"activation": 120.0, "delay": 4.0, "speed": 160.0, "catchup": 360.0,
+			"stun": 2.5, "direction": Vector2.RIGHT},
 		{"type": "walker", "pos": Vector2(-350, 379), "patrol": 210.0,
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 190.0,

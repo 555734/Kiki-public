@@ -24,11 +24,9 @@ func _draw() -> void:
 		tint = Color.WHITE
 		draw_circle(Vector2(18, -22), 62.0, Color(1.0, 0.75, 0.38, 0.13))
 
-	var frame := "horror_pursuer"
-	if Stage.is_horror():
-		frame = "s12_nightwolf_idle" if is_stunned else "s12_nightwolf_chase"
-	elif Stage.is_sea():
-		frame = "s14_purple_pursuer_idle" if is_stunned else "s14_purple_pursuer_chase"
+	var frame := Art.pursuer_frame(is_stunned, p)
+	if Art.late_pack() != "" and Art.draw_sprite_fit(self, frame, Vector2(0, -bob), 130.0, tint):
+		return
 	if Art.draw_sprite(self, frame, Vector2(0, 58.0 - bob), 154.0, false, tint):
 		var glow := 0.55 + 0.45 * sin(p * 1.4)
 		draw_circle(Vector2(30, -39 - bob), 5.0 + glow * 2.0,

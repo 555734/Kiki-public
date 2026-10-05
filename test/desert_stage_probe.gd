@@ -24,6 +24,7 @@ func run() -> void:
 		"full route fits online coordinates")
 	var kinds := {}
 	for spec in Stage.enemies():
+		if spec["type"] != "desert_enemy": continue
 		kinds[String(spec.get("kind", ""))] = true
 	check(kinds.size() == 4 and kinds.has("scarab") and kinds.has("cactus")
 		and kinds.has("jelly") and kinds.has("fin"), "all four desert enemy kinds are placed")

@@ -18,6 +18,7 @@ func run() -> void:
 		add_child(main)
 		await get_tree().process_frame
 		main.input_hub.scripted = true
+		main.input_hub.assume_touch()
 		main.get_node("NetPanel").queue_free()
 		await get_tree().process_frame
 		for _i in 12:
@@ -36,6 +37,14 @@ func run() -> void:
 			for _i in 8: await get_tree().physics_frame
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png("res://build/landscape/stage-" + Stage.stage_number() + "-detail.png")
+		# A still-frame art inspection: bring the existing chaser into camera view.
+		for enemy in get_tree().get_nodes_in_group("enemy"):
+			if enemy.get_script() == preload("res://src/entities/enemies/sky_pursuer.gd"):
+				enemy.set_physics_process(false)
+				enemy.global_position = main.runner.global_position + Vector2(-175, -15)
+		await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("res://build/landscape/stage-" + Stage.stage_number() + "-chaser.png")
 		main.queue_free()
 		await get_tree().process_frame
 	Stage.use(Stage.Which.GREENFIELD)

@@ -79,3 +79,21 @@ both packs), and `check_scripts`. Normal gameplay captures are 1280x720,
 including HUD, in `build/landscape/stage-1-{6,7,8}.png`; additional mid-route
 captures end in `-detail.png`. The menu cards intentionally remain portrait.
 Run `tools/capture_stage_cards.tscn -- --late-assets-only` to recapture them.
+
+### 0.9.6 chase and mobile controls
+
+Tower and cave distant paintings now occupy 78% of viewport height rather than
+being cover-scaled across the entire viewport. Existing stage 1-2/3/4 pursuers
+use the matching chase art. Stage 1-5/6/7/8 add slow, shoot-stunnable pursuing
+lava golem, mummy, mine and bat visuals from the supplied sheets. These wait
+until the runner moves 120 pixels, then grant four seconds before pursuit.
+
+The default stick captures the lower left quadrant and anchors at finger down.
+Only its owning finger can move/release it. Mirrored seating mirrors that zone.
+Moving the stick in the layout editor explicitly selects a fixed anchor; reset
+restores floating input. Shared jump radius is 14% of screen height, with two
+smaller tools above it. Existing customized placements remain supported.
+
+Validate with `test/floating_controls_probe.tscn`, `test/touch_feel_probe.tscn`,
+`test/remote_jump_probe.tscn` and the stage/asset probes. Gameplay captures now
+force the touch HUD so the shipped defaults can be inspected on desktop.

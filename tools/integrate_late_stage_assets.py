@@ -8,7 +8,7 @@ Usage: python tools/integrate_late_stage_assets.py path/to/pack.zip
 from pathlib import Path
 from zipfile import ZipFile
 import sys
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 PREFIX = 'Kiki_stage_1-6_to_1-8_split/'
@@ -107,6 +107,25 @@ def remove_board(image, stage):
  image.putalpha(alpha)
  return image
 
+def isolated_actor(image):
+ # Adjacent wing fragments and annotation strokes are separate alpha islands.
+ alpha=image.getchannel('A'); px=alpha.load(); seen=set(); components=[]
+ for y in range(image.height):
+  for x in range(image.width):
+   if px[x,y]<100 or (x,y) in seen:continue
+   stack=[(x,y)];seen.add((x,y));component=[]
+   while stack:
+    point=stack.pop();component.append(point)
+    for xx,yy in ((point[0]-1,point[1]),(point[0]+1,point[1]),(point[0],point[1]-1),(point[0],point[1]+1)):
+     if 0<=xx<image.width and 0<=yy<image.height and (xx,yy) not in seen and px[xx,yy]>=100:
+      seen.add((xx,yy));stack.append((xx,yy))
+   components.append(component)
+ mask=Image.new('L',image.size,0);mp=mask.load()
+ for point in max(components,key=len):mp[point]=255
+ mask=mask.filter(ImageFilter.MaxFilter(3))
+ image.putalpha(ImageChops.multiply(alpha,mask))
+ return image
+
 with ZipFile(sys.argv[1]) as archive:
  for stage in ('1-6','1-7','1-8'):
   path = ROOT/'assets'/'split'/stage/'background'/'background.png'
@@ -142,6 +161,7 @@ with ZipFile(sys.argv[1]) as archive:
     mask=Image.new('L',image.size,0)
     ImageDraw.Draw(mask).polygon([(32,1),(49,10),(53,34),(65,32),(73,57),(59,66),(14,66),(3,44),(12,37),(20,45),(23,14)],fill=255)
     image.putalpha(mask)
+   if stage=='1-8' and name in ('bat_attack','bat_move'): image=isolated_actor(image)
    bounds=image.getbbox()
    if not bounds: raise ValueError(name)
    image=image.crop(bounds)

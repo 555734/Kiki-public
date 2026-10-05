@@ -784,3 +784,15 @@ static func draw_late_platform(ci: CanvasItem, key: String, rect: Rect2,
 	ci.draw_texture_rect(texture, target, false, modulate)
 	if flip_h: ci.draw_set_transform(Vector2.ZERO)
 	return true
+
+## Stage-local chase art, shared by both pursuing enemy behaviors.
+static func pursuer_frame(idle: bool = false, phase: float = 0.0) -> String:
+	match Stage.current():
+		Stage.Which.HORROR: return "s12_nightwolf_idle" if idle else "s12_nightwolf_chase"
+		Stage.Which.SKYWARD_RUINS: return "s13_golem_idle" if idle else "s13_golem_move"
+		Stage.Which.SEA: return "s14_purple_pursuer_idle" if idle else "s14_purple_pursuer_chase"
+		Stage.Which.SWAMP: return "s15_lava_golem"
+		Stage.Which.DESERT: return "s16_mummy_%d" % (0 if idle else int(phase * 4.0) % 6)
+		Stage.Which.TOWER: return "s17_mine_idle" if idle else "s17_mine_alert"
+		Stage.Which.CAVE: return "s18_bat_idle" if idle else "s18_bat_attack"
+	return "horror_pursuer"

@@ -552,12 +552,23 @@ func _late_background(view: Vector2, camera_y: float) -> void:
 	var painting := Art.tex("parallax")
 	if painting == null: return
 	var pixels := Vector2(painting.get_size())
-	var factor := maxf(view.x / pixels.x, view.y / pixels.y) * 1.12
-	var extent := pixels * factor
+	# The supplied painting is a distant window, not a viewport-sized close-up.
+	# Show the complete painting at 78% of screen height, with room around it.
+	var extent := pixels * (view.y * 0.78 / pixels.y)
 	var progress := clampf((14000.0 - camera_y) / 14000.0, 0.0, 1.0)
-	var y := -(extent.y - view.y) * progress
-	draw_texture_rect(painting, Rect2((view.x - extent.x) * 0.5, y, extent.x, extent.y), false)
+	var origin := (view - extent) * 0.5 + Vector2(0, (progress - 0.5) * view.y * 0.05)
+	var base := Color("302139") if Stage.is_cave() else Color("30314c")
+	draw_rect(Rect2(Vector2.ZERO, view), base)
+	var wall := Art.tex("s18_terrain_wall" if Stage.is_cave() else "s17_terrain_wall")
+	if wall != null and not Stage.is_cave():
+		var tile := Vector2(view.y * 0.30, view.y * 0.30)
+		for row in 4:
+			for col in int(ceilf(view.x / tile.x)):
+				draw_texture_rect(wall, Rect2(Vector2(col, row) * tile, tile), false,
+					Color(0.45, 0.45, 0.55, 0.35))
+	draw_texture_rect(painting, Rect2(origin, extent), false)
 	draw_rect(Rect2(Vector2.ZERO, view), Color("24172c", 0.40) if Stage.is_cave() else Color("25213f", 0.27))
+
 	# The real cave exit opens to daylight above the collision roof.
 	if Stage.is_cave():
 		var roof_y := view.y * 0.5 + (1080.0 - camera_y) * Balance.CAMERA_ZOOM

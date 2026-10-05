@@ -63,7 +63,9 @@ static func hazards() -> Array[Dictionary]:
 	return out
 
 static func enemies() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
+	var out: Array[Dictionary] = [{"type": "sky_pursuer", "pos": start_position() + Vector2(0, 550),
+			"activation": 120.0, "delay": 4.0, "speed": 85.0, "catchup": 160.0,
+			"stun": 2.5, "direction": Vector2.UP}]
 	for chamber in CHAMBERS:
 		if chamber % 3 == 1:
 			out.append({"type": "turret",

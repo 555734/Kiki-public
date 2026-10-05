@@ -59,14 +59,14 @@ const GUARDIAN_LAYOUT_VERSION := 3
 
 ## One device (the shared screen, and the star battle, which uses it): the
 ## left thumb only steers, and everything that is pressed is under the right
-## thumb -- jump in the corner, the shot above it and the platform beside it,
+## thumb -- jump in the corner, both smaller tools above it,
 ## so the right thumb rolls from jumping to a tool without the left letting
 ## go. (It used to be stick and jump on the left and the two tools on an arc
 ## at the right; the star battle tried this arrangement first and it stayed.)
 const SHARED_RIGHT := {
-	"jump":   Vector3(0.155, 0.20, 0.115),
-	"slot_3": Vector3(0.13, 0.43, 0.090),
-	"slot_1": Vector3(0.36, 0.15, 0.090),
+	"jump":   Vector3(0.20, 0.23, 0.140),
+	"slot_3": Vector3(0.16, 0.51, 0.095),
+	"slot_1": Vector3(0.40, 0.51, 0.095),
 }
 ## Saved shared-screen layouts from before the jump moved right are dropped
 ## once, so the new arrangement is what everyone gets (v2: jump on the right).
@@ -235,7 +235,17 @@ static func hit(mode: String, view: Vector2, mirrored: bool, at: Vector2) -> Str
 		if best == "" or (best_kind == "stick" and place["kind"] == "button"):
 			best = String(id)
 			best_kind = String(place["kind"])
+	if best == "" and floating_stick(mode) and stick_region(view, mirrored).has_point(at):
+		return "stick"
 	return best
+
+## A moved stick explicitly opts into a fixed anchor; the default is floating.
+static func floating_stick(mode: String) -> bool:
+	return mode != "guardian" and saved_place(mode, "stick").x < 0.0
+
+static func stick_region(view: Vector2, mirrored: bool) -> Rect2:
+	return Rect2(view.x * 0.5 if mirrored else 0.0, view.y * 0.5,
+		view.x * 0.5, view.y * 0.5)
 
 ## (x, y) as fractions of the viewport, and z as a multiplier on the default
 ## size. x < 0 means "never moved"; z <= 0 means "never resized".

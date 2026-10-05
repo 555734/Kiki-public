@@ -73,6 +73,9 @@ static func hazards() -> Array[Dictionary]:
 
 static func enemies() -> Array[Dictionary]:
 	return [
+		{"type": "sky_pursuer", "pos": start_position() + Vector2(-550, -24),
+			"activation": 120.0, "delay": 4.0, "speed": 160.0, "catchup": 360.0,
+			"stun": 2.5, "direction": Vector2.RIGHT},
 		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(-610, 373), "patrol": 155.0},
 		{"type": "desert_enemy", "kind": "fin", "pos": Vector2(-75, 340), "patrol": 70.0},
 		{"type": "desert_enemy", "kind": "cactus", "pos": Vector2(1250, 267), "patrol": 60.0},

@@ -109,6 +109,7 @@ const PAN_DRAG_SCALE := 2.2
 var _touch_owner: Dictionary = {}   ## finger index -> role string
 var _stick_finger: int = -1
 var _stick_position: Vector2 = Vector2.ZERO
+var _stick_anchor: Vector2 = Vector2.ZERO
 var _aim_finger: int = -1
 var _zoom_finger: int = -1
 var _has_touch: bool = false
@@ -479,7 +480,10 @@ func cluster(size: Vector2) -> Dictionary:
 
 ## The stick's placement, or an empty dictionary on a device that has no stick.
 func stick_place(size: Vector2) -> Dictionary:
-	return cluster(size).get("stick", {})
+	var place: Dictionary = cluster(size).get("stick", {})
+	if not place.is_empty() and _stick_finger >= 0 and ControlLayout.floating_stick(layout_mode()):
+		place["center"] = _stick_anchor
+	return place
 
 ## Where the guardian is pointing, in the world. Fixed to the ground the
 ## guardian chose, so it does not travel with the camera.
@@ -681,7 +685,11 @@ func _route_control(index: int, position: Vector2, size: Vector2,
 			# must not make the button look pressed while Runner receives nothing.
 			press_jump()
 		"stick":
+			if _stick_finger >= 0:
+				_touch_owner[index] = "ignored"
+				return true
 			_touch_owner[index] = "stick"
+			_stick_anchor = position
 			_stick_finger = index
 			_apply_stick(position, size)
 		"scope":

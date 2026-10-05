@@ -39,6 +39,7 @@ func run() -> void:
 	check(ordered and fixed_landings, "every chamber rises through readable steps")
 	var kinds := {}
 	for spec in Stage.enemies():
+		if spec["type"] != "cave_enemy": continue
 		kinds[String(spec["kind"])] = true
 	check(Stage.enemies().size() >= 50 and kinds.size() == 5,
 		"all five cave enemy types populate the vertical shaft")
