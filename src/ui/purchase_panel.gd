@@ -72,7 +72,7 @@ func _ready() -> void:
 	box.add_child(NetPanel.heading("このステージには完全版が必要です", 21,
 		Color("37638d")))
 	var benefits := NetPanel.heading(
-		"購入すると1-3〜1-8を遊べて、協力プレイの部屋も作れます。",
+		"購入すると1-3〜1-5を遊べて、協力プレイの部屋も作れます。",
 		18, Color("264c70"))
 	benefits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(benefits)

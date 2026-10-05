@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.3
+# ストア提出物 — メロスゲーム 0.9.7
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.3（Android versionCode 30）
+対象ビルド: version 0.9.7（Android versionCode 34）
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -57,7 +57,7 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 ■ 無料で始められます
 1-1 と 1-2 は誰でも最後まで遊べます。
-完全版（買い切り・1回限り）で 1-3〜1-8 が開きます。
+完全版（買い切り・1回限り）で 1-3〜1-5 が開きます。
 そして完全版を持っている人の部屋には、買っていない友達がそのまま入って、
 全ステージを一緒に遊べます。片方が持っていれば、ふたりで遊べます。
 
@@ -120,7 +120,7 @@ room, one device works too.
 
 FREE TO START
 1-1 and 1-2 are free all the way through. One non-consumable purchase opens
-1-3 to 1-8 -- and a friend who has not bought it can join YOUR room and
+1-3 to 1-5 -- and a friend who has not bought it can join YOUR room and
 play every stage with you. One copy is enough for two people.
 
 No ads. No subscription. No stamina.
@@ -272,7 +272,7 @@ godot --path . --rendering-method gl_compatibility --rendering-driver opengl3   
    操作できます。課金なしで 1-1 と 1-2 を最後まで確認できます。
 
 2. アプリ内購入の確認（full_unlock / 非消費型 / 1回限り）
-   スタート画面で 1-3〜1-8 のいずれかのステージをタップすると購入画面が
+   スタート画面で 1-3〜1-5 のいずれかのステージをタップすると購入画面が
    開きます。Sandbox アカウントでご確認ください。
    「購入を復元する」も同じ画面にあります。
 
@@ -342,3 +342,10 @@ App Review が 3.1.1 として扱う可能性は残る。
 各ステージに素材を使った追跡敵を配置しました。
 初期設定の移動スティックが左下の押した位置に表示されるようになりました。
 1台モードのジャンプを大きくし、右下に配置。足場・狙撃はその上に配置しました。
+
+**新機能 / リリースノート（0.9.7）**
+
+<!-- release-notes:ja -->
+```
+対戦モードにロイヤル・アリーナを追加しました。空に浮かぶ王国で、ジャンプ台や移動足場を使ってスターを奪い合えます。新しいステージが対戦の初期ステージになりました。対戦中のタッチ操作も改善しました。
+```

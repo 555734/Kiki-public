@@ -36,6 +36,8 @@ jobs:
       - uses: ./.github/actions/setup-godot
         with:
           version: ${{ env.GODOT_VERSION }}
+      - name: Install pinned EOS runtime required by project autoloads
+        run: bash tools/install-eosg.sh linux
       - name: tools/verify.sh --shots
         run: bash tools/verify.sh "$GODOT" --shots
 
@@ -47,6 +49,8 @@ jobs:
       - uses: ./.github/actions/setup-godot
         with:
           version: ${{ env.GODOT_VERSION }}
+      - name: Install pinned EOS runtime required by project autoloads
+        run: bash tools/install-eosg.sh linux
       - name: Import project
         run: xvfb-run -a "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
       # Software GL under xvfb: frame times here mean nothing, but draw calls

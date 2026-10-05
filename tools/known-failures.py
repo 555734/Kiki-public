@@ -23,7 +23,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 KNOWN = ROOT / "test" / "known_failures.txt"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-SCRIPT_ERROR = re.compile(r"(SCRIPT ERROR: .*|.*Failed to load.*|.*Parse Error.*)")
+SCRIPT_ERROR = re.compile(r"(SCRIPT ERROR: .*|.*Failed to load.*|.*Parse Error.*|ERROR: Failed loading resource: .*|ERROR: Failed to instantiate an autoload.*|ERROR: Attempt to open script .*File not found.*)")
 WHERE = re.compile(r"^\s*at: (.*)$")
 # The GL driver's shader cache missing or going stale is not a load failure:
 # the engine recompiles the shader and carries on.

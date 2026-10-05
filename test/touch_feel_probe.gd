@@ -174,7 +174,7 @@ func _drag(index: int, at: Vector2) -> InputEventScreenDrag:
 func _gui_keeps_open_ground(hub: InputHub, size: Vector2) -> void:
 	hub.solo_role = ""
 	hub.release_everything()
-	var open := Vector2(size.x * 0.62, size.y * 0.45)
+	var open := Vector2(size.x * 0.62, size.y * 0.25)
 	check(hub.layout_mode() == "shared" and not hub._on_a_control(open),
 		"the probe point is open ground")
 	var button := Button.new()

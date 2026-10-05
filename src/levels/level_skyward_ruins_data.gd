@@ -269,3 +269,5 @@ static func decor() -> Array[Dictionary]:
 
 static func veils() -> Array[Dictionary]:
 	return []
+
+static func painted_2d_value() -> bool: return true

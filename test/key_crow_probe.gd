@@ -19,7 +19,7 @@ func _ready() -> void:
 func run() -> void:
 	var sides := {
 		"1-1": Stage.Which.GREENFIELD, "1-2": Stage.Which.HORROR,
-		"1-4": Stage.Which.SEA,
+		"1-4": Stage.Which.SEA, "1-5": Stage.Which.SWAMP, "1-6": Stage.Which.DESERT,
 	}
 	for label in sides:
 		Stage.use(sides[label])
@@ -48,7 +48,7 @@ func run() -> void:
 			"%s crow count does not change with difficulty" % label)
 	# The climbs keep their key on the top bank, beside the goal, and have no
 	# crows -- there is no "over the course" on a vertical stage.
-	var climbs := {"1-5": Stage.Which.SWAMP, "1-6": Stage.Which.DESERT}
+	var climbs := {"1-7": Stage.Which.TOWER, "1-8": Stage.Which.CAVE}
 	for label in climbs:
 		Stage.use(climbs[label])
 		var k := Stage.key_position()
@@ -57,8 +57,14 @@ func run() -> void:
 			if k.x >= rect.position.x and k.x <= rect.end.x \
 					and absf(k.y - (rect.position.y - 4.0)) < 0.5:
 				resting = true
-		check(Stage.needs_key() and resting and k.y < Stage.start().y - 3000.0,
-			"%s keeps its key on a floor high up the climb" % label)
+		# Cave's key is suspended in the authored updraft near the exit.
+		for spec in Stage.gimmicks():
+			if String(spec["type"]) == "updraft":
+				var span: Vector2 = spec.get("span", Vector2.ZERO)
+				var at: Vector2 = spec["pos"]
+				resting = resting or Rect2(at - span * 0.5, span).has_point(k)
+		check(not Stage.needs_key() or (resting and k.y < Stage.start().y - 3000.0),
+			"%s has no required key, or keeps it on a reachable high floor" % label)
 		check(Stage.sky_crows().is_empty(), "%s has no crows" % label)
 	Stage.use(Stage.Which.SKYWARD_RUINS)
 	check(not Stage.needs_key(), "1-3 has no key")

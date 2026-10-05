@@ -122,19 +122,22 @@ grep -q '^plugins/InAppStore=true$' export_presets.cfg \
 section "what the purchase opens"
 free_block=$(sed -n '/^const FREE_STAGES/,/^\]/p' src/levels/stage.gd)
 free_count=$(printf '%s' "$free_block" | grep -o 'Which\.[A-Z_]*' | wc -l | tr -d ' ')
-if [ "$free_count" = "2" ] && printf '%s' "$free_block" | grep -q GREENFIELD \
-		&& printf '%s' "$free_block" | grep -q HORROR; then
-	ok "FREE_STAGES is 1-1 and 1-2"
+if [ "$free_count" = "5" ] && printf '%s' "$free_block" | grep -q GREENFIELD \
+		&& printf '%s' "$free_block" | grep -q HORROR \
+		&& printf '%s' "$free_block" | grep -q DESERT \
+		&& printf '%s' "$free_block" | grep -q TOWER \
+		&& printf '%s' "$free_block" | grep -q CAVE; then
+	ok "FREE_STAGES preserves public main: 1-1, 1-2 and 1-6 to 1-8"
 	for f in src/ui/purchase_panel.gd docs/store-listing.md docs/support.html; do
-		grep -q '1-3〜1-8\|1-3 to 1-8' "$f" \
-			&& ok "$f says the purchase opens 1-3 to 1-8" \
-			|| bad "$f does not say the purchase opens 1-3 to 1-8"
+		grep -q '1-3〜1-5\|1-3 to 1-5' "$f" \
+			&& ok "$f says the purchase opens 1-3 to 1-5" \
+			|| bad "$f does not say the purchase opens 1-3 to 1-5"
 	done
-	grep -q '1-3 / 1-4 / 1-5\|1-3、1-4、1-5\|1-3〜1-5' docs/store-listing.md docs/support.html src/ui/purchase_panel.gd \
-		&& bad "an old '1-3 to 1-5' paid range is still written somewhere" \
-		|| ok "no old 1-3 to 1-5 paid range left"
+	grep -q '1-3〜1-8' docs/store-listing.md docs/support.html src/ui/purchase_panel.gd \
+		&& bad "a different paid range is still written somewhere" \
+		|| ok "paid range is consistent"
 else
-	bad "FREE_STAGES is not 1-1 and 1-2; update this check and the listing together"
+	bad "FREE_STAGES differs from public main; update this check and the listing together"
 fi
 listing_version=$(sed -n 's/^# ストア提出物 — メロスゲーム \(.*\)$/\1/p' docs/store-listing.md)
 [ "$listing_version" = "$VERSION" ] \

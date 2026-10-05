@@ -45,3 +45,7 @@ and are not evidence of mobile performance.
 Device acceptance remains a distinct requirement: Android/iPhone interoperability,
 background return, network changes, purchases/restores, notches and sustained
 play must be recorded on real devices using docs/release-acceptance.md.
+
+Purchase scope preserves public main: 1-6 through 1-8 remain free. The purchase
+screen, listing, support page, entitlement probe and release gate agree on paid
+stages 1-3 through 1-5. This integration does not change the sold product.

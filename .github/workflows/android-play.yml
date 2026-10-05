@@ -169,7 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/whatsnew
-          cp docs/release-notes/${{ inputs.version_name }}-ja-JP.txt build/whatsnew/whatsnew-ja-JP
+          python3 tools/release-notes.py ja > build/whatsnew/whatsnew-ja-JP
           test -s build/whatsnew/whatsnew-ja-JP
 
       - name: Check the Play service account is configured
