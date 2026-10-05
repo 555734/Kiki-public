@@ -18,7 +18,22 @@ const WARN := 0.5
 
 var _shape: CollisionShape2D = null
 
+## Pass-through from below. A property of this piece, set by whoever builds
+## it -- the stage data decides, never the piece itself.
+var one_way: bool = false
+
+## Builds this piece from a stage's gimmick spec ("blink"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var blink := BlinkBlock.new()
+	blink.span = spec.get("span", Vector2(150, 26))
+	blink.beat = float(spec.get("beat", 1.6))
+	blink.colour = int(spec.get("colour", 0))
+	blink.phase_offset = float(spec.get("phase", 0.0))
+	return blink
+
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -26,7 +41,7 @@ func _ready() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = span
 	_shape.shape = rect
-	_shape.one_way_collision = Stage.is_cave()
+	_shape.one_way_collision = one_way
 	add_child(_shape)
 
 func _physics_process(_delta: float) -> void:
@@ -61,17 +76,17 @@ func _draw() -> void:
 				draw_line(Vector2(x, r.end.y), Vector2(x + 9.0, r.end.y), ghost, 2.0)
 		return
 	var c := (Color("75adb0") if colour == 0 else Color("998ba9")) \
-		if Stage.is_tower() else (Color("6fd6ff") if colour == 0 else Color("b98cff"))
+		if (Art.style(self) == "tower") else (Color("6fd6ff") if colour == 0 else Color("b98cff"))
 	c.a = 0.85 if on else 0.18
 	var warning_now := on and warning()
 	if warning_now:
 		# An amber edge communicates the coming change without a rapid alpha
 		# strobe across a staircase full of these blocks.
-		c = Color("c7a987", 0.80) if Stage.is_tower() else Color("f4c488", 0.80)
+		c = Color("c7a987", 0.80) if (Art.style(self) == "tower") else Color("f4c488", 0.80)
 	if Art.draw_late_platform(self, "blink", Rect2(-span * 0.5, span), c):
 		if warning_now: draw_rect(Rect2(-span * 0.5, span), Color("ffc85b"), false, 3)
 		return
-	if Stage.is_skyward_ruins() and Art.draw_stretched(self, "s13_sky_asset_14", Rect2(-span * 0.5, span), c):
+	if (Art.style(self) == "skyward_ruins") and Art.draw_stretched(self, "s13_sky_asset_14", Rect2(-span * 0.5, span), c):
 		return
 	draw_rect(Rect2(-span * 0.5, span), c)
 	draw_rect(Rect2(-span * 0.5, span),

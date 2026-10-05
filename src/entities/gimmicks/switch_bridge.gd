@@ -14,7 +14,21 @@ var _active := false
 var _start_tick := -1
 var _expires_at_tick := -1
 
+## Pass-through from below. A property of this piece, set by whoever builds
+## it -- the stage data decides, never the piece itself.
+var one_way: bool = false
+
+## Builds this piece from a stage's gimmick spec ("switch_bridge"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var bridge := SwitchBridge.new()
+	bridge.span = spec.get("span", Vector2(150, 26))
+	bridge.switch_id = String(spec.get("id", ""))
+	bridge.delay = float(spec.get("delay", 0.0))
+	return bridge
+
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -22,7 +36,7 @@ func _ready() -> void:
 	var box := RectangleShape2D.new()
 	box.size = span
 	_shape.shape = box
-	_shape.one_way_collision = Stage.is_cave()
+	_shape.one_way_collision = one_way
 	_shape.disabled = true
 	add_child(_shape)
 	Events.switch_activated.connect(_on_switch)
@@ -59,8 +73,8 @@ func _draw() -> void:
 	if _active:
 		progress = clampf((Clock.seconds_at(Clock.tick - _start_tick) - delay) / RISE_TIME, 0.0, 1.0)
 	var r := Rect2(-span * 0.5, span)
-	var rim := Color("b8ada0") if Stage.is_cave() else Color("f0c886")
-	var fill := Color("5d6870") if Stage.is_cave() else Color("a46c4e")
+	var rim := Color("b8ada0") if (Art.style(self) == "cave") else Color("f0c886")
+	var fill := Color("5d6870") if (Art.style(self) == "cave") else Color("a46c4e")
 	if _active and _expires_at_tick >= 0 \
 			and Clock.seconds_at(_expires_at_tick - Clock.tick) < WARN_TIME:
 		rim = Color("dfaa7c")
@@ -74,7 +88,7 @@ func _draw() -> void:
 		return
 	var body := Rect2(r.position.x, r.position.y + (1.0 - progress) * 70.0,
 		r.size.x, r.size.y)
-	if Stage.is_cave() and Art.draw_late_platform(self, "switch_bridge", body, Color(rim) if progress < 1.0 else Color.WHITE):
+	if (Art.style(self) == "cave") and Art.draw_late_platform(self, "switch_bridge", body, Color(rim) if progress < 1.0 else Color.WHITE):
 		return
 	draw_rect(body, fill)
 	draw_rect(Rect2(body.position.x, body.position.y, body.size.x, 7.0), rim)

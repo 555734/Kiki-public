@@ -193,15 +193,14 @@ func _draw_platform() -> void:
 			maxf(length - 6.0, 0.0), 4.0), shine)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-	if Stage.current() == Stage.Which.ROYAL_ARENA:
+	if Art.platform_skin(180.0) != "":
 		for i in range(path.size() - 1):
 			var a := path[i]
 			var b := path[i + 1]
 			var length := a.distance_to(b)
 			if length < 1.0: continue
 			draw_set_transform((a + b) * 0.5, (b - a).angle(), Vector2.ONE)
-			var key := "royal_platform_long_top" if length > 230.0 else \
-				"royal_platform_short_top" if length < 140.0 else "royal_platform_medium_top"
+			var key := Art.platform_skin(length)
 			Art.draw_stretched(self, key, Rect2(-length * 0.5, -thick * 0.5, length, thick),
 				Color(1, 1, 1, _fade_in).lerp(Color(1, 0.4, 0.3, _fade_in), hot))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

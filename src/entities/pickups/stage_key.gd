@@ -13,6 +13,7 @@ var runner: Node2D = null
 var _t: float = 0.0
 
 func _ready() -> void:
+	Art.bind_style(self)
 	z_index = 6
 	if GameState.has_key:
 		queue_free()
@@ -31,7 +32,7 @@ func _process(delta: float) -> void:
 		queue_free()
 
 func _draw() -> void:
-	if (Stage.is_desert() or Stage.is_cave()) and Art.draw_sprite(self, Art.late_pack() + "key", Vector2(0, 20), 48):
+	if ((Art.style(self) == "desert") or (Art.style(self) == "cave")) and Art.draw_sprite(self, Art.late_pack() + "key", Vector2(0, 20), 48):
 		return
 	var bob := sin(_t * 3.0) * 5.0
 	var c := Vector2(0, -24 + bob)

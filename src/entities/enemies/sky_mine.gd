@@ -18,6 +18,7 @@ var _origin: Vector2 = Vector2.ZERO
 var _rect: RectangleShape2D = null
 
 func _ready() -> void:
+	Art.bind_style(self)
 	hp = 1
 	super._ready()
 	collision_mask = 0
@@ -48,12 +49,12 @@ func mode() -> int:
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		var drawn_size := SIZE * (1.8 if mode() == 2 else 1.0)
 		if Art.draw_stretched(self, ["s17_mine_idle", "s17_mine_alert", "s17_mine_attack"][mode()], Rect2(-drawn_size * 0.5, drawn_size)):
 			return
-	if Stage.is_skyward_ruins() or Stage.is_sea() or Stage.is_swamp():
+	if (Art.style(self) == "skyward_ruins") or (Art.style(self) == "sea") or (Art.style(self) == "swamp"):
 		var drawn_size := SIZE * (1.8 if mode() == 2 else 1.0)
-		if Art.draw_stretched(self, (["s14_puffer_idle", "s14_puffer_alert", "s14_puffer_attack"][mode()] if Stage.is_sea() else "s13_wisp_attack"), Rect2(-drawn_size * 0.5, drawn_size)):
+		if Art.draw_stretched(self, (["s14_puffer_idle", "s14_puffer_alert", "s14_puffer_attack"][mode()] if (Art.style(self) == "sea") else "s13_wisp_attack"), Rect2(-drawn_size * 0.5, drawn_size)):
 			return
 	draw_circle(Vector2.ZERO, SIZE.x * (0.9 if mode() == 2 else 0.5), Color("3a3a44"))

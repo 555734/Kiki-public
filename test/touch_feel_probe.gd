@@ -146,6 +146,137 @@ func _ready() -> void:
 	check(hub.take_slot_choice() == -1 and hub.take_place_at().x == INF,
 		"focus loss cancels tools without placing anything")
 
+	await _gui_keeps_open_ground(hub, size)
+	await _stood_down_hub_takes_nothing(hub, shared_jump["center"])
+	_fuzz_finger_lifecycles(hub, size)
+
 	hub.free()
 	print("touch feel: %d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures else 0)
+
+
+func _touch(index: int, at: Vector2, pressed: bool) -> InputEventScreenTouch:
+	var e := InputEventScreenTouch.new()
+	e.index = index
+	e.position = at
+	e.pressed = pressed
+	return e
+
+func _drag(index: int, at: Vector2) -> InputEventScreenDrag:
+	var e := InputEventScreenDrag.new()
+	e.index = index
+	e.position = at
+	return e
+
+## Only the painted controls are claimed ahead of the GUI. A Button over open
+## ground must still get its press, or no menu drawn over the world could ever
+## be used.
+func _gui_keeps_open_ground(hub: InputHub, size: Vector2) -> void:
+	hub.solo_role = ""
+	hub.release_everything()
+	var open := Vector2(size.x * 0.62, size.y * 0.25)
+	check(hub.layout_mode() == "shared" and not hub._on_a_control(open),
+		"the probe point is open ground")
+	var button := Button.new()
+	button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(button)
+	get_viewport().push_input(_touch(80, open, true), true)
+	await get_tree().process_frame
+	check(not hub._touch_owner.has(80),
+		"a press on open ground under a GUI Control is left to the Control")
+	get_viewport().push_input(_touch(80, open, false), true)
+	await get_tree().process_frame
+	button.free()
+	await get_tree().process_frame
+	get_viewport().push_input(_touch(81, open, true), true)
+	await get_tree().process_frame
+	check(hub._touch_owner.get(81, "") == "aim",
+		"with nothing over it, the same press aims")
+	get_viewport().push_input(_touch(81, open, false), true)
+	await get_tree().process_frame
+	check(hub._touch_owner.is_empty(), "and its release is the hub's too")
+	hub.release_everything()
+
+## A hub that has been stood down -- the versus puppet, or the game's hub
+## behind the connect panel -- must not take touches through either pass.
+## Turning off only _unhandled_input left the puppet eating every touch in
+## _input once the hub moved to it.
+func _stood_down_hub_takes_nothing(hub: InputHub, jump_at: Vector2) -> void:
+	hub.release_everything()
+	var puppet := InputHub.new()
+	puppet.scripted = true
+	add_child(puppet)   # after hub, so it is asked first
+	puppet.set_listening(false)
+	check(not puppet.is_listening() and hub.is_listening(),
+		"set_listening switches both passes")
+	get_viewport().push_input(_touch(82, jump_at, true), true)
+	await get_tree().process_frame
+	check(puppet._touch_owner.is_empty() and hub._touch_owner.get(82, "") == "jump",
+		"a stood-down hub leaves the touch for the live one")
+	get_viewport().push_input(_touch(82, jump_at, false), true)
+	await get_tree().process_frame
+	check(not hub.jump_held, "and the live one sees the release")
+	hub.take_jump()
+	puppet.free()
+
+## Whatever order fingers arrive in, once every one of them has lifted nothing
+## may still be held. Android also drops releases; after focus loss clears up,
+## the same must hold.
+func _fuzz_finger_lifecycles(hub: InputHub, size: Vector2) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 8008
+	var spots: Array[Vector2] = []
+	for mode in ["shared", "runner"]:
+		for item in ControlLayout.layout(mode, size, false).values():
+			spots.append(item["center"])
+	for i in 6:
+		spots.append(Vector2(rng.randf() * size.x, rng.randf() * size.y))
+	for role in ["", "runner", "guardian"]:
+		hub.solo_role = role
+		var stuck := 0
+		var lossy := 0
+		for round in 60:
+			hub.release_everything()
+			var down := {}
+			var dropped := false
+			for step in 40:
+				var finger := rng.randi_range(0, 4)
+				var at: Vector2 = spots[rng.randi_range(0, spots.size() - 1)] \
+					+ Vector2(rng.randf_range(-30, 30), rng.randf_range(-30, 30))
+				var roll := rng.randf()
+				if not down.has(finger) or roll < 0.15:
+					# roll < 0.15 on a finger already down is a lost release
+					# followed by Android recycling the index.
+					if down.has(finger):
+						dropped = true
+					hub.feed(_touch(finger, at, true))
+					down[finger] = true
+				elif roll < 0.6:
+					hub.feed(_drag(finger, at))
+				else:
+					hub.feed(_touch(finger, at, false))
+					down.erase(finger)
+				hub.take_jump()
+				hub.take_slot_choice()
+				hub.take_ping()
+			for finger in down.keys():
+				hub.feed(_touch(int(finger), Vector2(size.x * 0.5, size.y * 0.5), false))
+			if not _at_rest(hub):
+				stuck += 1
+			if dropped:
+				hub.release_everything()
+				if not _at_rest(hub) or hub.take_slot_choice() != -1 \
+						or hub.take_place_at().x != INF or hub.take_ping() != 0:
+					lossy += 1
+		check(stuck == 0, "role '%s': all fingers lifted leaves nothing held (%d of 60 rounds stuck)"
+			% [role, stuck])
+		check(lossy == 0, "role '%s': lost releases clear on focus loss (%d of 60 rounds left state)"
+			% [role, lossy])
+	hub.solo_role = ""
+	hub.release_everything()
+
+func _at_rest(hub: InputHub) -> bool:
+	return hub._touch_owner.is_empty() and not hub.jump_held and hub.move_axis == 0.0 \
+		and hub.move_axis_y == 0.0 and hub.pan_axis == 0.0 and hub._stick_finger == -1 \
+		and hub._slot_finger == -1 and hub._zoom_finger == -1

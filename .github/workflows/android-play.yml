@@ -14,7 +14,21 @@ on:
         required: true
         default: "0.9.7"
       submit_to_play:
-        description: "Upload to the production track and send for review"
+        description: "Upload to Google Play's production track and send it for review"
+        required: false
+        default: false
+        type: boolean
+  # store-rehearsal.yml: the same signed bundle, built and thrown away. It
+  # never sets submit_to_play, so nothing reaches Google Play.
+  workflow_call:
+    inputs:
+      version_code:
+        required: true
+        type: string
+      version_name:
+        required: true
+        type: string
+      rehearsal:
         required: false
         default: false
         type: boolean
@@ -33,7 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: google-play
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Versions, package ids, keys and pins agree before anything is built.
+      - name: Release checks
+        run: bash tools/release-check.sh
 
       - name: Install pinned EOSG for Linux host and Android target
         run: bash tools/install-eosg.sh linux android
@@ -67,7 +85,7 @@ jobs:
 
       - name: Cache Godot and export templates
         id: godot-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/godot
@@ -80,10 +98,10 @@ jobs:
           set -euo pipefail
           BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
           mkdir -p ~/godot ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          bash tools/godot-download.sh "Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" /tmp/godot.zip
           unzip -q /tmp/godot.zip -d ~/godot
           chmod +x ~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
-          curl -sSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          bash tools/godot-download.sh "Godot_v${GODOT_VERSION}-stable_export_templates.tpz" /tmp/templates.tpz
           unzip -q -j /tmp/templates.tpz 'templates/android_*' \
             -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
 
@@ -138,39 +156,53 @@ jobs:
         run: bash tools/build-android-play.sh
 
       - name: Upload store artifact
-        uses: actions/upload-artifact@v4
+        if: ${{ !inputs.rehearsal }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: side-sky-play-com.sasakiful.melos-${{ inputs.version_code }}
           path: build/android/side-sky-play.aab
           if-no-files-found: error
 
+      # Release notes come from docs/store-listing.md, as for the App Store.
       - name: Prepare release notes
         if: inputs.submit_to_play
         run: |
           set -euo pipefail
           mkdir -p build/whatsnew
-          cp docs/release-notes/${{ inputs.version_name }}-ja-JP.txt build/whatsnew/whatsnew-ja-JP
+          python3 tools/release-notes.py ja > build/whatsnew/whatsnew-ja-JP
           test -s build/whatsnew/whatsnew-ja-JP
 
-      - name: Check Play submission credentials
+      - name: Check the Play service account is configured
         if: inputs.submit_to_play
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
+          [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ] || {
+            echo "PLAY_SERVICE_ACCOUNT_JSON is not set: the bundle was built but not sent to Google Play" >&2
+            exit 1
+          }
+          # Names what is wrong with the pasted key, never its values.
           python3 - <<'PY'
           import json, os, sys
           try:
               key = json.loads(os.environ["PLAY_SERVICE_ACCOUNT_JSON"])
-          except (KeyError, ValueError):
-              sys.exit("PLAY_SERVICE_ACCOUNT_JSON is missing or invalid JSON")
-          if key.get("type") != "service_account" or not key.get("client_email") or "-----BEGIN PRIVATE KEY-----" not in key.get("private_key", ""):
-              sys.exit("PLAY_SERVICE_ACCOUNT_JSON is not a complete service account key")
-          print("Play service account key is configured")
+          except Exception as err:
+              sys.exit(f"PLAY_SERVICE_ACCOUNT_JSON is not valid JSON (pasted only part of the file?): {type(err).__name__}")
+          problems = []
+          if key.get("type") != "service_account":
+              problems.append("type is not service_account")
+          if key.get("client_email") != "melos-play-purchase-verifier@taiman-akinator.iam.gserviceaccount.com":
+              problems.append("client_email is not the Play purchase-verifier account")
+          if "-----BEGIN PRIVATE KEY-----" not in key.get("private_key", ""):
+              problems.append("private_key is missing or incomplete")
+          if problems:
+              sys.exit("PLAY_SERVICE_ACCOUNT_JSON: " + "; ".join(problems))
+          print("service account key looks complete")
           PY
 
-      - name: Upload to Google Play production for review
+      - name: Upload to Google Play (production, sent for review)
         if: inputs.submit_to_play
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.sasakiful.melos

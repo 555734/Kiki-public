@@ -13,7 +13,19 @@ var _respawn: float = 0.0
 var _shake: float = 0.0
 var _shape: CollisionShape2D = null
 
+## Pass-through from below. A property of this piece, set by whoever builds
+## it -- the stage data decides, never the piece itself.
+var one_way: bool = false
+
+## Builds this piece from a stage's gimmick spec ("crumble"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var c := CrumblingFloor.new()
+	c.span = spec.get("span", Vector2(120, 40))
+	return c
+
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -23,7 +35,7 @@ func _ready() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = span
 	_shape.shape = rect
-	_shape.one_way_collision = Stage.is_cave()
+	_shape.one_way_collision = one_way
 	add_child(_shape)
 
 	# A thin sensor across the top surface tells us the runner has arrived.
@@ -89,23 +101,23 @@ func _draw() -> void:
 	if Art.draw_late_platform(self, "crumble", r):
 		_draw_cracks(r)
 		return
-	if Stage.is_cave():
+	if (Art.style(self) == "cave"):
 		draw_rect(r, Color("a67b5b"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("c69b70"))
 		draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5),
 			Color("59483e"))
 		_draw_cracks(r)
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_rect(r, Color("b5a58a"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("dfcfb0"))
 		draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), Color("756b60"))
 		_draw_cracks(r)
 		return
-	if Stage.is_swamp() and Art.draw_stretched(self, "ground_block", r):
+	if (Art.style(self) == "swamp") and Art.draw_stretched(self, "ground_block", r):
 		_draw_cracks(r)
 		return
-	if Stage.is_swamp():
+	if (Art.style(self) == "swamp"):
 		draw_rect(r, Color("745238"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 9.0)), Color("a4d74a"))
 		draw_rect(Rect2(r.position.x, r.position.y + 9.0,
@@ -114,7 +126,7 @@ func _draw() -> void:
 			draw_rect(r, Color(0.85, 0.35, 0.12, _shake * 0.28))
 		_draw_cracks(r)
 		return
-	if Stage.is_desert():
+	if (Art.style(self) == "desert"):
 		draw_rect(r, Color("b87746"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8.0)), Color("f2c071"))
 		draw_rect(Rect2(r.position.x, r.end.y - 6.0, r.size.x, 6.0), Color("83543b"))

@@ -539,6 +539,20 @@ func _free_point() -> Variant:
 				break
 		if not taken:
 			available.append(p)
+	# Some stages put most stars up high: draw from the heights first, and
+	# fall back to everywhere if none of them is free.
+	var bias := VersusStageData.high_star_bias()
+	if bias.size() == 2 and _rng.randf() < float(bias[1]):
+		var high: Array[Vector2] = []
+		for p in available:
+			if p.y < float(bias[0]):
+				high.append(p)
+		var at: Variant = _draw_point(high)
+		if at != null:
+			return at
+	return _draw_point(available)
+
+func _draw_point(available: Array[Vector2]) -> Variant:
 	while not available.is_empty():
 		var index := _rng.randi_range(0, available.size() - 1)
 		var p := available[index]

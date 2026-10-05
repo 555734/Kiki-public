@@ -171,3 +171,7 @@ static func coins() -> Array[Vector2]:
 
 static func crystals() -> Array[Vector2]: return []
 static func springs() -> Array[Vector2]: return [Vector2(100, 360)]
+
+static func painted_2d_value() -> bool: return true
+static func needs_key_value() -> bool: return true
+static func pit_centre_x_value() -> float: return 2700.0

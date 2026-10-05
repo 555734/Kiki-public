@@ -41,6 +41,10 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func needs_two_devices_value() -> bool: return true
+static func pit_centre_x_value() -> float: return 1200.0
+
 static func solid_decor() -> Array[Rect2]:
 	return []
 

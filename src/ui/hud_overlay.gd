@@ -29,6 +29,10 @@ func _process(_delta: float) -> void:
 	if not is_instance_valid(hud):
 		return
 	_return_button.visible = not hud.cleared().is_empty()
+	var main := hud.get_parent()
+	var online: bool = main != null and main.get("net_mode") != null and int(main.net_mode) != 0
+	# Online the room stays and the pair pick the next stage together.
+	_return_button.text = tr("ステージ選択へ") if online else tr("スタート画面へ戻る")
 	queue_redraw()
 
 func _draw() -> void:
@@ -43,8 +47,10 @@ func _return_to_start() -> void:
 	if not is_instance_valid(hud):
 		return
 	var main := hud.get_parent()
-	# Explicitly close a live relay/session before reloading the scene. Reloading
-	# itself gives us the exact same start state as a fresh app launch.
-	if main != null and main.has_method("_end_any_session"):
-		main.call("_end_any_session")
+	# main.quit_stage: online the room is kept for the next stage (CoopRoom);
+	# offline the session is closed and the scene reloaded, which gives the
+	# exact same start state as a fresh app launch.
+	if main != null and main.has_method("quit_stage"):
+		main.call("quit_stage")
+		return
 	get_tree().reload_current_scene()

@@ -46,10 +46,22 @@ people read them aloud across a table.
 ## Running it
 
 ```bash
-npm install
+npm ci           # exactly the tree in package-lock.json
 npm run dev      # http://localhost:8787, Durable Objects and all, offline
 npm test         # exercises the room lifecycle against the local worker
 ```
+
+Every test at once, against a worker it starts and stops itself -- the same
+command the `Server` workflow runs on each change here:
+
+```bash
+tools/server-tests.sh   # from the repository root
+```
+
+`wrangler` is pinned to an exact version and `package-lock.json` is committed:
+this worker decides purchases, so today's install and next year's must be the
+same code. Upgrade deliberately, by changing the version and the lockfile
+together.
 
 ## Deploying
 

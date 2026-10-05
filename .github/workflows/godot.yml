@@ -1,0 +1,59 @@
+name: Godot checks
+
+# The whole of tools/verify.sh -- logic tests, the stage and versus probes,
+# movement, agreement between two devices, and (--shots, under xvfb) the UI
+# driven by real touches, seating and screenshots -- and the per-stage
+# draw-call budget. The mobile workflows run a short smoke list before packaging; this
+# is the full suite, on every push and pull request that touches the game.
+#
+# test/known_failures.txt lists, by exact message, any check allowed to fail
+# (none at present); anything else fails the run.
+# No paths filter: tools/verify.sh also checks export presets, the store
+# workflows, translations and the entitlement key (tools/release-check.sh), and
+# a filter that forgot one of those let a PR that broke it skip the gate.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+      - name: Install pinned EOS runtime required by project autoloads
+        run: bash tools/install-eosg.sh linux
+      - name: tools/verify.sh --shots
+        run: bash tools/verify.sh "$GODOT" --shots
+
+  performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+      - name: Install pinned EOS runtime required by project autoloads
+        run: bash tools/install-eosg.sh linux
+      - name: Import project
+        run: xvfb-run -a "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
+      # Software GL under xvfb: frame times here mean nothing, but draw calls
+      # and object counts are the scene's own and match a phone's.
+      - name: Draw-call and object budgets (tools/perf_budgets.cfg)
+        run: xvfb-run -a -s "-screen 0 1280x720x24" bash tools/perf-gate.sh "$GODOT"

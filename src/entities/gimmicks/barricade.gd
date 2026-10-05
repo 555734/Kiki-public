@@ -37,6 +37,13 @@ var needed_act: int = 1
 var _falling: float = -1.0
 var _shape: CollisionShape2D = null
 
+## Builds this piece from a stage's gimmick spec ("barricade"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var wall := Barricade.new()
+	wall.needed_act = int(spec.get("act", 1))
+	return wall
+
 func _ready() -> void:
 	add_to_group("barricade")
 	collision_layer = Balance.LAYER_BARRICADE

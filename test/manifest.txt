@@ -1,0 +1,91 @@
+# Every Godot test and tool scene, and how it runs. tools/check-test-manifest.py
+# (a verify.sh step) fails if a scene is missing here, or if one marked gated
+# is not actually run by tools/verify.sh -- "a test nobody runs" is the thing
+# this file exists to prevent.
+#
+#   gated      tools/verify.sh runs it; CI fails if it fails
+#   shots      tools/verify.sh --shots (needs a display); CI runs it under xvfb
+#   perf       tools/perf-gate.sh, against tools/perf_budgets.cfg
+#   live       needs a running relay or several processes; run by hand with
+#              the script named (see docs/release-acceptance.md)
+#   capture    renders pictures for the store, the menu cards or review; not a test
+#   tool       a build or asset tool, not a test
+
+test/agreement_probe.tscn          gated
+test/arena_motion_probe.tscn       gated
+test/arena_rules_probe.tscn        gated
+test/cave_stage_probe.tscn         gated
+test/chaser_probe.tscn             gated
+test/check_scripts.tscn            gated
+test/coop_room_probe.tscn          gated
+test/desert_stage_probe.tscn       gated
+test/entitlement_probe.tscn        gated
+test/eos_contract_probe.tscn       gated
+test/ground_movement_probe.tscn    gated
+test/guardian_clear_probe.tscn     gated
+test/horror_stage_probe.tscn       gated
+test/hud_flow_probe.tscn           gated
+test/iap_ios_probe.tscn            gated
+test/keeper_probe.tscn             gated
+test/key_crow_probe.tscn           gated
+test/landing_probe.tscn            gated
+test/locale_probe.tscn             gated
+test/movement_probe.tscn           gated
+test/purchase_layout_probe.tscn    gated
+test/quit_confirm_probe.tscn       gated
+test/remote_jump_probe.tscn        gated
+test/room_code_probe.tscn          gated
+test/run_tests.tscn                gated
+test/safe_area_probe.tscn          gated
+test/sea_stage_probe.tscn          gated
+test/sky_probe.tscn                gated
+test/skyward_ruins_probe.tscn      gated
+test/stage_chaser_probe.tscn       gated
+test/stage_menu_probe.tscn         gated
+test/stage_probe.tscn              gated
+test/swamp_stage_probe.tscn        gated
+test/three_view_probe.tscn         gated
+test/touch_feel_probe.tscn         gated
+test/tower_stage_probe.tscn        gated
+test/veil_probe.tscn               gated
+test/versus_ffa_probe.tscn         gated
+test/versus_net_probe.tscn         gated
+test/versus_play_probe.tscn        gated
+test/versus_probe.tscn             gated
+test/versus_reach_probe.tscn       gated
+test/versus_solo_probe.tscn        gated
+test/versus_team_probe.tscn        gated
+test/versus_touch_probe.tscn       gated
+test/workshop_probe.tscn           gated
+
+test/ui_probe.tscn                 shots
+test/seating_probe.tscn            shots
+test/capture_shots.tscn            shots
+
+tools/perf_probe.tscn              perf
+
+test/duet_probe.tscn               live     tools/duet.sh: two game processes over a relay
+test/versus_live_probe.tscn        live     tools/versus4.sh: four game processes
+test/ws_probe.tscn                 live     a running signalling worker (npm run dev)
+test/versus_ws_probe.tscn          live     a running signalling worker (npm run dev)
+tools/versus_perf_probe.tscn       live     frame times of a four-player match, by hand
+
+test/cave_card_capture.tscn        capture
+test/cave_review_capture.tscn      capture
+test/desert_capture.tscn           capture
+test/desert_card_capture.tscn      capture
+test/swamp_capture.tscn            capture
+test/three_gallery.tscn            capture
+test/tower_card_capture.tscn       capture
+test/tower_review_capture.tscn     capture
+tools/capture_stage_cards.tscn     capture
+tools/capture_store_shots.tscn     capture
+tools/capture_versus_cards.tscn    capture
+
+tools/export_three_assets.tscn     tool
+
+test/floating_controls_probe.tscn gated
+test/royal_arena_probe.tscn gated
+test/split_assets_probe.tscn gated
+tools/capture_royal_arena.tscn capture
+tools/capture_stage_landscape.tscn capture

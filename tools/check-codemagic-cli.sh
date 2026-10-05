@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Checks every codemagic-cli-tools invocation in codemagic.yaml against the real
+# Checks every codemagic-cli-tools invocation in tools/submit-ios-appstore.sh
+# against the real
 # CLI, without a Mac and without spending a build.
 #
 #   tools/check-codemagic-cli.sh
@@ -18,10 +19,11 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 VENV="${VENV:-/tmp/cmtools}"
+CLI_VERSION="$(sed -n 's/^ *CODEMAGIC_CLI_VERSION: \(.*\)$/\1/p' .github/workflows/ios.yml | head -1)"
 if [ ! -x "$VENV/bin/app-store-connect" ]; then
 	echo "== installing codemagic-cli-tools =="
 	python3 -m venv "$VENV" >/dev/null
-	"$VENV/bin/pip" install -q codemagic-cli-tools || { echo "install failed"; exit 2; }
+	"$VENV/bin/pip" install -q "codemagic-cli-tools==${CLI_VERSION}" || { echo "install failed"; exit 2; }
 fi
 BIN="$VENV/bin"
 
@@ -41,21 +43,19 @@ check() {
 	done
 }
 
-echo "== codemagic.yaml が使っているコマンドとフラグ =="
-check "app-store-connect bundle-ids list" --bundle-id-identifier
-check "app-store-connect bundle-ids create" --name --platform
-check "app-store-connect certificates list" --type
-check "app-store-connect certificates delete" --ignore-not-found
-check "app-store-connect fetch-signing-files" --platform --type --certificate-key --create
+echo "== submit-ios-appstore.sh が使っているコマンドとフラグ =="
+check "app-store-connect fetch-signing-files" --platform --type --strict-match-identifier --certificate-key --create
 check "xcode-project use-profiles" --project
 check "xcode-project build-ipa" --project --scheme --config
-check "app-store-connect publish" --path --enable-package-validation
+check "app-store-connect publish" --path --enable-package-validation --app-store \
+	--version-string --release-type --cancel-previous-submissions \
+	--max-build-processing-wait --whats-new
 check "keychain initialize"
 check "keychain add-certificates"
 
-# Anything invoked in the yaml that is not checked above is a gap in this script.
-echo "== yaml に出てくる呼び出し =="
-grep -ohE "(app-store-connect|xcode-project|keychain) [a-z-]+( [a-z-]+)?" codemagic.yaml \
+# Anything invoked in the script that is not checked above is a gap in this one.
+echo "== スクリプトに出てくる呼び出し =="
+grep -ohE "(app-store-connect|xcode-project|keychain) [a-z-]+( [a-z-]+)?" tools/submit-ios-appstore.sh \
 	| sed 's/^ *//' | sort -u | sed 's/^/  /'
 
 [ "$fail" -eq 0 ] && echo "全部実在します" || echo "実在しないものがあります"

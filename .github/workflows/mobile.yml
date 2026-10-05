@@ -18,6 +18,11 @@ on:
         required: false
         default: false
         type: boolean
+      submit_ios_for_review:
+        description: "Also submit the iOS build for App Store review"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -34,4 +39,5 @@ jobs:
       # app that still has CI-only EOS credentials. Store submission is an
       # explicit manual action and remains fail-closed on missing EOS secrets.
       submit_to_app_store_connect: ${{ inputs.submit_ios || false }}
+      submit_for_review: ${{ inputs.submit_ios_for_review || false }}
     secrets: inherit

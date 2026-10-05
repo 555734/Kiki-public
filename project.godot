@@ -30,6 +30,7 @@ Entitlement="*res://src/autoload/entitlement.gd"
 EntitlementClient="*res://src/store/entitlement_client.gd"
 Iap="*res://src/store/iap.gd"
 EosRuntime="*res://src/net/eos/eos_runtime.gd"
+CoopRoom="*res://src/net/coop_room.gd"
 
 ; These files are installed from the pinned EOSG release before CI imports the
 ; project. Keeping the autoloads explicit makes exported builds independent of

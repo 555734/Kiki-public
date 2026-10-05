@@ -23,6 +23,9 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func progress_direction_value() -> Vector2: return Vector2.UP
+
 static func _island(x: float, top: float, width: float) -> Rect2:
 	return Rect2(x, top, width, ISLAND_T)
 
@@ -266,3 +269,5 @@ static func decor() -> Array[Dictionary]:
 
 static func veils() -> Array[Dictionary]:
 	return []
+
+static func painted_2d_value() -> bool: return true

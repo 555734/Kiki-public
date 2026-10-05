@@ -148,11 +148,8 @@ msgstr "This stage is in the full game"
 msgid "このステージには完全版が必要です"
 msgstr "This stage requires the full game"
 
-msgid "完全版を1回購入すると、1-3・1-4・1-5を遊べます。\n協力プレイの部屋も作れます。"
-msgstr "One purchase unlocks stages 1-3, 1-4 and 1-5.\nYou can also host a co-op room."
-
-msgid "購入すると1-3〜1-5を遊べて、協力プレイの部屋も作れます。"
-msgstr "Unlock stages 1-3 to 1-5 and host co-op rooms."
+msgid "購入すると1-3〜1-8を遊べて、協力プレイの部屋も作れます。"
+msgstr "Unlock stages 1-3 to 1-8 and host co-op rooms."
 
 msgid "購入せずに友達の部屋へ入る"
 msgstr "Join a friend's room for free"
@@ -1098,3 +1095,130 @@ msgstr "Runners collect stars; guardians help by shooting"
 
 msgid "射撃"
 msgstr "Shoot"
+
+msgctxt "quit"
+msgid "やめる"
+msgstr "Quit"
+
+msgid "ゲームをやめますか？"
+msgstr "Quit the game?"
+
+msgid "次回から確認しない"
+msgstr "Don't ask again"
+
+msgid "続ける"
+msgstr "Keep playing"
+
+msgid "ステージ選択に戻ります。接続はそのままです"
+msgstr "Back to stage select. You stay connected."
+
+msgid "スタート画面に戻ります"
+msgstr "Back to the start screen."
+
+msgid "部屋から抜けて、スタート画面に戻ります"
+msgstr "Leave the room and go back to the start screen."
+
+msgid "ステージ選択へ"
+msgstr "Stage select"
+
+msgid "ルーム %s に接続中"
+msgstr "Connected to room %s"
+
+msgid "次のステージを選んでください"
+msgstr "Choose the next stage"
+
+msgid "ホストがステージを選んでいます…"
+msgstr "The host is choosing a stage…"
+
+msgid "接続を切る"
+msgstr "Disconnect"
+
+msgid "相手との接続が切れました"
+msgstr "Lost connection to your partner"
+
+msgid "スターを あつめて かて！  無料版でも すべて あそべます"
+msgstr "Collect the stars to win! Everything is playable in the free version"
+
+msgid "あそびかたを えらんでください"
+msgstr "Choose how to play"
+
+msgid "みんなで"
+msgstr "Free-for-all"
+
+msgid "2対2"
+msgstr "2 vs 2"
+
+msgid "ひとり1キャラの 個人戦・2〜8人"
+msgstr "Every player for themselves · 2-8 players"
+
+msgid "ランナーと ガーディアンを 2人で分担・最大4人"
+msgstr "Two players share a runner and a guardian · up to 4"
+
+msgid "★ を さきに %d こ もった人の かち"
+msgstr "★ First player to hold %d wins"
+
+msgid "★ を さきに %d こ もったチームの かち"
+msgstr "★ First team to hold %d wins"
+
+msgid "えらぶ  ›"
+msgstr "Choose  ›"
+
+msgid "★ 射撃・踏みつけで 当てると スターを 1こ おとす"
+msgstr "★ A shot or a stomp knocks one star loose"
+
+msgid "ぶつかると ふたりとも おとす"
+msgstr "Bump into someone and you both drop one"
+
+msgid "てきは ふむか うつと たおせる"
+msgstr "Stomp or shoot enemies to beat them"
+
+msgid "‹  あそびかた"
+msgstr "‹  Modes"
+
+msgid "ステージ"
+msgstr "Stage"
+
+msgid "部屋を作る人が えらびます。入る人は 作った人の ステージに なります"
+msgstr "Picked by whoever makes the room. Everyone who joins plays on that stage"
+
+msgid "または"
+msgstr "or"
+
+msgid "入る席"
+msgstr "Your seat"
+
+msgid "Aチーム"
+msgstr "Team A"
+
+msgid "Bチーム"
+msgstr "Team B"
+
+msgid "はしって スターを とる"
+msgstr "Runs and grabs the stars"
+
+msgid "射撃で たすける"
+msgstr "Helps with the rifle"
+
+msgid "すすめかた"
+msgstr "How it works"
+
+msgid "① 部屋を作ると 6けたの 番号が でます"
+msgstr "① Make a room to get a 6-digit code"
+
+msgid "② 友達は その番号を 入れて 入ります"
+msgstr "② Friends enter that code to join"
+
+msgid "③ そろったら 作った人が スタート"
+msgstr "③ When everyone is in, the room's maker starts"
+
+msgid "オンラインに接続できないため、購入を始めませんでした。通信を確認してもう一度お試しください。"
+msgstr "The purchase did not start because the game is not online. Check your connection and try again."
+
+msgid "このApple IDの購入履歴に完全版が見つかりませんでした（App Store）。購入したときのApple IDでサインインしているか確認してください。"
+msgstr "The App Store found no full-game purchase for this Apple ID. Check that you are signed in with the Apple ID you bought it with."
+
+msgid "App Storeから応答がありませんでした。通信を確認してもう一度お試しください。"
+msgstr "The App Store did not answer. Check your connection and try again."
+
+msgid "App Storeから応答がありませんでした。購入済みなら「復元」をお試しください。"
+msgstr "The App Store did not answer. If you have already paid, try Restore."

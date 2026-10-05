@@ -9,10 +9,29 @@ on:
         required: false
         default: false
         type: boolean
+      rehearsal:
+        description: "Take the signed App Store path but stop before uploading"
+        required: false
+        default: false
+        type: boolean
+      submit_for_review:
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       submit_to_app_store_connect:
         description: "Sign and upload to App Store Connect"
+        required: false
+        default: false
+        type: boolean
+      rehearsal:
+        description: "Take the signed App Store path but stop before uploading"
+        required: false
+        default: false
+        type: boolean
+      submit_for_review:
+        description: "Also create the App Store version and submit it for review"
         required: false
         default: false
         type: boolean
@@ -40,7 +59,12 @@ jobs:
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
       IOS_CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERTIFICATE_PRIVATE_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Before the 17-minute StoreKit build, not after it.
+      - name: Release checks
+        if: inputs.submit_to_app_store_connect
+        run: bash tools/release-check.sh
 
       - name: Install pinned EOSG for macOS host and iOS target
         run: bash tools/install-eosg.sh macos ios
@@ -53,12 +77,12 @@ jobs:
           EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
           EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
           EOS_BUILD_VERSION: ${{ github.sha }}
-          EOS_ALLOW_PLACEHOLDER: ${{ inputs.submit_to_app_store_connect && 'false' || 'true' }}
+          EOS_ALLOW_PLACEHOLDER: ${{ (inputs.submit_to_app_store_connect || inputs.rehearsal) && 'false' || 'true' }}
         run: python3 tools/write-eos-credentials.py
 
       - name: Cache Godot and export templates
         id: godot-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/godot
@@ -71,9 +95,9 @@ jobs:
           set -euo pipefail
           BASE="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
           mkdir -p ~/godot "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
-          curl -sSL -o /tmp/godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          bash tools/godot-download.sh "Godot_v${GODOT_VERSION}-stable_macos.universal.zip" /tmp/godot.zip
           unzip -q /tmp/godot.zip -d ~/godot
-          curl -sSL -o /tmp/templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          bash tools/godot-download.sh "Godot_v${GODOT_VERSION}-stable_export_templates.tpz" /tmp/templates.tpz
           unzip -q -j /tmp/templates.tpz 'templates/ios*' \
             -d "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
           rm -f /tmp/godot.zip /tmp/templates.tpz
@@ -81,7 +105,7 @@ jobs:
       - name: Select iOS distribution mode
         id: asc
         env:
-          MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect }}
+          MANUAL_SUBMIT: ${{ inputs.submit_to_app_store_connect || inputs.rehearsal }}
         run: |
           set -euo pipefail
           requested="${MANUAL_SUBMIT:-false}"
@@ -118,7 +142,7 @@ jobs:
           set -euo pipefail
           # Homebrew Python is externally managed; install scons in a venv.
           python3 -m venv "$RUNNER_TEMP/scons-venv"
-          "$RUNNER_TEMP/scons-venv/bin/pip" install --quiet --disable-pip-version-check scons
+          "$RUNNER_TEMP/scons-venv/bin/pip" install --quiet --disable-pip-version-check scons==4.11.1
           echo "$RUNNER_TEMP/scons-venv/bin" >> "$GITHUB_PATH"
           export PATH="$RUNNER_TEMP/scons-venv/bin:$PATH"
           bash tools/install-iap-plugins.sh ios
@@ -131,11 +155,13 @@ jobs:
           "$RUNNER_TEMP/codemagic-cli/bin/pip" install --disable-pip-version-check "codemagic-cli-tools==${CODEMAGIC_CLI_VERSION}"
           echo "$RUNNER_TEMP/codemagic-cli/bin" >> "$GITHUB_PATH"
           if ! ruby -e 'require "xcodeproj"' >/dev/null 2>&1; then
-            gem install --user-install xcodeproj --no-document
+            gem install --user-install xcodeproj -v 1.28.1 --no-document
           fi
 
       - name: Build, sign, and upload to App Store Connect
         if: steps.asc.outputs.ready == 'true'
+        env:
+          SKIP_UPLOAD: ${{ inputs.rehearsal && '1' || '0' }}
         run: |
           set -euo pipefail
           export GODOT="$HOME/godot/Godot.app/Contents/MacOS/Godot"
@@ -143,7 +169,10 @@ jobs:
           xattr -dr com.apple.quarantine "$HOME/godot" 2>/dev/null || true
           chmod +x "$GODOT"
           xcodebuild -version
-          bash tools/submit-ios-appstore.sh
+          bash tools/release-check.sh
+          VENV="$RUNNER_TEMP/codemagic-cli" bash tools/check-codemagic-cli.sh
+          SUBMIT_FOR_REVIEW="${{ inputs.submit_for_review && 'true' || 'false' }}" \
+            bash tools/submit-ios-appstore.sh
 
       - name: Build the unsigned IPA fallback
         if: steps.asc.outputs.ready != 'true'
@@ -158,7 +187,7 @@ jobs:
 
       - name: Collect build logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ios-build-logs
           path: |
@@ -168,14 +197,14 @@ jobs:
 
       - name: Upload unsigned fallback artifact
         if: steps.asc.outputs.ready != 'true' && success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: side-sky-ipa
           path: build/ios/side-sky-unsigned.ipa
           if-no-files-found: error
 
       - name: Summarize App Store Connect submission
-        if: steps.asc.outputs.ready == 'true' && success()
+        if: steps.asc.outputs.ready == 'true' && success() && !inputs.rehearsal
         run: |
           {
             echo "## iOS submission accepted"

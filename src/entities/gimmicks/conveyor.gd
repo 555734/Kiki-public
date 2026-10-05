@@ -15,7 +15,23 @@ extends StaticBody2D
 @export var phase_offset: float = 0.0
 const WARN := 0.6
 
+## Pass-through from below. A property of this piece, set by whoever builds
+## it -- the stage data decides, never the piece itself.
+var one_way: bool = false
+
+## Builds this piece from a stage's gimmick spec ("conveyor"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var belt := Conveyor.new()
+	belt.span = spec.get("span", Vector2(220, 26))
+	belt.speed = float(spec.get("speed", 150.0))
+	belt.flip_every = float(spec.get("flip", 0.0))
+	belt.start_direction = int(spec.get("dir", 1))
+	belt.phase_offset = float(spec.get("phase", 0.0))
+	return belt
+
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -23,7 +39,7 @@ func _ready() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = span
 	shape.shape = rect
-	shape.one_way_collision = Stage.is_cave()
+	shape.one_way_collision = one_way
 	add_child(shape)
 
 func _physics_process(_delta: float) -> void:
@@ -49,14 +65,14 @@ func _draw() -> void:
 			Color("ffd99b") if warning() else Color.WHITE, direction_at(Clock.tick) < 0):
 		return
 	draw_rect(Rect2(-span * 0.5, span),
-		Color("70695f") if Stage.is_tower() else
-		(Color("866046") if Stage.is_desert() else Color("2c3448")))
-	if Stage.is_desert():
+		Color("70695f") if (Art.style(self) == "tower") else
+		(Color("866046") if (Art.style(self) == "desert") else Color("2c3448")))
+	if (Art.style(self) == "desert"):
 		draw_rect(Rect2(-span.x * 0.5, -span.y * 0.5, span.x, 5.0), Color("e7b66b"))
 	var d := float(direction_at(Clock.tick))
 	# A steady warm cue is easier to read than flashing arrows on a moving view.
 	var lit := Color("c78f72") if warning() else \
-		(Color("9bc4bd") if Stage.is_tower() else Color("ffc93c"))
+		(Color("9bc4bd") if (Art.style(self) == "tower") else Color("ffc93c"))
 	for i in int(span.x / 40.0):
 		var x := -span.x * 0.5 + 20.0 + float(i) * 40.0
 		draw_polyline(PackedVector2Array([Vector2(x - 6 * d, -7), Vector2(x + 6 * d, 0),

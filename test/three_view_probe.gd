@@ -13,21 +13,21 @@ func _ready() -> void:
 
 func run() -> void:
 	check(Balance.USE_3D and not Balance.USE_3D_RUNNER, "the 3D view is enabled")
-	# 1-3: the world is 3D (painted quads); LIRA stays the painted 2D figure.
-	var main = await _open(Stage.Which.SKYWARD_RUINS)
+	# legacy sky: the world is 3D (painted quads); LIRA stays the painted 2D figure.
+	var main = await _open(Stage.Which.SKY)
 	var view = main.get_node_or_null("World3D")
-	check(view != null and Stage.world_3d(), "1-3 creates a World3D")
+	check(view != null and Stage.world_3d(), "legacy sky creates a World3D")
 	if view != null:
-		check(view.bindings.size() > 5, "1-3 enemies and props have 3D models")
-		check(view.surfaces.size() > 0, "1-3 terrain is built in 3D")
-		check(main.level._terrain.self_modulate.a < 0.01, "1-3's 2D terrain is hidden")
-		check(not view.bindings.has(main.runner.get_instance_id()), "1-3 has no 3D runner")
+		check(view.bindings.size() > 5, "legacy sky enemies and props have 3D models")
+		check(view.surfaces.size() > 0, "legacy sky terrain is built in 3D")
+		check(main.level._terrain.self_modulate.a < 0.01, "legacy sky's 2D terrain is hidden")
+		check(not view.bindings.has(main.runner.get_instance_id()), "legacy sky has no 3D runner")
 	check(main.runner.visual.self_modulate.a > 0.99 and main.runner.visual.is_processing(),
-		"1-3 draws the painted 2D LIRA")
+		"legacy sky draws the painted 2D LIRA")
 	await _close(main)
 
 	# 1-1 and 1-2: everything is the original 2D art, runner included.
-	for which in [Stage.Which.GREENFIELD, Stage.Which.HORROR]:
+	for which in [Stage.Which.GREENFIELD, Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS]:
 		main = await _open(which)
 		var label: String = Stage.stage_number()
 		check(not Stage.world_3d(), "%s is a painted 2D stage" % label)

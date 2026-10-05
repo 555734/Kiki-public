@@ -14,7 +14,7 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if enemy == null:
 		return
-	if Stage.is_desert():
+	if (Art.style(self) == "desert"):
 		var kind := "scarab"
 		var frame := int(enemy.phase * 7.0) % 3
 		var height := 64.0
@@ -91,3 +91,6 @@ func _fin() -> void:
 		Vector2(23 * face, 10)]), Color("45d1de"))
 	draw_circle(Vector2(14 * face, 7), 10, SAND)
 	draw_circle(Vector2(17 * face, 6), 4, INK)
+
+func _ready() -> void:
+	Art.bind_style(self)

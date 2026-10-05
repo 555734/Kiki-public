@@ -245,6 +245,8 @@ async function askApple(env, transactionId) {
     const response = await fetch(
       `${base}/inApps/v1/transactions/${encodeURIComponent(transactionId)}`,
       { headers: { authorization: `Bearer ${jwt}` } });
+    console.log(`apple ${base === APPLE_SANDBOX ? "sandbox" : "production"} `
+      + `transaction ${transactionId}: ${response.status}`);
     if (response.status === 404) continue;
     if (!response.ok) throw new Error(`apple ${response.status}`);
     const body = await response.json();
@@ -265,13 +267,117 @@ async function askApple(env, transactionId) {
 
 // --------------------------------------------------------------- the routes
 
+// An iOS purchase is keyed by its ORIGINAL transaction id. StoreKit 1 hands
+// every restore a brand-new transaction id, so keying by transaction_id made a
+// reinstall's restore a stranger to its own purchase. For the purchase itself
+// the two ids are the same, so rows written before this change still match.
 function receiptKey(body) {
   if (body.platform === "android") return `android:${body.purchase_token || ""}`;
-  if (body.platform === "ios") return `ios:${body.transaction_id || ""}`;
+  if (body.platform === "ios") {
+    return `ios:${body.original_transaction_id || body.transaction_id || ""}`;
+  }
   return "";
 }
 
+// A health check of everything purchase verification depends on, for CI to
+// run after every deploy and for whoever is debugging a purchase:
+//
+//   apple    asks Apple about a transaction that cannot exist: 404 means the
+//            key works; 401 means it is the wrong key or issuer
+//   google   gets a Play API token and asks about a purchase token that cannot
+//            exist, for every package: 400/404 means the service account is
+//            accepted for that app; 401/403 means it is not
+//   signing  the sha256 of the public half of ENTITLEMENT_SIGNING_KEY, to
+//            compare with the app's entitlement_key.json
+//
+// Nothing secret is returned: statuses, which settings are absent, and a
+// public-key fingerprint.
+export async function appleCheck(env) {
+  const missing = ["APPLE_ASC_KEY", "APPLE_ASC_KEY_ID", "APPLE_ASC_ISSUER_ID"]
+    .filter((name) => !env[name]);
+  if (missing.length) return { ok: false, missing };
+  let jwt;
+  try {
+    jwt = await appleToken(env);
+  } catch (err) {
+    return { ok: false, key: `unusable: ${String(err && err.name || "error")}` };
+  }
+  const statuses = {};
+  for (const [name, base] of [["production", APPLE_PRODUCTION], ["sandbox", APPLE_SANDBOX]]) {
+    try {
+      const response = await fetch(`${base}/inApps/v1/transactions/2000000000000000`,
+        { headers: { authorization: `Bearer ${jwt}` } });
+      statuses[name] = response.status;
+    } catch {
+      statuses[name] = "unreachable";
+    }
+  }
+  const ok = Object.values(statuses).every((s) => s === 404);
+  return { ok, statuses };
+}
+
+export async function googleCheck(env) {
+  if (!env.GOOGLE_SERVICE_ACCOUNT) return { ok: false, missing: ["GOOGLE_SERVICE_ACCOUNT"] };
+  let access;
+  try {
+    access = await googleAccessToken(env);
+  } catch (err) {
+    return { ok: false, auth: String(err && err.message || err) };
+  }
+  const statuses = {};
+  for (const packageName of ANDROID_PACKAGES) {
+    try {
+      const response = await fetch("https://androidpublisher.googleapis.com/androidpublisher/v3/"
+        + `applications/${packageName}/purchases/products/${PRODUCT_ID}/tokens/health-check-token`,
+      { headers: { authorization: `Bearer ${access}` } });
+      statuses[packageName] = response.status;
+    } catch {
+      statuses[packageName] = "unreachable";
+    }
+  }
+  // Every package must accept the account: askGoogle stops at the first
+  // package that answers anything but 404, so one refusing package breaks all.
+  const ok = Object.values(statuses).every((s) => s === 400 || s === 404 || s === 410);
+  return { ok, statuses };
+}
+
+export async function signingCheck(env) {
+  if (!env.ENTITLEMENT_SIGNING_KEY) return { ok: false, missing: ["ENTITLEMENT_SIGNING_KEY"] };
+  try {
+    const priv = await crypto.subtle.importKey("pkcs8",
+      pemToArrayBuffer(env.ENTITLEMENT_SIGNING_KEY),
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]);
+    const jwk = await crypto.subtle.exportKey("jwk", priv);
+    const pub = await crypto.subtle.importKey("jwk",
+      { kty: "RSA", n: jwk.n, e: jwk.e, alg: "RS256", ext: true },
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["verify"]);
+    const spki = await crypto.subtle.exportKey("spki", pub);
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", spki));
+    const sha256 = [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
+    return { ok: true, public_key_sha256: sha256 };
+  } catch (err) {
+    return { ok: false, key: `unusable: ${String(err && err.name || "error")}` };
+  }
+}
+
+export async function health(env) {
+  const [apple, google, signing] = await Promise.all(
+    [appleCheck(env), googleCheck(env), signingCheck(env)]);
+  return { ok: apple.ok && google.ok && signing.ok, apple, google, signing };
+}
+
 export async function handleEntitlement(request, env, url) {
+  if (request.method === "GET" && url.pathname === "/entitlement/health") {
+    return json(await health(env));
+  }
+  if (request.method === "GET" && url.pathname === "/entitlement/apple-check") {
+    return json(await appleCheck(env));
+  }
+  if (request.method === "GET" && url.pathname === "/entitlement/recent") {
+    if (!env.ENTITLEMENTS) return json({ message: "entitlements not configured" }, 503);
+    const stub = env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("global"));
+    return stub.fetch("https://entitlement.local/recent");
+  }
   if (request.method !== "POST") return json({ message: "method not allowed" }, 405);
   let body;
   try {
@@ -311,14 +417,44 @@ export class Entitlements {
 
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === "/recent") {
+      return json({ recent: (await this.state.storage.get("recent")) || [] });
+    }
     const body = await request.json();
+    let response;
     switch (url.pathname) {
-      case "/verify": return this.verify(body);
-      case "/renew": return this.renew(body);
-      case "/dev-enrol": return this.devEnrol(body);
-      case "/review-enrol": return this.reviewEnrol(body);
+      case "/verify": response = await this.verify(body); break;
+      case "/renew": response = await this.renew(body); break;
+      case "/dev-enrol": response = await this.devEnrol(body); break;
+      case "/review-enrol": response = await this.reviewEnrol(body); break;
       default: return json({ message: "not found" }, 404);
     }
+    await this.remember(url.pathname, body, response);
+    return response;
+  }
+
+  // The last few requests, kept so a failed purchase or restore on someone's
+  // phone can be read back afterwards (GET /entitlement/recent) instead of
+  // having to be watched live. Nothing identifying: the route, the platform,
+  // the last four digits of the ids, and what was answered.
+  async remember(route, body, response) {
+    const tail = (v) => (v ? `…${String(v).slice(-4)}` : "");
+    let answer = {};
+    try { answer = await response.clone().json(); } catch { /* not JSON */ }
+    const entry = {
+      at: new Date().toISOString(),
+      route,
+      platform: String(body.platform || ""),
+      transaction: tail(body.transaction_id || body.purchase_token),
+      original: tail(body.original_transaction_id),
+      status: response.status,
+      outcome: answer.token ? "token" : String(answer.message || ""),
+      apple: this.lastApple || "",
+    };
+    this.lastApple = "";
+    const recent = (await this.state.storage.get("recent")) || [];
+    recent.unshift(entry);
+    await this.state.storage.put("recent", recent.slice(0, 30));
   }
 
   async verify(body) {
@@ -353,6 +489,7 @@ export class Entitlements {
     }
 
     if (!answer.ok) {
+      console.log(`verify ${key}: refused (${answer.reason})`);
       if (existing) await this.state.storage.delete(`bind:${key}`);
       const message = answer.reason === "refunded" || answer.reason === "cancelled"
         ? "この購入は取り消されています。"
@@ -463,9 +600,29 @@ export class Entitlements {
    * out is a test of itself.
    */
   async askStore(body) {
-    return String(body.platform) === "android"
-      ? askGoogle(this.env, body.purchase_token)
-      : askApple(this.env, body.transaction_id);
+    if (String(body.platform) === "android") {
+      return askGoogle(this.env, body.purchase_token);
+    }
+    // The original id first: it is the one Apple's server API is sure to
+    // know. The restore's own id is only a fallback (an app from before the
+    // plugin reported original_transaction_id sends nothing else).
+    const ids = [...new Set([body.original_transaction_id, body.transaction_id]
+      .filter((id) => id))];
+    let answer = { ok: false, reason: "not-found" };
+    const seen = [];
+    try {
+      for (const id of ids) {
+        answer = await askApple(this.env, id);
+        seen.push(`${answer.ok ? "ok" : answer.reason}`);
+        if (answer.ok || answer.reason !== "not-found") break;
+      }
+    } catch (err) {
+      seen.push(`error: ${String(err && err.message || err)}`);
+      throw err;
+    } finally {
+      this.lastApple = seen.join(", ");
+    }
+    return answer;
   }
 
   async issue(puid, kind, platform) {

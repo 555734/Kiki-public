@@ -583,7 +583,7 @@ func _swamp_prop(region: Rect2, bottom_centre: Vector2, height: float,
 
 func _swamp_footing(key: String, rect: Rect2) -> void:
 	if key == "swamp_stone":
-		var bottom := Stage.water_y() + 25.0
+		var bottom := VersusStageData.water_y() + 25.0
 		var face := Rect2(rect.position.x - 8.0, rect.position.y + 13.0,
 			rect.size.x + 16.0, bottom - rect.position.y - 13.0)
 		if not Art.draw_tiled(self, "sky_island_tile", face, 145.0,

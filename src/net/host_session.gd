@@ -137,10 +137,17 @@ func _physics_process(delta: float) -> void:
 	if Clock.tick % SNAPSHOT_EVERY == 0:
 		transport.send(NetTransport.Channel.SNAPSHOT,
 			NetTransport.Reliability.UNRELIABLE, _snapshot().encode())
-	if Clock.tick % MigrationState.SEND_EVERY_TICKS == 0:
+	# Once per tick that actually happened. The stage clock stands still on the
+	# home screen and while authority moves, and a tick parked on a multiple of
+	# SEND_EVERY_TICKS sent the whole stage again on every frame.
+	if Clock.tick % MigrationState.SEND_EVERY_TICKS == 0 \
+			and Clock.tick != _migration_sent_tick:
+		_migration_sent_tick = Clock.tick
 		_send_migration_frame()
 	_send_boss()
 	_reap_holograms()
+
+var _migration_sent_tick: int = -1
 
 func _send_migration_frame() -> void:
 	if transport == null or not transport.is_connected_to_peer():
@@ -274,7 +281,10 @@ func _take_entitlement(token: String) -> void:
 		String(who.get("room_kind", "")))
 
 func _exit_tree() -> void:
-	Entitlement.revoke_guest()
+	# Not while the room is only moving to the next stage (CoopRoom): the
+	# pass lasts as long as the pair are together.
+	if not CoopRoom.holding():
+		Entitlement.revoke_guest()
 
 func _send_event(payload: PackedByteArray) -> void:
 	if transport != null:
@@ -359,6 +369,8 @@ func _handle(packet: Dictionary) -> void:
 			# now a live reading of where they are looking, not the place the
 			# reticle happened to start.
 			main.input_hub.remote_aim = true
+		Protocol.Msg.ROOM_MENU:
+			main.call_deferred("_room_menu_from_partner")
 		Protocol.Msg.RUNNER_INPUT:
 			if remote_role != "runner":
 				return

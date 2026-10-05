@@ -10,6 +10,7 @@ const LAYER_HAZARD := 32
 @export var draw_spikes: bool = true
 
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("instant_death")
 	collision_layer = LAYER_HAZARD
 	collision_mask = 0
@@ -23,7 +24,7 @@ func _ready() -> void:
 func _draw() -> void:
 	if not draw_spikes:
 		return
-	if Stage.is_cave():
+	if (Art.style(self) == "cave"):
 		var left := -span.x * 0.5
 		draw_rect(Rect2(left, span.y * 0.5 - 7, span.x, 7),
 			Color("5b4b42"))

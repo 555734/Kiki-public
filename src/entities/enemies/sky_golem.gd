@@ -18,6 +18,7 @@ var _rect: RectangleShape2D = null
 var direction: int = 1
 
 func _ready() -> void:
+	Art.bind_style(self)
 	hp = 3
 	super._ready()
 	collision_mask = 0
@@ -50,8 +51,8 @@ func stomping() -> bool:
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
-	if Stage.is_skyward_ruins() or Stage.is_sea() or Stage.is_swamp():
+	if (Art.style(self) == "skyward_ruins") or (Art.style(self) == "sea") or (Art.style(self) == "swamp"):
 		var drawn_size := SIZE * Vector2(2.4 if stomping() else 1.0, 1.0)
-		if Art.draw_stretched(self, ("s15_lava_golem" if Stage.is_swamp() else ("s13_golem_attack" if stomping() else "s13_golem_move")), Rect2(-drawn_size * 0.5, drawn_size)):
+		if Art.draw_stretched(self, ("s15_lava_golem" if (Art.style(self) == "swamp") else ("s13_golem_attack" if stomping() else "s13_golem_move")), Rect2(-drawn_size * 0.5, drawn_size)):
 			return
 	draw_rect(Rect2(-SIZE * 0.5, SIZE), Color("8a8f96"))

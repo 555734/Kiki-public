@@ -12,7 +12,20 @@ extends Area2D
 
 var _shape: CollisionShape2D = null
 
+## Builds this piece from a stage's gimmick spec ("tower_trap"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var trap := TowerTrap.new()
+	trap.kind = String(spec.get("kind", "pendulum"))
+	trap.length = float(spec.get("length", 235.0))
+	trap.travel = float(spec.get("travel", 150.0))
+	trap.period = float(spec.get("period", 3.6))
+	trap.phase_offset = float(spec.get("phase", 0.0))
+	trap.facing = int(spec.get("facing", 1))
+	return trap
+
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("instant_death")
 	collision_layer = Hazard.LAYER_HAZARD
 	collision_mask = 0
@@ -60,7 +73,7 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		return
 	var head := head_at(Clock.tick)
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		if kind == "pendulum":
 			draw_line(Vector2.ZERO, head, Color("a78955"), 6)
 			if Art.draw_stretched(self, "s17_pendulum_ball", Rect2(head - Vector2.ONE * 31, Vector2.ONE * 62)): return

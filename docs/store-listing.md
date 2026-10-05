@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.0
+# ストア提出物 — メロスゲーム 0.9.7
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.0（Android versionCodeはPlay Consoleの直近の値を確認して指定）
+対象ビルド: version 0.9.7（Android versionCode 34）
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -38,12 +38,18 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 だからこのゲームは、ふたりの会話そのものになります。
 「そこ、もう1枚ちょうだい」「跳んで、今」
 
-■ 5つのステージ
+■ 8つのステージ
 1-1 GREENFIELD PLAINS ― 道具をひとつずつ覚える草原
 1-2 THE HOLLOW OUTSKIRTS ― 灯りの少ない村はずれ
 1-3 THE SKYWARD RUINS ― 空へ伸びる縦の遺跡
 1-4 THE SUNLIT COAST ― 陽の当たる海岸
-1-5 THE POISON MARSH ― 沈む沼
+1-5 THE POISON MARSH ― 毒の沼から崖を登る
+1-6 THE SANDGLASS RUINS ― 砂の遺跡を登る
+1-7 THE CLOCKWORK TOWER ― 歯車の塔
+1-8 THE UNDERGROVE ― 地下の森
+
+■ スターたいせん
+みんなで、または2対2で、スターを奪い合う対戦モードは誰でも無料です。
 
 ■ オンラインでもその場でも
 6文字の合言葉を口で伝えるだけで、離れた相手とつながります。
@@ -51,7 +57,7 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 ■ 無料で始められます
 1-1 と 1-2 は誰でも最後まで遊べます。
-完全版（買い切り・1回限り）で 1-3 / 1-4 / 1-5 が開きます。
+完全版（買い切り・1回限り）で 1-3〜1-5 が開きます。
 そして完全版を持っている人の部屋には、買っていない友達がそのまま入って、
 全ステージを一緒に遊べます。片方が持っていれば、ふたりで遊べます。
 
@@ -59,7 +65,17 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 広告も、定期課金も、スタミナもありません。
 ```
 
-**新機能 / リリースノート（0.9.0）**
+**新機能 / リリースノート（0.9.3）**
+
+<!-- release-notes:ja -->
+```
+・新ステージ 1-6〜1-8 を追加しました（完全版に含まれます）
+・1-5 と 1-6 を、協力して足場を作りながら登るステージに作り直しました
+・スターたいせん（対戦モード）を追加しました。誰でも無料で遊べます
+・iPhone で購入の復元ができないことがある問題を直しました
+```
+
+**リリースノート（0.9.0）**
 
 ```
 最初の公開版です。5ステージ、オンライン2人プレイ、完全版の買い切りに対応しました。
@@ -90,9 +106,13 @@ standing on it into the air.
 Every stage contains something one player cannot solve. That is the point: the
 game is the conversation between you.
 
-FIVE STAGES
+EIGHT STAGES
 1-1 GREENFIELD PLAINS / 1-2 THE HOLLOW OUTSKIRTS / 1-3 THE SKYWARD RUINS
-1-4 THE SUNLIT COAST / 1-5 THE POISON MARSH
+1-4 THE SUNLIT COAST / 1-5 THE POISON MARSH / 1-6 THE SANDGLASS RUINS
+1-7 THE CLOCKWORK TOWER / 1-8 THE UNDERGROVE
+
+STAR BATTLE
+A versus mode -- everyone, or two against two -- free for every player.
 
 ONLINE OR SIDE BY SIDE
 Read a six-character room code out loud and you are connected. In the same
@@ -100,7 +120,7 @@ room, one device works too.
 
 FREE TO START
 1-1 and 1-2 are free all the way through. One non-consumable purchase opens
-1-3, 1-4 and 1-5 -- and a friend who has not bought it can join YOUR room and
+1-3 to 1-5 -- and a friend who has not bought it can join YOUR room and
 play every stage with you. One copy is enough for two people.
 
 No ads. No subscription. No stamina.
@@ -252,7 +272,7 @@ godot --path . --rendering-method gl_compatibility --rendering-driver opengl3   
    操作できます。課金なしで 1-1 と 1-2 を最後まで確認できます。
 
 2. アプリ内購入の確認（full_unlock / 非消費型 / 1回限り）
-   スタート画面でステージ 1-3、1-4、1-5 のいずれかをタップすると購入画面が
+   スタート画面で 1-3〜1-5 のいずれかのステージをタップすると購入画面が
    開きます。Sandbox アカウントでご確認ください。
    「購入を復元する」も同じ画面にあります。
 
@@ -275,19 +295,24 @@ godot --path . --rendering-method gl_compatibility --rendering-driver opengl3   
 
 - [x] `docs/privacy-policy.md` の連絡先を埋めた（a3506124@gmail.com）
 - [x] GitHub Pages を有効にし、ポリシーURLが**ブラウザで開けた**
-- [ ] ✅ 署名鍵が本番のもので、Worker に対になる秘密鍵が入っている
-- [ ] ✅ バージョンが 0.9.6 / versionCode 33 で全箇所一致している
-- [ ] ✅ 課金プラグインがピン留めされ、CIで有効
-- [ ] Play Console: `full_unlock` を**管理対象アイテム（非消費型）**として作成し、**有効化**した
-- [ ] Play Console: サービスアカウントを作り、Worker に `GOOGLE_SERVICE_ACCOUNT` を入れた
-- [ ] App Store Connect: `full_unlock` を作り、審査用スクショとレビューメモを付けた
-- [ ] App Store Connect: **Paid Applications 契約**を完了した（これが未完だと課金は動かない）
-- [ ] App Store Connect: App Store Server API の `.p8` を Worker に入れた
+- [x] ✅ 署名鍵が本番のもので、Worker に対になる秘密鍵が入っている
+      （deploy-worker が `/entitlement/health` の指紋と `entitlement_key.json` を照合）
+- [x] ✅ バージョンと versionCode が全箇所一致している（release-check）
+- [x] ✅ 課金プラグインがピン留めされ、提出ビルドに実際に入っている
+      （iOS: Xcode プロジェクトの inappstore、Android: AAB の BILLING 権限と billingclient）
+- [x] Play Console: `full_unlock` を作成・有効化した（2026-10-04 に Android で購入成功）
+- [x] ✅ Worker の `GOOGLE_SERVICE_ACCOUNT` が Play API に通る（health の google）
+- [x] App Store Connect: `full_unlock` を作り、審査用スクショとレビューメモを付けた
+- [x] App Store Connect: **Paid Applications 契約**を完了した（2026-10-04 に iOS で購入・復元成功）
+- [x] ✅ Worker の Apple 鍵が App Store Server API に通る（health の apple）
 - [x] スクリーンショットとフィーチャーグラフィックを用意した（`store-assets/`）
-- [ ] 内部テスト / TestFlight で**実際に1回購入した**
-- [ ] 機種変更を想定し、**別端末で「購入を復元する」が通った**
+- [x] 実機で**実際に1回購入した**（iOS / Android、2026-10-04）
+- [x] **再インストール後に「購入を復元する」が通った**（iOS、2026-10-04 21:02、`/entitlement/recent` で確認）
 
 ### 残っている判断（人が決めること）
+
+（解決済み）開発者コード欄のある `net_diagnostics.gd` は全プリセットの
+exclude_filter で出荷ビルドから除かれている。以下は経緯として残す。
 
 **接続記録画面の「開発者コード」欄**を審査ビルドに残すかどうか。
 `docs/monetization.md` 6章のとおり、これは開発者2人が自分の端末に権限を
@@ -317,3 +342,10 @@ App Review が 3.1.1 として扱う可能性は残る。
 各ステージに素材を使った追跡敵を配置しました。
 初期設定の移動スティックが左下の押した位置に表示されるようになりました。
 1台モードのジャンプを大きくし、右下に配置。足場・狙撃はその上に配置しました。
+
+**新機能 / リリースノート（0.9.7）**
+
+<!-- release-notes:ja -->
+```
+対戦モードにロイヤル・アリーナを追加しました。空に浮かぶ王国で、ジャンプ台や移動足場を使ってスターを奪い合えます。新しいステージが対戦の初期ステージになりました。対戦中のタッチ操作も改善しました。
+```

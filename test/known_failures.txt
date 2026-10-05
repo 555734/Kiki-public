@@ -1,0 +1,13 @@
+# Checks known to fail, per verify.sh step, by their exact message.
+#
+# Each section is a verify.sh step title. A step fails on any FAIL line or
+# script error not listed under it. A script error is listed as
+#   script_error: <message> @ <where it was raised>
+# never as a count. Values in parentheses in FAIL lines are ignored when
+# comparing (they are measurements).
+#
+# This list may only shrink: fix a check, delete its line. verify.sh says when
+# a listed check has started passing. Never add a line to make CI green --
+# that is the failure this file exists to catch.
+
+# (empty: every check in verify.sh passes)

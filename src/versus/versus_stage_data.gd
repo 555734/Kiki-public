@@ -96,18 +96,30 @@ const LAYOUTS := {
 	# 1-1: two rolling hills, and a sky bridge over the middle. A spring on
 	# each shoulder of the middle hill throws you up to it; a cloud platform
 	# drifts between the hilltop and the bridge.
+	# 1-1: a meadow in three tiers. From the low grass at the join the
+	# ground climbs to a hilltop, drops over a pit with a column of wind in it
+	# into a valley, and rises again to the middle. A spring on the hilltop
+	# throws you to a sky island; a blinking slab and a drifting cloud carry
+	# you on along the sky to the middle's high row, which the middle's own
+	# spring and the valley's lift also reach. Stars favour the heights.
 	Stage.Which.GREENFIELD: {
 		"floors": [
-			[0.0, 380.0, 400.0], [380.0, 620.0, 330.0], [620.0, 900.0, 250.0],
-			[900.0, 1080.0, 330.0], [1080.0, 1220.0, 400.0], [1360.0, 1600.0, 370.0],
+			[0.0, 300.0, 420.0], [300.0, 460.0, 350.0], [460.0, 640.0, 280.0],
+			[640.0, 820.0, 210.0], [820.0, 1000.0, 280.0], [1140.0, 1260.0, 310.0],
+			[1260.0, 1420.0, 380.0], [1420.0, 1600.0, 320.0],
 		],
-		"blocks": [[160.0, 290.0, 3], [714.0, 140.0, 2], [1180.0, 120.0, 4]],
-		"centre": [[1485.0, 100.0, 5]],
-		"obstacles": [[1000.0, 46.0, 92.0]],
-		"springs": [1420.0],
-		"movers": [[990.0, 170.0, 100.0, 120.0, 0.0]],
-		"enemies": [["walker", 30.0, 260.0, 400.0], ["flyer", 1050.0, 1340.0, 220.0]],
-		"starts": [[800.0, 1], [300.0, 1], [1490.0, 1], [520.0, 1]],
+		"blocks": [[780.0, -40.0, 3], [1100.0, -60.0, 3], [1030.0, 30.0, 2]],
+		"centre": [[1508.0, 120.0, 4]],
+		"obstacles": [[550.0, 46.0, 92.0], [1220.0, 46.0, 92.0]],
+		"springs": [690.0, 1460.0],
+		"movers": [[1340.0, 355.0, 100.0, 0.0, -180.0], [1260.0, 40.0, 100.0, 110.0, 0.0]],
+		"blinks": [[1009.0, -27.0, 100.0, 0]],
+		"updrafts": [[1070.0, 80.0, 640.0, 110.0]],
+		"enemies": [["walker", 1290.0, 1390.0, 380.0], ["walker", 20.0, 280.0, 420.0],
+			["flyer", 1000.0, 1400.0, 165.0], ["flyer", 300.0, 800.0, 60.0]],
+		"starts": [[800.0, 1], [150.0, 1], [1150.0, 1], [400.0, 1]],
+		# [y above which a point is "high", the chance a star goes there]
+		"star_high": [200.0, 0.7],
 	},
 	# 1-2: a village of cliffs. Up two ledges to a high plateau with a
 	# spring to the rooftops above it, across two pits to the square, where
@@ -403,10 +415,10 @@ static func _decor_greenfield() -> Array[Dictionary]:
 	for r in _obstacles():
 		out.append({"type": "conduit", "pos": Vector2(r.get_center().x, r.end.y), "size": r.size})
 	_pairs(out, "tree", 90.0)
-	_pairs(out, "signpost", 340.0)
-	_pairs(out, "flowers", 700.0)
-	_pairs(out, "flowers", 1130.0)
-	_pairs(out, "flowers", 1520.0)
+	_pairs(out, "signpost", 380.0)
+	_pairs(out, "flowers", 780.0)
+	_pairs(out, "flowers", 900.0)
+	_pairs(out, "flowers", 1540.0)
 	return out
 
 ## 1-2: the rows as crumbling ruin blocks, the conduits as two-block stacks,
@@ -550,6 +562,18 @@ static func lap_fraction(x: float) -> float:
 static func height_fraction(y: float) -> float:
 	return clampf((y - MAP_RECT.position.y) / MAP_RECT.size.y, 0.0, 1.0)
 
+## The sea's or the poison's surface in the arena, INF for a dry stage.
+## Co-op 1-5 is a climb now and keeps its pool thousands of pixels down,
+## so the marsh arena has its own level, just under its lowest rock.
+static func water_y() -> float:
+	if Stage.water_y() == INF:
+		return INF
+	if theme == Stage.Which.SWAMP:
+		return SWAMP_WATER_Y
+	return Stage.water_y()
+
+const SWAMP_WATER_Y: float = 520.0
+
 static func kill_y() -> float:
 	return Level01Data.KILL_Y
 
@@ -610,6 +634,11 @@ static func _make_coin_points() -> Array[Vector2]:
 			if clear:
 				out.append(p)
 	return out
+
+## [y_limit, weight]: the chance a new star goes to a point above y_limit
+## (y less than it), or [] for a stage that spreads them evenly.
+static func high_star_bias() -> Array:
+	return layout().get("star_high", [])
 
 ## A runner who is out comes back at their own side's start. The field is
 ## small enough that this is a few seconds from anywhere, and it is the one

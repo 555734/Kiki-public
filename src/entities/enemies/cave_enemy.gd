@@ -14,9 +14,11 @@ const ACTIVE_RANGE_X := 1350.0
 const ACTIVE_RANGE_Y := 800.0
 
 func _ready() -> void:
+	Art.bind_style(self)
 	hp = 2 if kind == "burrower" else 1
 	super._ready()
 	_origin = global_position
+	_last_x = global_position.x
 	if kind == "bat" or kind == "beetle":
 		collision_mask = 0
 	z_index = 5
@@ -55,6 +57,20 @@ func _physics_process(delta: float) -> void:
 		direction = -direction
 	_redraw_if_near()
 
+## The guest's copy does not simulate (the host's snapshots place it), so its
+## wings and bounce are kept going here, and it faces the way it is moving.
+var _last_x: float = 0.0
+
+func _process(delta: float) -> void:
+	if Clock.is_host or is_physics_processing():
+		return
+	phase += delta
+	var moved := global_position.x - _last_x
+	_last_x = global_position.x
+	if absf(moved) > 0.5:
+		direction = 1 if moved > 0.0 else -1
+	_redraw_if_near()
+
 func _redraw_if_near() -> void:
 	if _near_runner():
 		queue_redraw()
@@ -77,7 +93,7 @@ func _eyes(left: Vector2, right: Vector2) -> void:
 		draw_circle(at + Vector2(float(direction), 1), 2.3, Color("253044"))
 
 func _draw() -> void:
-	if Stage.is_cave():
+	if (Art.style(self) == "cave"):
 		var pose := "idle"
 		if kind == "bat" or kind == "beetle":
 			pose = "idle" if int(phase * 7.0) % 2 == 0 else "attack"

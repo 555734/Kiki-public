@@ -3,7 +3,8 @@
 #
 #   tools/release-check.sh
 #
-# Run by tools/verify.sh and by CI. None of this needs Godot, a device or a
+# Run by tools/verify.sh, ios.yml before an App Store upload and
+# android-play.yml before a Play build. None of this needs Godot, a device or a
 # network -- it is all in the tree -- which is the point: each of these was
 # either found by a store rejecting an upload, or would have shipped a build
 # that takes money it cannot honour.
@@ -72,7 +73,7 @@ else
 		|| bad "android-play.yml defaults to version_name $play_version, not $VERSION"
 
 	codes=$(sed -n 's/^version\/code=\([0-9]*\)$/\1/p' export_presets.cfg | sort -u | tr '\n' ' ')
-	case "$(echo "$codes" | wc -w)" in
+	case "$(echo "$codes" | wc -w | tr -d " ")" in
 		1) ok "android versionCode $codes" ;;
 		*) bad "the Android presets disagree about versionCode: $codes" ;;
 	esac
@@ -106,6 +107,45 @@ grep -Fq 'unique_name="com.sasakiful.melos"' tools/build-android-play.sh \
 grep -Fq '"com.sasakiful.melosgame", "com.sasakiful.melos"' server/signaling/entitlement.js \
 	&& ok "purchase verification covers both Google Play packages" \
 	|| bad "purchase verification must cover both Google Play packages"
+
+worker_bundle=$(sed -n 's/^const IOS_BUNDLE = "\(.*\)";$/\1/p' server/signaling/entitlement.js | head -1)
+[ "$worker_bundle" = "$ios_bundle" ] \
+	&& ok "the Worker verifies iOS purchases for the same bundle ($worker_bundle)" \
+	|| bad "entitlement.js IOS_BUNDLE '$worker_bundle' is not ios.yml's BUNDLE_ID '$ios_bundle': Apple would refuse every verify"
+grep -q '^plugins/InAppStore=true$' export_presets.cfg \
+	&& ok "the iOS preset turns the StoreKit plugin on" \
+	|| bad "export_presets.cfg lacks plugins/InAppStore=true: the iOS build would have no store"
+
+# ----------------------------------------------------------- what is sold ---
+# The paid range is written in the code, the purchase screen and the listing.
+# 0.9.x shipped with 1-6 to 1-8 free in the code while the plan said paid.
+section "what the purchase opens"
+free_block=$(sed -n '/^const FREE_STAGES/,/^\]/p' src/levels/stage.gd)
+free_count=$(printf '%s' "$free_block" | grep -o 'Which\.[A-Z_]*' | wc -l | tr -d ' ')
+if [ "$free_count" = "5" ] && printf '%s' "$free_block" | grep -q GREENFIELD \
+		&& printf '%s' "$free_block" | grep -q HORROR \
+		&& printf '%s' "$free_block" | grep -q DESERT \
+		&& printf '%s' "$free_block" | grep -q TOWER \
+		&& printf '%s' "$free_block" | grep -q CAVE; then
+	ok "FREE_STAGES preserves public main: 1-1, 1-2 and 1-6 to 1-8"
+	for f in src/ui/purchase_panel.gd docs/store-listing.md docs/support.html; do
+		grep -q '1-3〜1-5\|1-3 to 1-5' "$f" \
+			&& ok "$f says the purchase opens 1-3 to 1-5" \
+			|| bad "$f does not say the purchase opens 1-3 to 1-5"
+	done
+	grep -q '1-3〜1-8' docs/store-listing.md docs/support.html src/ui/purchase_panel.gd \
+		&& bad "a different paid range is still written somewhere" \
+		|| ok "paid range is consistent"
+else
+	bad "FREE_STAGES differs from public main; update this check and the listing together"
+fi
+listing_version=$(sed -n 's/^# ストア提出物 — メロスゲーム \(.*\)$/\1/p' docs/store-listing.md)
+[ "$listing_version" = "$VERSION" ] \
+	&& ok "the store listing is for $VERSION" \
+	|| bad "docs/store-listing.md is for '$listing_version', not $VERSION"
+python3 tools/release-notes.py ja >/dev/null 2>&1 \
+	&& ok "release notes for $VERSION are in the listing" \
+	|| bad "docs/store-listing.md has no release notes for $VERSION"
 
 # ------------------------------------------------------------------ icons ---
 section "icons"

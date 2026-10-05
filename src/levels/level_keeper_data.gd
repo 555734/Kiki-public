@@ -43,6 +43,9 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func pit_centre_x_value() -> float: return 200.0
+
 static func ground() -> Array[Rect2]:
 	var g: Array[Rect2] = []
 	# One floor, from the approach to past the gate. Flat on purpose: a boss

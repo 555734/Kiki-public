@@ -40,7 +40,16 @@ var _phase: float = 0.0
 ## "somebody is in here" out of the puppet's position, which it already has.
 var _occupied: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("updraft"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, runner: Runner) -> Node2D:
+	var lift := Updraft.new()
+	lift.runner = runner
+	lift.span = spec.get("span", Vector2(150.0, 420.0))
+	return lift
+
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("updraft")
 	z_index = 4
 	process_priority = 10
@@ -85,7 +94,7 @@ func _draw() -> void:
 	if Art.late_pack() != "" and Art.draw_stretched(self, "sky_updraft", rect, Color(1, 1, 1, 0.70)):
 		_draw_motes(rect)
 		return
-	if Stage.is_cave():
+	if (Art.style(self) == "cave"):
 		draw_rect(rect, Color("82aeb5", 0.15))
 		for i in maxi(2, int(span.y / 90.0)):
 			var y := -fposmod(float(i) * 90.0 + _phase * 65.0, span.y)
@@ -98,7 +107,7 @@ func _draw() -> void:
 		draw_rect(Rect2(-span.x * 0.29, -38, span.x * 0.58, 8),
 			Color("b6b3aa"))
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_rect(rect, Color("8eacae", 0.16))
 		draw_rect(Rect2(rect.position.x, rect.position.y, 8, rect.size.y),
 			Color("a8c9c7", 0.42))

@@ -12,20 +12,30 @@ const BUMP := 22.0
 
 var slabs: Array[Rect2] = []
 var _cave_chunks: Array[Node2D] = []
+## Each slab is drawn by a child of its own (this script, `is_chunk`), so the
+## renderer can cull the ones off screen. One CanvasItem spanning the whole
+## stage cannot be culled at all: 1-7's 14,000px tower drew every brick of
+## every floor every frame (1,203 draw calls). Callers that assign `slabs`
+## directly (the versus arena, the 3D view) still get one node that draws all.
+var is_chunk: bool = false
+var seed_base: int = 0
+var _chunks: Array[Node2D] = []
 const CaveSlabScript = preload("res://src/render/cave_slab.gd")
 
 func _ready() -> void:
-	z_index = 2
+	# A chunk's z is relative to the terrain it belongs to.
+	if not is_chunk:
+		z_index = 2
 	# Required for draw_texture_rect(..., tile=true) to actually repeat.
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 
 func _draw() -> void:
 	# One CanvasItem spanning the whole 24,000 px cave prevents the renderer
 	# from rejecting off-screen ground. Each cave slab has its own bounds below.
-	if Stage.is_cave():
+	if Stage.is_cave() or not _chunks.is_empty():
 		return
 	for i in slabs.size():
-		_draw_slab(slabs[i], i)
+		_draw_slab(slabs[i], seed_base + i)
 
 func set_slabs(next_slabs: Array[Rect2]) -> void:
 	slabs = next_slabs
@@ -42,6 +52,17 @@ func set_slabs(next_slabs: Array[Rect2]) -> void:
 			add_child(chunk)
 			_cave_chunks.append(chunk)
 	else:
+		for chunk in _chunks:
+			remove_child(chunk)
+			chunk.queue_free()
+		_chunks.clear()
+		for i in slabs.size():
+			var chunk: Node2D = get_script().new()
+			chunk.is_chunk = true
+			chunk.seed_base = i
+			chunk.slabs = [slabs[i]] as Array[Rect2]
+			add_child(chunk)
+			_chunks.append(chunk)
 		queue_redraw()
 
 ## The colours a slab is painted in when there is no texture for it.
@@ -169,6 +190,10 @@ func _draw_tower_slab(rect: Rect2, seed_index: int) -> void:
 	# Stone courses are sized in world pixels, not stretched from one texture.
 	# The cap's top edge is exactly the collision top.
 	draw_rect(rect, Color("9c8468"))
+	# Every brick, then every mortar line: alternating the two per brick broke
+	# the canvas batch on each one. The lines sit inside their own brick, so
+	# the order does not change the picture.
+	var mortar := PackedVector2Array()
 	var rows := maxi(1, int(ceilf(rect.size.y / 48.0)))
 	for row in rows:
 		var y := rect.position.y + float(row) * 48.0
@@ -186,8 +211,10 @@ func _draw_tower_slab(rect: Rect2, seed_index: int) -> void:
 			var tint := Color("d0b996") if (n + row + seed_index) % 3 == 0 \
 				else Color("bfa582")
 			draw_rect(Rect2(x, y, end_x - x, h), tint)
-			draw_line(Vector2(x + 4, y + h - 4), Vector2(end_x - 4, y + h - 4),
-				Color("75634f", 0.35), 2.0)
+			mortar.append(Vector2(x + 4, y + h - 4))
+			mortar.append(Vector2(end_x - 4, y + h - 4))
+	if not mortar.is_empty():
+		draw_multiline(mortar, Color("75634f", 0.35), 2.0)
 	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 12),
 		Color("ead6b2"))
 	draw_rect(Rect2(rect.position.x, rect.position.y + 12, rect.size.x, 5),
@@ -221,19 +248,29 @@ func _draw_swamp_slab(rect: Rect2, seed_index: int) -> void:
 	# Raised, rounded moss cap; short hanging strands mark the safe top edge.
 	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 32.0), Color("54852a"))
 	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 13.0), Color("a6d941"))
+	# Drawn kind by kind -- every tuft, then every strand, then every glint --
+	# so each kind batches. A strand or glint never overlaps a neighbour's tuft,
+	# so the picture is the same as drawing them tuft by tuft.
+	var tufts: Array[float] = []
 	for n in range(int(floorf(rect.position.x / 30.0)),
 			int(ceilf(rect.end.x / 30.0))):
 		var x := float(n) * 30.0 + 15.0
 		if x < rect.position.x or x > rect.end.x:
 			continue
-		var h := 18.0 + DrawUtil.hash01(n * 19 + 7) * 18.0
+		tufts.append(x)
 		draw_circle(Vector2(x, rect.position.y + 20.0), 17.0, Color("6eab28"))
+	for x in tufts:
+		var h := 18.0 + DrawUtil.hash01(int(roundf((x - 15.0) / 30.0)) * 19 + 7) * 18.0
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(x - 8.0, rect.position.y + 23.0),
 			Vector2(x + 9.0, rect.position.y + 23.0),
 			Vector2(x + 2.0, rect.position.y + 23.0 + h)]), Color("559326"))
-		draw_line(Vector2(x - 9.0, rect.position.y + 3.0),
-			Vector2(x + 5.0, rect.position.y + 3.0), Color("c6ee60"), 2.0)
+	var glints := PackedVector2Array()
+	for x in tufts:
+		glints.append(Vector2(x - 9.0, rect.position.y + 3.0))
+		glints.append(Vector2(x + 5.0, rect.position.y + 3.0))
+	if not glints.is_empty():
+		draw_multiline(glints, Color("c6ee60"), 2.0)
 	if Balance.USE_TEXTURES:
 		Art.draw_tiled(self, "sky_island_cap", Rect2(rect.position.x,
 			rect.position.y - 16.0, rect.size.x, 46.0), 46.0,

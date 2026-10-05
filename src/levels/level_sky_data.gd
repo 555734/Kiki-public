@@ -62,6 +62,9 @@ static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
+## Stage traits: what Stage answers for this stage instead of its default.
+static func pit_centre_x_value() -> float: return 4000.0
+
 ## An island: a slab of the given width at the given top, ISLAND_T thick.
 static func _isle(x: float, w: float, top: float) -> Rect2:
 	return Rect2(x, top, w, ISLAND_T)

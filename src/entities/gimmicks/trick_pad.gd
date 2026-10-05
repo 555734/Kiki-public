@@ -16,7 +16,20 @@ var runner: Runner
 var _cooldown := 0.0
 var _flash := 0.0
 
+## Builds this piece from a stage's gimmick spec ("trick_pad"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, runner: Runner) -> Node2D:
+	var pad := TrickPad.new()
+	pad.runner = runner
+	pad.start_direction = int(spec.get("dir", 1))
+	pad.flip_every = float(spec.get("flip", 0.0))
+	pad.phase_offset = float(spec.get("phase", 0.0))
+	pad.forward_speed = float(spec.get("forward", 460.0))
+	pad.rise_speed = float(spec.get("rise", 830.0))
+	return pad
+
 func _ready() -> void:
+	Art.bind_style(self)
 	z_index = 4
 	process_priority = 10
 
@@ -54,7 +67,7 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	var cave := Stage.is_cave()
+	var cave := (Art.style(self) == "cave")
 	var base := Color("59666d") if cave else Color("a16d4e")
 	var rim := Color("b1c6bf") if cave else Color("f3cd89")
 	if warning_at(Clock.tick):

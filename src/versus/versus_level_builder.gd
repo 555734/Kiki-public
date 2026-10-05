@@ -52,7 +52,7 @@ func build() -> void:
 	# 1-4's sea and 1-5's poison lie below every floor, so the pits open
 	# onto water. Drawn exactly as the stages draw it, with foam where a floor
 	# or a footing meets it; the kill plane underneath is the arena's own.
-	if Stage.water_y() != INF:
+	if VersusStageData.water_y() != INF:
 		_build_arena_water()
 
 	_build_kill_plane()
@@ -138,7 +138,7 @@ func _build_arena_water() -> void:
 	var sea := preload("res://src/render/sea_water.gd").new()
 	sea.name = "PoisonWater" if Stage.is_swamp() else "Sea"
 	sea.poison = Stage.is_swamp()
-	sea.water_y = Stage.water_y()
+	sea.water_y = VersusStageData.water_y()
 	var shore := PackedFloat32Array()
 	for r in VersusStageData.collision_rects():
 		shore.append(r.position.x)

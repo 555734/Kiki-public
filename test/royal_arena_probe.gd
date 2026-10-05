@@ -9,8 +9,10 @@ func _ready() -> void:
 	check(welcome.stage == Stage.Which.ROYAL_ARENA, "default welcome transmits Royal Arena")
 	var panel: Control = preload("res://src/ui/versus_panel.gd").new()
 	add_child(panel)
-	check(panel._stage.get_selected_id() == Stage.Which.ROYAL_ARENA, "menu selects Royal Arena")
-	check(panel._stage.item_count == 6, "all five previous stages remain")
+	check(panel._stage_id == Stage.Which.ROYAL_ARENA, "menu selects Royal Arena")
+	panel._choose_mode(VersusRoster.RoomMode.FREE_FOR_ALL)
+	await get_tree().process_frame
+	check(panel._stage_cards.size() == 6, "all five previous stages remain")
 	panel.queue_free()
 	VersusStageData.use_theme(Stage.Which.ROYAL_ARENA)
 	var assets := 0

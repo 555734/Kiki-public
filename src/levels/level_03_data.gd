@@ -67,6 +67,17 @@ const STRAIGHT_END_X := 11000.0
 ## nothing; one they hit every time is the case worth looking at.
 const CEILING_GAP := 120.0
 
+## The stage protocol Stage reads. These three stages predate it and keep
+## their constants, which tests and the versus circuit still name directly.
+static func kill_y_value() -> float: return KILL_Y
+static func start_position() -> Vector2: return START
+static func stage_name_value() -> String: return STAGE_NAME
+static func stage_number_value() -> String: return STAGE_NUMBER
+static func objective_value() -> String: return OBJECTIVE
+
+## Stage traits: what Stage answers for this stage instead of its default.
+static func pit_centre_x_value() -> float: return 5000.0
+
 static func solid_decor() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	# The low ceilings are the only overhead terrain in the game, and they go in

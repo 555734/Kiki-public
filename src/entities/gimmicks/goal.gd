@@ -7,6 +7,7 @@ var _pulse: float = 0.0
 var _cleared: bool = false
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 0
 	collision_mask = 2
 	z_index = 3
@@ -74,7 +75,7 @@ func _draw_lock() -> void:
 
 func _draw_gate() -> void:
 	var glow := 0.5 + 0.5 * sin(_pulse * 2.0)
-	if Stage.is_cave():
+	if (Art.style(self) == "cave"):
 		draw_colored_polygon(_arch_points(50, 58, 95), Color("66564d"))
 		draw_colored_polygon(_arch_points(43, 51, 90), Color("ba9671"))
 		draw_colored_polygon(_arch_points(32, 40, 87),
@@ -83,7 +84,7 @@ func _draw_gate() -> void:
 			draw_line(Vector2(x, -65), Vector2(x, 87),
 				Color("d6b38a"), 4.0)
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_colored_polygon(_arch_points(50, 64, 95), Color("615a53"))
 		draw_colored_polygon(_arch_points(44, 58, 92), Color("c6ae83"))
 		draw_colored_polygon(_arch_points(32, 45, 90),
@@ -93,7 +94,7 @@ func _draw_gate() -> void:
 		draw_circle(Vector2(0, -103), 10, Color("c9b178"))
 		draw_circle(Vector2(0, -103), 5, Color("9bbab9"))
 		return
-	if Stage.is_sea() and Balance.USE_TEXTURES and Art.tex("goal") != null:
+	if (Art.style(self) == "sea") and Balance.USE_TEXTURES and Art.tex("goal") != null:
 		# 1-4's goal is the pack's red flag, planted on the ground (the goal
 		# sits 55px above the ledge), with a soft beacon glow over it.
 		draw_circle(Vector2(0, -60.0), 34.0 + glow * 12.0,

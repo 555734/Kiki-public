@@ -14,7 +14,11 @@ func _ready() -> void:
 	super._ready()
 	collision_mask = 0   # flies over terrain
 	_origin = global_position
-	_phase = randf() * TAU
+	# Spread by name, not by chance: every flyer bobs out of step with the
+	# others, the same way on every run and on both devices. A random phase
+	# put the same flyer at a different height each run, so a jump that
+	# cleared it once could be knocked out of the air the next.
+	_phase = fposmod(float(net_id) * 2.399963, TAU)
 
 func _build_body() -> void:
 	_add_box(Balance.FLYER_SIZE)

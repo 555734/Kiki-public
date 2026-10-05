@@ -30,7 +30,7 @@ func _ready() -> void:
 	_check(panel != null, "the connect screen is shown at startup")
 	_check(Input.is_emulating_mouse_from_touch(),
 		"touch is emulated as mouse, or no Control can ever be pressed")
-	_check(not main.input_hub.is_processing_unhandled_input(),
+	_check(not main.input_hub.is_listening(),
 		"the game's input router stands down while the panel is up")
 
 	if panel != null:
@@ -39,14 +39,15 @@ func _ready() -> void:
 		if stage_button != null:
 			await _tap(stage_button.get_global_rect().get_center())
 			await _frames(4)
-		var button := _find_button(panel, "1台")
+		# By its full label, translated: the machine's locale decides the text.
+		var button := _find_button(panel, TranslationServer.translate("▶  この1台で 2人プレイを始める"))
 		_check(button != null, "the second screen offers local play")
 		if button != null:
 			await _tap(button.get_global_rect().get_center())
 			_check(not is_instance_valid(panel) or panel.is_queued_for_deletion(),
 				"a touch on it dismisses the connect screen")
 			await _frames(3)
-			_check(main.input_hub.is_processing_unhandled_input(),
+			_check(main.input_hub.is_listening(),
 				"and the game gets its input back")
 			# p2_use is bound to the left mouse button, and touch is emulated as a
 			# mouse, so this single tap used to fire the guardian's ability as well
@@ -117,6 +118,10 @@ func _aim_belongs_to_its_own_device(main: Node) -> void:
 	_check(float(d["preview"]) > 60.0,
 		"guardian device: a tap moves the build ghost (%.0fpx)" % d["preview"])
 	main.guardian_pan = 0.0
+	# With the platform tool a drag DRAWS a platform (trace mode); the view
+	# scrolls under the shot.
+	g.select_slot(3)
+	await _frames(3)
 	var swipe := await _drag_across(main)
 	_check(absf(main.guardian_pan) > 100.0,
 		"guardian device: a long drag scrolls the view instead (%.0fpx)"
@@ -124,6 +129,8 @@ func _aim_belongs_to_its_own_device(main: Node) -> void:
 	_check(float(swipe["preview"]) < 40.0,
 		"and does not drag the reticle along with it (%.0fpx)" % swipe["preview"])
 	main.guardian_pan = 0.0
+	g.select_slot(1)
+	await _frames(2)
 	# The scope is its own control now; selecting the sniper does not raise it.
 	g.set_scope(true)
 	await _wait(0.4)
@@ -170,7 +177,7 @@ func _aim_belongs_to_its_own_device(main: Node) -> void:
 	_check(g.active_slot == 1,
 		"runner device: the guardian's ability buttons are not reachable")
 	var slabs: int = g.holograms_of(Hologram.Kind.PLATFORM).size()
-	await _tap(_place("scope", view, "shared"))
+	await _tap(_place("slot_1", view, "shared"))
 	await _frames(3)
 	# "No more than before", not "exactly as before": constructs expire on a
 	# timer, so a slab placed earlier in this probe can lapse between the two
@@ -356,29 +363,30 @@ func _the_guardian_can_actually_build(main: Node) -> void:
 	g.clear_constructs()
 	g.gauge = Balance.GAUGE_MAX
 	await _frames(2)
-	# Clear air. A wall is 190px tall, so a spot that looks open at the slab's
-	# centre can still have its feet in the ground -- which is refused, and
-	# correctly so.
+	# From the platform button (the wall's is retired) with the shot chosen,
+	# so the ghost shows the tool being HELD, not the one selected.
+	g.select_slot(3)
+	await _frames(2)
 	var drop := Vector2(view.x * 0.55, view.y * 0.30)
 	var want3: Vector2 = to_world.call(drop)
-	_touch(2, _place("slot_2", view), true)
+	_touch(2, _place("slot_1", view), true)
 	await _frames(3)
-	_check(g.holograms_of(Hologram.Kind.WALL).is_empty(),
+	_check(g.holograms_of(Hologram.Kind.PLATFORM).is_empty(),
 		"holding a tool button still builds nothing")
 	_drag(2, drop)
 	await _frames(3)
 	var ghost: Dictionary = g.current_preview()
 	var shape: Vector2 = ghost["rect"].size if ghost.has("rect") else Vector2.ZERO
-	_check(shape.is_equal_approx(Balance.WALL_SIZE),
+	_check(shape.is_equal_approx(Balance.PLATFORM_SIZE),
 		"the ghost is the tool being held (%s)" % shape)
 	_touch(2, drop, false)
 	await _frames(6)
-	var walls: Array = g.holograms_of(Hologram.Kind.WALL)
-	_check(walls.size() == 1, "letting go builds exactly one (%d)" % walls.size())
-	if walls.size() > 0:
-		_check(walls.back().global_position.distance_to(want3) < 1.0,
+	var built: Array = g.holograms_of(Hologram.Kind.PLATFORM)
+	_check(built.size() == 1, "letting go builds exactly one (%d)" % built.size())
+	if built.size() > 0:
+		_check(built.back().global_position.distance_to(want3) < 1.0,
 			"where the finger let go (%.2fpx off)"
-				% walls.back().global_position.distance_to(want3))
+				% built.back().global_position.distance_to(want3))
 
 	# --- somewhere it cannot go is refused, not relocated ---
 	#
@@ -416,10 +424,14 @@ func _the_guardian_can_actually_build(main: Node) -> void:
 	_check(is_equal_approx(g.gauge, kept), "and spends nothing")
 
 	# --- a swipe of the view is not a placement ---
+	# Under the shot: with the platform tool a drag draws a platform by design.
 	g.clear_constructs()
 	g.gauge = Balance.GAUGE_MAX
-	g.select_slot(1)
+	g.select_slot(3)
 	await _frames(2)
+	var fired := [0]
+	var on_shot := func(_f: Vector2, _t: Vector2, _hit: bool) -> void: fired[0] += 1
+	Events.shot_fired.connect(on_shot)
 	var swipe_from := Vector2(view.x * 0.70, view.y * 0.45)
 	_touch(3, swipe_from, true)
 	for i in range(6):
@@ -427,8 +439,10 @@ func _the_guardian_can_actually_build(main: Node) -> void:
 		await _frames(1)
 	_touch(3, swipe_from + Vector2(-270.0, 0.0), false)
 	await _frames(6)
-	_check(g.holograms_of(Hologram.Kind.PLATFORM).is_empty(),
-		"scrolling the view does not drop a slab where the finger stopped")
+	Events.shot_fired.disconnect(on_shot)
+	_check(g.holograms_of(Hologram.Kind.PLATFORM).is_empty() and fired[0] == 0,
+		"scrolling the view places nothing and fires nothing where the finger stopped")
+	g.select_slot(1)
 	main.guardian_pan = 0.0
 
 	# --- the rifle is the same two steps ---

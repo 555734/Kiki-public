@@ -456,6 +456,9 @@ func _chaser() -> BlackHoleChaser:
 ## answer -- a pursuer slower than a walk is scenery, one faster than a sprint
 ## is a timer.
 func _the_pursuit() -> void:
+	# The speeds below are the ones the stage was tuned at (Hard). Pinned, not
+	# read from the player's saved setting, which another run may have changed.
+	Difficulty.set_level(Difficulty.Level.HARD, false)
 	var hole := _chaser()
 	_ok("there is something following the runner", hole != null)
 	if hole == null:

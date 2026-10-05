@@ -10,6 +10,6 @@
     "test:entitlement": "node entitlement.test.mjs"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "4.147.0"
   }
 }

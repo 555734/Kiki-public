@@ -321,24 +321,9 @@ GitHub Releaseへ添付する。同じpushでiOSワークフローも起動す�
 公開リポジトリのGitHub ActionsでAndroidと同時にビルドする。
 署名付き（TestFlight 向け）の手順は **[`docs/testflight.md`](docs/testflight.md)** に分けてあります。
 
-このリポジトリでは Actions が動きません——run は生成されるのに、ランナーが割り当てられず
-3秒で failure、ステップ0件、課金0ミリ秒、ログもチェックランの出力も空。
-同じアカウントの **public リポジトリでは正常にビルドが通り**、無料枠も 2,000 分中
-100 分しか使っていないので、これは private リポジトリ側の権限・課金の問題であって
-ワークフローの問題ではありません。原因は GitHub の UI にも API にも出てきません。
-
-Codemagic ならそこを迂回できます。**macOS ビルドが月 500 分無料**で、
-**private リポジトリのまま**使えます（リポジトリを public にする必要はありません）。
-
-```
-1. codemagic.io に GitHub でサインイン、このリポジトリを認可
-2. Add application → 555734/Kiki → codemagic.yaml が自動で見つかる
-3. ブランチを選んで Start new build
-4. .ipa と xcodebuild のログは、ビルドページから直接ダウンロードできる
-```
-
-メールで受け取りたい場合は `codemagic.yaml` の末尾のコメントに書式があります
-（**空の `recipients: []` は Codemagic が弾く**ので、ブロックごと外してあります）。
+App Store への提出は `.github/workflows/ios.yml`（`mobile.yml` の `submit_ios`）だけが行う。
+以前あった Codemagic 用の `codemagic.yaml` は、Godot 4.4.1・0.2.3 のまま EOS も課金
+プラグインも入らない古い経路だったので削除した。
 
 ローカルの Mac がある場合は `tools/build-ios.sh` が同じ手順です。
 
@@ -357,7 +342,6 @@ Developer Program なら1年もちます。
 | | |
 |---|---|
 | プリセット名 `iOS` の解決 | **確認済み** |
-| テンプレートの探索パスと `codemagic.yaml` の設置先の一致 | **確認済み**（`templates/ios.zip` の1件だけ） |
 | Xcode プロジェクトが実際に生成されること | **確認済み**（`build/ios/xcode/side-sky.xcodeproj`） |
 | スクリプトのプロジェクト検出 | **確認済み**（`find -maxdepth 2` の深さで一致） |
 | 共有スキームの存在と名前 | **確認済み**（`side-sky.xcscheme`。`xcodebuild -list` で拾える） |

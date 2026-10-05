@@ -5,6 +5,7 @@ extends Node
 
 class TouchSolo extends "res://src/versus/versus_main.gd":
 	func _read_command_line() -> void:
+		_theme = Stage.Which.GREENFIELD
 		mode = Mode.SOLO
 		room_mode = VersusRoster.RoomMode.TEAM_SPLIT
 		_seat = 0
@@ -138,7 +139,7 @@ func _ready() -> void:
 		if hit:
 			shots[0] += 1
 	Events.shot_fired.connect(count_shot)
-	var on_screen: Vector2 = view.get_canvas_transform() * partner.global_position
+	var on_screen: Vector2 = _world_screen(partner.global_position)
 	check(on_screen.x > 1280.0 * ControlLayout.DIVIDER, "the partner is on the right of the screen")
 	# The platform drawn above is over the partner's head: cover from a shot
 	# that comes down from the sky.
@@ -156,7 +157,7 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	await _ticks(4)
 	check(scene.shot_clear(1), "when the platform is gone they are in the open")
-	on_screen = view.get_canvas_transform() * partner.global_position
+	on_screen = _world_screen(partner.global_position)
 	_touch(5, on_screen, true)
 	_touch(5, on_screen, false)
 	await _ticks(4)
@@ -179,7 +180,7 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	await _ticks(2)
 	var foe: Node2D = scene.level.get_node("Enemy%d" % walker)
-	var foe_on_screen: Vector2 = view.get_canvas_transform() * foe.global_position
+	var foe_on_screen: Vector2 = _world_screen(foe.global_position)
 	_touch(5, foe_on_screen, true)
 	_touch(5, foe_on_screen, false)
 	await _ticks(4)
@@ -203,11 +204,20 @@ func _ready() -> void:
 	get_tree().quit(0 if failures.is_empty() else 1)
 
 func _touch(finger: int, at: Vector2, pressed: bool) -> void:
+	var stick: Dictionary = ControlLayout.layout("shared", Vector2(1280, 720), false)["stick"]
+	var steer := pressed and finger == 0 and at.distance_to(stick["center"]) < float(stick["radius"])
+	var start: Vector2 = stick["center"] if steer else at
 	var event := InputEventScreenTouch.new()
 	event.index = finger
-	event.position = at
+	event.position = start
 	event.pressed = pressed
 	view.push_input(event, true)
+	if steer:
+		var drag := InputEventScreenDrag.new()
+		drag.index = finger
+		drag.position = at
+		drag.relative = at - start
+		view.push_input(drag, true)
 
 ## A finger drawn across the screen, the way a platform is traced.
 func _drag(finger: int, from: Vector2, to: Vector2) -> void:
@@ -224,3 +234,9 @@ func _drag(finger: int, from: Vector2, to: Vector2) -> void:
 func _ticks(count: int) -> void:
 	for i in range(count):
 		await get_tree().physics_frame
+
+func _world_screen(at: Vector2) -> Vector2:
+	# Pan the target above the lower control zones before tapping it.
+	scene._camera.global_position = at + Vector2(-80, 100)
+	scene._camera.force_update_scroll()
+	return view.get_canvas_transform() * at

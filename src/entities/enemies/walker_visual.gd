@@ -18,7 +18,7 @@ func _draw() -> void:
 		draw_set_transform(Vector2(0.0, Balance.WALKER_SIZE.y * 0.5 - bob), 0.0,
 			Vector2(1.0 / squash, squash))
 		var frame := walker.skin
-		if Stage.is_sea() and frame == "sea_crab":
+		if (Art.style(self) == "sea") and frame == "sea_crab":
 			frame = "s14_sea_crab_move" if absf(walker.velocity.x) > 1.0 else "s14_sea_crab_idle"
 		if Art.draw_sprite(self, frame, Vector2.ZERO, Balance.WALKER_SPRITE_H,
 				walker.direction > 0):
@@ -73,3 +73,6 @@ func _draw() -> void:
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(0.5, 7.0), Vector2(4.0, 7.0), Vector2(2.2, 11.0),
 	]), Color.WHITE)
+
+func _ready() -> void:
+	Art.bind_style(self)

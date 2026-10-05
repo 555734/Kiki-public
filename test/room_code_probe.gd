@@ -30,7 +30,9 @@ func _ready() -> void:
 		check(code_field.max_length == 6, "room code input is limited to six characters")
 		check(code_field.virtual_keyboard_type == LineEdit.KEYBOARD_TYPE_NUMBER,
 			"room code input uses the numeric keyboard")
-		check(code_field.placeholder_text.contains("6桁"), "room code input explains six digits")
+		# Compared in the machine's locale: the placeholder goes through translation.
+		check(code_field.placeholder_text == TranslationServer.translate("ルーム番号（6桁）"),
+			"room code input explains six digits")
 
 	panel.queue_free()
 	await get_tree().process_frame

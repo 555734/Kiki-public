@@ -9,8 +9,6 @@ extends Node2D
 const BlackHoleChaserScript = preload("res://src/entities/enemies/black_hole_chaser.gd")
 const SkyPursuerScript = preload("res://src/entities/enemies/sky_pursuer.gd")
 const ThornmiteScript = preload("res://src/entities/enemies/thornmite.gd")
-const SwitchBridgeScript = preload("res://src/entities/gimmicks/switch_bridge.gd")
-const TrickPadScript = preload("res://src/entities/gimmicks/trick_pad.gd")
 
 var runner: Runner = null
 ## The co-op run's sky crows and gate key. The versus circuit is cut from 1-1
@@ -83,7 +81,7 @@ func _build_ground_bodies() -> void:
 		shape.position = rect.position + rect.size * 0.5
 		# A vertical platformer needs pass-through ledges: the runner may jump
 		# through stone from below and land on its top on the way down.
-		shape.one_way_collision = Stage.is_cave() and rect.position.y < Stage.start().y
+		shape.one_way_collision = Stage.ground_is_one_way(rect)
 		body.add_child(shape)
 	_static_root.add_child(body)
 
@@ -184,6 +182,7 @@ func rebuild_dynamic() -> void:
 		var node := _make_gimmick(g)
 		if node != null:
 			node.global_position = g["pos"]
+			configure_gimmick(node, g)
 			_dynamic.add_child(node)
 			if node is CaveTrap:
 				_cave_traps.append(node)
@@ -245,7 +244,11 @@ func _refresh_cave_activity() -> void:
 			continue
 		# Include patrol travel and one timer interval of runner movement beyond
 		# the screen, so a moving enemy is active before it can enter the view.
-		var near := absf(enemy.spawn_position.y - centre_y) <= \
+		# Never on the guest's device: there the host moves every enemy
+		# (ClientSession switched them off), and switching them back on made
+		# each one walk its own patrol as well -- the guest saw it somewhere
+		# other than where it hit the runner.
+		var near := Clock.is_host and absf(enemy.spawn_position.y - centre_y) <= \
 			half_view_y + 850.0
 		if enemy.is_physics_processing() != near:
 			enemy.set_physics_process(near)
@@ -290,8 +293,34 @@ func _veil(node: Node2D, layer: String, moving: bool = false) -> void:
 func veil_field() -> VeilField:
 	return _veils
 
+## Every enemy type a stage spec can name; _make_enemy builds exactly these.
+## Listed so a typo in a stage file is an error rather than an enemy that is
+## silently not there -- see unknown_types().
+const ENEMY_TYPES: Array[String] = [
+	"cave_enemy", "desert_enemy", "chaser", "sky_pursuer", "thornmite", "walker",
+	"flyer", "shieldbearer", "keeper", "mine", "seedling", "golem", "turret",
+]
+
+## Spec types the builder does not know, as "enemy:<type>" / "gimmick:<type>".
+## Empty for a stage that builds everything it lists.
+static func unknown_types(enemies: Array, gimmicks: Array) -> Array[String]:
+	var out: Array[String] = []
+	for spec in enemies:
+		var type := String(spec.get("type", ""))
+		if not ENEMY_TYPES.has(type):
+			out.append("enemy:" + type)
+	for spec in gimmicks:
+		var type := String(spec.get("type", ""))
+		if not GIMMICKS.has(type):
+			out.append("gimmick:" + type)
+	return out
+
 func _make_enemy(spec: Dictionary) -> Node2D:
-	match String(spec.get("type", "")):
+	var type := String(spec.get("type", ""))
+	if not ENEMY_TYPES.has(type):
+		push_error("Stage %s: unknown enemy type '%s' at %s" % [Stage.stage_number(), type, spec.get("pos")])
+		return null
+	match type:
 		"cave_enemy":
 			var cave := CaveEnemy.new()
 			cave.kind = String(spec.get("kind", "burrower"))
@@ -386,113 +415,43 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			return t
 	return null
 
+## What the stage decides about a piece, rather than the piece itself. Pieces
+## that can be stood on take their pass-through from the spec, else from the
+## stage default; the piece never asks which stage it is in. Runs before the
+## node enters the tree, so its _ready already sees the answer.
+static func configure_gimmick(node: Node2D, spec: Dictionary) -> void:
+	if "one_way" in node:
+		node.one_way = bool(spec.get("one_way", Stage.platforms_one_way()))
+
+## Every gimmick type a stage spec can name. Each script parses its own spec
+## in from_spec(); adding a type is a line here and a from_spec there.
+const GIMMICKS := {
+	"moving_platform": preload("res://src/entities/gimmicks/moving_platform.gd"),
+	"cave_trap": preload("res://src/entities/gimmicks/cave_trap.gd"),
+	"switch_bridge": preload("res://src/entities/gimmicks/switch_bridge.gd"),
+	"trick_pad": preload("res://src/entities/gimmicks/trick_pad.gd"),
+	"clock_hand": preload("res://src/entities/gimmicks/clock_hand_bridge.gd"),
+	"gear_wheel": preload("res://src/entities/gimmicks/gear_wheel.gd"),
+	"tower_trap": preload("res://src/entities/gimmicks/tower_trap.gd"),
+	"blink": preload("res://src/entities/gimmicks/blink_block.gd"),
+	"conveyor": preload("res://src/entities/gimmicks/conveyor.gd"),
+	"warp": preload("res://src/entities/gimmicks/warp_gate.gd"),
+	"warp_exit": preload("res://src/entities/gimmicks/warp_gate.gd"),
+	"crumble": preload("res://src/entities/gimmicks/crumbling_floor.gd"),
+	"laser": preload("res://src/entities/gimmicks/laser.gd"),
+	"switch": preload("res://src/entities/gimmicks/shootable_switch.gd"),
+	"gate": preload("res://src/entities/gimmicks/gate.gd"),
+	"barricade": preload("res://src/entities/gimmicks/barricade.gd"),
+	"updraft": preload("res://src/entities/gimmicks/updraft.gd"),
+}
+
 func _make_gimmick(spec: Dictionary) -> Node2D:
-	match String(spec.get("type", "")):
-		"moving_platform":
-			var m := MovingPlatform.new()
-			m.span = spec.get("span", Vector2(150, 26))
-			m.travel = spec.get("travel", Vector2(220, 0))
-			m.speed = float(spec.get("speed", Balance.MOVING_PLATFORM_SPEED))
-			m.phase_offset = float(spec.get("phase", 0.0))
-			m.visual_style = String(spec.get("style", ""))
-			return m
-		"cave_trap":
-			var trap := CaveTrap.new()
-			trap.kind = String(spec.get("kind", "boulder"))
-			trap.travel = float(spec.get("travel", 145.0))
-			trap.period = float(spec.get("period", 3.5))
-			trap.phase_offset = float(spec.get("phase", 0.0))
-			return trap
-		"switch_bridge":
-			var bridge := SwitchBridgeScript.new()
-			bridge.span = spec.get("span", Vector2(150, 26))
-			bridge.switch_id = String(spec.get("id", ""))
-			bridge.delay = float(spec.get("delay", 0.0))
-			return bridge
-		"trick_pad":
-			var pad := TrickPadScript.new()
-			pad.runner = runner
-			pad.start_direction = int(spec.get("dir", 1))
-			pad.flip_every = float(spec.get("flip", 0.0))
-			pad.phase_offset = float(spec.get("phase", 0.0))
-			pad.forward_speed = float(spec.get("forward", 460.0))
-			pad.rise_speed = float(spec.get("rise", 830.0))
-			return pad
-		"clock_hand":
-			var hand := ClockHandBridge.new()
-			hand.length = float(spec.get("length", 225.0))
-			hand.period = float(spec.get("period", 4.2))
-			hand.phase_offset = float(spec.get("phase", 0.0))
-			return hand
-		"gear_wheel":
-			var wheel := GearWheel.new()
-			wheel.radius = float(spec.get("radius", 98.0))
-			wheel.angular_speed = float(spec.get("speed", 0.30))
-			wheel.direction = int(spec.get("dir", 1))
-			wheel.phase_offset = float(spec.get("phase", 0.0))
-			return wheel
-		"tower_trap":
-			var trap := TowerTrap.new()
-			trap.kind = String(spec.get("kind", "pendulum"))
-			trap.length = float(spec.get("length", 235.0))
-			trap.travel = float(spec.get("travel", 150.0))
-			trap.period = float(spec.get("period", 3.6))
-			trap.phase_offset = float(spec.get("phase", 0.0))
-			trap.facing = int(spec.get("facing", 1))
-			return trap
-		"blink":
-			var blink := BlinkBlock.new()
-			blink.span = spec.get("span", Vector2(150, 26))
-			blink.beat = float(spec.get("beat", 1.6))
-			blink.colour = int(spec.get("colour", 0))
-			blink.phase_offset = float(spec.get("phase", 0.0))
-			return blink
-		"conveyor":
-			var belt := Conveyor.new()
-			belt.span = spec.get("span", Vector2(220, 26))
-			belt.speed = float(spec.get("speed", 150.0))
-			belt.flip_every = float(spec.get("flip", 0.0))
-			belt.start_direction = int(spec.get("dir", 1))
-			belt.phase_offset = float(spec.get("phase", 0.0))
-			return belt
-		"warp", "warp_exit":
-			var portal := WarpGate.new()
-			portal.runner = runner
-			portal.is_exit = String(spec.get("type")) == "warp_exit"
-			portal.exit = spec.get("exit", Vector2.ZERO)
-			portal.size = spec.get("size", Vector2(90, 120))
-			return portal
-		"crumble":
-			var c := CrumblingFloor.new()
-			c.span = spec.get("span", Vector2(120, 40))
-			return c
-		"laser":
-			var l := Laser.new()
-			l.direction = spec.get("dir", Vector2.RIGHT)
-			l.max_length = float(spec.get("length", 520.0))
-			return l
-		"switch":
-			var s := ShootableSwitch.new()
-			s.switch_id = String(spec.get("id", "gate_a"))
-			s.hold_time = float(spec.get("hold", 6.0))
-			s.sigil = int(spec.get("sigil", 0))
-			return s
-		"gate":
-			var gate := Gate.new()
-			gate.span = spec.get("span", Vector2(40, 190))
-			gate.switch_id = String(spec.get("id", "gate_a"))
-			gate.wants = int(spec.get("wants", 0))
-			return gate
-		"barricade":
-			var wall := Barricade.new()
-			wall.needed_act = int(spec.get("act", 1))
-			return wall
-		"updraft":
-			var lift := Updraft.new()
-			lift.runner = runner
-			lift.span = spec.get("span", Vector2(150.0, 420.0))
-			return lift
-	return null
+	var type := String(spec.get("type", ""))
+	var script: Script = GIMMICKS.get(type)
+	if script == null:
+		push_error("Stage %s: unknown gimmick type '%s' at %s" % [Stage.stage_number(), type, spec.get("pos")])
+		return null
+	return script.from_spec(spec, runner)
 
 func reset_to_checkpoint() -> void:
 	rebuild_dynamic()

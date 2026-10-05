@@ -7,7 +7,17 @@ extends AnimatableBody2D
 @export var period: float = 4.2
 @export var phase_offset: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("clock_hand"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var hand := ClockHandBridge.new()
+	hand.length = float(spec.get("length", 225.0))
+	hand.period = float(spec.get("period", 4.2))
+	hand.phase_offset = float(spec.get("phase", 0.0))
+	return hand
+
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	sync_to_physics = true
@@ -29,7 +39,7 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		return
 	var body := Rect2(0, -13, length, 26)
-	if Stage.is_tower() and Art.draw_stretched(self, "s17_clock_hand", Rect2(-24, -20, length + 24, 40)):
+	if (Art.style(self) == "tower") and Art.draw_stretched(self, "s17_clock_hand", Rect2(-24, -20, length + 24, 40)):
 		return
 	draw_rect(body, Color("77664f"))
 	draw_rect(Rect2(0, -13, length, 7), Color("c5ab79"))

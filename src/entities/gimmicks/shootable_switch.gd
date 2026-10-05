@@ -22,7 +22,17 @@ var _locked: float = 0.0
 var _remaining: float = 0.0
 var _pulse: float = 0.0
 
+## Builds this piece from a stage's gimmick spec ("switch"). The spec is
+## parsed here, next to the fields it fills, so a default lives in one place.
+static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
+	var s := ShootableSwitch.new()
+	s.switch_id = String(spec.get("id", "gate_a"))
+	s.hold_time = float(spec.get("hold", 6.0))
+	s.sigil = int(spec.get("sigil", 0))
+	return s
+
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("shootable")
 	# Named so the host can find the open ones and replay them to a client that
 	# reconnected after the gate was already shot open.
@@ -95,14 +105,14 @@ func _draw_body() -> void:
 			var remaining := clampf(_remaining / maxf(hold_time, 0.001), 0, 1)
 			draw_arc(Vector2.ZERO, 30, -PI * 0.5, -PI * 0.5 + TAU * remaining, 40, Color("ffd24a"), 3)
 		return
-	if Stage.is_cave():
+	if (Art.style(self) == "cave"):
 		draw_circle(Vector2.ZERO, 24, Color("65717b"))
 		draw_circle(Vector2.ZERO, 18, Color("aaa99b"))
 		draw_circle(Vector2.ZERO, 12,
 			Color("b5d2c6") if active else Color("ad6a5c"))
 		draw_circle(Vector2.ZERO, 5 + glow, Color("e8dac2"))
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_circle(Vector2.ZERO, 24, Color("695f54"))
 		draw_circle(Vector2.ZERO, 19, Color("b6a07b"))
 		draw_circle(Vector2.ZERO, 12, Color("8fb8b6") if active else Color("688a90"))
