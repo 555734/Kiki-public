@@ -1,5 +1,5 @@
 extends RefCounted
-## Stage 1-5: bright poisonous marsh. The liquid is lethal on contact; dry
+## Stage 1-5: molten crossing. The lava is lethal on contact; dark
 ## moss and timber are safe. Three channels require the guardian's platforms,
 ## while the broad middle crossing uses a moving log raft.
 
@@ -7,9 +7,9 @@ const BASE := 900.0
 const WATER_Y := 520.0
 const KILL_Y := 620.0
 const START := Vector2(-1050, 350)
-const STAGE_NAME := "THE POISON MARSH"
+const STAGE_NAME := "THE MOLTEN CROSSING"
 const STAGE_NUMBER := "1-5"
-const OBJECTIVE := "Cross the poison marsh"
+const OBJECTIVE := "Cross the molten gorge"
 
 static func kill_y_value() -> float: return KILL_Y
 static func water_y_value() -> float: return WATER_Y
@@ -64,19 +64,22 @@ static func hazards() -> Array[Dictionary]:
 static func enemies() -> Array[Dictionary]:
 	return [
 		{"type": "walker", "pos": Vector2(-350, 379), "patrol": 210.0,
-			"skin": "walker_spiky"},
+			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 190.0,
-			"skin": "walker_spiky"},
+			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(3740, 329), "patrol": 200.0,
-			"skin": "walker_spiky"},
+			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(5340, 309), "patrol": 170.0,
-			"skin": "walker_spiky"},
+			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(6480, 299), "patrol": 190.0,
-			"skin": "walker_spiky"},
+			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(8160, 279), "patrol": 190.0,
-			"skin": "walker_spiky"},
+			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(9540, 269), "patrol": 170.0,
-			"skin": "walker_spiky"},
+			"skin": "s15_magma_slime"},
+		# Stomping golems guard broad banks, clear of checkpoint landings.
+		{"type": "golem", "pos": Vector2(3860, 315), "patrol": 100.0, "period": 5.0},
+		{"type": "golem", "pos": Vector2(9730, 255), "patrol": 85.0, "period": 4.8},
 		# Flyers now hang in the jump arcs rather than above them, so the
 		# stepping stones and the raft need the guardian's rifle first.
 		{"type": "flyer", "pos": Vector2(1300, 340), "patrol": 160.0},

@@ -74,6 +74,8 @@ func _draw() -> void:
 		for x in [r.position.x + 22.0, r.end.x - 22.0]:
 			draw_circle(Vector2(x, 4), 4, Color("73979a"))
 		return
+	if Stage.is_swamp() and Art.draw_stretched(self, "moving_platform", r):
+		return
 	if Stage.is_swamp():
 		# A raft of short lashed logs; its top is exactly the collision top.
 		for i in range(maxi(1, int(ceilf(span.x / 30.0)))):

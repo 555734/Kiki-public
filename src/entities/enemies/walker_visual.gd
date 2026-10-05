@@ -17,7 +17,10 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, 20.0, Color(0.10, 0.08, 0.06, 0.30))
 		draw_set_transform(Vector2(0.0, Balance.WALKER_SIZE.y * 0.5 - bob), 0.0,
 			Vector2(1.0 / squash, squash))
-		if Art.draw_sprite(self, walker.skin, Vector2.ZERO, Balance.WALKER_SPRITE_H,
+		var frame := walker.skin
+		if Stage.is_sea() and frame == "sea_crab":
+			frame = "s14_sea_crab_move" if absf(walker.velocity.x) > 1.0 else "s14_sea_crab_idle"
+		if Art.draw_sprite(self, frame, Vector2.ZERO, Balance.WALKER_SPRITE_H,
 				walker.direction > 0):
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 			return

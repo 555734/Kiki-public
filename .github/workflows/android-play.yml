@@ -12,7 +12,12 @@ on:
       version_name:
         description: "Public version name"
         required: true
-        default: "0.9.0"
+        default: "0.9.4"
+      submit_to_play:
+        description: "Upload to the production track and send for review"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -103,6 +108,17 @@ jobs:
           export/android/java_sdk_path = "${JAVA_HOME}"
           EOF
 
+      - name: Verify landscape and integrated stage assets
+        run: |
+          set -euo pipefail
+          GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          "$GODOT" --headless --editor --import --path .
+          "$GODOT" --headless --path . res://test/split_assets_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/horror_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/sea_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/swamp_stage_probe.tscn
+
       - name: Build signed Play bundle
         env:
           GODOT: /home/runner/godot/Godot_v4.7.2-stable_linux.x86_64
@@ -120,3 +136,39 @@ jobs:
           name: side-sky-play-com.sasakiful.melos-${{ inputs.version_code }}
           path: build/android/side-sky-play.aab
           if-no-files-found: error
+
+      - name: Prepare release notes
+        if: inputs.submit_to_play
+        run: |
+          set -euo pipefail
+          mkdir -p build/whatsnew
+          cp docs/release-notes/${{ inputs.version_name }}-ja-JP.txt build/whatsnew/whatsnew-ja-JP
+          test -s build/whatsnew/whatsnew-ja-JP
+
+      - name: Check Play submission credentials
+        if: inputs.submit_to_play
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          try:
+              key = json.loads(os.environ["PLAY_SERVICE_ACCOUNT_JSON"])
+          except (KeyError, ValueError):
+              sys.exit("PLAY_SERVICE_ACCOUNT_JSON is missing or invalid JSON")
+          if key.get("type") != "service_account" or not key.get("client_email") or "-----BEGIN PRIVATE KEY-----" not in key.get("private_key", ""):
+              sys.exit("PLAY_SERVICE_ACCOUNT_JSON is not a complete service account key")
+          print("Play service account key is configured")
+          PY
+
+      - name: Upload to Google Play production for review
+        if: inputs.submit_to_play
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.sasakiful.melos
+          releaseFiles: build/android/side-sky-play.aab
+          releaseName: ${{ inputs.version_name }} (${{ inputs.version_code }})
+          tracks: production
+          status: completed
+          whatsNewDirectory: build/whatsnew

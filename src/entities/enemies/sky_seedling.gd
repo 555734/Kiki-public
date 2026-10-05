@@ -23,9 +23,14 @@ func _build_body() -> void:
 func _physics_process(_delta: float) -> void:
 	var a := Clock.seconds_at(Clock.tick, phase_offset) * TAU / period
 	global_position = _origin + Vector2(sin(a) * reach.x, sin(a * 2.0) * reach.y)
+	queue_redraw()
 	direction = 1 if cos(a) >= 0.0 else -1
 
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
+	if Stage.is_skyward_ruins() or Stage.is_sea() or Stage.is_swamp():
+		var drawn_size := SIZE
+		if Art.draw_stretched(self, "s13_wisp_move", Rect2(-drawn_size * 0.5, drawn_size)):
+			return
 	draw_circle(Vector2.ZERO, SIZE.x * 0.5, Color("8fcf4a"))

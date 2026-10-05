@@ -38,7 +38,7 @@ static func current() -> int:
 static func world_3d() -> bool:
 	return Balance.USE_3D and _which != Which.GREENFIELD and _which != Which.HORROR \
 		and _which != Which.SEA and _which != Which.SWAMP and _which != Which.DESERT \
-		and _which != Which.TOWER and _which != Which.CAVE
+		and _which != Which.TOWER and _which != Which.CAVE and _which != Which.SKYWARD_RUINS
 
 static func is_crossing() -> bool:
 	return _which == Which.CROSSING

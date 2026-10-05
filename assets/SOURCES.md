@@ -401,3 +401,11 @@ they are regenerated, not edited, whenever a stage's art or layout changes.
 The one that still reads flat is `card_1_2.png`, and that is the stage: see
 **The reversal** above. A card cannot be better looking than the stage it is
 a photograph of.
+
+## Owner split stage pack (2026-10-05)
+
+`assets/split/1-2` through `1-5`: 107 PNGs from the owner-supplied
+`Kiki_assets_split.zip`. Backgrounds are unchanged; sprites have transparent
+outer padding trimmed by `tools/integrate_split_assets.py`. Active runtime
+mappings, placement, and verification are documented in `docs/split-assets.md`.
+The 1-2 through 1-5 menu cards were recaptured from the integrated stages.

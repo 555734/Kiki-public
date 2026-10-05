@@ -184,15 +184,11 @@ func run() -> void:
 			"chaser speed rises EASY < NORMAL < HARD (%s)" % str(travelled))
 	Difficulty.set_level(saved_level, false)
 
-	var view = main.get_node_or_null("World3D")
-	check(view != null, "Astra 3D world remains enabled")
-	if view != null and pursuer != null:
-		await get_tree().process_frame
-		var binding: Dictionary = view.bindings.get(pursuer.get_instance_id(), {})
-		check(String(binding.get("kind", "")) == "sky_predator",
-			"1-3 uses the purple 3D predator model")
-		check(SkySprites.texture("island_float") != null and SkySprites.texture("predator_0") != null,
-			"1-3's painted sprites are imported")
+	check(not Stage.world_3d(), "1-3 uses the split pack's painted 2D world")
+	check(Art.tex("s13_sky_asset_02") != null and Art.tex("s13_golem_attack") != null,
+		"new islands and enemy frames are imported")
+	check(Art.tex("parallax") == Art.tex("s13_background"),
+		"vertical background resolves to the new sky painting")
 
 	main.queue_free()
 	await get_tree().process_frame

@@ -15,7 +15,7 @@ func _ready() -> void:
 
 func run() -> void:
 	Stage.use(Stage.Which.SWAMP)
-	check(Stage.stage_number() == "1-5" and Stage.stage_name() == "THE POISON MARSH",
+	check(Stage.stage_number() == "1-5" and Stage.stage_name() == "THE MOLTEN CROSSING",
 		"stage identity is wired")
 	check(not Stage.world_3d() and Stage.progress_direction() == Vector2.RIGHT,
 		"the painted side-view stage runs left to right")

@@ -6,6 +6,115 @@ extends RefCounted
 const BASE := "res://assets/"
 
 const MANIFEST := {
+	# Owner supplied split pack; see docs/split-assets.md.
+	"s12_background": "split/1-2/background/background.png",
+	"s12_nightwolf_chase": "split/1-2/enemies/nightwolf_chase.png",
+	"s12_nightwolf_idle": "split/1-2/enemies/nightwolf_idle.png",
+	"s12_thornmite_attack": "split/1-2/enemies/thornmite_attack.png",
+	"s12_thornmite_idle": "split/1-2/enemies/thornmite_idle.png",
+	"s12_thornmite_move": "split/1-2/enemies/thornmite_move.png",
+	"s12_wisp_attack": "split/1-2/enemies/wisp_attack.png",
+	"s12_wisp_idle": "split/1-2/enemies/wisp_idle.png",
+	"s12_wisp_move": "split/1-2/enemies/wisp_move.png",
+	"s12_broken_bridge": "split/1-2/gimmicks/broken_bridge.png",
+	"s12_broken_fence": "split/1-2/gimmicks/broken_fence.png",
+	"s12_dead_tree": "split/1-2/gimmicks/dead_tree.png",
+	"s12_floating_ground_a": "split/1-2/gimmicks/floating_ground_a.png",
+	"s12_floating_ground_b": "split/1-2/gimmicks/floating_ground_b.png",
+	"s12_goal_gate": "split/1-2/gimmicks/goal_gate.png",
+	"s12_grave": "split/1-2/gimmicks/grave.png",
+	"s12_ground_long_a": "split/1-2/gimmicks/ground_long_a.png",
+	"s12_ground_long_b": "split/1-2/gimmicks/ground_long_b.png",
+	"s12_ground_short": "split/1-2/gimmicks/ground_short.png",
+	"s12_lantern": "split/1-2/gimmicks/lantern.png",
+	"s12_moving_platform": "split/1-2/gimmicks/moving_platform.png",
+	"s12_puddle": "split/1-2/gimmicks/puddle.png",
+	"s12_ruin_wall_a": "split/1-2/gimmicks/ruin_wall_a.png",
+	"s12_ruin_wall_b": "split/1-2/gimmicks/ruin_wall_b.png",
+	"s12_slope_ground": "split/1-2/gimmicks/slope_ground.png",
+	"s12_thorn_hazard": "split/1-2/gimmicks/thorn_hazard.png",
+	"s13_background": "split/1-3/background/background.png",
+	"s13_golem_attack": "split/1-3/enemies/golem_attack.png",
+	"s13_golem_idle": "split/1-3/enemies/golem_idle.png",
+	"s13_golem_move": "split/1-3/enemies/golem_move.png",
+	"s13_sky_bird_attack": "split/1-3/enemies/sky_bird_attack.png",
+	"s13_sky_bird_dive": "split/1-3/enemies/sky_bird_dive.png",
+	"s13_sky_bird_idle": "split/1-3/enemies/sky_bird_idle.png",
+	"s13_wisp_attack": "split/1-3/enemies/wisp_attack.png",
+	"s13_wisp_idle": "split/1-3/enemies/wisp_idle.png",
+	"s13_wisp_move": "split/1-3/enemies/wisp_move.png",
+	"s13_sky_asset_01": "split/1-3/gimmicks/sky_asset_01.png",
+	"s13_sky_asset_02": "split/1-3/gimmicks/sky_asset_02.png",
+	"s13_sky_asset_03": "split/1-3/gimmicks/sky_asset_03.png",
+	"s13_sky_asset_04": "split/1-3/gimmicks/sky_asset_04.png",
+	"s13_sky_asset_05": "split/1-3/gimmicks/sky_asset_05.png",
+	"s13_sky_asset_06": "split/1-3/gimmicks/sky_asset_06.png",
+	"s13_sky_asset_07": "split/1-3/gimmicks/sky_asset_07.png",
+	"s13_sky_asset_08": "split/1-3/gimmicks/sky_asset_08.png",
+	"s13_sky_asset_09": "split/1-3/gimmicks/sky_asset_09.png",
+	"s13_sky_asset_10": "split/1-3/gimmicks/sky_asset_10.png",
+	"s13_sky_asset_11": "split/1-3/gimmicks/sky_asset_11.png",
+	"s13_sky_asset_12": "split/1-3/gimmicks/sky_asset_12.png",
+	"s13_sky_asset_13": "split/1-3/gimmicks/sky_asset_13.png",
+	"s13_sky_asset_14": "split/1-3/gimmicks/sky_asset_14.png",
+	"s13_sky_asset_15": "split/1-3/gimmicks/sky_asset_15.png",
+	"s13_sky_asset_16": "split/1-3/gimmicks/sky_asset_16.png",
+	"s13_sky_asset_17": "split/1-3/gimmicks/sky_asset_17.png",
+	"s13_sky_asset_18": "split/1-3/gimmicks/sky_asset_18.png",
+	"s14_background": "split/1-4/background/background.png",
+	"s14_puffer_alert": "split/1-4/enemies/puffer_alert.png",
+	"s14_puffer_attack": "split/1-4/enemies/puffer_attack.png",
+	"s14_puffer_idle": "split/1-4/enemies/puffer_idle.png",
+	"s14_purple_pursuer_chase": "split/1-4/enemies/purple_pursuer_chase.png",
+	"s14_purple_pursuer_idle": "split/1-4/enemies/purple_pursuer_idle.png",
+	"s14_purple_pursuer_rise": "split/1-4/enemies/purple_pursuer_rise.png",
+	"s14_sea_crab_hide": "split/1-4/enemies/sea_crab_hide.png",
+	"s14_sea_crab_idle": "split/1-4/enemies/sea_crab_idle.png",
+	"s14_sea_crab_move": "split/1-4/enemies/sea_crab_move.png",
+	"s14_seabird_attack": "split/1-4/enemies/seabird_attack.png",
+	"s14_seabird_dive": "split/1-4/enemies/seabird_dive.png",
+	"s14_seabird_idle": "split/1-4/enemies/seabird_idle.png",
+	"s14_coast_asset_01": "split/1-4/gimmicks/coast_asset_01.png",
+	"s14_coast_asset_02": "split/1-4/gimmicks/coast_asset_02.png",
+	"s14_coast_asset_03": "split/1-4/gimmicks/coast_asset_03.png",
+	"s14_coast_asset_04": "split/1-4/gimmicks/coast_asset_04.png",
+	"s14_coast_asset_05": "split/1-4/gimmicks/coast_asset_05.png",
+	"s14_coast_asset_06": "split/1-4/gimmicks/coast_asset_06.png",
+	"s14_coast_asset_07": "split/1-4/gimmicks/coast_asset_07.png",
+	"s14_coast_asset_08": "split/1-4/gimmicks/coast_asset_08.png",
+	"s14_coast_asset_09": "split/1-4/gimmicks/coast_asset_09.png",
+	"s14_coast_asset_10": "split/1-4/gimmicks/coast_asset_10.png",
+	"s14_coast_asset_11": "split/1-4/gimmicks/coast_asset_11.png",
+	"s14_coast_asset_12": "split/1-4/gimmicks/coast_asset_12.png",
+	"s14_coast_asset_13": "split/1-4/gimmicks/coast_asset_13.png",
+	"s14_coast_asset_14": "split/1-4/gimmicks/coast_asset_14.png",
+	"s14_coast_asset_15": "split/1-4/gimmicks/coast_asset_15.png",
+	"s14_coast_asset_16": "split/1-4/gimmicks/coast_asset_16.png",
+	"s14_coast_asset_17": "split/1-4/gimmicks/coast_asset_17.png",
+	"s14_coast_asset_18": "split/1-4/gimmicks/coast_asset_18.png",
+	"s14_coast_asset_19": "split/1-4/gimmicks/coast_asset_19.png",
+	"s14_coast_asset_20": "split/1-4/gimmicks/coast_asset_20.png",
+	"s14_coast_asset_21": "split/1-4/gimmicks/coast_asset_21.png",
+	"s14_coast_asset_22": "split/1-4/gimmicks/coast_asset_22.png",
+	"s15_background": "split/1-5/background/background.png",
+	"s15_fire_bat": "split/1-5/enemies/fire_bat.png",
+	"s15_lava_golem": "split/1-5/enemies/lava_golem.png",
+	"s15_magma_slime": "split/1-5/enemies/magma_slime.png",
+	"s15_volcano_asset_01": "split/1-5/gimmicks/volcano_asset_01.png",
+	"s15_volcano_asset_02": "split/1-5/gimmicks/volcano_asset_02.png",
+	"s15_volcano_asset_03": "split/1-5/gimmicks/volcano_asset_03.png",
+	"s15_volcano_asset_04": "split/1-5/gimmicks/volcano_asset_04.png",
+	"s15_volcano_asset_05": "split/1-5/gimmicks/volcano_asset_05.png",
+	"s15_volcano_asset_06": "split/1-5/gimmicks/volcano_asset_06.png",
+	"s15_volcano_asset_07": "split/1-5/gimmicks/volcano_asset_07.png",
+	"s15_volcano_asset_08": "split/1-5/gimmicks/volcano_asset_08.png",
+	"s15_volcano_asset_09": "split/1-5/gimmicks/volcano_asset_09.png",
+	"s15_volcano_asset_10": "split/1-5/gimmicks/volcano_asset_10.png",
+	"s15_volcano_asset_11": "split/1-5/gimmicks/volcano_asset_11.png",
+	"s15_volcano_asset_12": "split/1-5/gimmicks/volcano_asset_12.png",
+	"s15_volcano_asset_13": "split/1-5/gimmicks/volcano_asset_13.png",
+	"s15_volcano_asset_14": "split/1-5/gimmicks/volcano_asset_14.png",
+
 	# characters
 	"runner_idle": "characters/runner_idle.png",
 	"runner_run": "characters/runner_run.png",
@@ -207,6 +316,78 @@ static func _prefer(keys: Array) -> String:
 	return chosen
 
 static func _resolved_key(key: String) -> String:
+	# Resolve by stage before legacy skins so other stages retain their art.
+	match Stage.current():
+		Stage.Which.HORROR:
+			match key:
+				"parallax": return "s12_background"
+				"horror_pursuer": return "s12_nightwolf_idle"
+				"horror_wisp": return "s12_wisp_idle"
+				"flyer": return "s12_wisp_idle"
+				"horror_thornmite": return "s12_thornmite_idle"
+				"horror_ruin_block": return "s12_ruin_wall_a"
+				"horror_platform": return "s12_floating_ground_b"
+				"platform": return "s12_moving_platform"
+				"moving_platform": return "s12_moving_platform"
+				"goal": return "s12_goal_gate"
+				"horror_goal": return "s12_goal_gate"
+				"fence": return "s12_broken_fence"
+				"horror_fence": return "s12_broken_fence"
+				"spikes": return "s12_thorn_hazard"
+				"horror_thorns": return "s12_thorn_hazard"
+				"tree": return "s12_dead_tree"
+				"horror_grave": return "s12_grave"
+				"horror_lantern": return "s12_lantern"
+				"horror_puddle": return "s12_puddle"
+				"ground_block": return "s12_floating_ground_a"
+		Stage.Which.SKYWARD_RUINS:
+			match key:
+				"parallax": return "s13_background"
+				"flyer": return "s13_sky_bird_idle"
+				"horror_pursuer": return "s13_golem_attack"
+				"goal": return "s13_sky_asset_16"
+				"gate": return "s13_sky_asset_09"
+				"moving_platform": return "s13_sky_asset_14"
+				"ground_block": return "s13_sky_asset_05"
+				"platform": return "s13_sky_asset_14"
+				"checkpoint_off": return "s13_sky_asset_17"
+				"checkpoint_on": return "s13_sky_asset_17"
+				"spring": return "s13_sky_asset_18"
+				"sky_updraft": return "s13_sky_asset_13"
+		Stage.Which.SEA:
+			match key:
+				"parallax": return "s14_background"
+				"sea_panorama": return "s14_background"
+				"sea_crab": return "s14_sea_crab_idle"
+				"flyer": return "s14_seabird_idle"
+				"sea_seabird": return "s14_seabird_idle"
+				"horror_pursuer": return "s14_purple_pursuer_idle"
+				"sea_chaser": return "s14_purple_pursuer_idle"
+				"sea_rock": return "s14_coast_asset_19"
+				"sea_pier": return "s14_coast_asset_07"
+				"sea_bridge": return "s14_coast_asset_06"
+				"moving_platform": return "s14_coast_asset_08"
+				"sea_raft": return "s14_coast_asset_08"
+				"sea_palm": return "s14_coast_asset_16"
+				"sea_palm_small": return "s14_coast_asset_16"
+				"sea_boulder": return "s14_coast_asset_18"
+				"sea_seaweed": return "s14_coast_asset_20"
+				"sea_grass": return "s14_coast_asset_20"
+				"spring": return "s14_coast_asset_13"
+				"ground_block": return "s14_coast_asset_07"
+				"fence": return "s14_coast_asset_12"
+		Stage.Which.SWAMP:
+			match key:
+				"parallax": return "s15_background"
+				"swamp_panorama": return "s15_background"
+				"walker": return "s15_magma_slime"
+				"walker_spiky": return "s15_magma_slime"
+				"flyer": return "s15_fire_bat"
+				"goal": return "s15_volcano_asset_13"
+				"moving_platform": return "s15_volcano_asset_11"
+				"ground_block": return "s15_volcano_asset_05"
+				"spikes": return "s15_volcano_asset_09"
+				"platform": return "s15_volcano_asset_12"
 	if Stage.is_desert():
 		match key:
 			"parallax": return "desert_panorama"

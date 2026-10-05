@@ -12,6 +12,12 @@ func _draw() -> void:
 	var view := size
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
+	if Stage.is_horror() or Stage.is_sea() or Stage.is_swamp():
+		_split_land_background(view, scroll)
+		return
+	if Stage.is_skyward_ruins():
+		_split_sky_background(view)
+		return
 	if Stage.is_cave():
 		_cave_background(view, sky.vertical())
 		return
@@ -507,3 +513,35 @@ func _cloud_sea(view: Vector2, offset: float, base_y: float, near: float) -> voi
 	# left as gradient -- otherwise the sea reads as a row of blobs floating in
 	# the sky, which is what the first pass looked like.
 	draw_rect(Rect2(0.0, base, view.x, maxf(view.y - base, 0.0) + 40.0), col)
+
+func _split_sky_background(view: Vector2) -> void:
+	var painting := Art.tex("s13_background")
+	if painting == null:
+		return
+	var pixels := Vector2(painting.get_size())
+	var factor := maxf(view.x / pixels.x, view.y / pixels.y)
+	var extent := pixels * factor
+	var progress := clampf((sky.vertical() - 520.0) / 5860.0, 0.0, 1.0)
+	draw_texture_rect(painting, Rect2(Vector2((view.x - extent.x) * 0.5,
+		-(extent.y - view.y) * progress), extent), false)
+	draw_rect(Rect2(Vector2.ZERO, view), Color(0.83, 0.93, 1.0, 0.18))
+
+## Crop the board's baked foreground out of the distant layer. A painted
+## floor in a panorama must not look like a playable route across real pits.
+func _split_land_background(view: Vector2, horizontal: float) -> void:
+	var painting := Art.tex("parallax")
+	if painting == null:
+		return
+	var source := Rect2(Vector2.ZERO, Vector2(painting.get_size()) * Vector2(1, 0.80))
+	var height := view.y
+	var width := height * source.size.x / source.size.y
+	var offset := horizontal * 0.12
+	var first := int(floorf(offset / width))
+	for i in range(-1, int(ceilf(view.x / width)) + 2):
+		var x := float(i) * width - fposmod(offset, width)
+		if posmod(first + i, 2) != 0:
+			draw_set_transform(Vector2(2.0 * x + width, 0), 0, Vector2(-1, 1))
+		draw_texture_rect_region(painting, Rect2(x, 0, width + 0.5, height), source)
+		draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
+	var shade := Color("152843", 0.13) if Stage.is_horror() else Color(0.8, 0.9, 1.0, 0.10)
+	draw_rect(Rect2(Vector2.ZERO, view), shade)

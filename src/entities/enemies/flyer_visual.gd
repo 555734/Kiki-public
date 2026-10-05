@@ -17,7 +17,14 @@ func _draw() -> void:
 		var beat := sin(flyer.phase() * 3.4)
 		draw_set_transform(Vector2(0.0, Balance.FLYER_SIZE.y * 0.5 + beat * 2.0), 0.0,
 			Vector2(1.0, 1.0 - absf(beat) * 0.12))
-		if Art.draw_sprite(self, "flyer", Vector2.ZERO, Balance.FLYER_SPRITE_H,
+		var frame := "flyer"
+		if Stage.is_horror():
+			frame = "s12_wisp_idle" if beat < 0.0 else "s12_wisp_move"
+		elif Stage.is_skyward_ruins():
+			frame = "s13_sky_bird_idle" if beat < 0.0 else "s13_sky_bird_attack"
+		elif Stage.is_sea():
+			frame = "s14_seabird_idle" if beat < 0.0 else "s14_seabird_attack"
+		if Art.draw_sprite(self, frame, Vector2.ZERO, Balance.FLYER_SPRITE_H,
 				flyer.direction > 0):
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 			return

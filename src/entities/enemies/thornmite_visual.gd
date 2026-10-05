@@ -33,7 +33,8 @@ func _draw() -> void:
 	elif mode == 2:
 		tint = Color(1.0, 0.78, 0.62)
 
-	if Art.draw_sprite(self, "horror_thornmite",
+	var frame := "s12_thornmite_attack" if mode == 2 else ("s12_thornmite_idle" if mode == 1 else "s12_thornmite_move")
+	if Art.draw_sprite(self, frame,
 			Vector2(0.0, 28.0 - bob), 92.0, face_right, tint):
 		if mode == 1:
 			draw_arc(Vector2(-28.0 if not face_right else 28.0, -10.0 - bob),

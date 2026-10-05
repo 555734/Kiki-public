@@ -99,6 +99,9 @@ func _draw() -> void:
 		draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), Color("756b60"))
 		_draw_cracks(r)
 		return
+	if Stage.is_swamp() and Art.draw_stretched(self, "ground_block", r):
+		_draw_cracks(r)
+		return
 	if Stage.is_swamp():
 		draw_rect(r, Color("745238"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 9.0)), Color("a4d74a"))

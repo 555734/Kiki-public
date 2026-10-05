@@ -52,6 +52,8 @@ func run() -> void:
 	await get_tree().process_frame
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/menu"))
 	for shot in SHOTS:
+		if "--split-assets-only" in OS.get_cmdline_user_args() and not int(shot["which"]) in [Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]:
+			continue
 		await _capture(shot)
 	get_tree().quit()
 
