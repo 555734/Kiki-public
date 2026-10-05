@@ -4,11 +4,13 @@ extends TouchGesture
 ## of a ledge.
 
 var finger: int = -1
+var anchor: Vector2 = Vector2.ZERO
 ## Where the thumb is, for the HUD to draw.
 var thumb: Vector2 = Vector2.ZERO
 
 func begin(index: int, position: Vector2, size: Vector2, _id: String) -> void:
 	finger = index
+	anchor = position if ControlLayout.floating_stick(hub.layout_mode()) else hub.cluster(size)["stick"]["center"]
 	apply(position, size)
 
 func drag(_index: int, position: Vector2, size: Vector2) -> void:

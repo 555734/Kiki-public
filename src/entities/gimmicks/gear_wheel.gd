@@ -21,6 +21,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return wheel
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	sync_to_physics = true
@@ -55,6 +56,8 @@ func _draw() -> void:
 		Color("c4a979"), 11.0, true)
 	draw_arc(Vector2.ZERO, radius * 0.67, 0, TAU, 64,
 		Color("997e5b"), 4.0, true)
+	if (Art.style(self) == "tower"):
+		Art.draw_stretched(self, "s17_gear", Rect2(-Vector2.ONE * radius, Vector2.ONE * radius * 2))
 	for i in 4:
 		var a := float(i) * PI * 0.5
 		var outward := Vector2(sin(a), -cos(a))

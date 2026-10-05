@@ -131,6 +131,9 @@ static func enemies() -> Array[Dictionary]:
 		{"type": "walker", "pos": Vector2(7720, -121), "patrol": 180.0, "skin": "sea_crab"},
 		{"type": "walker", "pos": Vector2(8860, 99), "patrol": 150.0, "skin": "sea_crab"},
 		{"type": "walker", "pos": Vector2(11700, 79), "patrol": 220.0, "skin": "sea_crab"},
+		# Pufferfish telegraph an expanding hurt area above safe bank approaches.
+		{"type": "mine", "pos": Vector2(2010, 52), "bob": Vector2(0, 18), "period": 3.8},
+		{"type": "mine", "pos": Vector2(7370, -170), "bob": Vector2(0, 20), "period": 4.2, "phase": 1.1},
 		# Turrets hold the cliff tops, firing back down the climb. y = top - 26.
 		{"type": "turret", "pos": Vector2(2440, 94), "aim": Vector2.LEFT, "burst": 2},
 		{"type": "turret", "pos": Vector2(5560, 274), "aim": Vector2.LEFT, "burst": 3},

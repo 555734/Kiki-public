@@ -41,7 +41,7 @@ const SHOTS := [
 	{"which": Stage.Which.TOWER, "file": "card_1_7.png",
 		"at": Vector2(0, 13475), "zoom": 1.45, "runner": Vector2(300, 13632)},
 	{"which": Stage.Which.CAVE, "file": "card_1_8.png",
-		"at": Vector2(22320, 180), "zoom": 1.45, "runner": Vector2(22220, 170)},
+		"at": Vector2(0, 12370), "zoom": 1.45, "runner": Vector2(-250, 12610)},
 ]
 
 func _ready() -> void:
@@ -53,6 +53,10 @@ func run() -> void:
 	await get_tree().process_frame
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/menu"))
 	for shot in SHOTS:
+		if "--late-assets-only" in OS.get_cmdline_user_args() and not int(shot["which"]) in [Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
+			continue
+		if "--split-assets-only" in OS.get_cmdline_user_args() and not int(shot["which"]) in [Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]:
+			continue
 		await _capture(shot)
 	get_tree().quit()
 

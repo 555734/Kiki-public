@@ -15,7 +15,7 @@ extends RefCounted
 
 
 ## New stages go on the END: the value is what travels in the handshake.
-enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE }
+enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE, ROYAL_ARENA }
 
 ## A fresh launch starts at 1-1. The start panel can switch to 1-2 before play.
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
@@ -47,6 +47,7 @@ const _DATA_FILES := {
 	Which.DESERT: "level_desert_data",
 	Which.TOWER: "level_tower_data",
 	Which.CAVE: "level_cave_data",
+	Which.ROYAL_ARENA: "level_royal_arena_data",
 }
 
 ## The current stage's data script.

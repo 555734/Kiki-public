@@ -25,6 +25,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return trap
 
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("instant_death")
 	collision_layer = Hazard.LAYER_HAZARD
 	collision_mask = 0
@@ -72,6 +73,18 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		return
 	var head := head_at(Clock.tick)
+	if (Art.style(self) == "tower"):
+		if kind == "pendulum":
+			draw_line(Vector2.ZERO, head, Color("a78955"), 6)
+			if Art.draw_stretched(self, "s17_pendulum_ball", Rect2(head - Vector2.ONE * 31, Vector2.ONE * 62)): return
+		elif kind == "piston":
+			draw_rect(Rect2(-8, -105, 16, 105 + head.y), Color("a6b6c2"))
+			if Art.draw_stretched(self, "s17_piston_head", Rect2(head - Vector2(47, 22), Vector2(94, 44))): return
+		elif extension_at(Clock.tick) > 0.05:
+			if Art.draw_stretched(self, "s17_spikes", Rect2(head - Vector2(37.5, 45), Vector2(75, 90))): return
+		else:
+			draw_rect(Rect2(-18, -45, 20, 90), Color("655d66"))
+			return
 	match kind:
 		"pendulum":
 			draw_line(Vector2.ZERO, head, Color("5e5b57"), 10.0)

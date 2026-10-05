@@ -193,6 +193,8 @@ func _route(position: Vector2, size: Vector2) -> Array:
 	if hub.scope_engaged and TouchLayout.hit_rect(position, TouchLayout.ZOOM_SLIDER, size, mirrored):
 		return [zoom, "zoom"]
 	var id := ControlLayout.hit(hub.layout_mode(), size, mirrored, position)
+	if id == "stick" and stick.finger >= 0:
+		return []
 	var control := _gesture_for(id)
 	if control != null:
 		return [control, id]

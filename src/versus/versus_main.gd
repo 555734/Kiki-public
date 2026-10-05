@@ -298,7 +298,7 @@ func _build_world() -> void:
 
 ## Which stage's art this arena is painted in. A guest starts in the default
 ## and switches when the host's WELCOME says otherwise.
-var _theme: int = Stage.Which.GREENFIELD
+var _theme: int = VersusStageData.DEFAULT_THEME
 
 ## Rebuild the arena as another stage: its ground (each stage has its own
 ## shape), its art and its sky. A guest does this on the host's WELCOME,

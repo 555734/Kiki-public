@@ -33,7 +33,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 10 # Upper tiers, gimmicks and enemies (enemy mask, enemy shots).
+const VERSION: int = 11 # Royal Arena: older builds do not know stage 13.
 
 ## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
 ## the host only; the rules engine never enters them.
@@ -97,7 +97,7 @@ static func read_hello(payload: PackedByteArray) -> Dictionary:
 ## repaint on the guest's side.
 static func welcome(seat: int, match_seed: int,
 		room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT,
-		stage: int = Stage.Which.GREENFIELD) -> PackedByteArray:
+		stage: int = VersusStageData.DEFAULT_THEME) -> PackedByteArray:
 	var b := _buf(Msg.WELCOME)
 	b.put_u8(seat)
 	b.put_u32(match_seed)

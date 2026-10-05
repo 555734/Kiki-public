@@ -24,7 +24,10 @@ func _draw() -> void:
 		tint = Color.WHITE
 		draw_circle(Vector2(18, -22), 62.0, Color(1.0, 0.75, 0.38, 0.13))
 
-	if Art.draw_sprite(self, "horror_pursuer", Vector2(0, 58.0 - bob), 154.0, false, tint):
+	var frame := Art.pursuer_frame(is_stunned, p)
+	if Art.late_pack() != "" and Art.draw_sprite_fit(self, frame, Vector2(0, -bob), 130.0, tint):
+		return
+	if Art.draw_sprite(self, frame, Vector2(0, 58.0 - bob), 154.0, false, tint):
 		var glow := 0.55 + 0.45 * sin(p * 1.4)
 		draw_circle(Vector2(30, -39 - bob), 5.0 + glow * 2.0,
 			Color(1.0, 0.48, 0.14, 0.42 + glow * 0.28))

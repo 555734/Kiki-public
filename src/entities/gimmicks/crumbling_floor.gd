@@ -25,6 +25,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return c
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -97,20 +98,26 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		_draw_cracks(r)
 		return
-	if Stage.is_cave():
+	if Art.draw_late_platform(self, "crumble", r):
+		_draw_cracks(r)
+		return
+	if (Art.style(self) == "cave"):
 		draw_rect(r, Color("a67b5b"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("c69b70"))
 		draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5),
 			Color("59483e"))
 		_draw_cracks(r)
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_rect(r, Color("b5a58a"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("dfcfb0"))
 		draw_rect(Rect2(r.position.x, r.end.y - 5, r.size.x, 5), Color("756b60"))
 		_draw_cracks(r)
 		return
-	if Stage.is_swamp():
+	if (Art.style(self) == "swamp") and Art.draw_stretched(self, "ground_block", r):
+		_draw_cracks(r)
+		return
+	if (Art.style(self) == "swamp"):
 		draw_rect(r, Color("745238"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 9.0)), Color("a4d74a"))
 		draw_rect(Rect2(r.position.x, r.position.y + 9.0,
@@ -119,7 +126,7 @@ func _draw() -> void:
 			draw_rect(r, Color(0.85, 0.35, 0.12, _shake * 0.28))
 		_draw_cracks(r)
 		return
-	if Stage.is_desert():
+	if (Art.style(self) == "desert"):
 		draw_rect(r, Color("b87746"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8.0)), Color("f2c071"))
 		draw_rect(Rect2(r.position.x, r.end.y - 6.0, r.size.x, 6.0), Color("83543b"))

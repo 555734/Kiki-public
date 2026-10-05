@@ -341,6 +341,7 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 		"sky_pursuer":
 			var p = SkyPursuerScript.new()
 			p.runner = runner
+			p.activation_distance = float(spec.get("activation", 0.0))
 			p.wake_delay = float(spec.get("delay", 2.25))
 			p.cruise_speed = float(spec.get("speed", 220.0))
 			p.catchup_speed = float(spec.get("catchup", 520.0))

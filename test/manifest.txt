@@ -83,3 +83,9 @@ tools/capture_store_shots.tscn     capture
 tools/capture_versus_cards.tscn    capture
 
 tools/export_three_assets.tscn     tool
+
+test/floating_controls_probe.tscn gated
+test/royal_arena_probe.tscn gated
+test/split_assets_probe.tscn gated
+tools/capture_royal_arena.tscn capture
+tools/capture_stage_landscape.tscn capture

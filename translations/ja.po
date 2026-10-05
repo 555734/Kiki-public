@@ -16,5 +16,5 @@ msgstr "天空の遺跡"
 msgid "THE SUNLIT COAST"
 msgstr "陽光の海岸"
 
-msgid "THE POISON MARSH"
-msgstr "毒の沼地"
+msgid "THE MOLTEN CROSSING"
+msgstr "溶岩の峡谷"

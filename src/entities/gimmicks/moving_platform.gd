@@ -30,6 +30,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return m
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1   # terrain, so everything already treats it as ground
 	collision_mask = 0
 	sync_to_physics = true
@@ -60,7 +61,9 @@ func position_at(at_tick: int) -> Vector2:
 
 func _draw() -> void:
 	var r := Rect2(-span * 0.5, span)
-	if Stage.is_cave():
+	if Art.draw_late_platform(self, "lift", r):
+		return
+	if (Art.style(self) == "cave"):
 		if visual_style == "minecart":
 			# Flat rim is the collision top; the wheels and rail are dressing below.
 			draw_colored_polygon(PackedVector2Array([
@@ -81,7 +84,7 @@ func _draw() -> void:
 			draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 7),
 				Color("b7aca0"))
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_rect(r, Color("665f55"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 8)), Color("d6c6a7"))
 		draw_rect(Rect2(r.position.x + 5, r.position.y + 8,
@@ -89,7 +92,9 @@ func _draw() -> void:
 		for x in [r.position.x + 22.0, r.end.x - 22.0]:
 			draw_circle(Vector2(x, 4), 4, Color("73979a"))
 		return
-	if Stage.is_swamp():
+	if (Art.style(self) == "swamp") and Art.draw_stretched(self, "moving_platform", r):
+		return
+	if (Art.style(self) == "swamp"):
 		# A raft of short lashed logs; its top is exactly the collision top.
 		for i in range(maxi(1, int(ceilf(span.x / 30.0)))):
 			var x := r.position.x + float(i) * 30.0
@@ -104,7 +109,7 @@ func _draw() -> void:
 		draw_line(Vector2(r.position.x, r.end.y - 3.0),
 			Vector2(r.end.x, r.end.y - 3.0), Color("4d3527"), 5.0)
 		return
-	if Stage.is_desert():
+	if (Art.style(self) == "desert"):
 		draw_rect(r, Color("805b49"))
 		draw_rect(Rect2(r.position, Vector2(r.size.x, 10.0)), Color("f2c773"))
 		draw_rect(Rect2(r.position.x + 5.0, r.position.y + 10.0,

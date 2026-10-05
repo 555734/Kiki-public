@@ -6,6 +6,9 @@ var seed_index: int = 0
 
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, span)
+	if span.y > 140.0: draw_rect(rect, Color("512c43"))
+	if Art.draw_late_platform(self, "terrain_ground", rect):
+		return
 	var surface := global_position.y <= 1080.0
 	# Broad, low-detail stone masses keep enemies and cracks readable.
 	draw_rect(rect, Color("645347") if surface else Color("5a4844"))

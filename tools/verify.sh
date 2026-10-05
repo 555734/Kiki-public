@@ -71,6 +71,11 @@ run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/key_crow_prob
 step "who may play which stage, and what a friend pass is worth"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/entitlement_probe.tscn
 
+step "new public art, floating controls and Royal Arena"
+run_checked "$GODOT" --headless --path . res://test/floating_controls_probe.tscn
+run_checked "$GODOT" --headless --path . res://test/split_assets_probe.tscn
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/royal_arena_probe.tscn
+
 step "logic tests"
 run_checked "$GODOT" --headless --path . res://test/run_tests.tscn
 

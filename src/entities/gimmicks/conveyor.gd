@@ -31,6 +31,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return belt
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -60,15 +61,18 @@ func warning() -> bool:
 func _draw() -> void:
 	if has_meta("model_3d"):
 		return
+	if Art.draw_late_platform(self, "conveyor", Rect2(-span * 0.5, span),
+			Color("ffd99b") if warning() else Color.WHITE, direction_at(Clock.tick) < 0):
+		return
 	draw_rect(Rect2(-span * 0.5, span),
-		Color("70695f") if Stage.is_tower() else
-		(Color("866046") if Stage.is_desert() else Color("2c3448")))
-	if Stage.is_desert():
+		Color("70695f") if (Art.style(self) == "tower") else
+		(Color("866046") if (Art.style(self) == "desert") else Color("2c3448")))
+	if (Art.style(self) == "desert"):
 		draw_rect(Rect2(-span.x * 0.5, -span.y * 0.5, span.x, 5.0), Color("e7b66b"))
 	var d := float(direction_at(Clock.tick))
 	# A steady warm cue is easier to read than flashing arrows on a moving view.
 	var lit := Color("c78f72") if warning() else \
-		(Color("9bc4bd") if Stage.is_tower() else Color("ffc93c"))
+		(Color("9bc4bd") if (Art.style(self) == "tower") else Color("ffc93c"))
 	for i in int(span.x / 40.0):
 		var x := -span.x * 0.5 + 20.0 + float(i) * 40.0
 		draw_polyline(PackedVector2Array([Vector2(x - 6 * d, -7), Vector2(x + 6 * d, 0),

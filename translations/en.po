@@ -16,8 +16,8 @@ msgstr "THE SKYWARD RUINS"
 msgid "THE SUNLIT COAST"
 msgstr "THE SUNLIT COAST"
 
-msgid "THE POISON MARSH"
-msgstr "THE POISON MARSH"
+msgid "THE MOLTEN CROSSING"
+msgstr "THE MOLTEN CROSSING"
 
 msgid "メロスゲーム"
 msgstr "Melos Game"
@@ -58,7 +58,7 @@ msgstr "Build a path to the sky"
 msgid "岩と桟橋をつないで海の旗へ"
 msgstr "Cross the rocks and piers"
 
-msgid "毒沼の足場を渡り岸の門へ"
+msgid "溶岩と崩れる岩を越えて火山の門へ"
 msgstr "Cross the poisoned marsh"
 
 msgid "—  ステージを選択  —"
@@ -1072,7 +1072,7 @@ msgstr "A hit knocks one star loose."
 msgid "1-4 陽光の海岸"
 msgstr "1-4 The Sunlit Coast"
 
-msgid "1-5 毒の沼地"
+msgid "1-5 溶岩の峡谷地"
 msgstr "1-5 The Poison Marsh"
 
 msgid "Aチーム：ガーディアン（射撃で たすける）"

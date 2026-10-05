@@ -151,7 +151,7 @@ static func touch_controls(ci: CanvasItem, src, view: Vector2) -> void:
 	# Drawn from ControlLayout, the same geometry the router hit-tests and the
 	# layout editor moves, so what the player sees is exactly what responds.
 	var cluster := hub.cluster(view)
-	var place: Dictionary = cluster.get("stick", {})
+	var place: Dictionary = hub.stick_place(view)
 	if place.is_empty():
 		return
 	var anchor: Vector2 = place["center"]
@@ -164,47 +164,53 @@ static func touch_controls(ci: CanvasItem, src, view: Vector2) -> void:
 	var alpha := 1.0 if live else 0.78
 	var accent := Color(0.31, 0.85, 1.0)
 
-	# Ring
-	ci.draw_circle(anchor, ring, Color(0.04, 0.09, 0.14, 0.42 * alpha))
-	ci.draw_arc(anchor, ring, 0.0, TAU, 48, Color(1, 1, 1, 0.40 * alpha), 3.0, true)
-	# Direction chevrons: this is a side-scroller, so back and forward are the
-	# whole vocabulary and they should be readable without looking down.
-	for side in [-1.0, 1.0]:
-		var d := anchor + Vector2(side * ring * 0.66, 0.0)
-		ci.draw_colored_polygon(PackedVector2Array([
-			d + Vector2(side * ring * 0.20, 0.0),
-			d + Vector2(-side * ring * 0.10, -ring * 0.20),
-			d + Vector2(-side * ring * 0.10, ring * 0.20),
-		]), Color(1, 1, 1, 0.62 * alpha))
-	ci.draw_arc(anchor, ring * 0.16, 0.0, TAU, 20, Color(1, 1, 1, 0.34 * alpha), 2.0, true)
+	if live or not ControlLayout.floating_stick(hub.layout_mode()):
+		# Ring
+		ci.draw_circle(anchor, ring, Color(0.04, 0.09, 0.14, 0.42 * alpha))
+		ci.draw_arc(anchor, ring, 0.0, TAU, 48, Color(1, 1, 1, 0.40 * alpha), 3.0, true)
+		# Direction chevrons: this is a side-scroller, so back and forward are the
+		# whole vocabulary and they should be readable without looking down.
+		for side in [-1.0, 1.0]:
+			var d := anchor + Vector2(side * ring * 0.66, 0.0)
+			ci.draw_colored_polygon(PackedVector2Array([
+				d + Vector2(side * ring * 0.20, 0.0),
+				d + Vector2(-side * ring * 0.10, -ring * 0.20),
+				d + Vector2(-side * ring * 0.10, ring * 0.20),
+			]), Color(1, 1, 1, 0.62 * alpha))
+		ci.draw_arc(anchor, ring * 0.16, 0.0, TAU, 20, Color(1, 1, 1, 0.34 * alpha), 2.0, true)
 
-	# The upper arc is the jump zone: push the thumb up past it and the runner
-	# jumps, so one thumb can hold a direction and jump at the same time.
-	if Options.stick_jump():
-		var jumping: bool = stick.get("jumping", false)
-		var jump_y := anchor.y - travel * ControlLayout.STICK_JUMP_FRACTION
-		var jump_col := Color(accent.r, accent.g, accent.b, (0.95 if jumping else 0.55) * alpha)
-		ci.draw_arc(anchor, travel * ControlLayout.STICK_JUMP_FRACTION, PI * 1.18, PI * 1.82, 24,
-			jump_col, 3.5 if jumping else 2.2, true)
-		ci.draw_colored_polygon(PackedVector2Array([
-			Vector2(anchor.x, jump_y - ring * 0.20),
-			Vector2(anchor.x - ring * 0.13, jump_y - ring * 0.04),
-			Vector2(anchor.x + ring * 0.13, jump_y - ring * 0.04),
-		]), jump_col)
-		if jumping:
-			ci.draw_circle(anchor + Vector2(0, -travel * 0.75), ring * 0.10,
-				Color(accent.r, accent.g, accent.b, 0.55))
+		# The upper arc is the jump zone: push the thumb up past it and the runner
+		# jumps, so one thumb can hold a direction and jump at the same time.
+		if Options.stick_jump():
+			var jumping: bool = stick.get("jumping", false)
+			var jump_y := anchor.y - travel * ControlLayout.STICK_JUMP_FRACTION
+			var jump_col := Color(accent.r, accent.g, accent.b, (0.95 if jumping else 0.55) * alpha)
+			ci.draw_arc(anchor, travel * ControlLayout.STICK_JUMP_FRACTION, PI * 1.18, PI * 1.82, 24,
+				jump_col, 3.5 if jumping else 2.2, true)
+			ci.draw_colored_polygon(PackedVector2Array([
+				Vector2(anchor.x, jump_y - ring * 0.20),
+				Vector2(anchor.x - ring * 0.13, jump_y - ring * 0.04),
+				Vector2(anchor.x + ring * 0.13, jump_y - ring * 0.04),
+			]), jump_col)
+			if jumping:
+				ci.draw_circle(anchor + Vector2(0, -travel * 0.75), ring * 0.10,
+					Color(accent.r, accent.g, accent.b, 0.55))
 
-	# Knob, following the thumb in both axes so the jump zone is aimable.
-	var knob := anchor + Vector2(axis * (-1.0 if mirrored else 1.0) * travel, 0.0)
-	if live:
-		var thumb: Vector2 = stick["thumb"]
-		knob.y = clampf(thumb.y, anchor.y - travel, anchor.y + travel * 0.4)
-	var knob_r := ring * 0.40
-	ci.draw_circle(knob, knob_r, Color(1, 1, 1, 0.32 * alpha))
-	ci.draw_arc(knob, knob_r, 0.0, TAU, 32, Color(accent.r, accent.g, accent.b, 0.9 * alpha), 3.5, true)
-	if live:
-		ci.draw_circle(knob, knob_r * 0.34, Color(accent.r, accent.g, accent.b, 0.8))
+		# Knob, following the thumb in both axes so the jump zone is aimable.
+		var knob := anchor + Vector2(axis * (-1.0 if mirrored else 1.0) * travel, 0.0)
+		if live:
+			var thumb: Vector2 = stick["thumb"]
+			knob.y = clampf(thumb.y, anchor.y - travel, anchor.y + travel * 0.4)
+		var knob_r := ring * 0.40
+		ci.draw_circle(knob, knob_r, Color(1, 1, 1, 0.32 * alpha))
+		ci.draw_arc(knob, knob_r, 0.0, TAU, 32, Color(accent.r, accent.g, accent.b, 0.9 * alpha), 3.5, true)
+		if live:
+			ci.draw_circle(knob, knob_r * 0.34, Color(accent.r, accent.g, accent.b, 0.8))
+
+	else:
+		var hint := "左下をドラッグ" if not mirrored else "右下をドラッグ"
+		ci.draw_string(Art.font(), anchor + Vector2(-95, 5), TranslationServer.translate(hint),
+			HORIZONTAL_ALIGNMENT_CENTER, 190, 18, Color(1, 1, 1, 0.60))
 
 	# The one action button. There is no SPRINT button: on a touch screen the
 	# runner always runs at full speed (Options.auto_dash).

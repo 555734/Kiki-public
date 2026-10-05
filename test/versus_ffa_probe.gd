@@ -67,7 +67,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	check(panel._room_mode() == VersusRoster.RoomMode.TEAM_SPLIT and panel._seat.visible
 		and panel._seat_buttons.size() == 3, "and 2対2 still asks which chair")
-	check(panel._stage_cards.size() == 5, "and offers 1-1 to 1-5")
+	check(panel._stage_cards.size() == VersusStageData.THEMES.size() and panel._stage_id == Stage.Which.ROYAL_ARENA, "Royal Arena defaults alongside five existing stages")
 	panel.queue_free()
 	links = VersusLoopback.mesh(PEOPLE, 0.04)
 	for i in range(PEOPLE):
@@ -250,11 +250,22 @@ func _stick_at(dir: float) -> Vector2:
 	return stick["center"] + Vector2(float(stick["radius"]) * 0.7 * dir, 0)
 
 func _touch(peer: int, finger: int, at: Vector2, pressed: bool) -> void:
+	var start := at
+	var stick: Dictionary = ControlLayout.layout("shared", Vector2(1280, 720), false)["stick"]
+	var steering := pressed and finger == 0 and at.distance_to(stick["center"]) < float(stick["radius"])
+	if steering:
+		start = stick["center"]
 	var event := InputEventScreenTouch.new()
 	event.index = finger
-	event.position = at
+	event.position = start
 	event.pressed = pressed
 	views[peer].push_input(event, true)
+	if steering:
+		var drag := InputEventScreenDrag.new()
+		drag.index = finger
+		drag.position = at
+		drag.relative = at - start
+		views[peer].push_input(drag, true)
 
 func _ticks(count: int) -> void:
 	for i in range(count):

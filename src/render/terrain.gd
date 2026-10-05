@@ -89,6 +89,11 @@ func _palette() -> Dictionary:
 	}
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
+	if Stage.is_horror() or Stage.is_skyward_ruins() or Stage.is_sea() or Stage.is_swamp() or Stage.is_desert():
+		_draw_split_slab(rect, seed_index)
+		return
+	if Stage.is_tower() and Art.draw_late_platform(self, "terrain_ground", rect):
+		return
 	if Stage.is_tower():
 		_draw_tower_slab(rect, seed_index)
 		return
@@ -318,3 +323,57 @@ func _draw_painted_slab(rect: Rect2) -> bool:
 			rect.size.x, _grass_h()),
 		_grass_h())
 	return true
+
+## Collision tops remain at rect.position.y. Long banks repeat whole sections;
+## no cap texture is tiled down their vertical faces.
+func _draw_split_slab(rect: Rect2, index: int) -> void:
+	var key := "s12_ground_long_a" if index % 2 == 0 else "s12_ground_long_b"
+	var body := Color("594452")
+	if Stage.is_skyward_ruins():
+		key = "s13_sky_asset_02" if index % 2 == 0 else "s13_sky_asset_05"
+		body = Color("927b68")
+	elif Stage.is_sea():
+		key = "s14_coast_asset_02"
+		body = Color("cd8437")
+	elif Stage.is_swamp():
+		key = "s15_volcano_asset_04"
+		body = Color("512e34")
+	elif Stage.is_desert():
+		key = "s16_terrain_ground"
+		body = Color("b96e34")
+	if not Stage.is_skyward_ruins():
+		draw_rect(rect, body)
+	var texture := Art.tex(key)
+	if texture == null:
+		draw_rect(rect, body)
+		return
+	var pixels := Vector2(texture.get_size())
+	# The packed bounds include tufts/rocks above the walkable cap. Align the
+	# broad cap (measured from alpha coverage) with the actual collision top.
+	var surface_rows := {"s12_ground_long_a": 45.0, "s12_ground_long_b": 39.0,
+		"s13_sky_asset_02": 35.0, "s13_sky_asset_05": 4.0,
+		"s14_coast_asset_02": 5.0, "s15_volcano_asset_04": 4.0, "s16_terrain_ground": 4.0}
+	var source_y: float = surface_rows[key]
+	var sections := maxi(1, int(ceilf(rect.size.x / 460.0)))
+	var width := rect.size.x / float(sections)
+	for i in sections:
+		var x := rect.position.x + float(i) * width
+		var source := Rect2(0, source_y, pixels.x, pixels.y - source_y)
+		if Stage.is_skyward_ruins():
+			draw_texture_rect_region(texture, Rect2(x, rect.position.y,
+				width + 0.5, rect.size.y), source)
+			continue
+		var cap_height := minf(rect.size.y, width * source.size.y / pixels.x)
+		# Continue the bank with quiet earth below the supplied art. Repeating
+		# the cutout's edge shadows down the face creates false ledges.
+		var courses := maxi(1, int(rect.size.y / 150.0))
+		for row in courses:
+			var y := rect.position.y + cap_height + float(row) * 150.0
+			if y >= rect.end.y:
+				break
+			var band_height := minf(150.0, rect.end.y - y)
+			draw_rect(Rect2(x, y, width + 0.5, band_height),
+				Color(0, 0, 0, 0.035 * float(row % 3)))
+		source.size.y -= pixels.y * 0.07
+		draw_texture_rect_region(texture, Rect2(x, rect.position.y,
+			width + 0.5, cap_height), source)

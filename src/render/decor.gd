@@ -23,6 +23,8 @@ func _draw() -> void:
 	if Stage.is_cave() and not _cave_chunk:
 		return
 	for item in items:
+		if _split_decor(item):
+			continue
 		match String(item.get("type", "")):
 			"conduit": _conduit(item["pos"], item.get("size", Vector2(90, 76)))
 			"blocks": _blocks(item["pos"], int(item.get("count", 3)),
@@ -718,3 +720,55 @@ func _cave_rail(at: Vector2, width: float) -> void:
 	for i in range(int(width / 26.0)):
 		var x := left + float(i) * 26.0
 		draw_rect(Rect2(x, at.y - 10, 8, 21), Color("78604d"))
+
+func _split_decor(item: Dictionary) -> bool:
+	var kind := String(item.get("type", ""))
+	var key := ""
+	if Art.late_pack() != "":
+		var mapping := {"desert_arch": "terrain_arch", "desert_crystal": "crystal",
+			"desert_cactus": "palm_small", "desert_flower": "bush", "desert_bridge": "bridge",
+			"tower_banner": "terrain_banner", "tower_lamp": "terrain_lamp", "tower_rail": "rail",
+			"cave_lamp": "terrain_lamp", "cave_crystal": "terrain_crystal", "cave_rail": "rail"}
+		if not mapping.has(kind): return false
+		key = Art.late_pack() + String(mapping[kind])
+		if item.has("rect"):
+			Art.draw_stretched(self, key, item["rect"])
+		elif kind.ends_with("rail"):
+			var at: Vector2 = item["pos"]
+			if Stage.is_cave():
+				Art.draw_sprite_w(self, key, at, float(item.get("width", 170.0)))
+			else:
+				Art.draw_sprite(self, key, at, float(item.get("height", 260.0)))
+		else:
+			var defaults := {"tower_banner": 190.0, "tower_lamp": 105.0,
+				"cave_lamp": 110.0, "cave_crystal": 65.0, "desert_cactus": 120.0,
+				"desert_flower": 65.0, "desert_crystal": 75.0}
+			Art.draw_sprite(self, key, item["pos"], float(item.get("height", defaults.get(kind, 220.0))), bool(item.get("flip", false)))
+		return true
+	if Stage.is_skyward_ruins():
+		var mapping := {"ruin_column": "sky_asset_06", "pillar": "sky_asset_06",
+			"arch": "sky_asset_07", "pillar_broken": "sky_asset_09",
+			"ruin_stairs": "sky_asset_12", "stone_wall": "sky_asset_12",
+			"ruin_tower": "sky_asset_08", "ruin_pile": "sky_asset_09",
+			"cloud_bank": "sky_asset_15", "waterfall": "sky_asset_13"}
+		if not mapping.has(kind):
+			# Greenery is already painted into the new island silhouettes.
+			return true
+		key = "s13_" + String(mapping[kind])
+	elif Stage.is_swamp():
+		var mapping := {"swamp_tree": "volcano_asset_07",
+			"swamp_mushroom": "volcano_asset_03", "swamp_reeds": "volcano_asset_06",
+			"swamp_boulder": "volcano_asset_02", "swamp_stone": "volcano_asset_01",
+			"swamp_bridge": "volcano_asset_11"}
+		if not mapping.has(kind):
+			return false
+		key = "s15_" + String(mapping[kind])
+	else:
+		return false
+	if item.has("rect"):
+		Art.draw_stretched(self, key, item["rect"])
+	else:
+		var dimensions: Vector2 = item.get("size", Vector2(120, 110))
+		Art.draw_sprite(self, key, item["pos"], float(item.get("height", dimensions.y)),
+			bool(item.get("flip", false)))
+	return true

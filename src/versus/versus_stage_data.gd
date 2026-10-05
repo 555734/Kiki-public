@@ -82,6 +82,20 @@ const BLOCK_CELL: float = 46.0
 ## floor, keeps 80px clear of that floor's edges -- a row over a take-off is a
 ## ceiling the jump hits. The upper tier is reached by springs and lifts.
 const LAYOUTS := {
+	Stage.Which.ROYAL_ARENA: {
+		"floors": [[0.0, 360.0, 400.0], [360.0, 620.0, 340.0],
+			[620.0, 740.0, 280.0], [740.0, 940.0, 240.0],
+			[1080.0, 1240.0, 260.0], [1240.0, 1420.0, 340.0], [1420.0, 1600.0, 280.0]],
+		"blocks": [[120.0, 290.0, 3], [520.0, 25.0, 2], [800.0, -20.0, 2]],
+		"centre": [[1462.0, 20.0, 6]], "obstacles": [],
+		"springs": [680.0],
+		"movers": [[1300.0, 160.0, 120.0, 65.0, -55.0]],
+		"enemies": [["walker", 35.0, 265.0, 400.0], ["flyer", 1050.0, 1240.0, 130.0]],
+		"starts": [[800.0, 1], [280.0, 1], [1520.0, 1], [1160.0, 1]],
+	},
+	# 1-1: two rolling hills, and a sky bridge over the middle. A spring on
+	# each shoulder of the middle hill throws you up to it; a cloud platform
+	# drifts between the hilltop and the bridge.
 	# 1-1: a meadow in three tiers. From the low grass at the join the
 	# ground climbs to a hilltop, drops over a pit with a column of wind in it
 	# into a valley, and rises again to the middle. A spring on the hilltop
@@ -206,7 +220,7 @@ static func _make_ground() -> Array[Rect2]:
 	return out
 
 static func _slab(x0: float, x1: float, top: float) -> Rect2:
-	return Rect2(x0, top, x1 - x0, GROUND_BASE - top)
+	return Rect2(x0, top, x1 - x0, 140.0 if theme == Stage.Which.ROYAL_ARENA else GROUND_BASE - top)
 
 ## The floors a runner stands on, without the walls.
 static func floors() -> Array[Rect2]:
@@ -237,18 +251,20 @@ static func surface_tops() -> Array[float]:
 ## Which stage the arena is. Each has its own ground (LAYOUTS) and its own
 ## art. The wire never carries geometry: the host's WELCOME names the stage
 ## and every machine builds the same layout from it.
-const THEMES: Array[int] = [Stage.Which.GREENFIELD, Stage.Which.HORROR,
+const DEFAULT_THEME: int = Stage.Which.ROYAL_ARENA
+const THEMES: Array[int] = [DEFAULT_THEME, Stage.Which.GREENFIELD, Stage.Which.HORROR,
 	Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]
-static var theme: int = Stage.Which.GREENFIELD
+static var theme: int = DEFAULT_THEME
 
 ## Paint the arena as `which` from now on. Also points Stage at it, which is
 ## what the sky, the terrain painter and the 3D view all read.
 static func use_theme(which: int) -> void:
-	theme = which if THEMES.has(which) else Stage.Which.GREENFIELD
+	theme = which if THEMES.has(which) else DEFAULT_THEME
 	Stage.use(theme)
 
 static func theme_label(which: int) -> String:
 	match which:
+		Stage.Which.ROYAL_ARENA: return "ロイヤル・アリーナ"
 		Stage.Which.HORROR: return "1-2 うつろな村外れ"
 		Stage.Which.SKYWARD_RUINS: return "1-3 天空の遺跡"
 		Stage.Which.SEA: return "1-4 陽光の海岸"
@@ -320,7 +336,7 @@ static func painted_floors() -> Array[Rect2]:
 	return out
 
 static func painted_slabs() -> Array[Rect2]:
-	if theme == Stage.Which.SEA or theme == Stage.Which.SWAMP:
+	if theme in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.ROYAL_ARENA]:
 		# The coast's and the marsh's floating rows are painted as that
 		# stage's own ground: thin slabs of sand or mud, exactly their
 		# collision rectangle.
@@ -346,6 +362,8 @@ static func painted_slabs() -> Array[Rect2]:
 ## looks like a ledge where there is none).
 static func decor() -> Array[Dictionary]:
 	match theme:
+		Stage.Which.ROYAL_ARENA:
+			return _decor_royal()
 		Stage.Which.HORROR:
 			return _decor_horror()
 		Stage.Which.SKYWARD_RUINS:
@@ -658,4 +676,13 @@ static func _make_collision(constructs: Array[Rect2] = []) -> Array[Rect2]:
 			var built := clip_to_built(Rect2(r.position + Vector2(WIDTH * float(lap), 0.0), r.size))
 			if built.size.x > 0.0:
 				out.append(built)
+	return out
+
+static func _decor_royal() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	_pairs(out, "royal_red_flag", 240.0, {"height": 130.0})
+	_pairs(out, "royal_royal_planter", 580.0, {"height": 62.0})
+	_pairs(out, "royal_pillar_tall_left", 830.0, {"height": 100.0})
+	_pairs(out, "royal_banner_small", 1145.0, {"height": 105.0})
+	_pairs(out, "royal_crest_round", 1520.0, {"height": 60.0})
 	return out

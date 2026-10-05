@@ -23,6 +23,9 @@ func check(ok: bool, label: String) -> void:
 		print("  FAIL  %s" % label)
 
 func _ready() -> void:
+	VersusLaunch.clear()
+	VersusLaunch.how = VersusLaunch.How.SOLO
+	VersusLaunch.stage = Stage.Which.GREENFIELD
 	arena = load("res://src/versus/versus_main.tscn").instantiate()
 	add_child(arena)
 	# The scene polls the keyboard itself; nothing is pressed in a probe, so the
@@ -221,12 +224,12 @@ func _test_repaint() -> void:
 		await get_tree().physics_frame
 	arena.input.hubs[0].drive_runner(0.0, 0.0, false, false)
 	check(r.global_position.x > before + 50.0, "and can walk on it")
-	check(arena._world_view != null, "1-3 is drawn in 3D, as in co-op")
+	check(arena._world_view == null and not Stage.world_3d(), "1-3 uses the painted 2D world, as in co-op")
 	arena._apply_theme(Stage.Which.SWAMP)
 	await _tick(20)
 	check(Stage.current() == Stage.Which.SWAMP and arena._world_view == null
 			and arena.level.find_child("PoisonWater", true, false) != null,
-		"repainted as 1-5: 2D, with the poison marsh under the pits")
+		"repainted as 1-5: 2D, with lava under the pits")
 	check(r.on_ground(), "and the runner is standing on 1-5's ground")
 	arena._apply_theme(Stage.Which.GREENFIELD)
 

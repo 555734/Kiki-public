@@ -20,6 +20,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return trap
 
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("instant_death")
 	collision_layer = Hazard.LAYER_HAZARD
 	collision_mask = 0
@@ -57,6 +58,10 @@ func _physics_process(_delta: float) -> void:
 
 func _draw() -> void:
 	var at := head_at(Clock.tick)
+	if (Art.style(self) == "cave"):
+		var key := "s18_boulder" if kind == "boulder" else "s18_terrain_stalactite"
+		var box := Rect2(at - Vector2(39, 39), Vector2(78, 78)) if kind == "boulder" else Rect2(at - Vector2(26, 40), Vector2(52, 80))
+		if Art.draw_stretched(self, key, box): return
 	if kind == "boulder":
 		draw_circle(at, 41, Color("554840"))
 		draw_circle(at + Vector2(-4, -5), 35, Color("917258"))

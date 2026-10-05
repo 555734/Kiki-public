@@ -12,11 +12,20 @@ func _draw() -> void:
 	var view := size
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
+	if Stage.current() == Stage.Which.ROYAL_ARENA:
+		_royal_background(view, scroll)
+		return
+	if Stage.is_horror() or Stage.is_sea() or Stage.is_swamp() or Stage.is_desert():
+		_split_land_background(view, scroll)
+		return
+	if Stage.is_skyward_ruins():
+		_split_sky_background(view)
+		return
 	if Stage.is_cave():
-		_cave_background(view, sky.vertical())
+		_late_background(view, sky.vertical())
 		return
 	if Stage.is_tower():
-		_tower_background(view, scroll, sky.vertical())
+		_late_background(view, sky.vertical())
 		return
 
 	# Every painted backdrop is opaque and, with the strip below it, reaches
@@ -520,3 +529,75 @@ func _cloud_sea(view: Vector2, offset: float, base_y: float, near: float) -> voi
 	# left as gradient -- otherwise the sea reads as a row of blobs floating in
 	# the sky, which is what the first pass looked like.
 	draw_rect(Rect2(0.0, base, view.x, maxf(view.y - base, 0.0) + 40.0), col)
+
+func _split_sky_background(view: Vector2) -> void:
+	var painting := Art.tex("s13_background")
+	if painting == null:
+		return
+	var pixels := Vector2(painting.get_size())
+	var factor := maxf(view.x / pixels.x, view.y / pixels.y)
+	var extent := pixels * factor
+	var progress := clampf((sky.vertical() - 520.0) / 5860.0, 0.0, 1.0)
+	draw_texture_rect(painting, Rect2(Vector2((view.x - extent.x) * 0.5,
+		-(extent.y - view.y) * progress), extent), false)
+	draw_rect(Rect2(Vector2.ZERO, view), Color(0.83, 0.93, 1.0, 0.18))
+
+## Crop the board's baked foreground out of the distant layer. A painted
+## floor in a panorama must not look like a playable route across real pits.
+func _split_land_background(view: Vector2, horizontal: float) -> void:
+	var painting := Art.tex("parallax")
+	if painting == null:
+		return
+	var source := Rect2(Vector2.ZERO, Vector2(painting.get_size()) * Vector2(1, 0.80))
+	var height := view.y
+	var width := height * source.size.x / source.size.y
+	var offset := horizontal * 0.12
+	var first := int(floorf(offset / width))
+	for i in range(-1, int(ceilf(view.x / width)) + 2):
+		var x := float(i) * width - fposmod(offset, width)
+		if posmod(first + i, 2) != 0:
+			draw_set_transform(Vector2(2.0 * x + width, 0), 0, Vector2(-1, 1))
+		draw_texture_rect_region(painting, Rect2(x, 0, width + 0.5, height), source)
+		draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
+	var shade := Color("152843", 0.13) if Stage.is_horror() else Color(0.8, 0.9, 1.0, 0.10)
+	draw_rect(Rect2(Vector2.ZERO, view), shade)
+
+## Cover with the supplied distant painting. The camera pans gently within it;
+## foreground platforms, text and demonstration characters are excluded.
+func _late_background(view: Vector2, camera_y: float) -> void:
+	var painting := Art.tex("parallax")
+	if painting == null: return
+	var pixels := Vector2(painting.get_size())
+	# The supplied painting is a distant window, not a viewport-sized close-up.
+	# Show the complete painting at 78% of screen height, with room around it.
+	var extent := pixels * (view.y * 0.78 / pixels.y)
+	var progress := clampf((14000.0 - camera_y) / 14000.0, 0.0, 1.0)
+	var origin := (view - extent) * 0.5 + Vector2(0, (progress - 0.5) * view.y * 0.05)
+	var base := Color("302139") if Stage.is_cave() else Color("30314c")
+	draw_rect(Rect2(Vector2.ZERO, view), base)
+	var wall := Art.tex("s18_terrain_wall" if Stage.is_cave() else "s17_terrain_wall")
+	if wall != null and not Stage.is_cave():
+		var tile := Vector2(view.y * 0.30, view.y * 0.30)
+		for row in 4:
+			for col in int(ceilf(view.x / tile.x)):
+				draw_texture_rect(wall, Rect2(Vector2(col, row) * tile, tile), false,
+					Color(0.45, 0.45, 0.55, 0.35))
+	draw_texture_rect(painting, Rect2(origin, extent), false)
+	draw_rect(Rect2(Vector2.ZERO, view), Color("24172c", 0.40) if Stage.is_cave() else Color("25213f", 0.27))
+
+	# The real cave exit opens to daylight above the collision roof.
+	if Stage.is_cave():
+		var roof_y := view.y * 0.5 + (1080.0 - camera_y) * Balance.CAMERA_ZOOM
+		if roof_y > 0:
+			draw_rect(Rect2(0, 0, view.x, minf(roof_y, view.y)), Color("c6d9d7"))
+
+func _royal_background(view: Vector2, scroll: float) -> void:
+	var painting := Art.tex("parallax")
+	if painting == null: return
+	var pixels := Vector2(painting.get_size())
+	var factor := maxf(view.x / pixels.x, view.y / pixels.y) * 1.035
+	var extent := pixels * factor
+	var position := (view - extent) * 0.5
+	position.x += sin(scroll * 0.0003) * (extent.x - view.x) * 0.45
+	draw_texture_rect(painting, Rect2(position, extent), false)
+	draw_rect(Rect2(Vector2.ZERO, view), Color(0.75, 0.86, 1.0, 0.13))

@@ -193,6 +193,18 @@ func _draw_platform() -> void:
 			maxf(length - 6.0, 0.0), 4.0), shine)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
+	if Art.platform_skin(180.0) != "":
+		for i in range(path.size() - 1):
+			var a := path[i]
+			var b := path[i + 1]
+			var length := a.distance_to(b)
+			if length < 1.0: continue
+			draw_set_transform((a + b) * 0.5, (b - a).angle(), Vector2.ONE)
+			var key := Art.platform_skin(length)
+			Art.draw_stretched(self, key, Rect2(-length * 0.5, -thick * 0.5, length, thick),
+				Color(1, 1, 1, _fade_in).lerp(Color(1, 0.4, 0.3, _fade_in), hot))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
 ## One straight slab from a to b, `thick` across, `extend` longer at each end.
 func _slab(a: Vector2, b: Vector2, thick: float, extend: float, col: Color) -> void:
 	var length := a.distance_to(b)

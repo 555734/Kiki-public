@@ -27,6 +27,7 @@ var _cooldown: float = 0.0
 var _squash: float = 0.0
 
 func _ready() -> void:
+	Art.bind_style(self)
 	z_index = 4
 	# After the runner has moved this frame, so the velocity set here survives
 	# into the next move_and_slide instead of being overwritten by it.
@@ -72,7 +73,9 @@ func _draw() -> void:
 	var h := HEIGHT * (1.0 - _squash * 0.34)
 	var w := WIDTH * (1.0 + _squash * 0.16)
 	var rect := Rect2(-w * 0.5, -h, w, h)
-	if Stage.is_cave():
+	if Art.late_pack() != "" and Art.draw_stretched(self, "spring", rect):
+		return
+	if (Art.style(self) == "cave"):
 		draw_rect(Rect2(-21, -34, 42, 30), Color("69727c"))
 		for y in [-30.0, -19.0, -8.0]:
 			draw_line(Vector2(-18, y), Vector2(18, y - 5),

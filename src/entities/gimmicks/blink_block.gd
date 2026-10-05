@@ -33,6 +33,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return blink
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -75,13 +76,18 @@ func _draw() -> void:
 				draw_line(Vector2(x, r.end.y), Vector2(x + 9.0, r.end.y), ghost, 2.0)
 		return
 	var c := (Color("75adb0") if colour == 0 else Color("998ba9")) \
-		if Stage.is_tower() else (Color("6fd6ff") if colour == 0 else Color("b98cff"))
+		if (Art.style(self) == "tower") else (Color("6fd6ff") if colour == 0 else Color("b98cff"))
 	c.a = 0.85 if on else 0.18
 	var warning_now := on and warning()
 	if warning_now:
 		# An amber edge communicates the coming change without a rapid alpha
 		# strobe across a staircase full of these blocks.
-		c = Color("c7a987", 0.80) if Stage.is_tower() else Color("f4c488", 0.80)
+		c = Color("c7a987", 0.80) if (Art.style(self) == "tower") else Color("f4c488", 0.80)
+	if Art.draw_late_platform(self, "blink", Rect2(-span * 0.5, span), c):
+		if warning_now: draw_rect(Rect2(-span * 0.5, span), Color("ffc85b"), false, 3)
+		return
+	if (Art.style(self) == "skyward_ruins") and Art.draw_stretched(self, "s13_sky_asset_14", Rect2(-span * 0.5, span), c):
+		return
 	draw_rect(Rect2(-span * 0.5, span), c)
 	draw_rect(Rect2(-span * 0.5, span),
 		Color("ffe0a0", 0.95) if warning_now else Color(1, 1, 1, c.a), false, 2.0)

@@ -13,6 +13,7 @@ var runner: Node2D = null
 var _t: float = 0.0
 
 func _ready() -> void:
+	Art.bind_style(self)
 	z_index = 6
 	if GameState.has_key:
 		queue_free()
@@ -31,6 +32,8 @@ func _process(delta: float) -> void:
 		queue_free()
 
 func _draw() -> void:
+	if ((Art.style(self) == "desert") or (Art.style(self) == "cave")) and Art.draw_sprite(self, Art.late_pack() + "key", Vector2(0, 20), 48):
+		return
 	var bob := sin(_t * 3.0) * 5.0
 	var c := Vector2(0, -24 + bob)
 	draw_circle(c, 26.0, Color(1.0, 0.85, 0.3, 0.18 + 0.08 * sin(_t * 5.0)))

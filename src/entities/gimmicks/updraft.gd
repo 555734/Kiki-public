@@ -49,6 +49,7 @@ static func from_spec(spec: Dictionary, runner: Runner) -> Node2D:
 	return lift
 
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("updraft")
 	z_index = 4
 	process_priority = 10
@@ -90,7 +91,10 @@ func holds(at: Vector2) -> bool:
 
 func _draw() -> void:
 	var rect := Rect2(-span.x * 0.5, -span.y, span.x, span.y)
-	if Stage.is_cave():
+	if Art.late_pack() != "" and Art.draw_stretched(self, "sky_updraft", rect, Color(1, 1, 1, 0.70)):
+		_draw_motes(rect)
+		return
+	if (Art.style(self) == "cave"):
 		draw_rect(rect, Color("82aeb5", 0.15))
 		for i in maxi(2, int(span.y / 90.0)):
 			var y := -fposmod(float(i) * 90.0 + _phase * 65.0, span.y)
@@ -103,7 +107,7 @@ func _draw() -> void:
 		draw_rect(Rect2(-span.x * 0.29, -38, span.x * 0.58, 8),
 			Color("b6b3aa"))
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_rect(rect, Color("8eacae", 0.16))
 		draw_rect(Rect2(rect.position.x, rect.position.y, 8, rect.size.y),
 			Color("a8c9c7", 0.42))

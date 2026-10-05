@@ -27,6 +27,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return gate
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -74,7 +75,9 @@ func _draw_body() -> void:
 	if has_meta("model_3d"): return
 	var lift := _open_amount * span.y * 0.92
 	var r := Rect2(-span.x * 0.5, -span.y * 0.5 - lift, span.x, span.y)
-	if Stage.is_cave():
+	if ((Art.style(self) == "desert") or (Art.style(self) == "tower")) and Art.draw_stretched(self, "gate", r):
+		return
+	if (Art.style(self) == "cave"):
 		draw_rect(Rect2(-span.x * 0.5 - 7, -span.y * 0.5 - 10,
 			span.x + 14, 12), Color("a88666"))
 		draw_rect(r, Color("394555"))
@@ -83,7 +86,7 @@ func _draw_body() -> void:
 				5, r.size.y), Color("9fa5a4"))
 		draw_rect(r, Color("2c3540"), false, 3.0)
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_rect(Rect2(-span.x * 0.5 - 8, -span.y * 0.5 - 12,
 			span.x + 16, 12), Color("6e6254"))
 		draw_rect(r, Color("756b5d"))
@@ -95,7 +98,7 @@ func _draw_body() -> void:
 				Color("6e6356"))
 		draw_rect(r, Color("5d554c"), false, 3.0)
 		return
-	if Stage.is_desert():
+	if (Art.style(self) == "desert"):
 		draw_rect(Rect2(-span.x * 0.5 - 7, -span.y * 0.5 - 10,
 			span.x + 14, 10), Color("8b5c43"))
 		draw_rect(r, Color("b7774b"))

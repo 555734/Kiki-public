@@ -28,6 +28,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return bridge
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	z_index = 4
@@ -72,8 +73,8 @@ func _draw() -> void:
 	if _active:
 		progress = clampf((Clock.seconds_at(Clock.tick - _start_tick) - delay) / RISE_TIME, 0.0, 1.0)
 	var r := Rect2(-span * 0.5, span)
-	var rim := Color("b8ada0") if Stage.is_cave() else Color("f0c886")
-	var fill := Color("5d6870") if Stage.is_cave() else Color("a46c4e")
+	var rim := Color("b8ada0") if (Art.style(self) == "cave") else Color("f0c886")
+	var fill := Color("5d6870") if (Art.style(self) == "cave") else Color("a46c4e")
 	if _active and _expires_at_tick >= 0 \
 			and Clock.seconds_at(_expires_at_tick - Clock.tick) < WARN_TIME:
 		rim = Color("dfaa7c")
@@ -87,6 +88,8 @@ func _draw() -> void:
 		return
 	var body := Rect2(r.position.x, r.position.y + (1.0 - progress) * 70.0,
 		r.size.x, r.size.y)
+	if (Art.style(self) == "cave") and Art.draw_late_platform(self, "switch_bridge", body, Color(rim) if progress < 1.0 else Color.WHITE):
+		return
 	draw_rect(body, fill)
 	draw_rect(Rect2(body.position.x, body.position.y, body.size.x, 7.0), rim)
 	for i in 3:

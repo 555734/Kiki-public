@@ -20,7 +20,7 @@ static var room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT
 static var link: int = Link.EOS
 ## Which stage's art the arena is painted in (VersusStageData.THEMES). The
 ## host's choice; a guest is told it in the WELCOME.
-static var stage: int = Stage.Which.GREENFIELD
+static var stage: int = VersusStageData.DEFAULT_THEME
 ## The co-op stage that was selected before versus, put back on the way out:
 ## versus paints with Stage.use, and a free player must not come back to the
 ## menu with a paid stage selected.
@@ -33,7 +33,7 @@ static func clear() -> void:
 	seat = 0
 	room_mode = VersusRoster.RoomMode.TEAM_SPLIT
 	link = Link.EOS
-	stage = Stage.Which.GREENFIELD
+	stage = VersusStageData.DEFAULT_THEME
 
 static func chosen() -> bool:
 	return how != How.NONE

@@ -24,6 +24,7 @@ func check(ok: bool, label: String) -> void:
 		print("  FAIL  %s" % label)
 
 func _ready() -> void:
+	VersusStageData.use_theme(Stage.Which.GREENFIELD)
 	_test_the_wire()
 	_test_waiting_transition()
 	_test_seating()

@@ -1,0 +1,21 @@
+extends RefCounted
+const TEXTURES := {
+	"s15_background": "split/1-5/background/background.png",
+	"s15_fire_bat": "split/1-5/enemies/fire_bat.png",
+	"s15_lava_golem": "split/1-5/enemies/lava_golem.png",
+	"s15_magma_slime": "split/1-5/enemies/magma_slime.png",
+	"s15_volcano_asset_01": "split/1-5/gimmicks/volcano_asset_01.png",
+	"s15_volcano_asset_02": "split/1-5/gimmicks/volcano_asset_02.png",
+	"s15_volcano_asset_03": "split/1-5/gimmicks/volcano_asset_03.png",
+	"s15_volcano_asset_04": "split/1-5/gimmicks/volcano_asset_04.png",
+	"s15_volcano_asset_05": "split/1-5/gimmicks/volcano_asset_05.png",
+	"s15_volcano_asset_06": "split/1-5/gimmicks/volcano_asset_06.png",
+	"s15_volcano_asset_07": "split/1-5/gimmicks/volcano_asset_07.png",
+	"s15_volcano_asset_08": "split/1-5/gimmicks/volcano_asset_08.png",
+	"s15_volcano_asset_09": "split/1-5/gimmicks/volcano_asset_09.png",
+	"s15_volcano_asset_10": "split/1-5/gimmicks/volcano_asset_10.png",
+	"s15_volcano_asset_11": "split/1-5/gimmicks/volcano_asset_11.png",
+	"s15_volcano_asset_12": "split/1-5/gimmicks/volcano_asset_12.png",
+	"s15_volcano_asset_13": "split/1-5/gimmicks/volcano_asset_13.png",
+	"s15_volcano_asset_14": "split/1-5/gimmicks/volcano_asset_14.png",
+}

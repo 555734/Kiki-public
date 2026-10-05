@@ -1,143 +1,171 @@
 extends RefCounted
-## Stage 1-5 climbs out of the poison marsh: the bright green pool stays at the
-## bottom, lethal as ever, and the route goes up a hollow, moss-grown cliff.
-##
-## It is a cliff with few ledges. Where the moss gives out, the guardian has to
-## build the next step (`gap`, `chasm`); where it forks, the pair choose between
-## a long way past crawlers and a short cut over the guardian's platform; and
-## between them, drifting log lifts, columns of marsh gas, rot that gives way and
-## a lure the guardian shoots to raise a ledge. The rooms are laid out by
-## ClimbBuilder, which also records how each is meant to be climbed (`route`).
+## Stage 1-5: molten crossing. The lava is lethal on contact; dark
+## moss and timber are safe. Three channels require the guardian's platforms,
+## while the broad middle crossing uses a moving log raft.
 
-const ClimbBuilder = preload("res://src/levels/climb_builder.gd")
-
-const BASE_Y := 8200.0
-## The poison sits a little under the starting bank, as it did on the flat.
-const WATER_Y := BASE_Y + 60.0
-const KILL_Y := BASE_Y + 200.0
-const STAGE_NAME := "THE POISON MARSH"
+const BASE := 900.0
+const WATER_Y := 520.0
+const KILL_Y := 620.0
+const START := Vector2(-1050, 350)
+const STAGE_NAME := "THE MOLTEN CROSSING"
 const STAGE_NUMBER := "1-5"
-const OBJECTIVE := "Climb out of the poison marsh"
-
-static var _built: ClimbBuilder = null
+const OBJECTIVE := "Cross the molten gorge"
 
 static func kill_y_value() -> float: return KILL_Y
 static func water_y_value() -> float: return WATER_Y
-static func start_position() -> Vector2: return Vector2(-300, BASE_Y - 50.0)
+static func start_position() -> Vector2: return START
 static func stage_name_value() -> String: return STAGE_NAME
 static func stage_number_value() -> String: return STAGE_NUMBER
 static func objective_value() -> String: return OBJECTIVE
 
-## Stage traits: what Stage answers for this stage instead of its default.
-static func painted_2d_value() -> bool: return true
-static func progress_direction_value() -> Vector2: return Vector2.UP
-static func needs_key_value() -> bool: return true
-static func pit_centre_x_value() -> float: return 4200.0
-## A climb: ledges above the floor can be jumped through from below. Its
-## gimmicks stay solid (no platforms_one_way, unlike 1-8).
-static func ground_one_way(rect: Rect2) -> bool:
-	return rect.position.y < start_position().y
+const SLABS := [
+	[-1400.0, 500.0, 400.0],
+	[1800.0, 2400.0, 380.0],
+	[3450.0, 4050.0, 350.0],
+	[5020.0, 5570.0, 330.0],
+	[6200.0, 6800.0, 320.0],
+	[7860.0, 8400.0, 300.0],
+	[9050.0, 10100.0, 290.0],
+]
 
-static func _theme() -> Dictionary:
-	var phase := [0.0]
-	return {
-		"ground": func(at: Vector2, patrol: float) -> Dictionary:
-			return {"type": "walker", "skin": "walker_spiky",
-				"pos": at + Vector2(0, -21), "patrol": patrol},
-		"air": func(at: Vector2, patrol: float) -> Dictionary:
-			return {"type": "flyer", "pos": at, "patrol": patrol},
-		"lift": func(at: Vector2, span: Vector2, travel: Vector2) -> Dictionary:
-			phase[0] += 0.37
-			return {"type": "moving_platform", "pos": at, "span": span,
-				"travel": travel, "speed": 70.0, "phase": phase[0]},
-		"air_column": func(at: Vector2, span: Vector2) -> Dictionary:
-			return {"type": "updraft", "pos": at, "span": span},
-		# Rotten stones: they hold one landing, then go.
-		"blink": func(at: Vector2, _k: int) -> Dictionary:
-			return {"type": "crumble", "pos": at + Vector2(0, 5), "span": Vector2(150, 36)},
-	}
+static func ground() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for slab in SLABS:
+		out.append(Rect2(slab[0], slab[2], slab[1] - slab[0], BASE - slab[2]))
+	return out
 
-static func _b() -> ClimbBuilder:
-	if _built != null:
-		return _built
-	var b := ClimbBuilder.new(Rect2(-520, BASE_Y, 1040, 320), _theme())
-	b.stairs(1, false)
-	b.gap()
-	b.nook()
-	b.lift()
-	b.fork()
-	b.chimney()
-	b.gap(true)
-	b.mirage("marsh_rise_1")
-	b.blinks()
-	b.chasm()
-	b.lift()
-	b.spring()
-	b.chimney()
-	b.gap(true)
-	b.nook()
-	b.mirage("marsh_rise_2")
-	b.blinks()
-	b.lift()
-	b.spring()
-	b.chasm()
-	b.chimney()
-	b.lift()
-	b.gap(true)
-	b.chimney()
-	b.gap()
-	b.finish()
-	_built = b
-	return b
+static func _stones() -> Array[Dictionary]:
+	# Narrow, unevenly stacked footing. Every gap here sits between 152 and 190
+	# pixels: a walking jump covers 182, so the wide ones only clear at a sprint
+	# and the landings are barely wider than the runner.
+	return [
+		{"type": "swamp_stone", "rect": Rect2(676, 404, 112, 58)},
+		{"type": "swamp_stone", "rect": Rect2(972, 384, 104, 78)},
+		{"type": "swamp_stone", "rect": Rect2(1266, 396, 100, 66)},
+		{"type": "swamp_stone", "rect": Rect2(1552, 372, 96, 90)},
+		{"type": "swamp_bridge", "rect": Rect2(2550, 370, 170, 30)},
+		{"type": "swamp_stone", "rect": Rect2(4238, 342, 98, 70)},
+		{"type": "swamp_stone", "rect": Rect2(4526, 328, 94, 84)},
+		{"type": "swamp_stone", "rect": Rect2(4806, 336, 94, 76)},
+	]
 
-static func route() -> Array[Dictionary]: return _b().route
-static func ground() -> Array[Rect2]: return _b().ground
-static func solid_decor() -> Array[Rect2]: return []
-static func veils() -> Array[Dictionary]: return []
+static func solid_decor() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for item in _stones():
+		out.append(item["rect"])
+	return out
 
 static func hazards() -> Array[Dictionary]:
-	# The pool's surface: one sensor, no spikes drawn -- the green is the warning.
-	var out: Array[Dictionary] = [{"pos": Vector2(0, WATER_Y + 34),
-		"size": Vector2(3200, 68), "draw_spikes": false}]
-	out.append_array(_b().hazards)
-	return out
+	# A single surface sensor prevents a runner from surviving in the bright
+	# green liquid until the off-screen pit catches them.
+	return [{"pos": Vector2(4350, WATER_Y + 34),
+		"size": Vector2(11600, 68), "draw_spikes": false}]
 
 static func enemies() -> Array[Dictionary]:
-	# The climbing chaser from 1-3 first: it rises from the pool, so the climb
-	# cannot be taken at leisure; the guardian's shot knocks it back down.
-	var out: Array[Dictionary] = [{"type": "sky_pursuer",
-		"pos": start_position() + Vector2(0, 420), "delay": 2.0, "speed": 195.0,
-		"catchup": 460.0, "stun": 1.5, "direction": Vector2.UP}]
-	out.append_array(_b().enemies)
-	return out
+	return [
+		{"type": "sky_pursuer", "pos": start_position() + Vector2(-550, -24),
+			"activation": 120.0, "delay": 4.0, "speed": 160.0, "catchup": 360.0,
+			"stun": 2.5, "direction": Vector2.RIGHT},
+		{"type": "walker", "pos": Vector2(-350, 379), "patrol": 210.0,
+			"skin": "s15_magma_slime"},
+		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 190.0,
+			"skin": "s15_magma_slime"},
+		{"type": "walker", "pos": Vector2(3740, 329), "patrol": 200.0,
+			"skin": "s15_magma_slime"},
+		{"type": "walker", "pos": Vector2(5340, 309), "patrol": 170.0,
+			"skin": "s15_magma_slime"},
+		{"type": "walker", "pos": Vector2(6480, 299), "patrol": 190.0,
+			"skin": "s15_magma_slime"},
+		{"type": "walker", "pos": Vector2(8160, 279), "patrol": 190.0,
+			"skin": "s15_magma_slime"},
+		{"type": "walker", "pos": Vector2(9540, 269), "patrol": 170.0,
+			"skin": "s15_magma_slime"},
+		# Stomping golems guard broad banks, clear of checkpoint landings.
+		{"type": "golem", "pos": Vector2(3860, 315), "patrol": 100.0, "period": 5.0},
+		{"type": "golem", "pos": Vector2(9730, 255), "patrol": 85.0, "period": 4.8},
+		# Flyers now hang in the jump arcs rather than above them, so the
+		# stepping stones and the raft need the guardian's rifle first.
+		{"type": "flyer", "pos": Vector2(1300, 340), "patrol": 160.0},
+		{"type": "flyer", "pos": Vector2(3200, 170), "patrol": 180.0},
+		{"type": "flyer", "pos": Vector2(4560, 300), "patrol": 220.0},
+		{"type": "flyer", "pos": Vector2(5900, 150), "patrol": 190.0},
+		{"type": "flyer", "pos": Vector2(7250, 250), "patrol": 300.0},
+		{"type": "flyer", "pos": Vector2(8750, 130), "patrol": 180.0},
+	]
 
-static func gimmicks() -> Array[Dictionary]: return _b().gimmicks
-static func springs() -> Array[Vector2]: return _b().springs
-static func checkpoints() -> Array[Vector2]: return _b().checkpoints
+static func gimmicks() -> Array[Dictionary]:
+	# The raft deck is narrower than the runner's landing margin used to be, and
+	# it travels further, so boarding and leaving it are both timed hops.
+	# Every crumbling slab sits inside one of the three guardian channels: it
+	# offers 0.45s of floor, which turns each crossing into a two-step plan
+	# instead of a single platform placed at leisure.
+	return [
+		{"type": "moving_platform", "pos": Vector2(6890, 315),
+			"span": Vector2(130, 26), "travel": Vector2(800, 0)},
+		{"type": "crumble", "pos": Vector2(2836, 370),
+			"span": Vector2(92, 28)},
+		{"type": "crumble", "pos": Vector2(3086, 360),
+			"span": Vector2(92, 28)},
+		{"type": "crumble", "pos": Vector2(5980, 330),
+			"span": Vector2(92, 28)},
+		{"type": "crumble", "pos": Vector2(8810, 305),
+			"span": Vector2(92, 28)},
+	]
+
+static func checkpoints() -> Array[Vector2]:
+	return [Vector2(1880, 330), Vector2(3530, 300), Vector2(5100, 280),
+		Vector2(6280, 270), Vector2(7950, 250), Vector2(9130, 240)]
 
 static func goal() -> Vector2:
-	var s := _b().shelf
-	return Vector2(s.position.x + 120.0, s.position.y - 55.0)
+	return Vector2(9840, 235)
 
-static func key_position() -> Vector2:
-	var s := _b().shelf
-	return Vector2(s.end.x - 110.0, s.position.y - 4.0)
+static func coins() -> Array[Vector2]:
+	return [
+		Vector2(-760, 345), Vector2(-680, 325), Vector2(-600, 345),
+		Vector2(732, 344), Vector2(1024, 324), Vector2(1316, 336),
+		Vector2(1600, 312), Vector2(2010, 320), Vector2(2635, 300),
+		Vector2(2970, 250), Vector2(3150, 230), Vector2(3330, 250),
+		Vector2(4287, 282), Vector2(4573, 268), Vector2(4853, 276),
+		Vector2(5740, 225), Vector2(5910, 205), Vector2(6080, 225),
+		Vector2(7040, 250), Vector2(7260, 240), Vector2(7480, 250),
+		Vector2(8560, 200), Vector2(8740, 180), Vector2(8920, 200),
+		Vector2(9500, 220), Vector2(9580, 200), Vector2(9660, 220),
+	]
 
-static func coins() -> Array[Vector2]: return _b().coins
-static func crystals() -> Array[Vector2]: return _b().crystals
+static func crystals() -> Array[Vector2]:
+	return [Vector2(2210, 310), Vector2(5310, 260), Vector2(8150, 225)]
+
+static func springs() -> Array[Vector2]:
+	return []
 
 static func decor() -> Array[Dictionary]:
-	var top := _b().shelf.position.y
 	var out: Array[Dictionary] = [
-		{"type": "swamp_tree", "pos": Vector2(-470, BASE_Y), "height": 300.0},
-		{"type": "swamp_reeds", "pos": Vector2(-60, BASE_Y)},
-		{"type": "swamp_mushroom", "pos": Vector2(300, BASE_Y)},
-		{"type": "swamp_tree", "pos": Vector2(250, top), "height": 260.0, "flip": true},
-		{"type": "swamp_reeds", "pos": Vector2(-300, top)},
+		{"type": "swamp_tree", "pos": Vector2(-1240, 400), "height": 280.0},
+		{"type": "swamp_reeds", "pos": Vector2(-910, 400)},
+		{"type": "swamp_mushroom", "pos": Vector2(-120, 400)},
+		{"type": "swamp_reeds", "pos": Vector2(420, 400)},
+		{"type": "swamp_mushroom", "pos": Vector2(1860, 380)},
+		{"type": "swamp_tree", "pos": Vector2(2300, 380), "height": 230.0,
+			"flip": true},
+		{"type": "swamp_reeds", "pos": Vector2(3520, 350)},
+		{"type": "swamp_boulder", "pos": Vector2(3960, 350)},
+		{"type": "swamp_tree", "pos": Vector2(5160, 330), "height": 270.0},
+		{"type": "swamp_mushroom", "pos": Vector2(5500, 330)},
+		{"type": "swamp_reeds", "pos": Vector2(6260, 320)},
+		{"type": "swamp_tree", "pos": Vector2(6720, 320), "height": 255.0,
+			"flip": true},
+		{"type": "swamp_mushroom", "pos": Vector2(7920, 300)},
+		{"type": "swamp_boulder", "pos": Vector2(8340, 300)},
+		{"type": "swamp_tree", "pos": Vector2(9190, 290), "height": 270.0},
+		{"type": "swamp_reeds", "pos": Vector2(9510, 290)},
+		{"type": "swamp_mushroom", "pos": Vector2(10000, 290)},
 	]
-	var i := 0
-	for spot in _b().decor_spots:
-		out.append({"type": "swamp_mushroom" if i % 2 == 0 else "swamp_reeds",
-			"pos": spot + Vector2(60.0 if i % 2 == 0 else -60.0, 0)})
-		i += 1
+	out.append_array(_stones())
 	return out
+
+static func veils() -> Array[Dictionary]:
+	return []
+
+static func painted_2d_value() -> bool: return true
+static func needs_key_value() -> bool: return true
+static func pit_centre_x_value() -> float: return 4200.0

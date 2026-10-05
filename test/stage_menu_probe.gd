@@ -40,7 +40,7 @@ func _ready() -> void:
 	check(Stage.stage_name() == "THE SUNLIT COAST", "and it is the one it says it is")
 	Stage.use(Stage.Which.SWAMP)
 	check(Stage.stage_number() == "1-5", "the poison marsh is selectable as 1-5")
-	check(Stage.stage_name() == "THE POISON MARSH", "and it is the one it says it is")
+	check(Stage.stage_name() == "THE MOLTEN CROSSING", "and it is the one it says it is")
 	Stage.use(Stage.Which.DESERT)
 	check(Stage.stage_number() == "1-6", "the desert is selectable as 1-6")
 	check(Stage.stage_name() == "THE SANDGLASS RUINS", "and it is the one it says it is")

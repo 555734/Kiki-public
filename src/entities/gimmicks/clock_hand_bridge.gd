@@ -17,6 +17,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return hand
 
 func _ready() -> void:
+	Art.bind_style(self)
 	collision_layer = 1
 	collision_mask = 0
 	sync_to_physics = true
@@ -38,6 +39,8 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		return
 	var body := Rect2(0, -13, length, 26)
+	if (Art.style(self) == "tower") and Art.draw_stretched(self, "s17_clock_hand", Rect2(-24, -20, length + 24, 40)):
+		return
 	draw_rect(body, Color("77664f"))
 	draw_rect(Rect2(0, -13, length, 7), Color("c5ab79"))
 	draw_rect(Rect2(0, 8, length, 5), Color("544d46"))

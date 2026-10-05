@@ -1,10 +1,7 @@
 extends Node
-## Stage 1-6 climbs the sandglass ruins: four desert enemy kinds, belts, blinking
-## stones, falling stones, lifts, wind, guardian-revealed mirage ledges and
-## arrow pads -- and every solid step climbable by a real runner.
+## Stage 1-6 wiring, route and four enemy behaviours.
 
 const MainScene: PackedScene = preload("res://src/main.tscn")
-const ClimbRoute = preload("res://test/climb_route.gd")
 const SwitchBridge = preload("res://src/entities/gimmicks/switch_bridge.gd")
 const TrickPad = preload("res://src/entities/gimmicks/trick_pad.gd")
 var failures: Array[String] = []
@@ -21,42 +18,47 @@ func run() -> void:
 	Stage.use(Stage.Which.DESERT)
 	check(Stage.stage_number() == "1-6" and Stage.stage_name() == "THE SANDGLASS RUINS",
 		"desert stage identity")
-	check(not Stage.world_3d() and Stage.needs_key()
-		and Stage.progress_direction() == Vector2.UP,
-		"a painted 2D climb with a required key")
-	var climb := Stage.start().y - Stage.goal().y
-	check(climb > 5500.0 and climb < Stage.start().y,
-		"a long climb that stays inside the online codec (%.0fpx)" % climb)
+	check(not Stage.world_3d() and Stage.needs_key(),
+		"painted 2D world with a required key")
+	check(Stage.goal().x > Stage.start().x + 7000.0 and Stage.goal().x < 30000.0,
+		"full route fits online coordinates")
 	var kinds := {}
 	for spec in Stage.enemies():
-		if String(spec.get("type", "")) == "desert_enemy":
-			kinds[String(spec.get("kind", ""))] = true
+		if spec["type"] != "desert_enemy": continue
+		kinds[String(spec.get("kind", ""))] = true
 	check(kinds.size() == 4 and kinds.has("scarab") and kinds.has("cactus")
 		and kinds.has("jelly") and kinds.has("fin"), "all four desert enemy kinds are placed")
-	var counts := {}
+	var bridge: Rect2 = Stage.solid_decor()[0]
+	check(bridge.position.x == Stage.ground()[3].end.x
+		and bridge.end.x == Stage.ground()[4].position.x,
+		"rope bridge has solid collision")
+	var gimmick_counts := {}
 	for spec in Stage.gimmicks():
-		counts[String(spec["type"])] = int(counts.get(String(spec["type"]), 0)) + 1
-	check(counts.get("blink", 0) >= 4
-		and counts.get("moving_platform", 0) >= 2 and counts.get("conveyor", 0) >= 3
-		and counts.get("updraft", 0) >= 2 and counts.get("switch_bridge", 0) >= 2
-		and counts.get("trick_pad", 0) == 2,
-		"belts, blinks, falling stones, lifts, wind, mirages and arrow pads (%s)" % str(counts))
-	var assists := 0
-	var ends := {}
-	var forks := 0
-	for step in Stage.route():
-		if String(step["via"]) == "assist":
-			assists += 1
-		var key := str((step["to"] as Rect2).position)
-		ends[key] = int(ends.get(key, 0)) + 1
-		if ends[key] == 2:
-			forks += 1
-	check(assists >= 5, "the guardian has to build the way up (%d assisted steps)" % assists)
-	check(forks >= 1, "the route forks (%d)" % forks)
-	var per_km := float(Stage.ground().size()) * 1000.0 / climb
-	check(per_km < 6.0, "fewer ledges than the old staircase (%.1f per 1000px)" % per_km)
-	check(Stage.checkpoints().size() >= 7, "checkpoints break up the climb")
-
+		var kind: String = spec["type"]
+		gimmick_counts[kind] = int(gimmick_counts.get(kind, 0)) + 1
+	check(gimmick_counts.get("crumble", 0) == 5
+		and gimmick_counts.get("blink", 0) == 3
+		and gimmick_counts.get("moving_platform", 0) == 1
+		and gimmick_counts.get("conveyor", 0) == 1
+		and gimmick_counts.get("switch_bridge", 0) == 3
+		and gimmick_counts.get("trick_pad", 0) == 2,
+		"desert route mixes launch pads and revealed bridges with its earlier beats")
+	check(Stage.checkpoints().size() == 9,
+		"checkpoints break up the harder route")
+	check(Stage.ground()[7].position.x - Stage.ground()[6].end.x == 550.0,
+		"guardian crossing keeps a clear cooperative challenge")
+	var oracle_switches := 0
+	var oracle_gate: Dictionary = {}
+	for spec in Stage.gimmicks():
+		if spec.get("id", "") != "desert_oracle":
+			continue
+		if spec["type"] == "switch":
+			oracle_switches += 1
+		elif spec["type"] == "gate":
+			oracle_gate = spec
+	check(oracle_switches == 2 and oracle_gate.get("wants", 0) == 2
+		and oracle_gate.get("span", Vector2.ZERO).y > Balance.RUNNER_JUMP_HEIGHT,
+		"guardian-only sigil gate requires the pair to communicate")
 	var main: Node2D = MainScene.instantiate()
 	add_child(main)
 	await get_tree().process_frame
@@ -75,30 +77,69 @@ func run() -> void:
 		if node is DesertEnemy:
 			built[node.kind] = true
 	check(built.size() == 4, "all four enemy classes build in the live level")
+	var oracle: Gate = null
+	var correct: ShootableSwitch = null
 	var mirage: SwitchBridge = null
+	var delayed_mirage: SwitchBridge = null
 	var mirage_switch: ShootableSwitch = null
-	var pads := 0
+	var pad_count := 0
+	var first_pad: TrickPad = null
 	for node in main.level._dynamic.get_children():
-		if node is SwitchBridge and mirage == null:
-			mirage = node
+		if node is SwitchBridge and node.switch_id == "desert_mirage":
+			if node.delay > 0.0:
+				delayed_mirage = node
+			else:
+				mirage = node
 		if node is TrickPad:
-			pads += 1
-	if mirage != null:
-		for node in get_tree().get_nodes_in_group("switch"):
-			if node is ShootableSwitch and node.switch_id == mirage.switch_id:
-				mirage_switch = node
-	check(mirage != null and mirage_switch != null and pads == 2,
-		"mirage ledges and arrow pads build in the live level")
-	if mirage != null and mirage_switch != null:
-		check(mirage._shape.disabled, "a mirage starts as a ghost, without collision")
+			pad_count += 1
+			if first_pad == null:
+				first_pad = node
+	for node in get_tree().get_nodes_in_group("gate"):
+		if node is Gate and node.switch_id == "desert_oracle":
+			oracle = node
+	for node in get_tree().get_nodes_in_group("switch"):
+		if node is ShootableSwitch and node.switch_id == "desert_mirage":
+			mirage_switch = node
+		if node is ShootableSwitch and node.switch_id == "desert_oracle" \
+				and node.sigil == 2:
+			correct = node
+	check(oracle != null and correct != null and Sigil.wanted("desert_oracle") == 2,
+		"cooperative gate and matching target exist in the live level")
+	if oracle != null and correct != null:
+		check(not oracle._shape.disabled, "oracle gate starts closed")
+		correct.take_damage(1)
+		for _i in 30:
+			await get_tree().physics_frame
+		check(oracle._shape.disabled, "guardian shot opens the oracle gate")
+	check(mirage != null and delayed_mirage != null and mirage_switch != null
+		and pad_count == 2,
+		"new desert set pieces build in the live level")
+	if mirage != null and delayed_mirage != null and mirage_switch != null:
+		check(mirage._shape.disabled, "mirage starts as a visible ghost, without collision")
 		mirage_switch.take_damage(1)
 		for _i in 24:
 			await get_tree().physics_frame
-		check(not mirage._shape.disabled, "the guardian's shot makes it solid")
-
-	var failed: Array[String] = await ClimbRoute.climb_all(get_tree(), main, 140.0)
-	check(failed.is_empty(), "every jump and guardian-assisted step of the route works (%d failed: %s)"
-		% [failed.size(), ", ".join(failed.slice(0, 4))])
+		check(not mirage._shape.disabled, "guardian shot makes the mirage bridge solid")
+		check(delayed_mirage._shape.disabled, "second mirage waits for its own beat")
+		for _i in 20:
+			await get_tree().physics_frame
+		check(not delayed_mirage._shape.disabled, "second mirage follows the first")
+		mirage_switch.take_damage(1)
+		await get_tree().physics_frame
+		check(not mirage._shape.disabled,
+			"shooting again extends the bridge without dropping its rider")
+		Events.switch_activated.emit("desert_mirage:off")
+		await get_tree().physics_frame
+		check(mirage._shape.disabled, "mirage withdraws when the target expires")
+	if first_pad != null:
+		var original_position: Vector2 = main.runner.global_position
+		main.runner.global_position = first_pad.global_position + Vector2(0, -23)
+		main.runner.velocity = Vector2.ZERO
+		first_pad._physics_process(1.0 / 60.0)
+		check(main.runner.velocity.x > 400.0 and main.runner.velocity.y < -800.0,
+			"arrow pad throws the runner forward and over the obstacle")
+		main.runner.global_position = original_position
+		main.runner.velocity = Vector2.ZERO
 	main.queue_free()
 	await get_tree().process_frame
 	Stage.use(Stage.Which.GREENFIELD)

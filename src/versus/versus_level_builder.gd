@@ -21,7 +21,11 @@ func build() -> void:
 	# screen are skipped by the renderer.
 	var slabs := _laps_of_slabs(VersusStageData.painted_slabs())
 	for chunk in _chunks(slabs.size(), func(i: int) -> float: return slabs[i].get_center().x):
-		var terrain := preload("res://src/render/terrain.gd").new()
+		var terrain: Node2D
+		if Stage.current() == Stage.Which.ROYAL_ARENA:
+			terrain = preload("res://src/versus/royal_arena_painter.gd").new()
+		else:
+			terrain = preload("res://src/render/terrain.gd").new()
 		for i in chunk:
 			terrain.slabs.append(slabs[i])
 		_static_root.add_child(terrain)
@@ -31,7 +35,12 @@ func build() -> void:
 
 	var items := _laps_of_decor(VersusStageData.decor())
 	for chunk in _chunks(items.size(), func(i: int) -> float: return Vector2(items[i]["pos"]).x):
-		var decor := preload("res://src/render/decor.gd").new()
+		var decor: Node2D
+		if Stage.current() == Stage.Which.ROYAL_ARENA:
+			decor = preload("res://src/versus/royal_arena_painter.gd").new()
+			decor.z_index = -1
+		else:
+			decor = preload("res://src/render/decor.gd").new()
 		for i in chunk:
 			decor.items.append(items[i])
 		_static_root.add_child(decor)

@@ -64,6 +64,8 @@ func _stage(which: int, label: String) -> void:
 		"%s builds a deadly chaser" % label)
 	if pursuer != null:
 		main.runner.set_physics_process(false)
+		# New mobile pacing keeps the chaser asleep until the player advances.
+		main.runner.global_position += forward * (float(specs[0].get("activation", 0.0)) + 1.0)
 		var gap_before: float = (main.runner.global_position - pursuer.global_position).dot(forward)
 		var delay := float(specs[0].get("delay", 2.25))
 		for _i in int((delay + 1.0) * 60.0):

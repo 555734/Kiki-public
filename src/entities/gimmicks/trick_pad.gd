@@ -29,6 +29,7 @@ static func from_spec(spec: Dictionary, runner: Runner) -> Node2D:
 	return pad
 
 func _ready() -> void:
+	Art.bind_style(self)
 	z_index = 4
 	process_priority = 10
 
@@ -66,7 +67,7 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	var cave := Stage.is_cave()
+	var cave := (Art.style(self) == "cave")
 	var base := Color("59666d") if cave else Color("a16d4e")
 	var rim := Color("b1c6bf") if cave else Color("f3cd89")
 	if warning_at(Clock.tick):

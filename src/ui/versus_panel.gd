@@ -40,7 +40,7 @@ const MODES := [
 ]
 
 var _mode_id: int = VersusRoster.RoomMode.FREE_FOR_ALL
-var _stage_id: int = Stage.Which.GREENFIELD
+var _stage_id: int = VersusStageData.DEFAULT_THEME
 var _seat_id: int = VersusRoster.SEAT_B_RUNNER
 
 var _content: MarginContainer = null
@@ -302,6 +302,9 @@ func _show_room() -> void:
 	left.add_child(cards)
 	_stage_cards.clear()
 	var all := NetPanel.cards()
+	all.push_front({"which": Stage.Which.ROYAL_ARENA, "number": "VS",
+		"accent": Color("f8c94b"), "crop_top": 140.0,
+		"art": preload("res://assets/versus/royal/background/royal_sky_kingdom.png")})
 	for which in VersusStageData.THEMES:
 		for info in all:
 			if int(info["which"]) == which:
@@ -538,7 +541,7 @@ func _go(how: int, code: String, seat: int) -> void:
 		else VersusRoster.RoomMode.TEAM_SPLIT
 	VersusLaunch.link = VersusLaunch.Link.EOS
 	# A guest paints whatever the host chose; the WELCOME says which.
-	VersusLaunch.stage = _stage_id if how != VersusLaunch.How.JOIN else Stage.Which.GREENFIELD
+	VersusLaunch.stage = _stage_id if how != VersusLaunch.How.JOIN else VersusStageData.DEFAULT_THEME
 	get_tree().change_scene_to_file("res://src/versus/versus_main.tscn")
 
 # ------------------------------------------------------------------- widgets

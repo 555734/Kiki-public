@@ -12,7 +12,7 @@ on:
       version_name:
         description: "Public version name"
         required: true
-        default: "0.9.3"
+        default: "0.9.7"
       submit_to_play:
         description: "Upload to Google Play's production track and send it for review"
         required: false
@@ -126,6 +126,24 @@ jobs:
           export/android/java_sdk_path = "${JAVA_HOME}"
           EOF
 
+      - name: Verify landscape and integrated stage assets
+        run: |
+          set -euo pipefail
+          GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          "$GODOT" --headless --editor --import --path .
+          "$GODOT" --headless --path . res://test/split_assets_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/horror_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/sea_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/swamp_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/tower_stage_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/cave_stage_probe.tscn
+          "$GODOT" --headless --path . res://test/floating_controls_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/royal_arena_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_probe.tscn
+          "$GODOT" --headless --path . --fixed-fps 60 res://test/versus_touch_probe.tscn
+
       - name: Build signed Play bundle
         env:
           GODOT: /home/runner/godot/Godot_v4.7.2-stable_linux.x86_64
@@ -151,7 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/whatsnew
-          python3 tools/release-notes.py ja > build/whatsnew/whatsnew-ja-JP
+          cp docs/release-notes/${{ inputs.version_name }}-ja-JP.txt build/whatsnew/whatsnew-ja-JP
           test -s build/whatsnew/whatsnew-ja-JP
 
       - name: Check the Play service account is configured
@@ -190,6 +208,6 @@ jobs:
           packageName: com.sasakiful.melos
           releaseFiles: build/android/side-sky-play.aab
           releaseName: ${{ inputs.version_name }} (${{ inputs.version_code }})
-          track: production
+          tracks: production
           status: completed
           whatsNewDirectory: build/whatsnew

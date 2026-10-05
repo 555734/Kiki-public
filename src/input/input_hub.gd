@@ -397,7 +397,10 @@ func cluster(size: Vector2) -> Dictionary:
 
 ## The stick's placement, or an empty dictionary on a device that has no stick.
 func stick_place(size: Vector2) -> Dictionary:
-	return cluster(size).get("stick", {})
+	var place: Dictionary = cluster(size).get("stick", {})
+	if not place.is_empty() and _stick_finger >= 0 and ControlLayout.floating_stick(layout_mode()):
+		place["center"] = touch.stick.anchor
+	return place
 
 ## Where the guardian is pointing, in the world. Fixed to the ground the
 ## guardian chose, so it does not travel with the camera.

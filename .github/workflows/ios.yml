@@ -53,7 +53,7 @@ jobs:
     env:
       APPLE_TEAM_ID: "6TGM565HX8"
       BUNDLE_ID: "com.sasakiful.sidesky"
-      APP_VERSION: "0.9.3"
+      APP_VERSION: "0.9.7"
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}

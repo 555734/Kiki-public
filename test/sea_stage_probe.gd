@@ -108,7 +108,7 @@ func run() -> void:
 			"sea_palm", "sea_palm_small", "sea_grass", "sea_boulder", "sea_seaweed"]:
 		check(Art.tex(key) != null, "%s is imported" % key)
 	var bg := Art.tex("parallax")
-	check(bg != null and bg.resource_path.contains("stage_1_4"), "the backdrop is the sea")
+	check(bg != null and bg.resource_path.contains("split/1-4/background"), "the backdrop is the sea")
 	var bird := Art.tex("flyer")
 	check(bird != null and bird.resource_path.contains("seabird"), "flyers are seabirds")
 

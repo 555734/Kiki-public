@@ -22,21 +22,7 @@ PATTERN = re.compile(r"\bStage\.[a-z_]+\(")
 
 # Theme and placement lookups that predate the rule. Lower these, never raise
 # them: give the entity a field and let LevelBuilder fill it.
-ALLOWED = {
-    "src/entities/gimmicks/blink_block.gd": 2,
-    "src/entities/gimmicks/conveyor.gd": 4,
-    "src/entities/gimmicks/crumbling_floor.gd": 4,
-    "src/entities/gimmicks/gate.gd": 3,
-    "src/entities/gimmicks/goal.gd": 7,
-    "src/entities/gimmicks/hazard.gd": 1,
-    "src/entities/gimmicks/moving_platform.gd": 4,
-    "src/entities/gimmicks/shootable_switch.gd": 2,
-    "src/entities/gimmicks/spring.gd": 1,
-    "src/entities/gimmicks/switch_bridge.gd": 2,
-    "src/entities/gimmicks/trick_pad.gd": 1,
-    "src/entities/gimmicks/updraft.gd": 2,
-    "src/entities/gimmicks/warp_gate.gd": 2,
-}
+ALLOWED = {"src/entities/gimmicks/goal.gd": 4}
 
 
 def main() -> int:

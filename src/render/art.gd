@@ -5,154 +5,23 @@ extends RefCounted
 
 const BASE := "res://assets/"
 
-const MANIFEST := {
-	# characters
-	"runner_idle": "characters/runner_idle.png",
-	"runner_run": "characters/runner_run.png",
-	"runner_jump": "characters/runner_jump.png",
-	"runner_fall": "characters/runner_fall.png",
-	"runner_land": "characters/runner_land.png",
-	"runner_dash": "characters/runner_dash.png",
-	"runner_reach": "characters/runner_reach.png",
-	"runner_cheer": "characters/runner_cheer.png",
-	"walker": "characters/walker.png",
-	## The second ground enemy of the 1-1 set. Same behaviour as `walker`; see
-	## Walker.skin, which is static level data and so costs nothing on the wire.
-	"walker_spiky": "characters/walker_spiky.png",
-	# holograms
-	"platform": "holograms/platform.png",
-	"wall": "holograms/wall.png",
-	"warp_gate": "holograms/warp_gate.png",
-	# props
-	# The stone set that replaced four cut-outs of Nintendo's furniture. Drawn
-	# by tools/make-stone-textures.ps1 rather than painted, and a TEXTURE
-	# rather than Node2D draw calls: the code-drawn version cost 1-1 eighty
-	# draw calls and a 48ms frame, and the version cheap enough to be fast
-	# looked like grey boxes. A sprite is one quad however detailed it is.
-	# The broken tower on the horizon is still vector -- see SkyCanvas.
-	"conduit": "props/conduit.png",
-	"masonry": "props/masonry.png",
-	"sigil_block": "props/sigil_block.png",
-	"spikes": "props/spikes.png",
-	"fence": "props/fence.png",
-	"flowers": "props/flowers.png",
-	"signpost": "props/signpost.png",
-	"tree": "props/tree.png",
-	"coin": "props/coin.png",
-	# terrain
-	"grass_tile": "terrain/grass_tile.png",
-	"dirt_tile": "terrain/dirt_tile.png",
-	"grass_cap": "terrain/grass_cap.png",
-	"dirt_body": "terrain/dirt_body.png",
-	"dirt_body_alt": "terrain/dirt_body_alt.png",
-	"ground_block": "terrain/ground_block.png",
-	# background
-	"cloud_a": "bg/cloud_a.png",
-	"cloud_b": "bg/cloud_b.png",
-	"cloud_c": "bg/cloud_c.png",
-	"parallax": "bg/parallax.png",
-	# stage 1-2 horror art. The painted pieces replaced the first vector pass;
-	# the three still on .svg are the ones nothing was painted for yet.
-	"horror_panorama": "bg/horror_stage_1_2.svg",
-	"horror_pursuer": "horror/pursuer.svg",
-	"horror_wisp": "horror/wisp.svg",
-	"horror_thornmite": "horror/thornmite.svg",
-	"horror_ruin_block": "horror/ruin_block.svg",
-	"horror_platform": "horror/platform.svg",
-	"horror_checkpoint_off": "horror/checkpoint_off.svg",
-	"horror_checkpoint_on": "horror/checkpoint_on.svg",
-	"horror_goal": "horror/gate.svg",
-	"horror_fence": "horror/fence.svg",
-	"horror_thorns": "horror/thorns.svg",
-	"horror_mud_tile": "horror/mud_tile.svg",
-	"horror_moss_cap": "horror/moss_cap.svg",
-	# ...and the dressing, which until now was drawn by hand in decor.gd.
-	"horror_cart": "horror/cart.png",
-	"horror_crate": "horror/crate.png",
-	"horror_grave": "horror/grave.png",
-	"horror_lantern": "horror/lantern.png",
-	"horror_puddle": "horror/puddle.png",
-	# stage 1-B, the boss arena. Nothing is painted for these yet; every one of
-	# them falls back to vector drawing until docs/art-prompts-keeper.md comes
-	# back, and the fallbacks are what the stage was designed and measured
-	# against, so the art is a replacement rather than a dependency.
-	"keeper_panorama": "keeper/panorama.jpg",
-	"keeper_stand": "keeper/keeper_stand.png",
-	"keeper_brace": "keeper/keeper_brace.png",
-	"keeper_charge": "keeper/keeper_charge.png",
-	"keeper_reel": "keeper/keeper_reel.png",
-	"keeper_core": "keeper/core.png",
-	"keeper_barricade": "keeper/barricade.png",
-	"keeper_barricade_rubble": "keeper/barricade_rubble.png",
-	"keeper_shockwave": "keeper/shockwave.png",
-	"keeper_portcullis": "keeper/portcullis.png",
-	"keeper_flagstone": "keeper/flagstone.png",
-	"keeper_brazier": "keeper/brazier.png",
-	"keeper_rubble": "keeper/rubble.png",
-	# stage 1-S, the flight stage. Nothing is painted for these yet; every one
-	# falls back to vector drawing until docs/art-prompts-sky.md comes back.
-	"sky_panorama": "sky/panorama.jpg",
-	"sky_island_tile": "sky/island_tile.png",
-	"sky_island_cap": "sky/island_cap.png",
-	"sky_keel": "sky/keel.png",
-	"sky_updraft": "sky/updraft.png",
-	"sky_streamer": "sky/streamer.png",
-	"sky_arch": "sky/arch.png",
-	"sky_beacon": "sky/beacon.png",
-	"sky_flyer": "sky/flyer.png",
-	# stage 1-4, the sea. From the 1-4 sea art pack via
-	# tools/extract-stage-1-4.py.
-	"sea_panorama": "stage_1_4/distant_sea.jpg",
-	"sea_sand_tile": "stage_1_4/sand_tile.png",
-	"sea_grass_cap": "stage_1_4/grass_cap.png",
-	"sea_crab": "stage_1_4/crab.png",
-	"sea_seabird": "stage_1_4/seabird.png",
-	"sea_chaser": "stage_1_4/chaser.png",
-	"sea_flag": "stage_1_4/flag.png",
-	"sea_rock": "stage_1_4/rock.png",
-	"sea_pier": "stage_1_4/pier.png",
-	"sea_bridge": "stage_1_4/bridge.png",
-	"sea_raft": "stage_1_4/raft.png",
-	"sea_palm": "stage_1_4/palm_large.png",
-	"sea_palm_small": "stage_1_4/palm_small.png",
-	"sea_grass": "stage_1_4/grass_flower.png",
-	"sea_boulder": "stage_1_4/boulder.png",
-	"sea_seaweed": "stage_1_4/seaweed.png",
-	# Stage 1-5: the panorama and four transparent props follow the approved
-	# mid-detail swamp concept board. Ground and poison are drawn in world space.
-	"swamp_panorama": "stage_1_5/distant_swamp.png",
-	"swamp_props_atlas": "stage_1_5/props_atlas.png",
-	"desert_panorama": "stage_1_6/distant_desert.png",
-	# synthesised entities
-	"flyer": "entities/flyer_bird.png",
-	"turret": "entities/turret.png",
-	"projectile": "entities/projectile.png",
-	"laser_emitter": "entities/laser_emitter.png",
-	"laser_beam": "entities/laser_beam.png",
-	"switch_off": "entities/switch_off.png",
-	"switch_on": "entities/switch_on.png",
-	"gate": "entities/gate.png",
-	"moving_platform": "entities/moving_platform.png",
-	"checkpoint_off": "entities/checkpoint_off.png",
-	"checkpoint_on": "entities/checkpoint_on.png",
-	"goal": "entities/goal.png",
-	"spring": "entities/spring.png",
-	"hit_burst": "entities/hit_burst.png",
-	# ui
-	"portrait_lira": "ui/portrait_lira.png",
-	"portrait_orion": "ui/portrait_orion.png",
-	"heart": "ui/heart.png",
-	"icon_platform": "ui/icon_platform.png",
-	"icon_wall": "ui/icon_wall.png",
-	"icon_snipe": "ui/icon_snipe.png",
-	"icon_warp": "holograms/warp_gate.png",
-	# scope furniture
-	"zoom_slider": "scope/zoom_slider.png",
-	"cartridge": "scope/cartridge.png",
-	"btn_reticle": "scope/btn_reticle.png",
-	"scope_ring": "scope/ring.png",
-	"crosshair": "scope/crosshair.png",
-}
+static var MANIFEST: Dictionary = _all_assets()
+
+static func _all_assets() -> Dictionary:
+	var result := {}
+	for manifest in [
+		preload("res://src/render/manifests/common.gd"),
+		preload("res://src/render/manifests/royal_arena.gd"),
+		preload("res://src/render/manifests/stage_1_2.gd"),
+		preload("res://src/render/manifests/stage_1_3.gd"),
+		preload("res://src/render/manifests/stage_1_4.gd"),
+		preload("res://src/render/manifests/stage_1_5.gd"),
+		preload("res://src/render/manifests/stage_1_6.gd"),
+		preload("res://src/render/manifests/stage_1_7.gd"),
+		preload("res://src/render/manifests/stage_1_8.gd"),
+	]:
+		result.merge(manifest.TEXTURES)
+	return result
 
 ## Keys that are registered in the MANIFEST but whose painting has not arrived.
 ##
@@ -207,6 +76,128 @@ static func _prefer(keys: Array) -> String:
 	return chosen
 
 static func _resolved_key(key: String) -> String:
+	# Resolve by stage before legacy skins so other stages retain their art.
+	match Stage.current():
+		Stage.Which.ROYAL_ARENA:
+			match key:
+				"parallax": return "royal_royal_sky_kingdom"
+				"moving_platform": return "royal_floating_platform_medium"
+				"platform": return "royal_platform_medium_top"
+		Stage.Which.HORROR:
+			match key:
+				"parallax": return "s12_background"
+				"horror_pursuer": return "s12_nightwolf_idle"
+				"horror_wisp": return "s12_wisp_idle"
+				"flyer": return "s12_wisp_idle"
+				"horror_thornmite": return "s12_thornmite_idle"
+				"horror_ruin_block": return "s12_ruin_wall_a"
+				"horror_platform": return "s12_floating_ground_b"
+				"platform": return "s12_moving_platform"
+				"moving_platform": return "s12_moving_platform"
+				"goal": return "s12_goal_gate"
+				"horror_goal": return "s12_goal_gate"
+				"fence": return "s12_broken_fence"
+				"horror_fence": return "s12_broken_fence"
+				"spikes": return "s12_thorn_hazard"
+				"horror_thorns": return "s12_thorn_hazard"
+				"tree": return "s12_dead_tree"
+				"horror_grave": return "s12_grave"
+				"horror_lantern": return "s12_lantern"
+				"horror_puddle": return "s12_puddle"
+				"ground_block": return "s12_floating_ground_a"
+		Stage.Which.SKYWARD_RUINS:
+			match key:
+				"parallax": return "s13_background"
+				"flyer": return "s13_sky_bird_idle"
+				"horror_pursuer": return "s13_golem_attack"
+				"goal": return "s13_sky_asset_16"
+				"gate": return "s13_sky_asset_09"
+				"moving_platform": return "s13_sky_asset_14"
+				"ground_block": return "s13_sky_asset_05"
+				"platform": return "s13_sky_asset_14"
+				"checkpoint_off": return "s13_sky_asset_17"
+				"checkpoint_on": return "s13_sky_asset_17"
+				"spring": return "s13_sky_asset_18"
+				"sky_updraft": return "s13_sky_asset_13"
+		Stage.Which.SEA:
+			match key:
+				"parallax": return "s14_background"
+				"sea_panorama": return "s14_background"
+				"sea_crab": return "s14_sea_crab_idle"
+				"flyer": return "s14_seabird_idle"
+				"sea_seabird": return "s14_seabird_idle"
+				"horror_pursuer": return "s14_purple_pursuer_idle"
+				"sea_chaser": return "s14_purple_pursuer_idle"
+				"sea_rock": return "s14_coast_asset_19"
+				"sea_pier": return "s14_coast_asset_07"
+				"sea_bridge": return "s14_coast_asset_06"
+				"moving_platform": return "s14_coast_asset_08"
+				"sea_raft": return "s14_coast_asset_08"
+				"sea_palm": return "s14_coast_asset_16"
+				"sea_palm_small": return "s14_coast_asset_16"
+				"sea_boulder": return "s14_coast_asset_18"
+				"sea_seaweed": return "s14_coast_asset_20"
+				"sea_grass": return "s14_coast_asset_20"
+				"spring": return "s14_coast_asset_13"
+				"ground_block": return "s14_coast_asset_07"
+				"fence": return "s14_coast_asset_12"
+		Stage.Which.SWAMP:
+			match key:
+				"parallax": return "s15_background"
+				"swamp_panorama": return "s15_background"
+				"walker": return "s15_magma_slime"
+				"walker_spiky": return "s15_magma_slime"
+				"flyer": return "s15_fire_bat"
+				"goal": return "s15_volcano_asset_13"
+				"moving_platform": return "s15_volcano_asset_11"
+				"ground_block": return "s15_volcano_asset_05"
+				"spikes": return "s15_volcano_asset_09"
+				"platform": return "s15_volcano_asset_12"
+		Stage.Which.DESERT:
+			match key:
+				"parallax": return "s16_background"
+				"moving_platform": return "s16_lift"
+				"ground_block": return "s16_crumble"
+				"platform": return "s16_lift"
+				"spring": return "s16_spring"
+				"switch_off": return "s16_switch_off"
+				"switch_on": return "s16_switch_on"
+				"gate": return "s16_gate"
+				"goal": return "s16_goal"
+				"checkpoint_off": return "s16_checkpoint_off"
+				"checkpoint_on": return "s16_checkpoint_on"
+				"spikes": return "s16_spikes"
+				"sky_updraft": return "s16_updraft"
+				"turret": return "s16_golem_0"
+		Stage.Which.TOWER:
+			match key:
+				"parallax": return "s17_background"
+				"moving_platform": return "s17_lift"
+				"ground_block": return "s17_crumble"
+				"platform": return "s17_blink"
+				"spring": return "s17_spring"
+				"switch_off": return "s17_switch"
+				"switch_on": return "s17_switch"
+				"gate": return "s17_gate"
+				"goal": return "s17_gate"
+				"sky_updraft": return "s17_updraft"
+				"checkpoint_off": return "s17_terrain_banner"
+				"checkpoint_on": return "s17_terrain_banner"
+				"turret": return "s17_turret_idle"
+				"spikes": return "s17_spikes"
+		Stage.Which.CAVE:
+			match key:
+				"parallax": return "s18_background"
+				"moving_platform": return "s18_lift"
+				"ground_block": return "s18_crumble"
+				"platform": return "s18_blink"
+				"spring": return "s18_spring"
+				"switch_off": return "s18_switch"
+				"switch_on": return "s18_switch"
+				"goal": return "s18_goal"
+				"checkpoint_off": return "s18_checkpoint"
+				"checkpoint_on": return "s18_checkpoint"
+				"sky_updraft": return "s18_updraft"
 	if Stage.is_desert():
 		match key:
 			"parallax": return "desert_panorama"
@@ -406,3 +397,59 @@ static func pending_unknown() -> Array:
 		if not MANIFEST.has(key):
 			unknown.append(key)
 	return unknown
+
+## Prefix for the late-stage boards; empty elsewhere so legacy art stays intact.
+static func late_pack() -> String:
+	match Stage.current():
+		Stage.Which.DESERT: return "s16_"
+		Stage.Which.TOWER: return "s17_"
+		Stage.Which.CAVE: return "s18_"
+	return ""
+
+## The flat source cap sits on the collision top. Wheels/stone hang underneath.
+static func draw_late_platform(ci: CanvasItem, key: String, rect: Rect2,
+		modulate: Color = Color.WHITE, flip_h: bool = false) -> bool:
+	var prefix := late_pack()
+	if prefix == "": return false
+	var texture := tex(prefix + key)
+	if texture == null: return false
+	var height := maxf(rect.size.y, minf(rect.size.x * texture.get_height() / texture.get_width(), 82.0))
+	var target := Rect2(rect.position, Vector2(rect.size.x, height))
+	if flip_h:
+		ci.draw_set_transform(Vector2(target.get_center().x * 2.0, 0), 0, Vector2(-1, 1))
+	ci.draw_texture_rect(texture, target, false, modulate)
+	if flip_h: ci.draw_set_transform(Vector2.ZERO)
+	return true
+
+## Stage-local chase art, shared by both pursuing enemy behaviors.
+static func pursuer_frame(idle: bool = false, phase: float = 0.0) -> String:
+	match Stage.current():
+		Stage.Which.HORROR: return "s12_nightwolf_idle" if idle else "s12_nightwolf_chase"
+		Stage.Which.SKYWARD_RUINS: return "s13_golem_idle" if idle else "s13_golem_move"
+		Stage.Which.SEA: return "s14_purple_pursuer_idle" if idle else "s14_purple_pursuer_chase"
+		Stage.Which.SWAMP: return "s15_lava_golem"
+		Stage.Which.DESERT: return "s16_mummy_%d" % (0 if idle else int(phase * 4.0) % 6)
+		Stage.Which.TOWER: return "s17_mine_idle" if idle else "s17_mine_alert"
+		Stage.Which.CAVE: return "s18_bat_idle" if idle else "s18_bat_attack"
+	return "horror_pursuer"
+
+static func platform_skin(length: float) -> String:
+	if Stage.current() != Stage.Which.ROYAL_ARENA: return ""
+	return "royal_platform_long_top" if length > 230.0 else \
+		"royal_platform_short_top" if length < 140.0 else "royal_platform_medium_top"
+
+## A visual style is bound when a node is created. It may be overridden by
+## stage data without changing the node's mechanics or consulting Stage in it.
+static func bind_style(node: Node) -> void:
+	if node.has_meta("art_style"): return
+	var styles := {
+		Stage.Which.GREENFIELD: "greenfield", Stage.Which.HORROR: "horror",
+		Stage.Which.SKYWARD_RUINS: "skyward_ruins", Stage.Which.SEA: "sea",
+		Stage.Which.SWAMP: "swamp", Stage.Which.DESERT: "desert",
+		Stage.Which.TOWER: "tower", Stage.Which.CAVE: "cave",
+		Stage.Which.ROYAL_ARENA: "royal_arena",
+	}
+	node.set_meta("art_style", styles.get(Stage.current(), "common"))
+
+static func style(node: Node) -> String:
+	return String(node.get_meta("art_style", "common"))

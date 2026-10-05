@@ -32,6 +32,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 	return s
 
 func _ready() -> void:
+	Art.bind_style(self)
 	add_to_group("shootable")
 	# Named so the host can find the open ones and replay them to a client that
 	# reconnected after the gate was already shot open.
@@ -99,14 +100,19 @@ func _draw_body() -> void:
 	var lit := Color("8b93a1") if _locked > 0.0 \
 		else (Color("ffd24a") if active else Color("8b93a1"))
 	var glow := 0.5 + 0.5 * sin(_pulse * (7.0 if active else 2.2))
-	if Stage.is_cave():
+	if Art.late_pack() != "" and Art.draw_sprite(self, "switch_on" if active else "switch_off", Vector2(0, 26), 52, false, Color("a7ffff") if active else Color.WHITE):
+		if active:
+			var remaining := clampf(_remaining / maxf(hold_time, 0.001), 0, 1)
+			draw_arc(Vector2.ZERO, 30, -PI * 0.5, -PI * 0.5 + TAU * remaining, 40, Color("ffd24a"), 3)
+		return
+	if (Art.style(self) == "cave"):
 		draw_circle(Vector2.ZERO, 24, Color("65717b"))
 		draw_circle(Vector2.ZERO, 18, Color("aaa99b"))
 		draw_circle(Vector2.ZERO, 12,
 			Color("b5d2c6") if active else Color("ad6a5c"))
 		draw_circle(Vector2.ZERO, 5 + glow, Color("e8dac2"))
 		return
-	if Stage.is_tower():
+	if (Art.style(self) == "tower"):
 		draw_circle(Vector2.ZERO, 24, Color("695f54"))
 		draw_circle(Vector2.ZERO, 19, Color("b6a07b"))
 		draw_circle(Vector2.ZERO, 12, Color("8fb8b6") if active else Color("688a90"))

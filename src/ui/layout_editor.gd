@@ -110,7 +110,7 @@ func _ready() -> void:
 		root.add_child(toggle)
 		_touch_options.append(toggle)
 	_movement_help = Label.new()
-	_movement_help.text = "スティック下：しゃがむ・滑る　／　空中で下：ヒップドロップ\nジャンプ長押し：高く跳ぶ　／　壁に向かってジャンプ：壁キック"
+	_movement_help.text = "初期設定：左下の押した位置で移動（移動ボタンを配置すると固定式）\nスティック下：しゃがむ・滑る　／　空中で下：ヒップドロップ\nジャンプ長押し：高く跳ぶ　／　壁に向かってジャンプ：壁キック"
 	_movement_help.position = Vector2(14, 238)
 	_movement_help.add_theme_font_size_override("font_size", 18)
 	if sf != null:

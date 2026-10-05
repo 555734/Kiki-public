@@ -62,6 +62,12 @@ func _wait(seconds: float) -> void:
 ## terrain that is not there.
 func _boot(dismiss_home: bool = true) -> void:
 	Stage.use(Stage.Which.GREENFIELD)
+	# These legacy coordinate fixtures exercise the supported custom fixed stick.
+	# Default floating ownership and drift have their own 90-check probe.
+	for mode in ["shared", "runner"]:
+		var size := Vector2(get_viewport().get_visible_rect().size)
+		var place: Dictionary = ControlLayout.layout(mode, size, false)["stick"]
+		ControlLayout.set_place(mode, "stick", Vector2(place["center"]) / size)
 	if main != null:
 		main.free()
 	main = load("res://src/main.tscn").instantiate()
@@ -305,9 +311,10 @@ func _tap_world(point: Vector2) -> void:
 	# camera round until the point is somewhere a guardian could actually put a
 	# thumb, which is what a guardian would do.
 	if not rect.grow(-40.0).has_point(screen) \
-			or not TouchLayout.hit_rect(screen, TouchLayout.AIM_ZONE, rect.size, false):
-		main.camera.global_position = point
-		await _physics(2)
+			or not TouchLayout.hit_rect(screen, TouchLayout.AIM_ZONE, rect.size, false) \
+			or ControlLayout.hit(main.input_hub.layout_mode(), rect.size, false, screen) != "":
+		main.camera.global_position = point + Vector2(-120, 100)
+		main.camera.force_update_scroll()
 		screen = main.get_viewport().get_canvas_transform() * point
 	main.input_hub._touch_down(21, screen)
 	main.input_hub._touch_up(21)

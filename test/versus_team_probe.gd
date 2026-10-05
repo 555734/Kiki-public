@@ -205,9 +205,15 @@ func _touch_stick(peer: int, pressed: bool) -> void:
 	var at: Vector2 = stick["center"] - Vector2(float(stick["radius"]) * 0.7, 0)
 	var event := InputEventScreenTouch.new()
 	event.index = 0
-	event.position = at
+	event.position = stick["center"] if pressed else at
 	event.pressed = pressed
 	views[peer].push_input(event, true)
+	if pressed:
+		var drag := InputEventScreenDrag.new()
+		drag.index = 0
+		drag.position = at
+		drag.relative = at - Vector2(stick["center"])
+		views[peer].push_input(drag, true)
 
 func _ticks(count: int) -> void:
 	for i in range(count):
