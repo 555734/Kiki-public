@@ -119,15 +119,15 @@ func _aim_belongs_to_its_own_device(main: Node) -> void:
 		"guardian device: a tap moves the build ghost (%.0fpx)" % d["preview"])
 	main.guardian_pan = 0.0
 	# With the platform tool a drag DRAWS a platform (trace mode); the view
-	# scrolls under the shot.
+	# stays still while the shot reticle follows the finger.
 	g.select_slot(3)
 	await _frames(3)
 	var swipe := await _drag_across(main)
-	_check(absf(main.guardian_pan) > 100.0,
-		"guardian device: a long drag scrolls the view instead (%.0fpx)"
+	_check(absf(main.guardian_pan) < 1.0,
+		"guardian device: a long shot drag leaves the view still (%.0fpx)"
 			% main.guardian_pan)
-	_check(float(swipe["preview"]) < 40.0,
-		"and does not drag the reticle along with it (%.0fpx)" % swipe["preview"])
+	_check(float(swipe["preview"]) > 100.0,
+		"and the reticle follows the finger (%.0fpx)" % swipe["preview"])
 	main.guardian_pan = 0.0
 	g.select_slot(1)
 	await _frames(2)
