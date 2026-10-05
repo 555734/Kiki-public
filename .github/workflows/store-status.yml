@@ -1,0 +1,28 @@
+name: Read store release state
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install pinned API signing library
+        run: |
+          python3 -m venv "$RUNNER_TEMP/store-status"
+          "$RUNNER_TEMP/store-status/bin/pip" install --disable-pip-version-check cryptography==50.0.1
+      - name: Read current store releases
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: '"$RUNNER_TEMP/store-status/bin/python" tools/store-status.py'
+      - name: Save store identities
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: store-status
+          path: build/store-status.json
+          if-no-files-found: error
