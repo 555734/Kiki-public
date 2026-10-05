@@ -25,6 +25,9 @@ KNOWN = ROOT / "test" / "known_failures.txt"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 SCRIPT_ERROR = re.compile(r"(SCRIPT ERROR: .*|.*Failed to load.*|.*Parse Error.*)")
 WHERE = re.compile(r"^\s*at: (.*)$")
+# The GL driver's shader cache missing or going stale is not a load failure:
+# the engine recompiles the shader and carries on.
+BENIGN = re.compile(r"Failed to load cached shader")
 
 
 def normalise(line: str) -> str:
@@ -39,7 +42,7 @@ def script_errors(output: str) -> list:
     found = []
     for i, line in enumerate(lines):
         m = SCRIPT_ERROR.search(line)
-        if not m:
+        if not m or BENIGN.search(line):
             continue
         where = ""
         for nxt in lines[i + 1:i + 3]:
