@@ -419,6 +419,12 @@ func _do_place(b: StreamPeerBuffer) -> void:
 	var g: Guardian = main.guardian
 	g.select_slot(slot)
 	g.place_path = shape if slot == 1 else PackedVector2Array()
+	at = g.prepare_trace(at)
+	if at.x == INF:
+		g.place_path = PackedVector2Array()
+		_send_event(Protocol.reject(seq, "blocked"))
+		return
+	shape = g.place_path
 	var ability: GuardianAbility = g.abilities[g.active_slot]
 	var reason: String = ability.check(g, at)
 	if reason != "":

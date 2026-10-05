@@ -76,6 +76,9 @@ run_checked "$GODOT" --headless --path . res://test/floating_controls_probe.tscn
 run_checked "$GODOT" --headless --path . res://test/split_assets_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/royal_arena_probe.tscn
 
+step "platform strokes retain their clear prefix"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/platform_clip_probe.tscn
+
 step "logic tests"
 run_checked "$GODOT" --headless --path . res://test/run_tests.tscn
 

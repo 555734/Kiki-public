@@ -1,7 +1,6 @@
 extends Node2D
-## The guardian's cursor, drawn in world space: mockup 2's dashed ghost for a
-## pending platform or wall, the drop guide beneath it, and the reticle when the
-## sniper is up.
+## Solid translucent construction preview and the sniper reticle.
+## Build mode intentionally has no dashed border or placement guides.
 ##
 ## Chapter 6 asks that the runner get a brief warning of an incoming platform
 ## rather than having one appear under them unannounced. On a shared screen the
@@ -74,34 +73,11 @@ func _draw_build(preview: Dictionary) -> void:
 		# A dark underlay, then the colour: readable on sky, grass and cloud.
 		draw_polyline(line, rim, thick + 6.0, true)
 		draw_polyline(line, Color(col.r, col.g, col.b, 0.55 if valid else 0.40), thick, true)
-		for i in range(line.size() - 1):
-			var along := (line[i + 1] - line[i]).normalized()
-			var side := Vector2(-along.y, along.x) * thick * 0.5
-			_dashed_line(line[i] + side, line[i + 1] + side, Color(1, 1, 1, 0.95), 2.4)
-			_dashed_line(line[i] - side, line[i + 1] - side, Color(1, 1, 1, 0.95), 2.4)
+
 	else:
 		# Faint fill so the shape is readable against busy terrain.
 		draw_rect(rect.grow(3.0), rim)
 		draw_rect(rect, Color(col.r, col.g, col.b, 0.55 if valid else 0.40))
-		_dashed_rect(rect, Color(1, 1, 1, 0.95), 2.4)
-
-	if not valid:
-		return
-	# Drop guide: a dashed line down to whatever is below, so the guardian can
-	# judge the landing without eyeballing it.
-	var centre := rect.get_center()
-	var space := get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(centre, centre + Vector2(0, 900.0), 1)
-	var hit := space.intersect_ray(query)
-	var floor_y: float = hit.get("position", centre + Vector2(0, 900.0)).y if not hit.is_empty() \
-		else centre.y + 900.0
-	_dashed_line(Vector2(centre.x, rect.position.y + rect.size.y),
-		Vector2(centre.x, floor_y), Color(1, 1, 1, 0.30), 1.4)
-	# And a horizontal tie back toward the runner, matching the mockup's guides.
-	if guardian.runner != null and is_instance_valid(guardian.runner):
-		var rp: Vector2 = guardian.runner.global_position
-		_dashed_line(Vector2(rp.x, centre.y), Vector2(rect.position.x - 8.0, centre.y),
-			Color(1, 1, 1, 0.18), 1.2)
 
 func _draw_snipe(preview: Dictionary) -> void:
 	var rect: Rect2 = preview["rect"]

@@ -33,8 +33,10 @@ static func ability_bar(ci: CanvasItem, src, view: Vector2) -> void:
 		var item: Dictionary = meta[slot]
 		# The chosen tool stays lit: it decides what a finger on the world does
 		# (draw a platform, or shoot).
-		var held: bool = (hub != null and hub.held_slot() == slot) \
-			or (src.guardian != null and is_instance_valid(src.guardian) and src.guardian.active_slot == slot)
+		var selected: int = hub.held_slot() if hub != null else -1
+		if selected < 0 and is_instance_valid(src.guardian):
+			selected = src.guardian.active_slot
+		var held: bool = selected == slot
 		ability_button(ci, src, place["center"], float(place["radius"]), slot,
 			String(item["name"]), float(item["cost"]), String(item["icon"]), held)
 
@@ -116,9 +118,10 @@ static func ability_button(ci: CanvasItem, src, centre: Vector2, radius: float, 
 		ci.draw_circle(centre, radius * (1.14 + pulse * 0.10),
 			Color(accent.r, accent.g, accent.b, 0.20 + pulse * 0.25))
 	ci.draw_circle(centre, radius,
-		Color(0.16, 0.06, 0.05, 0.58) if fire else Color(0.04, 0.09, 0.14, 0.52))
+		Color(accent.r * 0.75, accent.g * 0.75, accent.b * 0.75, 0.96) if held
+		else Color(0.04, 0.07, 0.10, 0.78))
 	ci.draw_arc(centre, radius, 0.0, TAU, 44,
-		Color(accent.r, accent.g, accent.b, (0.95 if held else 0.78) * dim),
+		Color.WHITE if held else Color(accent.r, accent.g, accent.b, 0.55 * dim),
 		3.6 if (held or fire) else 2.4, true)
 
 	# Fitted, not sized by height: a wide icon sized by height spills out of a
@@ -133,9 +136,9 @@ static func ability_button(ci: CanvasItem, src, centre: Vector2, radius: float, 
 	# design rests on, so it stays on screen even when the name does not.
 	var text := int(clampf(radius * 0.40, 11.0, 18.0))
 	ci.draw_string(font, centre + Vector2(-radius, radius * 0.74),
-		"%d" % int(cost) if cost > 0.0 else label,
+		TranslationServer.translate("選択中") if held else ("%d" % int(cost) if cost > 0.0 else label),
 		HORIZONTAL_ALIGNMENT_CENTER, radius * 2.0, text,
-		Color(accent.r, accent.g, accent.b, 0.95 if affordable else 0.45))
+		Color.WHITE if held else Color(accent.r, accent.g, accent.b, 0.95 if affordable else 0.45))
 
 # ------------------------------------------------------------ touch controls
 
