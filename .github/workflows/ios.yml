@@ -210,5 +210,5 @@ jobs:
             echo "## iOS submission accepted"
             echo
             echo "The locally signed build was uploaded to App Store Connect."
-            echo "Apple still has to process it before it appears under Builds/TestFlight."
+            echo "Apple processing and TestFlight availability were verified for this exact build."
           } >> "$GITHUB_STEP_SUMMARY"

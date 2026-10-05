@@ -1,0 +1,38 @@
+name: Verify TestFlight availability
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Uploaded marketing version"
+        required: true
+        default: "0.9.8"
+      build_number:
+        description: "Exact uploaded CFBundleVersion (no rebuild or upload)"
+        required: true
+        default: "399741"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install pinned signing library for API authentication
+        run: |
+          python3 -m venv "$RUNNER_TEMP/testflight-status"
+          "$RUNNER_TEMP/testflight-status/bin/pip" install --disable-pip-version-check cryptography==50.0.1
+      - name: Confirm this exact build is available
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          BUNDLE_ID: com.sasakiful.sidesky
+          APP_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: '"$RUNNER_TEMP/testflight-status/bin/python" tools/testflight-status.py'
+      - name: Save verified Apple state
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: testflight-status
+          path: build/ios/testflight-status.json
+          if-no-files-found: error
