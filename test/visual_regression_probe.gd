@@ -45,6 +45,8 @@ func different_tiles(reference: Image, actual: Image) -> int:
 	return bad
 
 func run() -> void:
+	# No dependence on the runner machine's locale or Japanese system fonts.
+	TranslationServer.set_locale("en")
 	get_window().size = Vector2i(1280, 720)
 	Clock.set_physics_process(false)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(BASE))

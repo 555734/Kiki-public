@@ -15,6 +15,9 @@ func _ready() -> void:
 		failures.append("English devices use the English catalog")
 	if TranslationServer.translate("GREENFIELD PLAINS") != "GREENFIELD PLAINS":
 		failures.append("English devices keep English stage names")
+	for text in ["選択中", "左下をドラッグ", "右下をドラッグ"]:
+		if TranslationServer.translate(text) == text:
+			failures.append("English control text is translated: " + text)
 	for failure in failures:
 		push_error("locale probe: " + failure)
 	print("locale probe: %d failures" % failures.size())
