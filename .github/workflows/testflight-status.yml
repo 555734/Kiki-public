@@ -2,14 +2,9 @@ name: Verify TestFlight availability
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Uploaded marketing version"
-        required: true
-        default: "0.9.8"
       build_number:
         description: "Exact uploaded CFBundleVersion (no rebuild or upload)"
         required: true
-        default: "399741"
 permissions:
   contents: read
 jobs:
@@ -21,13 +16,21 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/testflight-status"
           "$RUNNER_TEMP/testflight-status/bin/pip" install --disable-pip-version-check cryptography==50.0.1
+      - name: Read marketing version from the selected source revision
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          version = re.search(r'^config/version="([^"]+)"$', Path("project.godot").read_text(encoding="utf-8"), re.M).group(1)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write("APP_VERSION=" + version + "\n")
+          PY
       - name: Confirm this exact build is available
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           BUNDLE_ID: com.sasakiful.sidesky
-          APP_VERSION: ${{ inputs.version }}
           BUILD_NUMBER: ${{ inputs.build_number }}
         run: '"$RUNNER_TEMP/testflight-status/bin/python" tools/testflight-status.py'
       - name: Save verified Apple state

@@ -7,8 +7,9 @@ extends Node
 ## moment the runner holds the stick down, a Control-based ability button on the
 ## other side of the screen stops receiving the guardian's drag. So we take the
 ## raw InputEventScreenTouch/Drag stream, key it by finger index, and dispatch
-## ourselves. `emulate_mouse_from_touch` is off in project.godot for the same
-## reason -- it collapses every finger into one pointer.
+## ourselves. `emulate_mouse_from_touch` is enabled for menu Controls. Gameplay
+## keeps raw per-finger ownership and suppresses the emulated mouse after touch
+## input; one emulated pointer must never replace the raw touch stream.
 ##
 ## Desktop keyboard+mouse fills the exact same intent fields, which is what lets
 ## the game be iterated on in the editor and shipped to touch unchanged.

@@ -38,7 +38,7 @@ static func ability_bar(ci: CanvasItem, src, view: Vector2) -> void:
 			selected = src.guardian.active_slot
 		var held: bool = selected == slot
 		ability_button(ci, src, place["center"], float(place["radius"]), slot,
-			String(item["name"]), float(item["cost"]), String(item["icon"]), held)
+			TranslationServer.translate(String(item["name"])), float(item["cost"]), String(item["icon"]), held)
 
 	# The two that are not tools: take one back, and point at something. Drawn
 	# smaller and plainer, because neither costs anything and neither should

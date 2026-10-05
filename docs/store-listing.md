@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.9
+# ストア提出物 — メロスゲーム 0.9.10
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.9（Android versionCode 36）
+対象ビルド: version 0.9.10（Android versionCode 37）
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -31,8 +31,8 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 見えるのは自分のまわりだけ。目の前の穴が、ひとりでは跳べません。
 
 【見守る人】空の上から先の地形が見えています。
-足場を描き、壁を立て、狙撃し、ワープ門を置く。
-そして足場をタップして、乗っている相手を空へ打ち上げます。
+足場を描き、狙撃して敵や追跡者を止めます。
+地形に当たっても、足場は当たる直前まで残ります。
 
 ひとりでは越えられない場所が、必ず用意してあります。
 だからこのゲームは、ふたりの会話そのものになります。
@@ -43,7 +43,7 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 1-2 THE HOLLOW OUTSKIRTS ― 灯りの少ない村はずれ
 1-3 THE SKYWARD RUINS ― 空へ伸びる縦の遺跡
 1-4 THE SUNLIT COAST ― 陽の当たる海岸
-1-5 THE POISON MARSH ― 毒の沼から崖を登る
+1-5 THE MOLTEN CROSSING ― 溶岩の峡谷を越える
 1-6 THE SANDGLASS RUINS ― 砂の遺跡を登る
 1-7 THE CLOCKWORK TOWER ― 歯車の塔
 1-8 THE UNDERGROVE ― 地下の森
@@ -56,7 +56,7 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 同じ部屋にいるなら、そのまま1台でも遊べます。
 
 ■ 無料で始められます
-1-1 と 1-2 は誰でも最後まで遊べます。
+1-1・1-2・1-6〜1-8 は誰でも最後まで遊べます。
 完全版（買い切り・1回限り）で 1-3〜1-5 が開きます。
 そして完全版を持っている人の部屋には、買っていない友達がそのまま入って、
 全ステージを一緒に遊べます。片方が持っていれば、ふたりで遊べます。
@@ -356,4 +356,11 @@ App Review が 3.1.1 として扱う可能性は残る。
 <!-- release-notes:ja -->
 ```
 協力プレイで移動ボタンの入力が失われる不具合を修正しました。射撃中の横スワイプで画面がスクロールしなくなりました。対戦モードのスターをジャンプで取れる空中の位置に変更しました。
+```
+
+
+**新機能 / リリースノート（0.9.10）**
+<!-- release-notes:ja -->
+```
+移動操作の反応を改善しました。足場と射撃の選択中のボタンが分かりやすくなり、足場は地形に当たる直前まで残るようになりました。射撃の照準操作で画面が横に動く機能を廃止しました。ロイヤル・アリーナのスターを空中に配置し、ジャンプして取り合う遊びに調整しました。描画とステージ設定の自動検証、配布時の確認も強化しています。
 ```

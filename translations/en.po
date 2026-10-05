@@ -280,6 +280,15 @@ msgstr "FIND KEY"
 msgid "足場"
 msgstr "Platform"
 
+msgid "選択中"
+msgstr "Selected"
+
+msgid "左下をドラッグ"
+msgstr "Drag lower left"
+
+msgid "右下をドラッグ"
+msgstr "Drag lower right"
+
 msgid "壁"
 msgstr "Wall"
 
