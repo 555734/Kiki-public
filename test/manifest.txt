@@ -91,3 +91,4 @@ tools/capture_royal_arena.tscn capture
 tools/capture_stage_landscape.tscn capture
 
 test/platform_clip_probe.tscn gated
+test/coop_pointer_probe.tscn gated

@@ -145,6 +145,8 @@ func down(index: int, position: Vector2) -> void:
 	# routed through claim().
 	if index != InputHub.MOUSE_FINGER:
 		hub._has_touch = true
+	else:
+		hub._has_pointer_controls = true
 	var size := hub._screen_size()
 	var routed := _route(position, size)
 	if routed.is_empty():
@@ -154,7 +156,8 @@ func down(index: int, position: Vector2) -> void:
 	gesture.begin(index, position, size, routed[1])
 
 func move(index: int, position: Vector2) -> void:
-	hub._has_touch = true
+	if index != InputHub.MOUSE_FINGER:
+		hub._has_touch = true
 	_last_position[index] = position
 	var gesture: TouchGesture = _owners.get(index)
 	if gesture != null:

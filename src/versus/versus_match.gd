@@ -81,6 +81,9 @@ var coin_total: int = VersusRules.COIN_TOTAL
 var on_field: int = VersusRules.ON_FIELD
 
 ## Ticks until the next coin is allowed to appear.
+## Coin id -> spawn revision. Only freshly spawned stars hover; dropped
+## stars keep their physics. The host transmits positions to every client.
+var _hovering_stars: Dictionary = {}
 var _spawn_in: int = 0
 var _next_strike_id: int = 1
 var _rng := RandomNumberGenerator.new()
@@ -175,6 +178,7 @@ func setup(collision: ArenaStage, match_seed: int = 20260920,
 	for e in enemies:
 		_enemy_up_at.append(0)
 	_spawn_in = 0
+	_hovering_stars.clear()
 	_last_spawn_point = Vector2(INF, INF)
 	events.clear()
 
@@ -487,7 +491,9 @@ func note_death(side: int) -> void:
 func _step_coins(delta: float) -> void:
 	for c in ledger.coins:
 		if c.state == ArenaCoin.State.WORLD:
-			ArenaCoin.step_physics(c, world, delta)
+			if _hovering_stars.get(c.coin_id, -1) != c.revision:
+				_hovering_stars.erase(c.coin_id)
+				ArenaCoin.step_physics(c, world, delta)
 			# A star bouncing over the join stays in lap 0.
 			c.position.x = VersusStageData.wrap_x(c.position.x)
 			if not VersusStageData.in_bounds(c.position):
@@ -520,6 +526,7 @@ func _top_up() -> void:
 		return
 	ArenaCoin.to_world(r, at as Vector2, tick, Vector2.ZERO,
 		VersusRules.PICKUP_LOCKOUT_TICKS)
+	_hovering_stars[r.coin_id] = r.revision
 	ledger.spawned_count += 1
 	_spawn_in = VersusRules.SPAWN_GAP_TICKS
 	events.append({"kind": "spawn", "coin": r.coin_id})
@@ -560,7 +567,8 @@ func _draw_point(available: Array[Vector2]) -> Variant:
 		var shifted := p + Vector2(_rng.randf_range(-24.0, 24.0), 0)
 		# Include constructed walls in the check; never spawn inside a solid.
 		if world.overlaps(Rect2(shifted - Vector2(12, 12), Vector2(24, 24))) \
-				or world.floor_below(shifted, 80.0) == INF:
+				or world.floor_below(shifted, VersusStageData.STAR_HEIGHT + 24.0) == INF \
+				or world.floor_below(shifted, VersusStageData.STAR_HEIGHT + 24.0) - shifted.y < VersusStageData.STAR_MIN_HEIGHT:
 			continue
 		_last_spawn_point = p
 		return shifted

@@ -609,6 +609,10 @@ static func coin_points() -> Array[Vector2]:
 	out.assign(_cached("coin_points", _make_coin_points))
 	return out
 
+## Stars sit above walking reach but within a normal jump.
+const STAR_HEIGHT := 140.0
+const STAR_MIN_HEIGHT := 110.0
+
 static func _make_coin_points() -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	var surfaces: Array[Rect2] = floors()
@@ -623,7 +627,7 @@ static func _make_coin_points() -> Array[Vector2]:
 		for k in range(n):
 			var x := (from + to) * 0.5 if n == 1 \
 				else from + (to - from) * float(k) / float(n - 1)
-			var p := Vector2(x, s.position.y - 40.0)
+			var p := Vector2(x, s.position.y - STAR_HEIGHT)
 			# With hills and rows over them, a point above one surface can be
 			# inside the next one up; that is not a place for a star.
 			var clear := true
@@ -632,7 +636,21 @@ static func _make_coin_points() -> Array[Vector2]:
 					clear = false
 					break
 			if clear:
-				out.append(p)
+				var nearest_floor := INF
+				for r in solids:
+					if p.x >= r.position.x and p.x <= r.end.x and r.position.y >= p.y:
+						nearest_floor = minf(nearest_floor, r.position.y)
+				# A higher ledge can sit between this point and its source floor.
+				# Keep the star above walking reach on that ledge too.
+				if nearest_floor - p.y < STAR_MIN_HEIGHT:
+					continue
+				var separated := true
+				for other in out:
+					if other.distance_to(p) < 50.0:
+						separated = false
+						break
+				if separated:
+					out.append(p)
 	return out
 
 ## [y_limit, weight]: the chance a new star goes to a point above y_limit
