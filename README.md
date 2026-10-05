@@ -52,7 +52,7 @@ bash tools/server-tests.sh
 - `android-play.yml`: 永続署名の `com.sasakiful.melos` AAB。明示した versionCode と提出オプションを使用します。
 - `ios.yml`: `com.sasakiful.sidesky`。署名・アップロードと App Store 審査提出は別オプションです。
 - `testflight-status.yml`: 選択したソースのマーケティングversionと、必須入力した正確なbuild番号を照合します。過去ビルドの確認では対応するrefを選択してください。
-- `store-status.yml`: 両ストアのバージョン・状態を確認します。Playの一時editはcommitせず削除します。productionの `completed` は審査完了や公開を保証しません。
+- `store-status.yml`: 通常は両ストアのバージョン・状態の確認のみです。明示した更新オプションで、選択ソースの既存審査待ち版の日本語説明だけを正本から更新できます。公開済み版や本審査中の版には書き込みません。Playの一時editはcommitせず削除します。productionの `completed` は審査完了や公開を保証しません。
 
 実機でしか確かめられない項目は [docs/release-acceptance.md](docs/release-acceptance.md)、実施状況は `docs/release-results/` に記録します。自動テストの成功を実機の合格に置き換えないでください。
 
