@@ -66,6 +66,13 @@ def apple_status():
     if os.environ.get("UPDATE_APPLE_DESCRIPTION") == "true":
         version = re.search(r'^config/version="([^"]+)"$', Path("project.godot").read_text(encoding="utf-8"), re.M).group(1)
         matches = [v for v in versions if v["attributes"]["versionString"] == version]
+        deadline = time.monotonic() + 1800
+        if not matches:
+            print("Waiting for the signed publisher to create Apple version " + version, flush=True)
+        while not matches and time.monotonic() < deadline:
+            time.sleep(30)
+            versions = apple.api("apps/" + app_id + "/appStoreVersions", {"filter[platform]": "IOS", "limit": 50})["data"]
+            matches = [v for v in versions if v["attributes"]["versionString"] == version]
         if len(matches) != 1:
             raise RuntimeError("The selected source version must already exist in App Store Connect")
         selected = matches[0]
@@ -83,7 +90,7 @@ def apple_status():
         confirmed = apple.api("appStoreVersionLocalizations/" + localization["id"])["data"]["attributes"]["description"]
         if confirmed != description:
             raise RuntimeError("Apple description readback did not match the selected source")
-        print("Confirmed Japanese description for Apple version " + version)
+        print("Confirmed Japanese description for Apple version " + version, flush=True)
     return {"app_id": app_id, "versions": [{"id": v["id"], "version": v["attributes"]["versionString"],
         "state": v["attributes"]["appStoreState"]} for v in versions]}
 
