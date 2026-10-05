@@ -170,3 +170,6 @@ fi
 
 echo "== submitted =="
 echo "App Store Connect accepted the signed upload. Apple will process it before it appears in TestFlight/App Store Connect."
+
+# Confirm Apple processing for this exact build before claiming TestFlight readiness.
+"$RUNNER_TEMP/codemagic-cli/bin/python" tools/testflight-status.py

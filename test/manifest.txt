@@ -89,3 +89,5 @@ test/royal_arena_probe.tscn gated
 test/split_assets_probe.tscn gated
 tools/capture_royal_arena.tscn capture
 tools/capture_stage_landscape.tscn capture
+
+test/platform_clip_probe.tscn gated

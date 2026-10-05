@@ -8,6 +8,53 @@ var kind: Hologram.Kind = Hologram.Kind.PLATFORM
 var size: Vector2 = Balance.PLATFORM_SIZE
 var max_alive: int = Balance.PLATFORM_MAX_ALIVE
 
+## Keep the already drawn, clear prefix when a stroke reaches terrain. The
+## thickness and end caps use the same overlap rule as the final construct.
+func clip_trace(guardian: Node, at: Vector2, path: PackedVector2Array) -> Array:
+	if path.size() < 2:
+		return [at, path]
+	var kept := PackedVector2Array([path[0]])
+	for i in range(1, path.size()):
+		var start := path[i - 1]
+		var end := path[i]
+		var candidate := kept.duplicate()
+		candidate.append(end)
+		if not _path_blocked(guardian, at, candidate):
+			kept.append(end)
+			continue
+		var low := 0.0
+		var high := 1.0
+		for _step in range(12):
+			var mid := (low + high) * 0.5
+			candidate = kept.duplicate()
+			candidate.append(start.lerp(end, mid))
+			if _path_blocked(guardian, at, candidate):
+				high = mid
+			else:
+				low = mid
+		# Leave a pixel of clearance for network quantisation.
+		var length := start.distance_to(end)
+		var safe := start.lerp(end, maxf(0.0, low - 1.0 / maxf(length, 1.0)))
+		if safe.distance_to(start) >= 2.0:
+			kept.append(safe)
+		break
+	if kept.size() < 2:
+		return []
+	var length := 0.0
+	var lo := kept[0]
+	var hi := kept[0]
+	for i in range(kept.size()):
+		lo = lo.min(kept[i])
+		hi = hi.max(kept[i])
+		if i > 0:
+			length += kept[i - 1].distance_to(kept[i])
+	if length < 2.0:
+		return []
+	var offset := ((lo + hi) * 0.5).round()
+	for i in range(kept.size()):
+		kept[i] = (kept[i] - offset).round()
+	return [at + offset, kept]
+
 func check(guardian: Node, world_pos: Vector2) -> String:
 	# The gauge is the constraint now, on its own. Building used to be refused
 	# while the scope was up, because raising the scope was how you selected the
@@ -82,24 +129,30 @@ func _blocked(guardian: Node, world_pos: Vector2) -> bool:
 	if kind == Hologram.Kind.PLATFORM:
 		# A drawn slab is tested piece by piece, with the same shapes it will
 		# be built from, each a little smaller so touching is not overlapping.
-		var hit := false
-		for piece in Hologram.path_shapes(_path(guardian)):
-			var shape: Shape2D = piece.shape
-			if shape is RectangleShape2D:
-				(shape as RectangleShape2D).size -= Vector2(4, 4)
-			elif shape is CircleShape2D:
-				(shape as CircleShape2D).radius -= 2.0
-			if not hit:
-				query.shape = shape
-				query.transform = Transform2D(piece.rotation, world_pos + piece.position)
-				hit = not space.intersect_shape(query, 1).is_empty()
-			piece.free()
-		return hit
+		return _path_blocked(guardian, world_pos, _path(guardian))
 	var rect := RectangleShape2D.new()
 	rect.size = size - Vector2(4, 4)
 	query.shape = rect
 	query.transform = Transform2D(0.0, world_pos)
 	return not space.intersect_shape(query, 1).is_empty()
+
+func _path_blocked(guardian: Node, world_pos: Vector2, path: PackedVector2Array) -> bool:
+	var space: PhysicsDirectSpaceState2D = guardian.get_world_2d().direct_space_state
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.collision_mask = 1 | 8
+	var hit := false
+	for piece in Hologram.path_shapes(path):
+		var shape: Shape2D = piece.shape
+		if shape is RectangleShape2D:
+			(shape as RectangleShape2D).size = ((shape as RectangleShape2D).size - Vector2(4, 4)).max(Vector2(0.1, 0.1))
+		elif shape is CircleShape2D:
+			(shape as CircleShape2D).radius -= 2.0
+		if not hit:
+			query.shape = shape
+			query.transform = Transform2D(piece.rotation, world_pos + piece.position)
+			hit = not space.intersect_shape(query, 1).is_empty()
+		piece.free()
+	return hit
 
 static func platform() -> BuildAbility:
 	var a := BuildAbility.new()

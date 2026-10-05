@@ -97,6 +97,11 @@ func _process(delta: float) -> void:
 	var shape := input_hub.take_place_path()
 	if at.x != INF and abilities.has(active_slot):
 		place_path = shape if active_slot == 1 else PackedVector2Array()
+		at = prepare_trace(at)
+		if at.x == INF:
+			Events.ability_refused.emit(active_slot, "blocked")
+			place_path = PackedVector2Array()
+			return
 		if command_router != null:
 			command_router.request_use(active_slot, at, target_id_at(active_slot, at))
 		else:
@@ -202,6 +207,10 @@ func current_zoom() -> float:
 	return Balance.SCOPE_ZOOM_STEPS[zoom_index]
 
 func use_active(world_pos: Vector2) -> void:
+	world_pos = prepare_trace(world_pos)
+	if world_pos.x == INF:
+		Events.ability_refused.emit(active_slot, "blocked")
+		return
 	var ability: GuardianAbility = abilities[active_slot]
 	var reason := ability.check(self, world_pos)
 	if reason != "":
@@ -213,6 +222,16 @@ func use_active(world_pos: Vector2) -> void:
 	ability.execute(self, world_pos)
 	Events.gauge_changed.emit(gauge, Balance.GAUGE_MAX)
 	Events.ability_used.emit(active_slot, world_pos)
+
+## Same clipped shape for local placement, client prediction and host validation.
+func prepare_trace(at: Vector2) -> Vector2:
+	if active_slot != 1 or place_path.size() < 2:
+		return at
+	var clipped: Array = (abilities[1] as BuildAbility).clip_trace(self, at, place_path)
+	if clipped.is_empty():
+		return Vector2(INF, INF)
+	place_path = clipped[1]
+	return clipped[0]
 
 ## What the guardian would get if they committed right now.
 ##
@@ -240,7 +259,12 @@ func current_preview() -> Dictionary:
 		var made := InputHub.path_from_stroke(input_hub.trace_points)
 		if not made.is_empty():
 			place_path = made[1]
-			var shown: Dictionary = abilities[1].preview(self, made[0])
+			var clipped: Array = (abilities[1] as BuildAbility).clip_trace(self, made[0], place_path)
+			if clipped.is_empty():
+				place_path = PackedVector2Array()
+				return {}
+			place_path = clipped[1]
+			var shown: Dictionary = abilities[1].preview(self, clipped[0])
 			place_path = PackedVector2Array()
 			return shown
 	return preview_of(slot, true)
