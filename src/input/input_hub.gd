@@ -82,13 +82,6 @@ var pan_axis: float = 0.0
 ## flick rather than a thumb held down for three seconds. Accumulated here and
 ## consumed by the camera.
 var _pan_drag: float = 0.0
-## How far sideways a finger travels before it counts as a scroll rather than a
-## nudge of the reticle. Small enough to feel immediate, large enough that
-## placing the reticle precisely never turns into a scroll by accident.
-const SCROLL_WAKES_UP := 26.0
-## World pixels per screen pixel of swipe. One to one reads as dragging the
-## ground itself, which is the gesture everyone already knows.
-const SCROLL_SCALE := 1.0
 ## How much world the view moves per pixel of thumb. Above 1 because the whole
 ## point is to cover ground without a long drag.
 const PAN_DRAG_SCALE := 2.2
@@ -228,7 +221,7 @@ var _place_latched: Vector2 = Vector2(INF, INF)
 ## empty means "the standard slab" (a tap rather than a trace).
 var _place_path: PackedVector2Array = PackedVector2Array()
 ## True while the guardian's platform tool is chosen: a finger dragged over the
-## world then draws where the platform goes instead of scrolling the view.
+## world then draws where the platform goes instead of aiming a shot.
 var trace_mode: bool = false
 ## World points of the stroke being drawn right now, for the preview.
 var trace_points: PackedVector2Array = PackedVector2Array()

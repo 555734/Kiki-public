@@ -154,7 +154,8 @@ func down(index: int, position: Vector2) -> void:
 	gesture.begin(index, position, size, routed[1])
 
 func move(index: int, position: Vector2) -> void:
-	hub._has_touch = true
+	if index != InputHub.MOUSE_FINGER:
+		hub._has_touch = true
 	_last_position[index] = position
 	var gesture: TouchGesture = _owners.get(index)
 	if gesture != null:

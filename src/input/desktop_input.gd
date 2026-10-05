@@ -7,10 +7,15 @@ extends RefCounted
 
 static func poll(hub: InputHub) -> void:
 	if not hub.runner_driven_remotely:
-		hub.move_axis = Input.get_axis("p1_left", "p1_right")
-		hub.move_axis_y = Input.get_axis("p1_up", "p1_down") if InputMap.has_action("p1_down") else 0.0
-		hub._jump_from_button = Input.is_action_pressed("p1_jump")
-		hub._refresh_jump_held()
+		# The virtual controls own their values until release, including when
+		# a mouse is standing in for a finger. Keyboard polling must not erase
+		# a held stick or jump between pointer events.
+		if hub.touch.stick.finger < 0:
+			hub.move_axis = Input.get_axis("p1_left", "p1_right")
+			hub.move_axis_y = Input.get_axis("p1_up", "p1_down") if InputMap.has_action("p1_down") else 0.0
+		if hub.touch.jump.fingers.is_empty():
+			hub._jump_from_button = Input.is_action_pressed("p1_jump")
+			hub._refresh_jump_held()
 		hub.dash_held = Input.is_action_pressed("p1_dash")
 		if Input.is_action_just_pressed("p1_jump"):
 			hub._latch_jump_press()
@@ -18,7 +23,7 @@ static func poll(hub: InputHub) -> void:
 			hub.press_dash()
 
 	var viewport := hub.get_viewport()
-	if viewport != null and hub.owns_guardian_controls():
+	if viewport != null and hub.owns_guardian_controls() and not hub.aiming() and hub.held_slot() < 0:
 		hub.aim_at_screen(viewport.get_mouse_position())
 	if not hub.owns_guardian_controls():
 		return

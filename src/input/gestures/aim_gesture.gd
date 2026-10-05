@@ -1,8 +1,7 @@
 class_name AimGesture
 extends TouchGesture
-## A finger on the world. Depending on how it moves it is one of three things:
-## a tap that places the current tool, a sideways swipe that scrolls the view,
-## or -- with the platform tool chosen -- a stroke that draws a platform.
+## A finger on the world aims the shot or draws a platform. Dragging while
+## shooting never changes the camera. A tap commits the current tool.
 
 ## The finger most recently put on the world, or -1. Several can be down; any
 ## of them lifting means nobody is aiming any more.
@@ -12,8 +11,6 @@ var trace_finger: int = -1
 ## the origin of the gesture -- see moved.
 var from: Dictionary = {}
 var from_y: Dictionary = {}
-## Per finger: whether it has committed to scrolling rather than aiming.
-var is_scroll: Dictionary = {}
 ## Distance covered since the finger went down, per finger. Accumulated rather
 ## than measured start-to-end: `from` holds the PREVIOUS position, not the
 ## origin, and the reticle itself is rate limited, so neither of them can
@@ -28,24 +25,16 @@ func begin(index: int, position: Vector2, _size: Vector2, _id: String) -> void:
 		hub.trace_points = PackedVector2Array([hub._screen_to_world(position)])
 	from[index] = position.x
 	from_y[index] = position.y
-	is_scroll[index] = false
 	moved[index] = 0.0
 	hub.aim_at_screen(position)
 
 func drag(index: int, position: Vector2, _size: Vector2) -> void:
 	var travel: float = position.x - float(from.get(index, position.x))
-	var lift: float = absf(position.y - float(from_y.get(index, position.y)))
 	moved[index] = float(moved.get(index, 0.0)) \
 		+ Vector2(travel, position.y - float(from_y.get(index, position.y))).length()
 	if index == trace_finger:
 		hub.trace_points.append(hub._screen_to_world(position))
-	elif not is_scroll.get(index, false) \
-			and absf(travel) > InputHub.SCROLL_WAKES_UP and absf(travel) > lift * 1.4:
-		is_scroll[index] = true
-	if is_scroll.get(index, false):
-		hub._pan_drag += travel * -InputHub.SCROLL_SCALE
-	else:
-		hub.aim_at_screen(position)
+	hub.aim_at_screen(position)
 	from[index] = position.x
 	from_y[index] = position.y
 
@@ -53,8 +42,7 @@ func end(index: int, position: Vector2, cancelled: bool, previous: Variant) -> v
 	if position.x != INF:
 		if previous != null:
 			moved[index] = float(moved.get(index, 0.0)) + (position - Vector2(previous)).length()
-		if not bool(is_scroll.get(index, false)):
-			hub.aim_at_screen(position)
+		hub.aim_at_screen(position)
 	if cancelled:
 		if index == trace_finger:
 			_end_trace()
@@ -69,21 +57,18 @@ func end(index: int, position: Vector2, cancelled: bool, previous: Variant) -> v
 			hub._place_latched = hub.touch.world_under(index)
 			hub._place_path = PackedVector2Array()
 		_end_trace()
-	elif not bool(is_scroll.get(index, false)) \
-			and float(moved.get(index, 0.0)) <= InputHub.TAP_SLOP:
+	elif float(moved.get(index, 0.0)) <= InputHub.TAP_SLOP:
 		hub._place_latched = hub.touch.world_under(index)
 		hub._place_path = PackedVector2Array()
 	finger = -1
 	from.erase(index)
 	from_y.erase(index)
-	is_scroll.erase(index)
 	moved.erase(index)
 
 func reset() -> void:
 	finger = -1
 	from.clear()
 	from_y.clear()
-	is_scroll.clear()
 	moved.clear()
 	if trace_finger >= 0:
 		_end_trace()

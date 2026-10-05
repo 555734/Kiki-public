@@ -263,6 +263,9 @@ run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/purchase_layo
 step "the quit question"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/quit_confirm_probe.tscn
 
+step "cooperative pointer controls through the live viewport"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/coop_pointer_probe.tscn
+
 step "the stage menu: pages, swipes, locks"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/stage_menu_probe.tscn
 

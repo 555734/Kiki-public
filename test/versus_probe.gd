@@ -166,8 +166,9 @@ func _stage_shape() -> void:
 	check(points.size() >= 12, "stars have many places to appear (%d points)" % points.size())
 	var homeless: Array[Vector2] = []
 	for p in points:
-		if world.floor_below(p, 120.0) == INF \
-				or world.overlaps(Rect2(p - Vector2(12, 12), Vector2(24, 24))):
+		if world.floor_below(p, VersusStageData.STAR_HEIGHT + 24.0) == INF \
+				or world.overlaps(Rect2(p - Vector2(12, 12), Vector2(24, 24))) \
+				or world.floor_below(p, VersusStageData.STAR_HEIGHT + 24.0) - p.y < VersusStageData.STAR_MIN_HEIGHT:
 			homeless.append(p)
 	check(homeless.is_empty(),
 		"every star point is clear of solids with floor under it (%d bad)" % homeless.size())
@@ -280,7 +281,7 @@ func _test_random_spawns() -> void:
 			repeats += 1
 		previous = p
 		safe = safe and VersusStageData.in_bounds(p) \
-			and world.floor_below(p, 80.0) != INF \
+			and world.floor_below(p, VersusStageData.STAR_HEIGHT + 24.0) != INF \
 			and not world.overlaps(Rect2(p - Vector2(12, 12), Vector2(24, 24)))
 	check(same, "same host seed reproduces the spawn sequence")
 	check(different > 80, "different match seeds change actual spawn positions (%d)" % different)
@@ -309,6 +310,29 @@ func _test_random_spawns() -> void:
 		"random top-up keeps %d stars loose" % VersusRules.ON_FIELD)
 	check(first.ledger.conserved(),
 		"random top-up preserves the %d-star ledger" % VersusRules.COIN_TOTAL)
+	var star := first.ledger.get_coin(0)
+	var hovering_at := star.position
+	for i in range(120): first.step(actors)
+	check(star.position == hovering_at, "new stars remain airborne instead of falling to the floor")
+	ArenaCoin.to_held(star, 0)
+	ArenaCoin.to_dropped(star, hovering_at, 1.0, first.tick)
+	var dropped_at := star.position
+	first._step_coins(1.0 / 60.0)
+	check(star.position != dropped_at, "a dropped star still moves under physics after a hovering spawn")
+	var floor_y := world.floor_below(hovering_at, VersusStageData.STAR_HEIGHT + 24.0)
+	actors[0].alive = true
+	actors[0].position = Vector2(hovering_at.x, floor_y - Balance.RUNNER_SIZE.y * 0.5)
+	star.position = hovering_at
+	star.pickup_tick = 0
+	star.former_owner_tick = 0
+	first.seats.assign(actors)
+	first._resolve_pickups()
+	check(star.state == ArenaCoin.State.WORLD, "walking below an airborne star does not collect it")
+	actors[0].position.y -= Balance.RUNNER_JUMP_HEIGHT
+	first.seats.assign(actors)
+	first._resolve_pickups()
+	check(star.state == ArenaCoin.State.HELD, "a normal jump reaches the airborne star")
+
 
 func _test_the_rules() -> void:
 	_current = "the rules"

@@ -490,7 +490,7 @@ func _test_only_a_tap_counts_as_a_tap() -> void:
 	var view: Vector2 = main.get_viewport().get_visible_rect().size
 	hub.solo_role = "guardian"
 	# Under the shot. With the platform tool chosen a drag draws a platform
-	# (trace mode), which is a placement by design; see "swipe to scroll".
+	# (trace mode), which is a placement by design; see the shot drag camera check.
 	main.guardian.select_slot(3)
 	await _frames(2)
 

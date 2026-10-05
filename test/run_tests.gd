@@ -64,7 +64,7 @@ func _run_all() -> void:
 	await guardian._test_wall_limits()
 	await guardian._test_one_press_tools()
 	await guardian._test_a_tap_puts_it_where_you_pointed()
-	await guardian._test_a_swipe_scrolls_the_view()
+	await guardian._test_shot_drag_keeps_the_view()
 	await guardian._test_sniper()
 	await guardian._test_aiming_at_an_enemy_kills_it()
 	await guardian._test_the_rifle_helps_you_aim()

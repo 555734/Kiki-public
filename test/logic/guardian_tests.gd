@@ -1092,8 +1092,8 @@ func _test_a_tap_puts_it_where_you_pointed() -> void:
 		check(is_instance_valid(other) and not other.is_queued_for_deletion(),
 			"...and spares the one it is pointing away from")
 
-func _test_a_swipe_scrolls_the_view() -> void:
-	_current = "swipe to scroll"
+func _test_shot_drag_keeps_the_view() -> void:
+	_current = "shot drag keeps the view"
 	await _boot()
 	var hub: InputHub = main.input_hub
 	var view: Vector2 = main.get_viewport().get_visible_rect().size
@@ -1102,7 +1102,7 @@ func _test_a_swipe_scrolls_the_view() -> void:
 	main.runner.velocity = Vector2.ZERO
 	await _physics(6)
 	# With the platform tool chosen a drag on the world DRAWS the platform
-	# (trace mode); the view scrolls under the other tool.
+	# (trace mode); the other tool aims without moving the view.
 	main.guardian.select_slot(1)
 	await _physics(2)
 	check(hub.trace_mode, "with the platform tool a drag draws")
@@ -1121,16 +1121,16 @@ func _test_a_swipe_scrolls_the_view() -> void:
 		"a small drag aims and leaves the view alone (%.1f)" % main.guardian_pan)
 	hub._touch_up(1)
 
-	# A long sideways drag scrolls, and stops moving the reticle while it does.
+	# A long sideways drag still aims, without moving the camera.
 	hub._touch_down(2, start)
 	var aimed: Vector2 = hub.aim_world()
 	for i in range(6):
 		hub._touch_move(2, start + Vector2(-40.0 * float(i + 1), 0.0))
 	await _physics(4)
 	hub._touch_up(2)
-	check(main.guardian_pan > 60.0,
-		"a long sideways swipe scrolls the view (%.0f)" % main.guardian_pan)
-	check(hub.aim_world().distance_to(aimed) < 20.0,
-		"and the reticle stays on the ground it was on (%.0fpx)"
+	check(absf(main.guardian_pan) < 1.0,
+		"a long shot drag keeps the camera still (%.0f)" % main.guardian_pan)
+	check(hub.aim_world().distance_to(aimed) > 100.0,
+		"and the reticle follows the aiming finger (%.0fpx)"
 			% hub.aim_world().distance_to(aimed))
 	hub.solo_role = ""
