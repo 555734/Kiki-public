@@ -10,7 +10,7 @@ GitHub Releases contain historical test builds and are no longer updated on ever
 
 They were committed back when Actions could not publish Releases for this
 repository, and they have not been rebuilt since — the changelog further down
-describes a **two-stage** game, and there are seven stages now. In particular
+describes a **two-stage** game, and the first chapter now has eight stages. In particular
 they predate the painted art for 1-B and 1-S entirely. Keep them only if you
 want the build they are; otherwise use the Actions artifact above.
 
@@ -36,10 +36,10 @@ file manager when prompted. Landscape, two players on one screen.
 
 Verify a download against `SHA256SUMS` if you want to be sure it arrived intact.
 
-## Both phones need the same build
+## Both phones need compatible wire and stage content
 
 The message format between the two devices carries a version, and a phone with
-a mismatched APK cannot play with one running a different build. It does not
+a different wire version cannot connect; marketing versions alone are not compared. It does not
 fail quietly: the host answers a mismatched build with
 **「バージョンが違います」** on the guardian's screen. Update both.
 

@@ -45,6 +45,13 @@ jobs:
         run: bash tools/install-eosg.sh linux
       - name: tools/verify.sh --shots
         run: bash tools/verify.sh "$GODOT" --shots
+      - name: Save visual comparison images
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-regression
+          path: build/visual-regression/*.png
+          if-no-files-found: warn
 
   performance:
     runs-on: ubuntu-latest

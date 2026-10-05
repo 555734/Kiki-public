@@ -82,11 +82,23 @@ func _test_every_stage_keeps_the_contract() -> void:
 		var unknown := LevelBuilder.unknown_types(Stage.enemies(), Stage.gimmicks())
 		check(unknown.is_empty(), "%s names only types the builder knows (unknown %s)"
 			% [Stage._DATA_FILES[which], unknown])
+		var invalid := StageSpecSchema.errors(Stage.enemies(), Stage.gimmicks())
+		check(invalid.is_empty(), "%s uses valid entity properties (%s)" % [Stage._DATA_FILES[which], invalid])
 	Stage.use(previous)
 	# And the check itself catches a one-letter slip, which used to build
 	# nothing and say nothing.
 	check(LevelBuilder.unknown_types([{"type": "walkre"}], [{"type": "moving_platfrom"}])
 		== ["enemy:walkre", "gimmick:moving_platfrom"], "a misspelt type is reported")
+	var typo := {"type": "moving_platform", "pos": Vector2.ZERO, "travle": Vector2(40, 0)}
+	check(StageSpecSchema.errors([], [typo]) == ["gimmick[0]:moving_platform: unknown property travle"],
+		"a valid type with a misspelt property is rejected")
+	typo.erase("travle")
+	typo["travel"] = Vector2(40, 0)
+	check(StageSpecSchema.errors([], [typo]).is_empty(), "optional properties retain their defaults")
+	typo["pos"] = "wrong"
+	check(not StageSpecSchema.errors([], [typo]).is_empty(), "invalid placement types are rejected")
+	check(not StageSpecSchema.errors([{"type": "walker", "pos": Vector2.ZERO, "patrlo": 10}], []).is_empty(),
+		"enemy property typos are also rejected")
 	for type in types:
 		check(LevelBuilder.GIMMICKS.has(type), "gimmick type '%s' is registered" % type)
 		if not LevelBuilder.GIMMICKS.has(type):

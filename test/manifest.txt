@@ -61,6 +61,7 @@ test/workshop_probe.tscn           gated
 test/ui_probe.tscn                 shots
 test/seating_probe.tscn            shots
 test/capture_shots.tscn            shots
+test/visual_regression_probe.tscn  shots
 
 tools/perf_probe.tscn              perf
 

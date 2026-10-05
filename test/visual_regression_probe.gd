@@ -1,0 +1,110 @@
+extends Node
+## Frozen real scenes, not a reimplementation of their drawing code.
+const BASE := "res://test/visual_baselines/"
+const ACTUAL := "res://build/visual-regression/"
+const TILE := 64
+const CHANNEL_TOLERANCE := 48
+const TILE_RATIO := 0.04
+var failures := 0
+
+func _ready() -> void:
+	call_deferred("run")
+
+func freeze(node: Node) -> void:
+	node.set_process(false)
+	node.set_physics_process(false)
+	if node is Timer:
+		node.stop()
+	if node is CanvasItem:
+		node.queue_redraw()
+	for child in node.get_children():
+		freeze(child)
+
+func different_tiles(reference: Image, actual: Image) -> int:
+	if reference.get_size() != actual.get_size():
+		return 999
+	reference.convert(Image.FORMAT_RGBA8)
+	actual.convert(Image.FORMAT_RGBA8)
+	var a := reference.get_data()
+	var b := actual.get_data()
+	var bad := 0
+	for ty in range(0, actual.get_height(), TILE):
+		for tx in range(0, actual.get_width(), TILE):
+			var changed := 0
+			var count := 0
+			for y in range(ty, mini(ty + TILE, actual.get_height())):
+				for x in range(tx, mini(tx + TILE, actual.get_width())):
+					var offset := (y * actual.get_width() + x) * 4
+					count += 1
+					if absi(a[offset] - b[offset]) > CHANNEL_TOLERANCE or \
+						absi(a[offset + 1] - b[offset + 1]) > CHANNEL_TOLERANCE or \
+						absi(a[offset + 2] - b[offset + 2]) > CHANNEL_TOLERANCE:
+						changed += 1
+			if float(changed) / count > TILE_RATIO:
+				bad += 1
+	return bad
+
+func run() -> void:
+	get_window().size = Vector2i(1280, 720)
+	Clock.set_physics_process(false)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(BASE))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(ACTUAL))
+	var update := OS.get_cmdline_user_args().has("--write-baseline")
+	for which in [Stage.Which.GREENFIELD, Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS,
+		Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE,
+		Stage.Which.ROYAL_ARENA]:
+		seed(42)
+		Clock.reset()
+		Stage.use(which)
+		var scene: Node
+		var name: String
+		if which == Stage.Which.ROYAL_ARENA:
+			VersusLaunch.clear()
+			VersusLaunch.how = VersusLaunch.How.SOLO
+			scene = preload("res://src/versus/versus_main.tscn").instantiate()
+			add_child(scene)
+			scene.touch_solo = true
+			scene.input.hubs[0].assume_touch()
+			scene._build_controls()
+			name = "royal-arena"
+		else:
+			scene = preload("res://src/main.tscn").instantiate()
+			add_child(scene)
+			scene.input_hub.scripted = true
+			scene.input_hub.assume_touch()
+			scene.get_node("NetPanel").free()
+			name = "stage-" + Stage.stage_number()
+		freeze(scene)
+		Clock.reset()
+		for _i in 3:
+			await get_tree().process_frame
+			freeze(scene)
+		await RenderingServer.frame_post_draw
+		var frame := get_viewport().get_texture().get_image()
+		if frame.get_size() != Vector2i(1280, 720):
+			push_error("Visual probe needs a 1280x720 viewport")
+			get_tree().quit(1)
+			return
+		frame.save_png(ACTUAL + name + ".png")
+		if update:
+			frame.save_png(BASE + name + ".png")
+		elif not FileAccess.file_exists(BASE + name + ".png"):
+			print("FAIL visual baseline missing: ", name)
+			failures += 1
+		else:
+			var expected := Image.load_from_file(BASE + name + ".png")
+			var bad := different_tiles(expected, frame)
+			print("visual ", name, ": ", bad, " changed tiles")
+			if bad > 0:
+				print("FAIL visual ", name)
+				failures += 1
+		# Prove the comparator rejects a visible missing/covered patch.
+		var changed: Image = frame.duplicate()
+		changed.fill_rect(Rect2i(128, 128, 40, 40), Color.MAGENTA)
+		if different_tiles(frame, changed) == 0:
+			print("FAIL visual comparator missed a visible mutation")
+			failures += 1
+		scene.free()
+		await get_tree().process_frame
+	print("visual regression: ", failures, " failures")
+	get_tree().quit(0 if failures == 0 else 1)

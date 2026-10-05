@@ -300,6 +300,11 @@ if [ "$SHOTS" = "1" ]; then
 			--rendering-method gl_compatibility --rendering-driver opengl3 \
 			--resolution 1280x720 res://test/seating_probe.tscn
 
+		step "frozen gameplay visual baselines"
+		run_checked xvfb-run -a -s "-screen 0 1400x900x24" "$GODOT" --path . \
+			--rendering-method gl_compatibility --rendering-driver opengl3 \
+			--resolution 1280x720 res://test/visual_regression_probe.tscn
+
 		step "render screenshots"
 		run_checked xvfb-run -a -s "-screen 0 1400x900x24" "$GODOT" --path . \
 			--rendering-method gl_compatibility --rendering-driver opengl3 \
