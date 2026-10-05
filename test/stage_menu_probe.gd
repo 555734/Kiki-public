@@ -87,8 +87,8 @@ func _ready() -> void:
 			for label in ["1-4", "1-5", "1-6"]:
 				check(seen.has(label), "second page has a %s stage button" % label)
 			check(not _card_unlocked(panel._stage_1_4) and not _card_unlocked(panel._stage_1_5)
-				and not _card_unlocked(panel._stage_1_6),
-				"1-4, 1-5 and 1-6 cards carry the purchase lock for a free player")
+				and _card_unlocked(panel._stage_1_6),
+				"1-4 and 1-5 are locked while public main keeps 1-6 free")
 			for label in ["1-1", "1-2", "1-3"]:
 				check(not seen.has(label), "second page does not show %s" % label)
 			check(panel._stage_view.get_child_count() == 3,
@@ -113,8 +113,8 @@ func _ready() -> void:
 			seen = _visible_stages(panel)
 			check(seen.has("1-7") and seen.has("1-8"),
 				"third page shows the tower and cave")
-			check(not _card_unlocked(panel._stage_1_7) and not _card_unlocked(panel._stage_1_8),
-				"1-7 and 1-8 cards carry the purchase lock for a free player")
+			check(_card_unlocked(panel._stage_1_7) and _card_unlocked(panel._stage_1_8),
+				"public main keeps 1-7 and 1-8 cards free")
 			check(panel._stage_view.get_child_count() == 3,
 				"third page keeps the three-column layout")
 			for label in ["1-V", "1-B", "1-S"]:
