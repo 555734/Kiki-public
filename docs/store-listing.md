@@ -28,41 +28,16 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 ふたりで、ひとつのステージを越える協力アクションです。
 
 【走る人】画面の中を走り、跳び、壁を蹴り、空中でダッシュします。
-見えるのは自分のまわりだけ。目の前の穴が、ひとりでは跳べません。
 
-【見守る人】空の上から先の地形が見えています。
-足場を描き、狙撃して敵や追跡者を止めます。
-地形に当たっても、足場は当たる直前まで残ります。
+【見守る人】足場を描き、射撃で敵や追跡者を止めて、走る人の道を作ります。地形に当たった足場は、当たる直前までの部分が残ります。
 
-ひとりでは越えられない場所が、必ず用意してあります。
-だからこのゲームは、ふたりの会話そのものになります。
-「そこ、もう1枚ちょうだい」「跳んで、今」
+第一章の8ステージを収録。草原、村はずれ、空の遺跡、海岸、溶岩峡谷、砂の遺跡、歯車の塔、地下の森を進みます。6文字の合言葉で離れた友達とつながるか、1台で一緒に遊べます。
 
-■ 8つのステージ
-1-1 GREENFIELD PLAINS ― 道具をひとつずつ覚える草原
-1-2 THE HOLLOW OUTSKIRTS ― 灯りの少ない村はずれ
-1-3 THE SKYWARD RUINS ― 空へ伸びる縦の遺跡
-1-4 THE SUNLIT COAST ― 陽の当たる海岸
-1-5 THE MOLTEN CROSSING ― 溶岩の峡谷を越える
-1-6 THE SANDGLASS RUINS ― 砂の遺跡を登る
-1-7 THE CLOCKWORK TOWER ― 歯車の塔
-1-8 THE UNDERGROVE ― 地下の森
+スターを取り合う対戦モードも無料です。ロイヤル・アリーナでは、ジャンプ台や移動足場を使って空中のスターを奪い合えます。
 
-■ スターたいせん
-みんなで、または2対2で、スターを奪い合う対戦モードは誰でも無料です。
+ステージ1-1・1-2・1-6〜1-8は無料で最後まで遊べます。完全版の買い切り購入でステージ1-3、1-4、1-5が開きます。完全版を持つ人の部屋には、買っていない友達も参加できます。
 
-■ オンラインでもその場でも
-6文字の合言葉を口で伝えるだけで、離れた相手とつながります。
-同じ部屋にいるなら、そのまま1台でも遊べます。
-
-■ 無料で始められます
-1-1・1-2・1-6〜1-8 は誰でも最後まで遊べます。
-完全版（買い切り・1回限り）で 1-3〜1-5 が開きます。
-そして完全版を持っている人の部屋には、買っていない友達がそのまま入って、
-全ステージを一緒に遊べます。片方が持っていれば、ふたりで遊べます。
-
-■ 広告はありません
-広告も、定期課金も、スタミナもありません。
+広告・定期課金はありません。
 ```
 
 **新機能 / リリースノート（0.9.3）**
@@ -94,36 +69,19 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 | Short description | `One player runs. One rewrites the world. A co-op action game made for two.` |
 
 ```
-A co-op action game for exactly two people.
+A co-op action game for two players. Work together to cross the stage.
 
-THE RUNNER moves, jumps, wall-kicks and air-dashes. They can only see what is
-around them, and some gaps are simply too wide to cross alone.
+THE RUNNER runs, jumps, wall-kicks, and air-dashes.
 
-THE GUARDIAN sees the road ahead from above. They draw platforms, raise walls,
-snipe, and place warp gates -- and they can tap a platform to launch whoever is
-standing on it into the air.
+THE GUARDIAN draws platforms and shoots enemies and pursuers to make a path for the runner. Platforms that hit terrain keep the valid section before the collision.
 
-Every stage contains something one player cannot solve. That is the point: the
-game is the conversation between you.
+Explore eight stages in Chapter One: grassland, village outskirts, sky ruins, seaside, a lava canyon, sand ruins, a clockwork tower, and an underground grove. Connect with a friend using a six-character room code or play together on one device.
 
-EIGHT STAGES
-1-1 GREENFIELD PLAINS / 1-2 THE HOLLOW OUTSKIRTS / 1-3 THE SKYWARD RUINS
-1-4 THE SUNLIT COAST / 1-5 THE POISON MARSH / 1-6 THE SANDGLASS RUINS
-1-7 THE CLOCKWORK TOWER / 1-8 THE UNDERGROVE
+Star Battle is free for everyone. In Royal Arena, use jump pads and moving platforms to compete for stars in the air.
 
-STAR BATTLE
-A versus mode -- everyone, or two against two -- free for every player.
+Stages 1-1, 1-2, and 1-6 through 1-8 are free to play all the way through. A single non-consumable purchase unlocks stages 1-3, 1-4, and 1-5. Friends who have not purchased the full version can join a full-version owner's room.
 
-ONLINE OR SIDE BY SIDE
-Read a six-character room code out loud and you are connected. In the same
-room, one device works too.
-
-FREE TO START
-1-1 and 1-2 are free all the way through. One non-consumable purchase opens
-1-3 to 1-5 -- and a friend who has not bought it can join YOUR room and
-play every stage with you. One copy is enough for two people.
-
-No ads. No subscription. No stamina.
+No ads or subscriptions.
 ```
 
 ### キーワード（iOS、100文字、カンマ区切り）
@@ -363,4 +321,10 @@ App Review が 3.1.1 として扱う可能性は残る。
 <!-- release-notes:ja -->
 ```
 移動操作の反応を改善しました。足場と射撃の選択中のボタンが分かりやすくなり、足場は地形に当たる直前まで残るようになりました。射撃の照準操作で画面が横に動く機能を廃止しました。ロイヤル・アリーナのスターを空中に配置し、ジャンプして取り合う遊びに調整しました。描画とステージ設定の自動検証、配布時の確認も強化しています。
+```
+
+**English release notes (0.9.10, submitted to App Store Connect)**
+
+```
+Improved movement controls and made the selected platform or shooting button easier to recognize. Platforms now keep the valid section before hitting terrain. Aiming shots no longer scrolls the camera sideways. Stars in Royal Arena are now placed in the air for jump-based competition. Added automated checks for visuals, stage settings, and release verification.
 ```

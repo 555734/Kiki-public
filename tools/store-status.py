@@ -6,6 +6,7 @@ Only non-secret store state is written. The temporary Google edit is deleted.
 import importlib.util
 import json
 import os
+import re
 import time
 import urllib.parse
 import urllib.request
@@ -62,8 +63,40 @@ def apple_status():
         raise RuntimeError("Expected one Apple app")
     app_id = apps[0]["id"]
     versions = apple.api("apps/" + app_id + "/appStoreVersions", {"filter[platform]": "IOS", "limit": 50})["data"]
+    if os.environ.get("UPDATE_APPLE_DESCRIPTION") == "true":
+        version = re.search(r'^config/version="([^"]+)"$', Path("project.godot").read_text(encoding="utf-8"), re.M).group(1)
+        matches = [v for v in versions if v["attributes"]["versionString"] == version]
+        deadline = time.monotonic() + 1800
+        if not matches:
+            print("Waiting for the signed publisher to create Apple version " + version, flush=True)
+        while not matches and time.monotonic() < deadline:
+            time.sleep(30)
+            versions = apple.api("apps/" + app_id + "/appStoreVersions", {"filter[platform]": "IOS", "limit": 50})["data"]
+            matches = [v for v in versions if v["attributes"]["versionString"] == version]
+        if len(matches) != 1:
+            raise RuntimeError("The selected source version must already exist in App Store Connect")
+        selected = matches[0]
+        if selected["attributes"]["appStoreState"] not in ("PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW", "WAITING_FOR_REVIEW"):
+            raise RuntimeError("Refusing to modify a published or actively reviewed version")
+        listing = Path("docs/store-listing.md").read_text(encoding="utf-8")
+        description = re.search(r"\*\*詳しい説明（両ストア共通）\*\*\s*```\n(.*?)\n```", listing, re.S).group(1)
+        localizations = apple.api("appStoreVersions/" + selected["id"] + "/appStoreVersionLocalizations")["data"]
+        japanese = [item for item in localizations if item["attributes"]["locale"] in ("ja", "ja-JP")]
+        if len(japanese) != 1:
+            raise RuntimeError("Expected exactly one existing Japanese localization")
+        localization = japanese[0]
+        body = {"data": {"type": "appStoreVersionLocalizations", "id": localization["id"], "attributes": {"description": description}}}
+        request("https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/" + localization["id"], apple.token(), "PATCH", body)
+        confirmed = apple.api("appStoreVersionLocalizations/" + localization["id"])["data"]["attributes"]["description"]
+        if confirmed != description:
+            raise RuntimeError("Apple description readback did not match the selected source")
+        print("Confirmed Japanese description for Apple version " + version, flush=True)
+    response = apple.api("builds", {"filter[app]": app_id, "sort": "-uploadedDate", "limit": 5, "include": "preReleaseVersion"})
+    releases = {item["id"]: item["attributes"]["version"] for item in response.get("included", []) if item["type"] == "preReleaseVersions"}
+    builds = [{"id": b["id"], "build_number": b["attributes"]["version"], "processing": b["attributes"]["processingState"],
+        "version": releases.get(b["relationships"]["preReleaseVersion"]["data"]["id"])} for b in response["data"]]
     return {"app_id": app_id, "versions": [{"id": v["id"], "version": v["attributes"]["versionString"],
-        "state": v["attributes"]["appStoreState"]} for v in versions]}
+        "state": v["attributes"]["appStoreState"]} for v in versions], "recent_builds": builds}
 
 
 if __name__ == "__main__":

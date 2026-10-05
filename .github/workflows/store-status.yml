@@ -1,12 +1,19 @@
 name: Read store release state
 on:
   workflow_dispatch:
+    inputs:
+      update_apple_description:
+        description: "Update existing pending source version's Japanese description from docs/store-listing.md"
+        type: boolean
+        required: false
+        default: false
   workflow_call:
 permissions:
   contents: read
 jobs:
   status:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install pinned API signing library
@@ -19,6 +26,7 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          UPDATE_APPLE_DESCRIPTION: ${{ inputs.update_apple_description || 'false' }}
         run: '"$RUNNER_TEMP/store-status/bin/python" tools/store-status.py'
       - name: Save store identities
         if: always()
