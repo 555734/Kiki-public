@@ -67,6 +67,11 @@ func _physics_process(delta: float) -> void:
 	_occupied = 1.0
 	if not Clock.is_host:
 		return
+	# The column carries the runner from here, as a spring or a pad does. A
+	# jump let go of on the way in would otherwise keep its release gravity,
+	# which stops at zero: the column pushes up, the release cancels it, and
+	# the runner hangs in the air for as long as they stay in the column.
+	runner.end_player_jump_control()
 	# Towards the rise speed rather than adding to it, so a runner who drops in
 	# at terminal velocity is turned around instead of being launched by however
 	# fast they happened to arrive. UPDRAFT_ACCEL is a little above the fall

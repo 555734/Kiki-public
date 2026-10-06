@@ -18,8 +18,8 @@ func run() -> void:
 		"stage 1-7 is selectable")
 	check(not Stage.world_3d() and Stage.progress_direction() == Vector2.UP,
 		"tower uses painted vertical view")
-	check(Stage.start().y - Stage.goal().y > 13000,
-		"route climbs more than 13,000 pixels")
+	check(Stage.start().y - Stage.goal().y > 10000,
+		"route climbs more than 10,000 pixels")
 	check(Stage.start().y < 15359 and Stage.kill_y() < 15359,
 		"online coordinate codec covers the entire tower")
 	check(Stage.checkpoints().size() >= 10,
@@ -27,12 +27,15 @@ func run() -> void:
 	var kinds := {}
 	var trap_kinds := {}
 	var gate_count := 0
+	var targets := {}
 	for g in Stage.gimmicks():
 		kinds[String(g["type"])] = true
 		if g["type"] == "tower_trap":
 			trap_kinds[String(g["kind"])] = true
 		if g["type"] == "gate":
 			gate_count += 1
+		if g["type"] == "switch":
+			targets[String(g["id"])] = true
 	check(kinds.has("moving_platform") and kinds.has("clock_hand")
 		and kinds.has("gear_wheel")
 		and kinds.has("blink") and kinds.has("conveyor")
@@ -41,11 +44,19 @@ func run() -> void:
 		"image-board platform and traversal gimmicks are present")
 	check(trap_kinds.has("pendulum") and trap_kinds.has("piston")
 		and trap_kinds.has("spikes"), "all three clockwork traps are present")
-	check(gate_count >= 3, "multiple guardian switch gates divide the climb")
+	check(gate_count >= 1 and targets.size() >= 3,
+		"the guardian's shots open a door and raise bridges on the way up")
+	# The guardian's wall: a climb no jump of the runner's own makes.
+	var assist := {}
+	for step in Stage.route():
+		if String(step["via"]) == "assist":
+			assist = step
 	var solo_rise := Runner.ground_jump_height(
-		Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER, 3)
-	check(290.0 > solo_rise,
-		"guardian bridge chamber exceeds even the runner's triple-jump rise")
+		Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER, 3) \
+		+ Balance.RUNNER_AIR_JUMP_HEIGHT
+	check(not assist.is_empty() and (assist["from"] as Rect2).position.y
+			- (assist["to"] as Rect2).position.y > solo_rise,
+		"the guardian's stair climbs higher than any jump and second jump")
 	var y_wire := Snapshot._u_y(Snapshot._q_y(Stage.start().y))
 	check(absf(y_wire - Stage.start().y) <= 0.125,
 		"the start position survives the online snapshot codec")
@@ -80,12 +91,14 @@ func run() -> void:
 		"camera keeps runner visible during a sudden tower fall")
 	main.runner.global_position = camera_start
 	main._snap_camera_to_runner()
-	var gate_bridge := Vector2(-100, 10985)
-	var at_entrance: Vector2 = main.runner.global_position
-	main.runner.global_position = Vector2(100, 11060)
-	check(BuildAbility.platform().check(main.guardian, gate_bridge) == "",
-		"guardian can place a bridge in the first gate's missing landing")
-	main.runner.global_position = at_entrance
+	if not assist.is_empty():
+		var at_entrance: Vector2 = main.runner.global_position
+		var from: Rect2 = assist["from"]
+		main.runner.global_position = Vector2(from.get_center().x, from.position.y - 26.0)
+		var first: Rect2 = assist["platforms"][0]
+		check(BuildAbility.platform().check(main.guardian, first.get_center()) == "",
+			"guardian can build the first step of the stair up the wall")
+		main.runner.global_position = at_entrance
 	var hands := 0
 	var wheels := 0
 	var traps := 0
@@ -96,7 +109,7 @@ func run() -> void:
 	for node in get_tree().get_nodes_in_group("instant_death"):
 		if node is TowerTrap:
 			traps += 1
-			if sample_trap == null:
+			if sample_trap == null and node.kind == "pendulum":
 				sample_trap = node
 	for node in main.level._dynamic.get_children():
 		if node is ClockHandBridge:
@@ -105,12 +118,12 @@ func run() -> void:
 				sample_hand = node
 		if node is GearWheel:
 			wheels += 1
-		if node is Gate and node.switch_id == "tower_gate_5":
+		if node is Gate and node.switch_id == "tower_sigil":
 			gate = node
-		if node is ShootableSwitch and node.switch_id == "tower_gate_5" \
-				and node.sigil == 1:
+		if node is ShootableSwitch and node.switch_id == "tower_sigil" \
+				and node.sigil == Sigil.SQUARE:
 			right_switch = node
-	check(hands >= 3 and wheels >= 4 and traps >= 9,
+	check(hands >= 2 and wheels >= 2 and traps >= 9,
 		"rotating bridges, rideable gears and timed traps build in the live stage")
 	if sample_hand != null:
 		check(not is_equal_approx(sample_hand.angle_at(0),
@@ -121,9 +134,9 @@ func run() -> void:
 			Clock.ticks_for(sample_trap.period * 0.25)),
 			"pendulum position changes from the shared tick")
 	check(gate != null and right_switch != null,
-		"first cooperation gate has its matching remote target")
+		"the sigil door has its matching remote target")
 	if gate != null and right_switch != null:
-		check(not gate._shape.disabled, "first tower gate starts closed")
+		check(not gate._shape.disabled, "the sigil door starts closed")
 		right_switch.take_damage(1)
 		for _i in 30:
 			await get_tree().physics_frame

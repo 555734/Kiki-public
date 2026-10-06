@@ -5,6 +5,11 @@ extends Enemy
 
 @export_enum("burrower", "slime", "bat", "beetle", "mushroom") var kind := "burrower"
 @export var patrol_half_width := 100.0
+## Fliers only: half-size of the box they dart about in, irregularly (see
+## Wander), instead of their figure-of-eight patrol. Zero keeps the patrol.
+@export var wander := Vector2.ZERO
+## Seconds per dart.
+@export var dart := 1.3
 
 var direction := -1
 var phase := 0.0
@@ -37,6 +42,16 @@ func _physics_process(delta: float) -> void:
 	# The cave is 24,000 px long; simulating every distant ground patrol would
 	# otherwise run dozens of move_and_slide calls and raycasts on every tick.
 	if not _near_runner():
+		return
+	if (kind == "bat" or kind == "beetle") and wander != Vector2.ZERO:
+		# On the stage clock, not on `phase`: a flier asleep off screen
+		# wakes where every other device says it is.
+		var was := global_position.x
+		global_position = _origin + Wander.offset(Clock.seconds_at(Clock.tick),
+			Wander.seed_of(_origin), wander, dart)
+		if absf(global_position.x - was) > 0.3:
+			direction = 1 if global_position.x > was else -1
+		_redraw_if_near()
 		return
 	if kind == "bat" or kind == "beetle":
 		var rate := 1.55 if kind == "bat" else 1.05

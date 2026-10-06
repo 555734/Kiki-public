@@ -321,6 +321,38 @@ func _test_double_jump() -> void:
 	hub.release_jump()
 	await _physics(120)
 
+## A tapped jump into a column of rising air. The release gravity that cuts a
+## tapped jump short stops at zero rather than pushing down, so if it outlived
+## the jump the column and the release would cancel out every tick and leave
+## the runner hanging in the air instead of rising.
+func _test_updraft_after_tapped_jump() -> void:
+	_current = "updraft after a tapped jump"
+	await _boot()
+	var r: Runner = main.runner
+	var hub: InputHub = main.input_hub
+	r.global_position = Vector2(-400, 300)
+	r.velocity = Vector2.ZERO
+	hub.move_axis = 0.0
+	hub.release_jump()
+	await _physics(30)
+	var floor_y := r.global_position.y
+	var column := Updraft.new()
+	column.runner = r
+	column.span = Vector2(180.0, 700.0)
+	column.global_position = Vector2(r.global_position.x, floor_y - 60.0)
+	main.level.add_child(column)
+	await _physics(2)
+	hub.press_jump()
+	await _physics(4)
+	hub.release_jump()
+	await _physics(70)
+	check(floor_y - r.global_position.y > Balance.RUNNER_JUMP_HEIGHT * 2.0,
+		"the column carries a tapped jump up (%.0fpx)" % (floor_y - r.global_position.y))
+	check(r.velocity.y < -Balance.UPDRAFT_RISE * 0.5,
+		"and is still lifting it (%.0f px/s)" % r.velocity.y)
+	column.queue_free()
+	await _physics(90)
+
 func _test_dash() -> void:
 	_current = "sprint"
 	await _boot()
