@@ -470,6 +470,16 @@ const RUNNER_COYOTE_TIME: float = 0.08
 ## Pressing jump a moment BEFORE landing still jumps, on landing.
 const RUNNER_JUMP_BUFFER: float = 0.10
 
+## A second jump in mid-air: pressing jump again while airborne. One per time
+## off the ground, refilled on landing. A little lower than a jump from the
+## ground, so the guardian's platforms still decide the long crossings.
+const RUNNER_AIR_JUMPS: int = 1
+const RUNNER_AIR_JUMP_HEIGHT: float = RUNNER_JUMP_HEIGHT * 0.85
+## A press this soon after leaving the ground is a thumb's stutter on the jump
+## button, not a second jump: it is dropped, and the first jump stays as short
+## as the release made it.
+const RUNNER_AIR_JUMP_DELAY: float = 0.12
+
 ## Sprint. Holding the button on the ground or in the air is a speed modifier;
 ## it never invokes the reserved burst state by itself.
 const RUNNER_SPRINT_ACCEL: float = RUNNER_RUN_SPEED / 0.21

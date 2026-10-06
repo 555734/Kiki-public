@@ -119,7 +119,7 @@ func _find_button(root: Node, contains: String) -> Button:
 
 ## One jump from a standing start on the opening plateau, run to landing.
 ## Returns how far it travelled and how high it got.
-func _measure_arc(sprint: bool, repress_sprint: bool) -> Dictionary:
+func _measure_arc(sprint: bool, repress_sprint: bool, air_jump: bool = false) -> Dictionary:
 	var r: Runner = main.runner
 	var hub: InputHub = main.input_hub
 	hub.release_jump()
@@ -143,6 +143,11 @@ func _measure_arc(sprint: bool, repress_sprint: bool) -> Dictionary:
 		# Re-pressing sprint at the apex must not replace the jump with a burst.
 		if repress_sprint and not dashed and not r.is_on_floor() and r.velocity.y >= 0.0:
 			hub.press_dash()
+			dashed = true
+		# The second jump, spent at the top of the first: the furthest it carries.
+		if air_jump and not dashed and not r.is_on_floor() and r.velocity.y >= 0.0:
+			hub.release_jump()
+			hub.press_jump()
 			dashed = true
 		if i > 4 and r.is_on_floor():
 			break

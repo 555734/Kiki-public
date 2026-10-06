@@ -69,6 +69,7 @@ func _run_all() -> void:
 	await guardian._test_aiming_at_an_enemy_kills_it()
 	await guardian._test_the_rifle_helps_you_aim()
 	await movement._test_runner_arc()
+	await movement._test_double_jump()
 	await movement._test_four_ways_to_change_direction()
 	await movement._test_dash()
 	await movement._test_stomp_and_damage()

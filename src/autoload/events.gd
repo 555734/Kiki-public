@@ -40,6 +40,8 @@ signal runner_landed_on_hologram(hologram: Node2D)
 ## only channel that tells the guardian "they jumped" without taking their eyes
 ## off the aim point is the one they hear.
 signal runner_jumped()
+## The runner jumped again in mid-air.
+signal runner_air_jumped(at: Vector2)
 signal runner_landed(hard: bool)
 ## The guardian caught a falling runner, and how late they left it. See
 ## Balance.RESCUE_TIERS -- this is the one place the difference between a good

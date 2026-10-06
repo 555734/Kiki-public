@@ -245,6 +245,81 @@ func _test_runner_arc() -> void:
 		"sprinting jumps further than walking (%.0f vs %.0f)" % [_reach["sprint"], reach])
 	print("  jump reach: walk %.0fpx, sprint %.0fpx, sprint re-pressed in air %.0fpx"
 		% [reach, sprint_arc["reach"], repeat_arc["reach"]])
+	var double_arc := await _measure_arc(true, false, true)
+	_reach["double"] = double_arc["reach"]
+	_reach["double_apex"] = double_arc["apex"]
+	check(float(double_arc["reach"]) > float(sprint_arc["reach"]),
+		"a second jump at the apex carries further (%.0f vs %.0f)"
+			% [double_arc["reach"], sprint_arc["reach"]])
+	print("  double jump: sprint reach %.0fpx, apex %.0fpx"
+		% [double_arc["reach"], double_arc["apex"]])
+
+## Jumping again in mid-air: once per jump, slightly lower than a jump from the
+## ground, refilled by landing -- and never handed to a runner who only walked
+## off an edge or was thrown by a spring.
+func _test_double_jump() -> void:
+	_current = "double jump"
+	await _boot()
+	var r: Runner = main.runner
+	var hub: InputHub = main.input_hub
+	r.global_position = Vector2(-400, 300)
+	r.velocity = Vector2.ZERO
+	hub.move_axis = 0.0
+	hub.release_jump()
+	await _physics(30)
+	check(r.is_on_floor() and r.air_jumps_left() == 0, "standing, there is no air jump to spend")
+	var floor_y := r.global_position.y
+	hub.press_jump()
+	await _physics(2)
+	check(r.air_jumps_left() == Balance.RUNNER_AIR_JUMPS, "a jump from the ground grants one air jump")
+	# Ride the first jump to its top, then jump again.
+	while r.velocity.y < 0.0:
+		await get_tree().physics_frame
+	var first_top := r.global_position.y
+	hub.release_jump()
+	await _physics(1)
+	hub.press_jump()
+	await _physics(2)
+	check(r.velocity.y < 0.0 and r.air_jumps_left() == 0, "pressing again in mid-air jumps again")
+	var top := r.global_position.y
+	for i in range(90):
+		await get_tree().physics_frame
+		top = minf(top, r.global_position.y)
+		if r.velocity.y >= 0.0:
+			break
+	var second_rise := first_top - top
+	check_range(second_rise / Balance.RUNNER_AIR_JUMP_HEIGHT, 0.85, 1.15,
+		"and the second jump rises about RUNNER_AIR_JUMP_HEIGHT (%.0fpx)" % second_rise)
+	check(floor_y - top > Balance.RUNNER_JUMP_HEIGHT * 1.5,
+		"two jumps go well above one (%.0fpx)" % (floor_y - top))
+	# A third press does nothing.
+	hub.release_jump()
+	await _physics(1)
+	var falling_before := r.velocity.y
+	hub.press_jump()
+	await _physics(2)
+	check(r.velocity.y >= falling_before, "a third press in mid-air does nothing")
+	hub.release_jump()
+	for i in range(180):
+		await get_tree().physics_frame
+		if r.is_on_floor():
+			break
+	await _physics(2)
+	check(r.is_on_floor() and r.air_jumps_left() == 0, "landing takes the unspent air jump away")
+	hub.press_jump()
+	await _physics(2)
+	check(r.air_jumps_left() == Balance.RUNNER_AIR_JUMPS, "and the next jump grants it again")
+	hub.release_jump()
+	await _physics(90)
+	# Thrown by a spring: no air jump of the runner's own.
+	r.launch(Runner.launch_velocity(1))
+	await _physics(3)
+	var thrown := r.velocity.y
+	hub.press_jump()
+	await _physics(2)
+	check(r.air_jumps_left() == 0 and r.velocity.y >= thrown, "a launch does not grant an air jump")
+	hub.release_jump()
+	await _physics(120)
 
 func _test_dash() -> void:
 	_current = "sprint"

@@ -35,6 +35,10 @@ var _jump_press_release_sequence: int = 0
 var _dash_timer: float = 0.0
 var _dash_cooldown: float = 0.0
 var _air_dashes: int = 0
+## Mid-air jumps left (Balance.RUNNER_AIR_JUMPS). Granted by a jump from the
+## ground or a ledge, spent by a wall kick, and gone on landing -- so walking
+## off an edge and pressing late is still not a jump.
+var _air_jumps: int = 0
 var _invuln: float = 0.0
 var _impact_speed: float = 0.0
 var _hurt_timer: float = 0.0
@@ -320,6 +324,8 @@ func _tick_timers(delta: float) -> void:
 		# top of it. An external take-off owns this frame.
 		_coyote = 0.0 if _external_takeoff_pending else Balance.RUNNER_COYOTE_TIME
 		_air_dashes = Balance.RUNNER_AIR_DASHES
+		if velocity.y >= 0.0:
+			_air_jumps = 0
 		_airborne_time = 0.0
 		# Do not erase launch momentum on the same tick a launch starts upward.
 		if velocity.y >= 0.0:
@@ -543,6 +549,8 @@ func _process_normal(delta: float) -> void:
 		_jump_buffer = 0.0
 		_wall_buffer = 0.0
 		_begin_player_jump(press_sequence)
+		# A wall kick spends the air jump: it is the second jump already.
+		_air_jumps = 0
 		Events.runner_wall_jumped.emit(global_position, int(_wall_normal))
 		Events.runner_jumped.emit()
 		_set_state_from_motion()
@@ -555,9 +563,41 @@ func _process_normal(delta: float) -> void:
 		_wall_buffer = 0.0
 		_coyote = 0.0
 		_begin_player_jump(press_sequence)
+		_air_jumps = Balance.RUNNER_AIR_JUMPS
 		Events.runner_jumped.emit()
+	elif _jump_buffer > 0.0 and _air_jumps > 0 and not is_on_floor() \
+			and not _external_takeoff_pending and _pound_phase == 0:
+		if _airborne_time < Balance.RUNNER_AIR_JUMP_DELAY:
+			_jump_buffer = 0.0
+		elif not _landing_within_buffer():
+			_start_air_jump()
 
 	_set_state_from_motion()
+
+## The second jump: pressing jump again in mid-air. It replaces whatever the
+## runner was doing vertically -- rising or falling -- with a fresh, slightly
+## lower jump, and it is shaped by holding and releasing like any other.
+func _start_air_jump() -> void:
+	var press_sequence := _buffer_press_release_sequence
+	_air_jumps -= 1
+	_reset_jump_chain()
+	velocity.y = -sqrt(2.0 * Balance.RUNNER_GRAVITY * Balance.RUNNER_AIR_JUMP_HEIGHT)
+	_jump_buffer = 0.0
+	_wall_buffer = 0.0
+	_begin_player_jump(press_sequence)
+	Events.runner_air_jumped.emit(global_position)
+	Events.runner_jumped.emit()
+
+## A press just before touching down is still a jump from the ground, taken on
+## landing (RUNNER_JUMP_BUFFER) -- not a second jump spent a moment early.
+func _landing_within_buffer() -> bool:
+	if velocity.y <= 0.0:
+		return false
+	return test_move(global_transform,
+		Vector2(0.0, velocity.y * Balance.RUNNER_JUMP_BUFFER + 2.0))
+
+func air_jumps_left() -> int:
+	return _air_jumps
 
 ## Crouching changes both the solid body and hurtbox, anchored at the feet.
 func _set_crouched(value: bool) -> void:
@@ -749,6 +789,7 @@ func _process_hang(delta: float) -> void:
 		velocity = Vector2(float(facing) * Balance.RUNNER_RUN_SPEED * 0.55,
 			Balance.RUNNER_JUMP_VELOCITY)
 		_begin_player_jump(press_sequence)
+		_air_jumps = Balance.RUNNER_AIR_JUMPS
 		_set_state(State.JUMP)
 		Events.runner_jumped.emit()
 		return
@@ -957,6 +998,7 @@ func launch(velocity_out: Vector2) -> void:
 	_coyote = 0.0
 	_left_floor_at = -999.0
 	_air_dashes = Balance.RUNNER_AIR_DASHES
+	_air_jumps = 0
 	_launched = true
 	_begin_external_takeoff()
 	_set_state(State.JUMP)
@@ -998,6 +1040,7 @@ func respawn(at: Vector2) -> void:
 	_invuln = Balance.RUNNER_HURT_INVULN
 	_dash_cooldown = 0.0
 	_air_dashes = Balance.RUNNER_AIR_DASHES
+	_air_jumps = 0
 	_hologram_credit = null
 	_set_state(State.IDLE)
 	Events.runner_damaged.emit(hp, Balance.RUNNER_MAX_HP)
