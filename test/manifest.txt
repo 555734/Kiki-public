@@ -16,6 +16,7 @@ test/arena_motion_probe.tscn       gated
 test/arena_rules_probe.tscn        gated
 test/cave_stage_probe.tscn         gated
 test/chaser_probe.tscn             gated
+test/climb_probe.tscn              gated
 test/check_scripts.tscn            gated
 test/coop_room_probe.tscn          gated
 test/desert_stage_probe.tscn       gated

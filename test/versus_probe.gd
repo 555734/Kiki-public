@@ -34,6 +34,8 @@ func _ready() -> void:
 	_test_cover()
 	_test_enemies()
 	_test_winning()
+	_test_the_clock()
+	_test_the_record()
 
 	print("versus probe: %d checks failed" % failures.size())
 	if failures.is_empty():
@@ -363,9 +365,14 @@ func _test_many_sides() -> void:
 	check(mirrored, "and they come in mirrored pairs")
 	check(closest > 200.0, "and nobody starts on top of anybody (closest %.0f)" % closest)
 
+	var loose: Array[int] = []
+	for n in range(2, 9):
+		loose.append(int(VersusRules.numbers_for(VersusRoster.RoomMode.FREE_FOR_ALL, n)["on_field"]))
+	check(loose == [1, 1, 2, 2, 3, 3, 3] and VersusRules.ON_FIELD == 1,
+		"2v2 keeps one loose star; a free-for-all has 1 for 2-3 people, 2 for 4-5, 3 for 6-8 (%s)" % str(loose))
+	check(int(VersusRules.numbers_for(VersusRoster.RoomMode.TEAM_SPLIT, 4)["time_limit"]) \
+			== 3 * 60 * 60, "a match lasts three minutes")
 	var numbers := VersusRules.numbers_for(VersusRoster.RoomMode.FREE_FOR_ALL, 8)
-	check(int(numbers["on_field"]) == 1 and VersusRules.ON_FIELD == 1,
-		"one star on the field at a time, whatever the head count")
 	var m := VersusMatch.new()
 	m.setup(world, 777, 8, numbers)
 	var seats: Array = []
@@ -917,6 +924,82 @@ func _test_winning() -> void:
 	_give(m, 1, [VersusRules.WIN_AT, VersusRules.WIN_AT + 1])
 	m.step(seats)
 	check(m.winner == was, "and a decided match is not re-decided")
+
+## Three minutes, then the most stars wins; level, and it plays on until
+## somebody is ahead.
+func _test_the_clock() -> void:
+	_current = "the clock"
+	var m := _fresh()
+	m.time_limit = 120
+	var seats := _seats()
+	# Parked far from every star point, so nothing is picked up by accident.
+	_park(seats, 0, Vector2(200.0, 377.0))
+	_park(seats, 1, Vector2(3000.0, 377.0))
+	m.on_field = 0
+	_give(m, 0, [0, 1])
+	_give(m, 1, [2])
+	for t in range(119):
+		m.step(seats)
+	check(m.phase == VersusMatch.Phase.PLAYING and m.time_left() == 1,
+		"the clock runs down (%d left)" % m.time_left())
+	m.step(seats)
+	check(m.phase == VersusMatch.Phase.OVER and m.winner == 0,
+		"at time, the side holding more stars wins (2 - 1)")
+	var won := false
+	for e in m.events:
+		won = won or (String(e["kind"]) == "win" and String(e.get("how", "")) == "time")
+	check(won, "and says it was won on time")
+
+	var tie := _fresh()
+	tie.time_limit = 60
+	tie.on_field = 0
+	_give(tie, 0, [0])
+	_give(tie, 1, [1])
+	var said := false
+	for t in range(90):
+		tie.step(seats)
+		for e in tie.events:
+			said = said or String(e["kind"]) == "sudden_death"
+	check(tie.phase == VersusMatch.Phase.PLAYING and tie.in_sudden_death() and said,
+		"a tie at time goes to sudden death")
+	_give(tie, 1, [2])
+	tie.step(seats)
+	check(tie.phase == VersusMatch.Phase.OVER and tie.winner == 1,
+		"and the first side ahead wins it")
+
+## What the result screen and the corner log read: who took, hit and lost
+## what, and the last few hits with who did them and how.
+func _test_the_record() -> void:
+	_current = "the record"
+	var m := _fresh()
+	var seats := _seats()
+	_park(seats, 0, Vector2(1500.0, 377.0))
+	_park(seats, 1, Vector2(1580.0, 377.0))
+	m.step(seats)
+	_clear_field(m)
+	_give(m, 1, [5])
+	check(m.shoot(0, Vector2(1580.0, 377.0)) == 1, "a shot lands")
+	m.step(seats)
+	var last: Dictionary = m.hit_log[-1] if not m.hit_log.is_empty() else {}
+	check(int(last.get("victim", -1)) == 1 and int(last.get("by", -1)) == 0
+			and int(last.get("how", -1)) == VersusMatch.How.SHOT,
+		"the log says P1 shot P2 (%s)" % str(last))
+	check(int(m.stats[0]["hits"]) == 1 and int(m.stats[1]["lost"]) == 1,
+		"and the tally has the hit and the lost star (%s)" % str(m.stats))
+	# Whoever ends up holding the loose star is credited with taking it.
+	var taken_before := int(m.stats[0]["taken"]) + int(m.stats[1]["taken"])
+	for t in range(80):
+		m.step(seats)
+	check(int(m.stats[0]["taken"]) + int(m.stats[1]["taken"]) > taken_before,
+		"picking a star up counts as taking it")
+	for i in range(VersusMatch.HIT_LOG_SIZE + 3):
+		m._log(0, 1, VersusMatch.How.STOMP)
+	check(m.hit_log.size() == VersusMatch.HIT_LOG_SIZE, "the log keeps only the last few")
+	var wire := VersusProtocol.read_snapshot(VersusProtocol.snapshot(1, 1, 0, [], [], [],
+		0, 0, 0, 3, 0, 0, m.hit_log, m.stats))
+	check(wire["hit_log"] == m.hit_log and (wire["stats"] as Array).size() == 2
+			and int(wire["stats"][0]["hits"]) == int(m.stats[0]["hits"]),
+		"and both travel in the snapshot unchanged")
 
 # ------------------------------------------------------------------- helpers
 func _world() -> ArenaStage:

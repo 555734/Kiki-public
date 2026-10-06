@@ -26,6 +26,12 @@ const ON_FIELD: int = 1
 ## Between one coin being taken and the next appearing.
 const SPAWN_GAP_TICKS: int = 45
 
+## How long a match lasts: three minutes of play (the countdown not counted).
+## When it runs out, whoever holds the most stars wins. A tie plays on as
+## sudden death, and it ends the moment one side holds more than every other,
+## so a pair of evenly matched players cannot trade stars forever.
+const MATCH_TICKS: int = 3 * 60 * 60
+
 ## Nobody may take a coin for this long after it appears, or after it is
 ## dropped; the fighter who just lost it waits longer. Straight from the arena
 ## rules -- these were the numbers that stopped a held attack button from
@@ -73,16 +79,24 @@ const FFA_WIN_AT: int = 7
 ## More stars in the pool than 2v2: with eight hands holding some, seven has
 ## to stay reachable for one of them.
 const FFA_COIN_TOTAL: int = 20
-## One loose star whatever the head count, as in 2v2.
-static func ffa_on_field(_players: int) -> int:
-	return 1
+## Loose stars at once, by head count: one for two or three, as in 2v2, so a
+## small room stays a race for the same star; two for four or five and three
+## for six to eight, so a full room does not leave half of it with nothing
+## within reach.
+static func ffa_on_field(players: int) -> int:
+	if players <= 3:
+		return 1
+	if players <= 5:
+		return 2
+	return 3
 
 ## The numbers a match is set up with, for a mode and a head count.
 static func numbers_for(room_mode: int, players: int) -> Dictionary:
 	if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
 		return {"win_at": FFA_WIN_AT, "coin_total": FFA_COIN_TOTAL,
-			"on_field": ffa_on_field(players)}
-	return {"win_at": WIN_AT, "coin_total": COIN_TOTAL, "on_field": ON_FIELD}
+			"on_field": ffa_on_field(players), "time_limit": MATCH_TICKS}
+	return {"win_at": WIN_AT, "coin_total": COIN_TOTAL, "on_field": ON_FIELD,
+		"time_limit": MATCH_TICKS}
 
 ## One colour per chair in a free-for-all. Picked to stay apart from each
 ## other and from 1-1's green and sky: blue, orange, pink, yellow, violet,

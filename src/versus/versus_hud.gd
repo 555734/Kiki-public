@@ -38,15 +38,22 @@ func _draw() -> void:
 	if arena == null:
 		return
 	_scoreboard()
+	_clock()
 	_map()
 	if arena.waiting():
 		_waiting()
 		return
 	_edge_arrows()
+	_hit_lines()
 	var broken: String = arena.link_error()
 	if not broken.is_empty():
 		_broken(broken)
 		return
+	if arena.reconnecting():
+		_banner(TranslationServer.translate("つうしんが 切れました。さいせつぞく中…"), COL_SUDDEN)
+	var away: Array[String] = arena.away_names()
+	if not away.is_empty():
+		_banner(TranslationServer.translate("つうしん待ち: %s") % ", ".join(away), COL_DIM, 1)
 	if arena.countdown_ticks() > 0:
 		_countdown()
 	elif arena.phase() == VersusMatch.Phase.OVER:
@@ -80,6 +87,7 @@ func _scoreboard() -> void:
 	var w := _view().x
 	var panel := Rect2(Vector2(w * 0.5 - 330.0, 8.0), Vector2(660.0, 66.0))
 	draw_rect(panel, COL_PANEL)
+	_board_bottom = panel.end.y
 
 	for team in range(2):
 		var colour: Color = arena.colour_of(team)
@@ -130,6 +138,7 @@ func _ranking() -> void:
 	var panel := Rect2(Vector2(w * 0.5 - col_w, 6.0),
 		Vector2(col_w * 2.0, 24.0 + 24.0 * float(mini(rows.size(), 4))))
 	draw_rect(panel, COL_PANEL)
+	_board_bottom = panel.end.y
 	draw_string(font, panel.position + Vector2(0.0, 18.0),
 		TranslationServer.translate("スターを さきに %d こ") % VersusRules.FFA_WIN_AT,
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 14, COL_DIM)
@@ -152,6 +161,84 @@ func _ranking() -> void:
 				_star(at, 8.0, COL_STAR)
 			else:
 				_star(at, 8.0, Color(1, 1, 1, 0.10), Color(1, 1, 1, 0.30))
+
+## How long a "who did what" line stays up, in frames.
+const HIT_LINE_FRAMES: int = 240
+## seq -> the frame it was first drawn, for the lines in the corner.
+var _hit_seen: Dictionary = {}
+
+## Who just lost a star and to whom, the last few, down the left: one short
+## line each, gone after four seconds.
+func _hit_lines() -> void:
+	var now := Engine.get_physics_frames()
+	var font := _font()
+	var lines: Array = []
+	for h in arena.hit_log():
+		var seq := int(h["seq"])
+		if not _hit_seen.has(seq):
+			_hit_seen[seq] = now
+		if now - int(_hit_seen[seq]) < HIT_LINE_FRAMES:
+			lines.append(h)
+	if _hit_seen.size() > 64:
+		_hit_seen.clear()
+	var y := _view().y * 0.36
+	for h in lines:
+		var victim := int(h["victim"])
+		var by := int(h["by"])
+		var text: String = ""
+		match int(h["how"]):
+			VersusMatch.How.SHOT:
+				text = TranslationServer.translate("%s が %s を 射撃") % [arena.side_name(by), arena.side_name(victim)]
+			VersusMatch.How.STOMP:
+				text = TranslationServer.translate("%s が %s を ふみつけ") % [arena.side_name(by), arena.side_name(victim)]
+			VersusMatch.How.BUMP:
+				text = TranslationServer.translate("%s が ぶつかった") % arena.side_name(victim)
+			VersusMatch.How.ENEMY:
+				text = TranslationServer.translate("%s が 敵に やられた") % arena.side_name(victim)
+			_:
+				text = TranslationServer.translate("%s が 落ちた") % arena.side_name(victim)
+		var panel := Rect2(Vector2(10.0, y), Vector2(250.0, 24.0))
+		draw_rect(panel, COL_PANEL)
+		draw_circle(panel.position + Vector2(12.0, 12.0), 6.0, arena.colour_of(victim))
+		draw_string(font, panel.position + Vector2(24.0, 17.0), text,
+			HORIZONTAL_ALIGNMENT_LEFT, 222.0, 14, COL_INK)
+		y += 28.0
+
+## One line across the middle of the top of the screen, under the clock.
+## `row` stacks a second one under the first.
+func _banner(text: String, colour: Color, row: int = 0) -> void:
+	var font := _font()
+	var panel := Rect2(Vector2(_view().x * 0.5 - 260.0, _board_bottom + 38.0 + 30.0 * float(row)),
+		Vector2(520.0, 26.0))
+	draw_rect(panel, COL_PANEL)
+	draw_string(font, panel.position + Vector2(0.0, 19.0), text,
+		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 15, colour)
+
+## Where the scoreboard ends, so the clock can sit under it.
+var _board_bottom: float = 74.0
+const COL_SUDDEN := Color(1.0, 0.42, 0.36)
+
+## The match clock, under the scoreboard: the minutes and seconds left, red
+## for the last ten, and サドンデス once time is up with nobody ahead.
+func _clock() -> void:
+	var left: int = arena.time_left()
+	if left < 0:
+		return
+	var font := _font()
+	var panel := Rect2(Vector2(_view().x * 0.5 - 70.0, _board_bottom + 4.0), Vector2(140.0, 28.0))
+	if arena.sudden_death():
+		panel = Rect2(Vector2(_view().x * 0.5 - 110.0, _board_bottom + 4.0), Vector2(220.0, 28.0))
+		draw_rect(panel, COL_PANEL)
+		draw_rect(panel, COL_SUDDEN, false, 2.0)
+		draw_string(font, panel.position + Vector2(0.0, 21.0),
+			TranslationServer.translate("サドンデス！ 次にリードした方の かち"),
+			HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 14, COL_SUDDEN)
+		return
+	var seconds := int(ceil(float(left) / 60.0))
+	draw_rect(panel, COL_PANEL)
+	draw_string(font, panel.position + Vector2(0.0, 22.0),
+		"%d:%02d" % [seconds / 60, seconds % 60], HORIZONTAL_ALIGNMENT_CENTER,
+		panel.size.x, 20, COL_SUDDEN if seconds <= 10 else COL_INK)
 
 ## The whole arena in miniature, top right: the floors, every runner and every
 ## loose star. The field is small enough to fit in one glance, and this is the
@@ -274,7 +361,30 @@ func _waiting() -> void:
 		TranslationServer.translate("ひとり1キャラ。右がわを タップで 射撃、頭を 踏んでも こうげき") if _ffa()
 			else TranslationServer.translate("ランナーは スターを あつめて、ガーディアンは 射撃で たすける"),
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 14, COL_DIM)
+	_hint(Vector2(panel.position.x, panel.end.y + 30.0), panel.size.x)
 	_debug_trace()
+
+## The rules nobody reads anywhere else, one at a time while people wait:
+## on the waiting screen and under the countdown.
+const HINTS: Array[String] = [
+	"もっているスターの数で 勝負。当たると 1こ 落とす",
+	"足場を つくると 上からの 射撃を ふせげる",
+	"ぶつかると おたがいに スターを 1こ 落とす",
+	"穴に落ちると もっているスターを ぜんぶ 落とす",
+	"頭を ふみつけても 当たり。敵も ふめば たおせる",
+	"3分たったら スターの多い方の かち。同点なら サドンデス",
+]
+
+## Which hint is showing: a new one every five seconds.
+static func hint_now(frame: int) -> String:
+	return HINTS[(frame / 300) % HINTS.size()]
+
+func _hint(at: Vector2, width: float) -> void:
+	var text := TranslationServer.translate(hint_now(Engine.get_physics_frames()))
+	var panel := Rect2(at - Vector2(0.0, 20.0), Vector2(width, 28.0))
+	draw_rect(panel, COL_PANEL)
+	draw_string(_font(), at, TranslationServer.translate("ヒント: ") + text,
+		HORIZONTAL_ALIGNMENT_CENTER, width, 15, COL_STAR)
 
 ## Eight chairs in two rows of four: who is here, in their colour.
 func _ffa_seats(panel: Rect2, lines: Array[Dictionary]) -> void:
@@ -336,11 +446,13 @@ func _countdown() -> void:
 	draw_circle(centre, 70.0, COL_PANEL)
 	draw_string(font, centre + Vector2(-70.0, 28.0), str(n),
 		HORIZONTAL_ALIGNMENT_CENTER, 140.0, 80, COL_STAR)
+	_hint(centre + Vector2(-300.0, 116.0), 600.0)
 
 func _result() -> void:
 	var font := _font()
-	var panel := Rect2(Vector2(_view().x * 0.5 - 250.0, _view().y * 0.5 - 110.0),
-		Vector2(500.0, 180.0))
+	var table: Array = _result_rows()
+	var panel := Rect2(Vector2(_view().x * 0.5 - 250.0, _view().y * 0.5 - 110.0 - 12.0 * float(table.size())),
+		Vector2(500.0, 180.0 + 24.0 * float(table.size()) + (28.0 if not table.is_empty() else 0.0)))
 	draw_rect(panel, COL_PANEL)
 	draw_rect(panel, COL_DIM, false, 2.0)
 	var who: int = arena.winner()
@@ -356,8 +468,54 @@ func _result() -> void:
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 40, tint)
 	draw_string(font, panel.position + Vector2(0.0, 118.0), line,
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 28, COL_INK)
+	if arena.won_on_time():
+		draw_string(font, panel.position + Vector2(0.0, 30.0),
+			TranslationServer.translate("時間切れ・スターの数で決着"),
+			HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 15, COL_DIM)
 	var note := "ホストが「もういちど」を押すと 再戦します" if not arena.is_host() \
 		else "「もういちど」で 同じメンバーで再戦"
-	draw_string(font, panel.position + Vector2(0.0, 156.0),
+	if not table.is_empty():
+		_result_table(panel.position + Vector2(20.0, 146.0), table)
+	draw_string(font, panel.position + Vector2(0.0, panel.size.y - 16.0),
 		TranslationServer.translate(note),
 		HORIZONTAL_ALIGNMENT_CENTER, panel.size.x, 16, COL_DIM)
+
+## Who did what, one row per side in the match, best first: stars taken,
+## hits landed, stars lost, enemies down.
+func _result_rows() -> Array:
+	var stats: Array = arena.match_stats()
+	var rows: Array = []
+	for side in range(stats.size()):
+		if _ffa():
+			var taken := false
+			for line in arena.seat_lines():
+				taken = taken or (int(line["team"]) == side and bool(line["taken"]))
+			if not taken:
+				continue
+		elif side > 1:
+			continue
+		rows.append({"side": side, "held": arena.score(side), "t": stats[side]})
+	rows.sort_custom(func(a, b): return int(a["held"]) > int(b["held"]))
+	return rows
+
+func _result_table(at: Vector2, rows: Array) -> void:
+	var font := _font()
+	var heads := ["", "スター", "とった", "当てた", "落とした", "敵"]
+	var xs := [0.0, 120.0, 190.0, 260.0, 330.0, 410.0]
+	for k in range(heads.size()):
+		draw_string(font, at + Vector2(xs[k], 0.0), TranslationServer.translate(heads[k]),
+			HORIZONTAL_ALIGNMENT_LEFT, 80.0, 13, COL_DIM)
+	for i in range(rows.size()):
+		var row: Dictionary = rows[i]
+		var side := int(row["side"])
+		var t: Dictionary = row["t"]
+		var y := 24.0 * float(i + 1)
+		draw_circle(at + Vector2(6.0, y - 5.0), 6.0, arena.colour_of(side))
+		var name: String = arena.side_name(side)
+		if side == arena.local_team:
+			name += TranslationServer.translate("（あなた）")
+		draw_string(font, at + Vector2(16.0, y), name, HORIZONTAL_ALIGNMENT_LEFT, 104.0, 15, COL_INK)
+		var values := [int(row["held"]), int(t["taken"]), int(t["hits"]), int(t["lost"]), int(t["enemies"])]
+		for k in range(values.size()):
+			draw_string(font, at + Vector2(xs[k + 1], y), str(values[k]),
+				HORIZONTAL_ALIGNMENT_LEFT, 60.0, 15, COL_INK)

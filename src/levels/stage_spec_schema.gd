@@ -3,7 +3,7 @@ extends RefCounted
 ## Accepted data keys mirror the builder and gimmick from_spec readers.
 ## Keep defaults optional; position/type are required for placed entities.
 const ENEMIES := {
-	"cave_enemy": ["kind", "patrol"],
+	"cave_enemy": ["kind", "patrol", "wander", "dart"],
 	"desert_enemy": ["kind", "patrol"],
 	"chaser": ["speed", "activation", "spawn_distance"],
 	"sky_pursuer": ["activation", "delay", "speed", "catchup", "stun", "direction"],
@@ -12,7 +12,7 @@ const ENEMIES := {
 	"flyer": ["patrol"],
 	"shieldbearer": [],
 	"keeper": ["gate", "home"],
-	"mine": ["bob", "period", "phase"],
+	"mine": ["bob", "period", "phase", "wander", "dart"],
 	"seedling": ["reach", "period", "phase"],
 	"golem": ["patrol", "period", "phase"],
 	"turret": ["aim", "burst"],
@@ -27,8 +27,8 @@ const GIMMICKS := {
 	"tower_trap": ["kind", "length", "travel", "period", "phase", "facing"],
 	"blink": ["span", "beat", "colour", "phase", "one_way"],
 	"conveyor": ["span", "speed", "flip", "dir", "phase", "one_way"],
-	"warp": ["exit", "size"],
-	"warp_exit": ["exit", "size"],
+	"warp": ["exit", "size", "mark"],
+	"warp_exit": ["exit", "size", "mark"],
 	"crumble": ["span", "one_way"],
 	"laser": ["dir", "length"],
 	"switch": ["id", "hold", "sigil"],

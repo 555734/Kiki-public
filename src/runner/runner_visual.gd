@@ -17,6 +17,9 @@ var _spin: float = 0.0
 var _spin_active: bool = false
 var _was_pounding: bool = false
 var _was_kicking: bool = false
+## Running past plain sprint speed on the ground: second gear. Read from the
+## velocity, so a guest's puppet of the runner shows it too.
+var _in_top_gear: bool = false
 ## Short trail of where the body was, for dash and wall-kick afterimages.
 var _trail: Array = []
 var _trail_left: float = 0.0
@@ -83,6 +86,13 @@ func _process(delta: float) -> void:
 		_puff(3, 1.0)
 		_trail_left = 0.22
 	_was_kicking = kicking
+	var top_gear := not airborne and speed > Runner.sprint_cap() + 12.0
+	if top_gear and not _in_top_gear:
+		_puff(4, 1.3, Vector2(-float(runner.facing) * 10.0, 0.0))
+		_trail_left = 0.18
+	if top_gear and fmod(_phase, 0.6) < delta * 6.0:
+		_puff(1, 0.7, Vector2(-float(runner.facing) * 12.0, 0.0))
+	_in_top_gear = top_gear
 	if runner.state == Runner.State.DASH:
 		_trail_left = 0.12
 	if _wall_sliding() and fmod(_phase, 0.5) < delta * 2.5:

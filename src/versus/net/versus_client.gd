@@ -52,6 +52,15 @@ var seen_world: bool = false
 var stale_dropped: int = 0
 
 var _hello_every: int = 0
+## Picked once and kept for as long as this client lives, so that a dropped
+## link that comes back is recognised by the host and given its seat again.
+var token: int = 0
+var _seen_reconnects: int = 0
+## Which seats the host is waiting on after their link dropped (bit per seat).
+var away_mask: int = 0
+## The host's VersusMatch.hit_log, and its stats once the match is over.
+var hit_log: Array = []
+var stats: Array = []
 
 func start(link: VersusTransport, wanted_seat: int = -1,
 		selected_mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> void:
@@ -74,6 +83,9 @@ func start(link: VersusTransport, wanted_seat: int = -1,
 	runners.clear()
 	stale_dropped = 0
 	_hello_every = 0
+	if token == 0:
+		token = (randi() & 0x7FFFFFFF) | 1
+	_seen_reconnects = link.reconnects
 	diagnostic.emit("CLIENT start mode=%d wanted_seat=%d" % [room_mode, wanted_seat])
 	_say_hello(wanted_seat)
 
@@ -83,11 +95,18 @@ func _say_hello(wanted_seat: int) -> void:
 	transport.send_to(VersusTransport.HOST_PEER,
 		VersusTransport.Channel.CONTROL,
 		VersusTransport.Reliability.RELIABLE,
-		VersusProtocol.hello(wanted_seat, room_mode))
+		VersusProtocol.hello(wanted_seat, room_mode, token))
 
 ## One tick. `local` is this machine's own runner as its own scene sees it, or
 ## null for a guardian.
 func step(local, wanted_seat: int = -1) -> void:
+	if transport.reconnects != _seen_reconnects:
+		# The link dropped and came back: a new connection the host has not
+		# met. Say hello again, with the same token and the seat we had.
+		_seen_reconnects = transport.reconnects
+		connected = false
+		_hello_every = 29
+		diagnostic.emit("RECONNECTED: saying hello again for seat %d" % seat)
 	_take_post()
 
 	if not connected:
@@ -108,6 +127,14 @@ func step(local, wanted_seat: int = -1) -> void:
 			VersusProtocol.input(seat, world_tick, s.position, s.velocity,
 				s.facing, s.alive, s.can_act, s.invulnerable, false, 0,
 				s.strike_seq))
+
+## Leaving on purpose: tells the host to free the seat now rather than hold
+## it for a guest who might come back.
+func leave() -> void:
+	if transport == null or seat < 0:
+		return
+	transport.send_to(VersusTransport.HOST_PEER, VersusTransport.Channel.CONTROL,
+		VersusTransport.Reliability.RELIABLE, VersusProtocol.bye(seat))
 
 ## Other players' platforms (and their removals), as relayed by the host,
 ## for the scene to build.
@@ -224,6 +251,10 @@ func _absorb(payload: PackedByteArray) -> void:
 	epoch = next_epoch
 	countdown = next_countdown
 	seat_mask = int(s["seat_mask"])
+	away_mask = int(s["away_mask"])
+	hit_log = s["hit_log"]
+	if not (s["stats"] as Array).is_empty() or next_phase != VersusMatch.Phase.OVER:
+		stats = s["stats"]
 	enemy_mask = int(s["enemy_mask"])
 	world_tick = next_tick
 	phase = next_phase

@@ -177,6 +177,15 @@ const RUNNER_RUN_SPEED: float = 5.7 * B
 ## Sprinting, as a multiplier on the above. 8.6 blocks a second.
 const RUNNER_SPRINT_MULTIPLIER: float = 1.5
 
+## Second gear: after this long flat out at sprint speed on the ground, the
+## sprint cap rises by RUNNER_TOP_GEAR_MULTIPLIER, reached over
+## RUNNER_TOP_GEAR_RAMP. Stopping, turning, a wall, a hurt or a crouch drop it.
+## Jump HEIGHT never sees it (ground_jump_height clamps at the sprint speed);
+## only the distance a long run-up carries does.
+const RUNNER_TOP_GEAR_DELAY: float = 1.5
+const RUNNER_TOP_GEAR_MULTIPLIER: float = 1.2
+const RUNNER_TOP_GEAR_RAMP: float = 0.3
+
 ## How long it takes to reach full speed, and to stop from it. Written as times
 ## because that is what a thumb feels; the accelerations follow.
 const RUNNER_TIME_TO_TOP_SPEED: float = 0.15
@@ -469,6 +478,16 @@ const LEDGE_HEAD_ROOM: float = LEDGE_MIN_FALL_SPEED * LEDGE_CATCH_WINDOW * 1.7
 const RUNNER_COYOTE_TIME: float = 0.08
 ## Pressing jump a moment BEFORE landing still jumps, on landing.
 const RUNNER_JUMP_BUFFER: float = 0.10
+
+## A second jump in mid-air: pressing jump again while airborne. One per time
+## off the ground, refilled on landing. A little lower than a jump from the
+## ground, so the guardian's platforms still decide the long crossings.
+const RUNNER_AIR_JUMPS: int = 1
+const RUNNER_AIR_JUMP_HEIGHT: float = RUNNER_JUMP_HEIGHT * 0.85
+## A press this soon after leaving the ground is a thumb's stutter on the jump
+## button, not a second jump: it is dropped, and the first jump stays as short
+## as the release made it.
+const RUNNER_AIR_JUMP_DELAY: float = 0.12
 
 ## Sprint. Holding the button on the ground or in the air is a speed modifier;
 ## it never invokes the reserved burst state by itself.

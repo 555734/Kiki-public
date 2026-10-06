@@ -1,6 +1,6 @@
 extends Node
 ## 「1台で ためす」 on a phone: one player on touch controls -- move, jump,
-## co-op platforms and the co-op rifle -- against a practice partner who stands still. The desktop
+## co-op platforms and the co-op rifle -- against the game's practice partner (VersusCpu). The desktop
 ## version (two players on one keyboard) is versus_play_probe's.
 
 class TouchSolo extends "res://src/versus/versus_main.gd":
@@ -30,6 +30,9 @@ func _ready() -> void:
 	view.world_2d = World2D.new()
 	add_child(view)
 	scene = TouchSolo.new()
+	# The checks below set scenes up with P2 standing where it is put; the
+	# game's own partner has its section at the end.
+	scene.cpu_enabled = false
 	view.add_child(scene)
 	await _ticks(60)
 	check(scene.touch_solo and scene.controls != null and scene.guardian != null,
@@ -91,7 +94,7 @@ func _ready() -> void:
 	_touch(1, jump_at, false)
 	await _ticks(40)
 	check(partner.global_position.distance_to(partner_at) < 4.0,
-		"and the practice partner stands still")
+		"and the partner stands still while it is switched off")
 
 	# A platform: 1-1's platform tool is chosen to begin with; trace a line
 	# on the right of the screen and the co-op hologram appears there.
@@ -198,6 +201,7 @@ func _ready() -> void:
 	# Counted by the arena: Audio.last_key may already be a landing by now.
 	check(scene.star_sounds_played > sounds_before, "and plays the coin sound")
 
+	await _test_the_partner()
 	view.queue_free()
 	await get_tree().process_frame
 	print("versus solo probe: %d checks failed" % failures.size())
@@ -230,6 +234,29 @@ func _drag(finger: int, from: Vector2, to: Vector2) -> void:
 		view.push_input(e, true)
 		await get_tree().physics_frame
 	_touch(finger, to, false)
+
+## The practice partner plays: it goes after the loose star and takes a
+## shot at P1 now and then.
+func _test_the_partner() -> void:
+	var partner: Runner = scene.runners[1]
+	scene.cpu_enabled = true
+	var from := partner.global_position
+	var star_seen := false
+	var closest := INF
+	for i in range(420):
+		await get_tree().physics_frame
+		for c in scene.coins():
+			if int(c["state"]) == ArenaCoin.State.WORLD:
+				star_seen = true
+				closest = minf(closest, VersusStageData.nearest_image(c["position"],
+					partner.global_position).distance_to(partner.global_position))
+	check(partner.global_position.distance_to(from) > 60.0,
+		"the practice partner moves on its own (%.0fpx)" % partner.global_position.distance_to(from))
+	check(not star_seen or closest < 260.0,
+		"and goes after the loose star (came within %.0fpx)" % closest)
+	check(scene.cpu != null and scene.cpu.shots >= 1,
+		"and takes a shot at P1 now and then (%d)" % (scene.cpu.shots if scene.cpu != null else 0))
+	scene.cpu_enabled = false
 
 func _ticks(count: int) -> void:
 	for i in range(count):

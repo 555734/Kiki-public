@@ -325,6 +325,8 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			var cave := CaveEnemy.new()
 			cave.kind = String(spec.get("kind", "burrower"))
 			cave.patrol_half_width = float(spec.get("patrol", 100.0))
+			cave.wander = spec.get("wander", Vector2.ZERO)
+			cave.dart = float(spec.get("dart", 1.3))
 			return cave
 		"desert_enemy":
 			var d := DesertEnemy.new()
@@ -394,6 +396,8 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			mine.bob = spec.get("bob", Vector2(0, 40))
 			mine.period = float(spec.get("period", 3.2))
 			mine.phase_offset = float(spec.get("phase", 0.0))
+			mine.wander = spec.get("wander", Vector2.ZERO)
+			mine.dart = float(spec.get("dart", 1.4))
 			return mine
 		"seedling":
 			var sprout := SkySeedling.new()

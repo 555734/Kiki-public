@@ -64,7 +64,16 @@ func owns(index: int) -> bool:
 ## so a real Button over the world still gets it first. Once a finger is ours,
 ## its drags and its release are claimed in the first pass, wherever they land;
 ## a finger we never took is left alone in both. Returns whether we kept it.
+##
+## A mouse event Godot made up from a touch (emulate_mouse_from_touch, for the
+## menu Controls) is never ours: it arrives BEFORE the touch it copies, so on a
+## hub that has not seen a touch yet it would take the control as the mouse
+## finger -- and its release, coming after the touch, would then be ignored,
+## leaving that control held for good.
 func claim(event: InputEvent, late: bool) -> bool:
+	if (event is InputEventMouseButton or event is InputEventMouseMotion) \
+			and event.device == InputEvent.DEVICE_ID_EMULATION:
+		return false
 	if _left_to_gui(event, late):
 		return false
 	if event is InputEventScreenTouch:

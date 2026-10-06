@@ -10,6 +10,11 @@ extends Enemy
 @export var bob: Vector2 = Vector2(0, 40)
 @export var period: float = 3.2
 @export var phase_offset: float = 0.0
+## Half-size of the box it darts about in, irregularly (see Wander); zero
+## keeps the plain bob.
+@export var wander: Vector2 = Vector2.ZERO
+## Seconds per dart.
+@export var dart: float = 1.4
 const SIZE := Vector2(40, 40)
 const BRISTLE := 0.7
 const ALERT := 0.6
@@ -33,7 +38,8 @@ func _build_body() -> void:
 
 func _physics_process(_delta: float) -> void:
 	var t := Clock.seconds_at(Clock.tick, phase_offset)
-	global_position = _origin + bob * sin(t * TAU / (period * 2.0))
+	global_position = _origin + bob * sin(t * TAU / (period * 2.0)) \
+		+ Wander.offset(t, Wander.seed_of(_origin), wander, dart)
 	_rect.size = SIZE * (1.8 if mode() == 2 else 1.0)
 	queue_redraw()
 

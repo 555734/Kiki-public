@@ -70,3 +70,13 @@ func is_open() -> bool:
 ## Why the link stopped working, or "" while it works.
 func last_error() -> String:
 	return ""
+
+## Trying to get back to the host after the link dropped (a guest only, and
+## only where the transport can). The match keeps its seat for a while
+## (VersusHost.GRACE_FRAMES), so a short loss of signal is not the end of it.
+func is_reconnecting() -> bool:
+	return false
+
+## How many times this link has come back after dropping. A guest says hello
+## again each time, so the host can give it back its seat.
+var reconnects: int = 0

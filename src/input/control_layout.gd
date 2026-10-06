@@ -235,9 +235,30 @@ static func hit(mode: String, view: Vector2, mirrored: bool, at: Vector2) -> Str
 		if best == "" or (best_kind == "stick" and place["kind"] == "button"):
 			best = String(id)
 			best_kind = String(place["kind"])
-	if best == "" and floating_stick(mode) and stick_region(view, mirrored).has_point(at):
+	if best == "" and in_floating_zone(mode, view, mirrored, at, places):
 		return "stick"
 	return best
+
+## How far from the stick's own place a press may land and still pick up the
+## floating stick, in stick radii -- on a screen the guardian shares.
+const FLOAT_REACH := 2.5
+
+## Whether a press here is the floating stick's. A runner alone on a device has
+## the whole of their bottom quarter. On a shared screen that quarter is also
+## where the guardian shoots and draws, so the stick only takes presses round
+## where the thumb rests; the rest of that quarter is the guardian's again.
+static func in_floating_zone(mode: String, view: Vector2, mirrored: bool, at: Vector2,
+		places: Dictionary = {}) -> bool:
+	if not floating_stick(mode) or not stick_region(view, mirrored).has_point(at):
+		return false
+	if mode == "runner":
+		return true
+	if places.is_empty():
+		places = layout(mode, view, mirrored)
+	if not places.has("stick"):
+		return false
+	var place: Dictionary = places["stick"]
+	return at.distance_to(place["center"]) <= float(place["radius"]) * FLOAT_REACH
 
 ## A moved stick explicitly opts into a fixed anchor; the default is floating.
 static func floating_stick(mode: String) -> bool:

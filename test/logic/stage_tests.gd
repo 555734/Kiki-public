@@ -204,6 +204,45 @@ func _test_level_reachability() -> void:
 	check(not section_b.is_empty(), "section B's crossing exceeds a first-jump estimate")
 	print("  gaps beyond first-jump estimates: %s" % str(needs_help))
 
+	# The same lessons against the double jump: a sprint, then the second jump
+	# spent at the top of the first -- the furthest a runner gets alone. The
+	# climbing steps may fall to it; the crossings that teach the platform must
+	# not.
+	var double_reach: float = _reach.get("double", 492.0)
+	var double_apex: float = _reach.get("double_apex", 331.0)
+	var beyond_double: Array[float] = []
+	for i in range(bare.size() - 1):
+		var raw_gap: float = bare[i + 1].position.x - (bare[i].position.x + bare[i].size.x)
+		var raw_rise: float = bare[i].position.y - bare[i + 1].position.y
+		var effective := raw_gap
+		if raw_rise > 0.0:
+			effective = INF if raw_rise >= double_apex \
+				else raw_gap / maxf(1.0 - raw_rise / double_apex, 0.05)
+		if effective > double_reach:
+			beyond_double.append(bare[i].position.x + bare[i].size.x)
+	check(not beyond_double.filter(func(x: float) -> bool: return x < 3200.0).is_empty(),
+		"section A still needs the platform with a double jump")
+	check(not beyond_double.filter(func(x: float) -> bool: return x > 3200.0 and x < 6400.0).is_empty(),
+		"section B still needs the guardian with a double jump")
+	check(beyond_double.filter(func(x: float) -> bool: return x > 8500.0).size() >= 3,
+		"the back half still has three crossings beyond a double jump")
+	print("  gaps beyond a double jump: %s" % str(beyond_double))
+	# Second gear (Balance.RUNNER_TOP_GEAR_*) carries a double jump further, but
+	# only after about two seconds of unbroken running. Reported, not enforced:
+	# whether a gap that falls to it is a fair reward is a design call.
+	var top_reach: float = _reach.get("double_top", 591.0)
+	var to_top_gear: float = Runner.sprint_cap() \
+		* (Balance.RUNNER_TOP_GEAR_DELAY + Balance.RUNNER_TOP_GEAR_RAMP)
+	var within_top: Array[String] = []
+	for i in range(bare.size() - 1):
+		var raw_gap: float = bare[i + 1].position.x - (bare[i].position.x + bare[i].size.x)
+		if bare[i].position.y - bare[i + 1].position.y > 0.0 or raw_gap <= double_reach:
+			continue
+		if raw_gap <= top_reach:
+			within_top.append("%.0f (%.0fpx gap, %.0fpx of floor before it; second gear wants ~%.0f)"
+				% [bare[i].position.x + bare[i].size.x, raw_gap, bare[i].size.x, to_top_gear])
+	print("  gaps a second-gear double jump could clear: %s" % str(within_top))
+
 ## Pipes and block rows are solid now. They have to be solid *and* passable:
 ## every pipe clearable from flat ground, every floating block row high enough to
 ## run under, and none of them sitting on top of a spawn or a checkpoint.

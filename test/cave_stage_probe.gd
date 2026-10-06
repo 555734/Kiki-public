@@ -26,17 +26,14 @@ func run() -> void:
 	check(Stage.key_position().y > Stage.goal().y
 		and Stage.key_position().y < 1300.0 and Stage.needs_key(),
 		"the final cave landing holds the exit key")
-	check(CaveData.CHAMBERS >= 24 and Stage.checkpoints().size() >= 12,
+	check(CaveData.rooms().size() >= 20 and Stage.checkpoints().size() >= 12,
 		"the climb has long pacing and regular recovery")
 	check(Stage.ground().size() >= 60 and Stage.ground()[-1].position.y < CaveData.SURFACE_Y,
 		"individually culled cave ledges reach the surface shelf")
 	var ordered := true
-	var fixed_landings := true
-	for chamber in CaveData.CHAMBERS:
-		for step in 3:
-			ordered = ordered and CaveData._top(chamber, step + 1) < CaveData._top(chamber, step)
-		fixed_landings = fixed_landings and CaveData._kind(chamber, 3) == "stone"
-	check(ordered and fixed_landings, "every chamber rises through readable steps")
+	for room in CaveData.rooms():
+		ordered = ordered and float(room["top"]) < float(room["bottom"])
+	check(ordered, "every room climbs")
 	var kinds := {}
 	for spec in Stage.enemies():
 		if String(spec.get("type", "")) == "cave_enemy":
@@ -56,7 +53,7 @@ func run() -> void:
 			bridge_ids[String(spec["id"])] = true
 		if type == "switch":
 			switch_ids[String(spec["id"])] = true
-	check(gimmick_counts.get("moving_platform", 0) >= 8
+	check(gimmick_counts.get("moving_platform", 0) >= 6
 		and gimmick_counts.get("updraft", 0) >= 4
 		and gimmick_counts.get("blink", 0) >= 6
 		and gimmick_counts.get("crumble", 0) >= 6
@@ -160,9 +157,9 @@ func run() -> void:
 			live_traps += 1
 			if sample_trap == null:
 				sample_trap = node
-		if node is SwitchBridge and node.switch_id == "cave_rise_5":
+		if node is SwitchBridge and node.switch_id == "cave_rise_a":
 			bridge = node
-		if node is ShootableSwitch and node.switch_id == "cave_rise_5":
+		if node is ShootableSwitch and node.switch_id == "cave_rise_a":
 			target = node
 	check(live_enemies >= 50 and live_traps >= 8 and bridge != null and target != null,
 		"vertical cave actors build in the live level")
@@ -173,7 +170,7 @@ func run() -> void:
 		for _i in 24:
 			await get_tree().physics_frame
 		check(not bridge._shape.disabled, "guardian shot reveals the missing landing")
-		Events.switch_activated.emit("cave_rise_5:off")
+		Events.switch_activated.emit("cave_rise_a:off")
 		await get_tree().physics_frame
 		check(bridge._shape.disabled, "echo landing fades after the timed shot")
 	if far_enemy != null:

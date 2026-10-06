@@ -221,9 +221,20 @@ func _cruise() -> void:
 	await _ticks_to(1.0, true, S)
 	var drift := 0.0
 	var trace := await _hold(1.0, true, 120)
+	# Up to second gear (Balance.RUNNER_TOP_GEAR_DELAY at the cap) the speed
+	# holds still at the sprint cap; after it, it climbs to the higher one and
+	# never past it.
+	var steady := int(Balance.RUNNER_TOP_GEAR_DELAY * 60.0) - 20
+	for i in range(steady):
+		drift = maxf(drift, absf(float(trace[i]["vx"]) - S))
+	_ok(drift <= 0.1, "cruising stays at the cap until second gear (%.4f off)" % drift)
+	var top := Runner.sprint_cap(1.0)
+	var over := 0.0
 	for step in trace:
-		drift = maxf(drift, absf(float(step["vx"]) - S))
-	_ok(drift <= 0.1, "two seconds of cruising stay at the cap (%.4f off)" % drift)
+		over = maxf(over, float(step["vx"]) - top)
+	_ok(over <= 0.1, "and never passes the second-gear cap")
+	_ok(absf(float(trace[119]["vx"]) - top) <= 0.5,
+		"two seconds of cruising end in second gear (%.1f)" % float(trace[119]["vx"]))
 	_ok(bool(trace[119]["state"] == Runner.State.RUN), "and still read as running")
 
 func _letting_go() -> void:

@@ -245,6 +245,122 @@ func _test_runner_arc() -> void:
 		"sprinting jumps further than walking (%.0f vs %.0f)" % [_reach["sprint"], reach])
 	print("  jump reach: walk %.0fpx, sprint %.0fpx, sprint re-pressed in air %.0fpx"
 		% [reach, sprint_arc["reach"], repeat_arc["reach"]])
+	var double_arc := await _measure_arc(true, false, true)
+	_reach["double"] = double_arc["reach"]
+	_reach["double_apex"] = double_arc["apex"]
+	check(float(double_arc["reach"]) > float(sprint_arc["reach"]),
+		"a second jump at the apex carries further (%.0f vs %.0f)"
+			% [double_arc["reach"], sprint_arc["reach"]])
+	print("  double jump: sprint reach %.0fpx, apex %.0fpx"
+		% [double_arc["reach"], double_arc["apex"]])
+	# The same after a run-up long enough for second gear: the furthest a
+	# runner gets alone, given about two seconds of flat ground to build it.
+	var top_arc := await _measure_arc(true, false, true, 150)
+	_reach["double_top"] = top_arc["reach"]
+	check(float(top_arc["reach"]) > float(double_arc["reach"]),
+		"second gear carries a double jump further (%.0f vs %.0f)"
+			% [top_arc["reach"], double_arc["reach"]])
+	print("  double jump in second gear: reach %.0fpx, apex %.0fpx"
+		% [top_arc["reach"], top_arc["apex"]])
+
+## Jumping again in mid-air: once per jump, slightly lower than a jump from the
+## ground, refilled by landing -- and never handed to a runner who only walked
+## off an edge or was thrown by a spring.
+func _test_double_jump() -> void:
+	_current = "double jump"
+	await _boot()
+	var r: Runner = main.runner
+	var hub: InputHub = main.input_hub
+	r.global_position = Vector2(-400, 300)
+	r.velocity = Vector2.ZERO
+	hub.move_axis = 0.0
+	hub.release_jump()
+	await _physics(30)
+	check(r.is_on_floor() and r.air_jumps_left() == 0, "standing, there is no air jump to spend")
+	var floor_y := r.global_position.y
+	hub.press_jump()
+	await _physics(2)
+	check(r.air_jumps_left() == Balance.RUNNER_AIR_JUMPS, "a jump from the ground grants one air jump")
+	# Ride the first jump to its top, then jump again.
+	while r.velocity.y < 0.0:
+		await get_tree().physics_frame
+	var first_top := r.global_position.y
+	hub.release_jump()
+	await _physics(1)
+	hub.press_jump()
+	await _physics(2)
+	check(r.velocity.y < 0.0 and r.air_jumps_left() == 0, "pressing again in mid-air jumps again")
+	var top := r.global_position.y
+	for i in range(90):
+		await get_tree().physics_frame
+		top = minf(top, r.global_position.y)
+		if r.velocity.y >= 0.0:
+			break
+	var second_rise := first_top - top
+	check_range(second_rise / Balance.RUNNER_AIR_JUMP_HEIGHT, 0.85, 1.15,
+		"and the second jump rises about RUNNER_AIR_JUMP_HEIGHT (%.0fpx)" % second_rise)
+	check(floor_y - top > Balance.RUNNER_JUMP_HEIGHT * 1.5,
+		"two jumps go well above one (%.0fpx)" % (floor_y - top))
+	# A third press does nothing.
+	hub.release_jump()
+	await _physics(1)
+	var falling_before := r.velocity.y
+	hub.press_jump()
+	await _physics(2)
+	check(r.velocity.y >= falling_before, "a third press in mid-air does nothing")
+	hub.release_jump()
+	for i in range(180):
+		await get_tree().physics_frame
+		if r.is_on_floor():
+			break
+	await _physics(2)
+	check(r.is_on_floor() and r.air_jumps_left() == 0, "landing takes the unspent air jump away")
+	hub.press_jump()
+	await _physics(2)
+	check(r.air_jumps_left() == Balance.RUNNER_AIR_JUMPS, "and the next jump grants it again")
+	hub.release_jump()
+	await _physics(90)
+	# Thrown by a spring: no air jump of the runner's own.
+	r.launch(Runner.launch_velocity(1))
+	await _physics(3)
+	var thrown := r.velocity.y
+	hub.press_jump()
+	await _physics(2)
+	check(r.air_jumps_left() == 0 and r.velocity.y >= thrown, "a launch does not grant an air jump")
+	hub.release_jump()
+	await _physics(120)
+
+## A tapped jump into a column of rising air. The release gravity that cuts a
+## tapped jump short stops at zero rather than pushing down, so if it outlived
+## the jump the column and the release would cancel out every tick and leave
+## the runner hanging in the air instead of rising.
+func _test_updraft_after_tapped_jump() -> void:
+	_current = "updraft after a tapped jump"
+	await _boot()
+	var r: Runner = main.runner
+	var hub: InputHub = main.input_hub
+	r.global_position = Vector2(-400, 300)
+	r.velocity = Vector2.ZERO
+	hub.move_axis = 0.0
+	hub.release_jump()
+	await _physics(30)
+	var floor_y := r.global_position.y
+	var column := Updraft.new()
+	column.runner = r
+	column.span = Vector2(180.0, 700.0)
+	column.global_position = Vector2(r.global_position.x, floor_y - 60.0)
+	main.level.add_child(column)
+	await _physics(2)
+	hub.press_jump()
+	await _physics(4)
+	hub.release_jump()
+	await _physics(70)
+	check(floor_y - r.global_position.y > Balance.RUNNER_JUMP_HEIGHT * 2.0,
+		"the column carries a tapped jump up (%.0fpx)" % (floor_y - r.global_position.y))
+	check(r.velocity.y < -Balance.UPDRAFT_RISE * 0.5,
+		"and is still lifting it (%.0f px/s)" % r.velocity.y)
+	column.queue_free()
+	await _physics(90)
 
 func _test_dash() -> void:
 	_current = "sprint"
@@ -272,7 +388,8 @@ func _test_dash() -> void:
 	var sprint := absf(r.velocity.x)
 	var expected := Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER
 	check_near(sprint, expected, 45.0, "sprint reaches the multiplied speed")
-	await _physics(90)
+	# Not long enough for second gear (_test_top_gear), which is a separate step.
+	await _physics(40)
 	check_near(absf(r.velocity.x), expected, 45.0, "sprint does not expire while held")
 	check(r.is_on_floor(), "still grounded, so this is the sustained sprint path")
 
@@ -302,6 +419,60 @@ func _test_dash() -> void:
 	check(r.state != Runner.State.DASH, "a held sprint on the ground is not a dash state")
 	hub.dash_held = false
 	hub.move_axis = 0.0
+
+## Second gear: a long flat-out run on the ground earns one more step of speed,
+## and anything that breaks the run takes it away again.
+func _test_top_gear() -> void:
+	_current = "second gear"
+	var sprint := Runner.sprint_cap()
+	var top := Runner.sprint_cap(1.0)
+	check_near(top / sprint, Balance.RUNNER_TOP_GEAR_MULTIPLIER, 0.001,
+		"second gear raises the sprint cap by its multiplier")
+	check_near(Runner.ground_target(1.0, false, 1.0), Balance.RUNNER_RUN_SPEED, 0.01,
+		"walking never gets second gear")
+	var vx := sprint
+	for i in range(60):
+		vx = Runner.ground_step(vx, 1.0, true, 1.0 / 60.0, 1.0)
+	check_near(vx, top, 1.0, "in second gear the ground step reaches the higher cap")
+	check(absf(Runner.ground_jump_height(top) - Runner.ground_jump_height(sprint)) < 0.01,
+		"second gear adds no jump height, only distance")
+
+	await _boot()
+	var r: Runner = main.runner
+	var hub: InputHub = main.input_hub
+	r.global_position = Vector2(-1450, 300)
+	r.velocity = Vector2.ZERO
+	await _physics(30)
+	hub.move_axis = 1.0
+	hub.dash_held = true
+	var engaged_at := -1
+	var peak := 0.0
+	for i in range(150):
+		await get_tree().physics_frame
+		if engaged_at < 0 and r.gear > 0.0:
+			engaged_at = i
+		peak = maxf(peak, absf(r.velocity.x))
+		if not r.is_on_floor():
+			break
+	print("  second gear: engaged at frame %d, peak %.0f, x=%.0f, floor=%s" % [
+		engaged_at, peak, r.global_position.x, r.is_on_floor()])
+	var delay_frames := int(Balance.RUNNER_TOP_GEAR_DELAY * 60.0)
+	check(engaged_at >= delay_frames, "no second gear before %.1fs at full sprint (frame %d)"
+		% [Balance.RUNNER_TOP_GEAR_DELAY, engaged_at])
+	check(engaged_at > 0 and engaged_at <= delay_frames + 30,
+		"second gear arrives soon after the delay")
+	check_near(peak, top, 20.0, "the runner reaches the second-gear speed")
+	# A jump keeps it; a turn drops it.
+	hub.press_jump()
+	await _physics(10)
+	check(not r.is_on_floor() and r.gear > 0.9, "a jump keeps second gear")
+	check(absf(r.velocity.x) > sprint + 30.0, "and carries the extra speed into the air")
+	hub.release_jump()
+	hub.move_axis = -1.0
+	await _physics(2)
+	check(r.gear == 0.0, "turning round drops second gear")
+	hub.move_axis = 0.0
+	hub.dash_held = false
 
 func _test_stomp_and_damage() -> void:
 	_current = "contact"

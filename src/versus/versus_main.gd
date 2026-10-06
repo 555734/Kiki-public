@@ -98,7 +98,7 @@ func _ready() -> void:
 	input.name = "VersusInput"
 	add_child(input)
 	# A one-device test on a phone is one player with touch controls against
-	# a standing practice partner; on a desktop it stays two players on one
+	# the game's practice partner (VersusCpu); on a desktop it stays two players on one
 	# keyboard (WASD+F and the arrows).
 	touch_solo = mode == Mode.SOLO and _wants_touch()
 	input.make_hubs(self, mode == Mode.SOLO and not touch_solo)
@@ -155,8 +155,11 @@ func _ready() -> void:
 	view.add_world_view()
 
 var _layer: CanvasLayer = null
-## The solo test on a touch screen: P1 on touch, P2 stands still.
+## The solo test on a touch screen: P1 on touch, P2 played by VersusCpu.
 var touch_solo: bool = false
+var cpu: VersusCpu = null
+## Off, P2 stands where it is (a probe arranging a scene turns it off).
+var cpu_enabled: bool = true
 
 func _wants_touch() -> bool:
 	return _touch_device()
@@ -699,8 +702,20 @@ func _tick_solo(seqs: Array[int]) -> void:
 		return
 	lives.apply_respawns()
 	lives.catch_deaths()
-	# The touch test's partner never swings: one strike count drives both
+	# The touch test's partner is the game's (VersusCpu), steering P2's hub
+	# like a player would. It never swings: one strike count drives both
 	# hubs' sequences on a phone, and it must not be P2's.
+	if touch_solo and not cpu_enabled:
+		input.hubs[1].drive_runner(0.0, 0.0, false, false)
+	elif touch_solo:
+		if cpu == null:
+			cpu = VersusCpu.new()
+		var stars: Array[Vector2] = []
+		for c in coins():
+			if int(c["state"]) == ArenaCoin.State.WORLD:
+				stars.append(c["position"])
+		cpu.think(runners[1], input.hubs[1], runners[0].global_position, stars,
+			match_rules, 1)
 	match_rules.step([_observe(0, seqs[0]), _observe(1, 0 if touch_solo else seqs[1])])
 	lives.apply_events(match_rules.events)
 	for i in range(sides):
@@ -826,6 +841,65 @@ func world_tick() -> int:
 	if match_rules != null:
 		return match_rules.tick
 	return client.world_tick if client != null else 0
+
+## Ticks of play left on the match clock (the whole three minutes before the
+## start). A guest works it out from the host's tick: the limit is a rule of
+## the build, and both builds are checked to be the same one at HELLO.
+func time_left() -> int:
+	if match_rules != null:
+		return match_rules.time_left()
+	return VersusMatch.time_left_at(world_tick(), VersusRules.MATCH_TICKS)
+
+## Who lost a star to whom lately (VersusMatch.hit_log), newest last.
+func hit_log() -> Array:
+	if match_rules != null:
+		return match_rules.hit_log
+	return client.hit_log if client != null else []
+
+## Each side's tallies for the result screen (VersusMatch.stats).
+func match_stats() -> Array:
+	if match_rules != null:
+		return match_rules.stats
+	return client.stats if client != null else []
+
+## A side's name on screen: P1..P8 in a free-for-all, the team otherwise.
+func side_name(side: int) -> String:
+	if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
+		return "P%d" % (side + 1)
+	return TranslationServer.translate("Aチーム") if side == 0 \
+		else TranslationServer.translate("Bチーム")
+
+## This guest's link dropped and it is trying to get back to the host.
+func reconnecting() -> bool:
+	return link != null and link.is_reconnecting()
+
+## Seats whose guest dropped and is being waited for, as "P3"-style names.
+func away_names() -> Array[String]:
+	var mask := 0
+	if host != null:
+		mask = host.away_mask()
+	elif client != null:
+		mask = client.away_mask
+	var out: Array[String] = []
+	for seat in range(8):
+		if mask & (1 << seat) == 0:
+			continue
+		if room_mode == VersusRoster.RoomMode.FREE_FOR_ALL:
+			out.append("P%d" % (seat + 1))
+		else:
+			out.append(VersusRoster.seat_name(seat))
+	return out
+
+## The match ended on the clock rather than on seven stars.
+func won_on_time() -> bool:
+	return phase() == VersusMatch.Phase.OVER and winner() >= 0 \
+		and score(winner()) < (VersusRules.FFA_WIN_AT if room_mode \
+			== VersusRoster.RoomMode.FREE_FOR_ALL else VersusRules.WIN_AT)
+
+## Time is up and nobody is ahead: the next side to lead wins.
+func sudden_death() -> bool:
+	return phase() == VersusMatch.Phase.PLAYING and not waiting() \
+		and countdown_ticks() == 0 and time_left() == 0
 
 func held_by(team: int) -> int:
 	var n := 0
@@ -1027,6 +1101,13 @@ func _over_button(at: Vector2) -> bool:
 	return false
 
 func leave_versus() -> void:
+	# A goodbye first, so the host frees the seat at once instead of holding
+	# it for a guest who dropped. Best effort: if it is lost with the link,
+	# the host gives the seat up when the hold runs out.
+	if client != null:
+		client.leave()
+		if link != null:
+			link.poll_socket()
 	connection.close()
 	# Back to the co-op stage that was selected before versus.
 	if VersusLaunch.previous_stage >= 0:

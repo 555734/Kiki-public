@@ -154,6 +154,7 @@ func _ready() -> void:
 		other.global_position = pos
 		scenes[1 - i].runners[1 - i].global_position = VersusStageData.nearest_image(pos,
 			scenes[1 - i].runners[1 - i].global_position)
+		scenes[0].host.forget_positions()
 		await _ticks(20)
 		var on_screen: Vector2 = views[i].get_canvas_transform() * scene._near(other.global_position)
 		var held_before := m.ledger.held_by(1 - i).size()
