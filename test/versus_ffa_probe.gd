@@ -181,6 +181,7 @@ func _ready() -> void:
 	p2.runners[1].global_position = Vector2(1410.0, VersusStageData.top_at(1410.0) - 26.0)
 	p2.runners[1].velocity = Vector2.ZERO
 	host.runners[0].global_position = Vector2(400.0, VersusStageData.top_at(400.0) - 26.0)
+	host.host.forget_positions()
 	await _ticks(30)
 	var felt: int = p2.bumps_felt + p3.bumps_felt
 	var closest := INF

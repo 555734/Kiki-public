@@ -1231,3 +1231,66 @@ msgstr "The App Store did not answer. Check your connection and try again."
 
 msgid "App Storeから応答がありませんでした。購入済みなら「復元」をお試しください。"
 msgstr "The App Store did not answer. If you have already paid, try Restore."
+
+msgid "%s が %s を ふみつけ"
+msgstr "%s stomped %s"
+
+msgid "%s が %s を 射撃"
+msgstr "%s shot %s"
+
+msgid "%s が ぶつかった"
+msgstr "%s bumped into someone"
+
+msgid "%s が 敵に やられた"
+msgstr "%s was hit by an enemy"
+
+msgid "%s が 落ちた"
+msgstr "%s fell"
+
+msgid "3分たったら スターの多い方の かち。同点なら サドンデス"
+msgstr "After 3 minutes the side with more stars wins. A tie goes to sudden death"
+
+msgid "つうしんが 切れました。さいせつぞく中…"
+msgstr "Connection lost. Reconnecting…"
+
+msgid "つうしん待ち: %s"
+msgstr "Waiting for: %s"
+
+msgid "とった"
+msgstr "Taken"
+
+msgid "ぶつかると おたがいに スターを 1こ 落とす"
+msgstr "When two players bump, each drops a star"
+
+msgid "もっているスターの数で 勝負。当たると 1こ 落とす"
+msgstr "Hold the most stars. Get hit and you drop one"
+
+msgid "サドンデス！ 次にリードした方の かち"
+msgstr "Sudden death! Next to take the lead wins"
+
+msgid "スター"
+msgstr "Stars"
+
+msgid "ヒント: "
+msgstr "Tip: "
+
+msgid "当てた"
+msgstr "Hits"
+
+msgid "敵"
+msgstr "Enemies"
+
+msgid "時間切れ・スターの数で決着"
+msgstr "Time up: decided on stars"
+
+msgid "穴に落ちると もっているスターを ぜんぶ 落とす"
+msgstr "Fall into a pit and you drop every star you hold"
+
+msgid "落とした"
+msgstr "Dropped"
+
+msgid "足場を つくると 上からの 射撃を ふせげる"
+msgstr "Build a platform to block shots from above"
+
+msgid "頭を ふみつけても 当たり。敵も ふめば たおせる"
+msgstr "Stomping a head counts as a hit. Enemies go down when stomped too"

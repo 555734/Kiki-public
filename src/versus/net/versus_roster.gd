@@ -163,6 +163,19 @@ func owns_seat(peer_id: int, seat: int) -> bool:
 func peer_at(seat: int) -> int:
 	return occupants[seat] if seat >= 0 and seat < seat_count() else -1
 
+## The same person on a new connection: every chair `old_peer` holds is now
+## `new_peer`'s. Returns the (first) seat, or -1 if `old_peer` held none.
+func rebind(old_peer: int, new_peer: int) -> int:
+	var seat := seat_of(old_peer)
+	if seat < 0 or old_peer == new_peer:
+		return seat
+	# Whatever chair the new connection had already been given goes back.
+	vacate(new_peer)
+	for i in range(seat_count()):
+		if occupants[i] == old_peer:
+			occupants[i] = new_peer
+	return seat
+
 func vacate(peer_id: int) -> int:
 	var seat := seat_of(peer_id)
 	for i in range(seat_count()):

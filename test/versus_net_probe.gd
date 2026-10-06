@@ -40,6 +40,9 @@ func _ready() -> void:
 	_test_eos_peer_ids()
 	_test_free_for_all()
 	_test_enemies_on_the_wire()
+	_test_rejoin_after_a_drop()
+	_test_a_hold_that_runs_out()
+	_test_impossible_reports()
 
 	print("versus net probe: %d checks failed" % failures.size())
 	if failures.is_empty():
@@ -63,6 +66,7 @@ func _test_enemies_on_the_wire() -> void:
 	var mesh := VersusLoopback.mesh(2, 0.02, 0.0, 0.0, 99)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 2024)
+	host.max_report_speed = INF  # scripted runners hop between points
 	var guest := VersusClient.new()
 	guest.start(mesh[1], VersusRoster.SEAT_B_RUNNER)
 	var rng := RandomNumberGenerator.new()
@@ -233,6 +237,7 @@ func _test_agreement() -> void:
 	var world := _world()
 	var host := VersusHost.new()
 	host.start(mesh[0], world, 31337)
+	host.max_report_speed = INF  # scripted runners hop between points
 
 	var clients: Array[VersusClient] = []
 	for i in range(1, 4):
@@ -340,6 +345,7 @@ func _test_reordering() -> void:
 	var mesh := VersusLoopback.mesh(4, 0.05, 0.0, 0.08, 3141)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 2718)
+	host.max_report_speed = INF  # scripted runners hop between points
 	var other := VersusClient.new()
 	other.start(mesh[1], VersusRoster.SEAT_B_RUNNER)
 
@@ -371,6 +377,7 @@ func _test_a_lost_peer() -> void:
 	var mesh := VersusLoopback.mesh(4, 0.03, 0.0, 0.0, 99)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 555)
+	host.max_report_speed = INF  # scripted runners hop between points
 	var other := VersusClient.new()
 	other.start(mesh[1], VersusRoster.SEAT_B_RUNNER)
 
@@ -414,6 +421,7 @@ func _test_the_guardian() -> void:
 	var mesh := VersusLoopback.mesh(4, 0.02, 0.0, 0.0, 4242)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 31337)
+	host.max_report_speed = INF  # scripted runners hop between points
 	var guard := VersusClient.new()
 	guard.start(mesh[2], VersusRoster.SEAT_A_GUARDIAN)
 
@@ -471,6 +479,7 @@ func _test_duel_ready_requires_first_input() -> void:
 	var mesh := VersusLoopback.mesh(2)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 8401, VersusRoster.RoomMode.DUEL_COMBINED)
+	host.max_report_speed = INF  # scripted runners hop between points
 	var guest := VersusClient.new()
 	guest.start(mesh[1], VersusRoster.SEAT_B_RUNNER,
 		VersusRoster.RoomMode.DUEL_COMBINED)
@@ -547,6 +556,7 @@ func _test_build_revisions() -> void:
 	var mesh := VersusLoopback.mesh(2)
 	var host := VersusHost.new()
 	host.start(mesh[0], connector, 5150)
+	host.max_report_speed = INF  # scripted runners hop between points
 	var guard := VersusClient.new()
 	guard.start(mesh[1], VersusRoster.SEAT_A_GUARDIAN)
 	var rng := RandomNumberGenerator.new()
@@ -607,6 +617,7 @@ func _test_duel_combined() -> void:
 	var mesh := VersusLoopback.mesh(3)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 31337, VersusRoster.RoomMode.DUEL_COMBINED)
+	host.max_report_speed = INF  # scripted runners hop between points
 	check(host.roster.owns_seat(0, VersusRoster.SEAT_A_RUNNER)
 		and host.roster.owns_seat(0, VersusRoster.SEAT_A_GUARDIAN),
 		"host atomically owns runner A and guardian A")
@@ -702,6 +713,7 @@ func _test_start_and_rematch() -> void:
 	var mesh := VersusLoopback.mesh(4, 0.02, 0.0, 0.0, 8080)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 6060)
+	host.max_report_speed = INF  # scripted runners hop between points
 	check(not host.playing and not host.request_start(30),
 		"a room with one runner cannot be started")
 	var other := VersusClient.new()
@@ -812,6 +824,7 @@ func _test_free_for_all() -> void:
 	var mesh := VersusLoopback.mesh(9, 0.03, 0.04, 0.01, 8888)
 	var host := VersusHost.new()
 	host.start(mesh[0], _world(), 1357, ffa)
+	host.max_report_speed = INF  # scripted runners hop between points
 	check(not host.request_start(0), "one person cannot start a free-for-all")
 	var clients: Array[VersusClient] = []
 	for i in range(1, 9):
@@ -901,8 +914,7 @@ func _test_free_for_all() -> void:
 	# Leaving hands the stars back.
 	var leaver := builder.seat
 	ArenaCoin.to_held(host.match_rules.ledger.get_coin(19), leaver)
-	mesh[clients.find(builder) + 1].send_to(0, VersusTransport.Channel.CONTROL,
-		VersusTransport.Reliability.RELIABLE, VersusProtocol.bye(255))
+	builder.leave()
 	for t in range(10):
 		for m in mesh:
 			m.advance(delta)
@@ -923,3 +935,145 @@ func _ffa_seat(seat: int, t: int) -> VersusMatch.Seat:
 	s.can_act = true
 	s.strike_seq = int(t / 300) if seat == 1 else 0
 	return s
+
+# ------------------------------------------------------------- reconnecting
+## A host and one guest (runner B) under way, with B holding two stars.
+func _match_under_way(mesh: Array, rng: RandomNumberGenerator) -> Array:
+	var host := VersusHost.new()
+	host.start(mesh[0], _world(), 555)
+	host.max_report_speed = INF  # scripted runners hop between points
+	var guest := VersusClient.new()
+	guest.start(mesh[1], VersusRoster.SEAT_B_RUNNER)
+	for t in range(240):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(_moving_seat(0, t, rng))
+		host.request_start(0)
+		guest.step(_moving_seat(1, t, rng), VersusRoster.SEAT_B_RUNNER)
+	for c in host.match_rules.ledger.coins:
+		if c.state != ArenaCoin.State.HELD:
+			ArenaCoin.to_recycle(c, host.match_rules.tick)
+	ArenaCoin.to_held(host.match_rules.ledger.get_coin(3), 1)
+	ArenaCoin.to_held(host.match_rules.ledger.get_coin(4), 1)
+	return [host, guest]
+
+func _steps(mesh: Array, host: VersusHost, rng: RandomNumberGenerator, n: int,
+		guests: Array = []) -> void:
+	for t in range(n):
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(_moving_seat(0, t, rng))
+		for g in guests:
+			g.step(_moving_seat(1, t, rng), VersusRoster.SEAT_B_RUNNER)
+
+## A guest whose link drops keeps its seat and its stars for a few seconds,
+## and coming back on a new connection (a new peer id) gives it both back.
+func _test_rejoin_after_a_drop() -> void:
+	_current = "rejoin after a drop"
+	var mesh := VersusLoopback.mesh(3, 0.03, 0.0, 0.0, 1212)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2468
+	var pair := _match_under_way(mesh, rng)
+	var host: VersusHost = pair[0]
+	var guest: VersusClient = pair[1]
+	check(guest.connected and host.playing, "the guest is in the match")
+	# What EOS says on the host's side when a guest's connection goes.
+	mesh[1].send_to(0, VersusTransport.Channel.CONTROL, VersusTransport.Reliability.RELIABLE,
+		VersusProtocol.bye(VersusProtocol.DROPPED))
+	mesh[1].close()
+	_steps(mesh, host, rng, 300)
+	check(host.roster.peer_at(VersusRoster.SEAT_B_RUNNER) == 1,
+		"five seconds after the drop the seat is still theirs")
+	check(host.match_rules.ledger.held_by(1).size() == 2, "and so are their stars")
+	check(host.away_mask() == 1 << VersusRoster.SEAT_B_RUNNER,
+		"and every screen is told they are being waited for")
+	# Back, on a new connection: a new peer id, the same token.
+	var back := VersusClient.new()
+	back.token = guest.token
+	back.start(mesh[2], VersusRoster.SEAT_B_RUNNER)
+	_steps(mesh, host, rng, 60, [back])
+	check(back.connected and back.seat == VersusRoster.SEAT_B_RUNNER,
+		"coming back gives them the same seat (%d)" % back.seat)
+	check(host.roster.peer_at(VersusRoster.SEAT_B_RUNNER) == 2,
+		"now on their new connection")
+	check(host.match_rules.ledger.held_by(1).size() == 2, "still holding their stars")
+	check(host.away_mask() == 0, "and nobody is being waited for any more")
+	_steps(mesh, host, rng, 600, [back])
+	check(host.roster.peer_at(VersusRoster.SEAT_B_RUNNER) == 2,
+		"and the hold running out later does not throw them out")
+	# A stranger with some other token gets no seat that is taken.
+	var stranger := VersusClient.new()
+	stranger.token = 77
+	check(stranger.token != guest.token, "a stranger has a different token")
+
+## Not coming back: the seat is freed and the stars go back into play once
+## the hold is over. Leaving on purpose frees it at once.
+func _test_a_hold_that_runs_out() -> void:
+	_current = "a hold that runs out"
+	var mesh := VersusLoopback.mesh(2, 0.03, 0.0, 0.0, 3434)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1357
+	var pair := _match_under_way(mesh, rng)
+	var host: VersusHost = pair[0]
+	mesh[1].send_to(0, VersusTransport.Channel.CONTROL, VersusTransport.Reliability.RELIABLE,
+		VersusProtocol.bye(VersusProtocol.DROPPED))
+	mesh[1].close()
+	_steps(mesh, host, rng, VersusHost.GRACE_FRAMES - 30)
+	check(host.roster.peer_at(VersusRoster.SEAT_B_RUNNER) == 1, "held until the last moment")
+	_steps(mesh, host, rng, 60)
+	check(host.roster.peer_at(VersusRoster.SEAT_B_RUNNER) == -1, "then freed")
+	check(host.match_rules.ledger.held_by(1).is_empty(), "and their stars go back into play")
+	check(host.match_rules.ledger.conserved(), "with none lost on the way")
+
+	var mesh2 := VersusLoopback.mesh(2, 0.03, 0.0, 0.0, 5656)
+	var pair2 := _match_under_way(mesh2, rng)
+	var host2: VersusHost = pair2[0]
+	var guest2: VersusClient = pair2[1]
+	guest2.leave()
+	_steps(mesh2, host2, rng, 10)
+	check(host2.roster.peer_at(VersusRoster.SEAT_B_RUNNER) == -1,
+		"leaving on purpose frees the seat at once")
+
+## The host refuses a report no runner could make, and believes running,
+## falling and respawning.
+func _test_impossible_reports() -> void:
+	_current = "impossible reports"
+	var mesh := VersusLoopback.mesh(2, 0.0, 0.0, 0.0, 9090)
+	var host := VersusHost.new()
+	host.start(mesh[0], _world(), 555)
+	var guest := VersusClient.new()
+	guest.start(mesh[1], VersusRoster.SEAT_B_RUNNER)
+	var start := VersusStageData.start_positions()[1]
+	var at := start
+	var send := func(where: Vector2, alive: bool = true) -> void:
+		var s := VersusMatch.Seat.new()
+		s.team = 1
+		s.position = where
+		s.alive = alive
+		s.can_act = alive
+		for m in mesh:
+			m.advance(1.0 / 60.0)
+		host.step(_moving_seat(0, 0, RandomNumberGenerator.new()))
+		host.request_start(0)
+		guest.step(s, VersusRoster.SEAT_B_RUNNER)
+	for t in range(60):
+		send.call(at)
+	check(host.playing, "the match is on")
+	for t in range(30):
+		at += Vector2(4.5, 0.0)   # a run, 270px/s
+		send.call(at)
+	send.call(at)
+	check(host.implausible_reports == 0 and host.reported_runner(1).position.distance_to(at) < 10.0,
+		"a runner running is believed")
+	var before := host.reported_runner(1).position
+	send.call(at + Vector2(900.0, 0.0))
+	send.call(at + Vector2(900.0, 0.0))
+	check(host.implausible_reports > 0 and host.reported_runner(1).position.distance_to(before) < 10.0,
+		"a jump of 900px in a frame is refused, and the runner stays put")
+	for t in range(5):
+		send.call(at)
+	send.call(at, false)
+	send.call(start)
+	send.call(start)
+	check(host.reported_runner(1).position.distance_to(start) < 10.0,
+		"dying and getting up at the start is believed")

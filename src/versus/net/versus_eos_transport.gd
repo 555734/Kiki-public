@@ -11,9 +11,13 @@ extends VersusTransport
 ## VersusTransport promises the host is peer 0, so the server's 1 is mapped to
 ## 0 on the way in and back to 1 on the way out. Client ids pass through.
 ##
-## A client that drops is reported to the host as a BYE from that peer, the
-## message the host already vacates a seat on. The host dropping is reported
-## to a client as a failure: without migration there is no match left.
+## A client that drops is reported to the host as a BYE from that peer
+## (VersusProtocol.DROPPED), and the host holds its seat for a while. On the
+## client's side a lost link is retried for RECONNECT_WINDOW_MS -- a phone that
+## went to its home screen, or lost signal for a moment, comes back to the same
+## seat. If the host itself has gone there is nothing to come back to, and
+## once the window is over that is reported as a failure: without migration
+## there is no match left.
 
 signal diagnostic(message: String)
 signal failed(reason: String)
@@ -22,6 +26,12 @@ const PAYLOAD_LIMIT := 1100
 const EOS_SERVER_PEER := 1
 const EARLY_MAX := 32
 const UNKNOWN_REQUEST_GRACE_MS := 6000
+## How long a client keeps trying to reach the host again, and how often.
+## Inside the host's own hold (VersusHost.GRACE_FRAMES).
+const RECONNECT_WINDOW_MS := 9000
+const RECONNECT_EVERY_MS := 1500
+var _reconnect_until: int = 0
+var _next_attempt: int = 0
 
 var room: EosVersusLobby = null
 var packets_in: int = 0
@@ -47,25 +57,46 @@ func open(p_room: EosVersusLobby) -> String:
 	if not ClassDB.can_instantiate("EOSGMultiplayerPeer"):
 		return _set_error("EOS P2Pライブラリがありません")
 	_is_host = room.local_is_owner()
-	_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
-	_peer.set("refuse_new_connections", false)
-	_peer.call("set_auto_accept_connection_requests", false)
-	_peer.peer_connected.connect(_on_peer_connected)
-	_peer.peer_disconnected.connect(_on_peer_disconnected)
-	var err: int
-	if _is_host:
-		err = int(_peer.call("create_server", room.socket_id()))
-	else:
-		var owner := room.owner_puid()
-		if owner.is_empty():
-			return _set_error("EOSルームのホストが見つかりません")
-		err = int(_peer.call("create_client", room.socket_id(), owner))
+	var err := _start_peer()
 	if err != OK:
 		_peer = null
 		return _set_error(TranslationServer.translate("EOS P2Pを開始できません（error %d）") % err)
 	diagnostic.emit("EOS P2P open as %s socket=%s" % [
 		"host" if _is_host else "client", room.socket_id()])
 	return ""
+
+## A fresh EOSG peer: the server, or a client of the room's owner.
+func _start_peer() -> int:
+	_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
+	_peer.set("refuse_new_connections", false)
+	_peer.call("set_auto_accept_connection_requests", false)
+	_peer.peer_connected.connect(_on_peer_connected)
+	_peer.peer_disconnected.connect(_on_peer_disconnected)
+	if _is_host:
+		return int(_peer.call("create_server", room.socket_id()))
+	var owner := room.owner_puid()
+	if owner.is_empty():
+		_set_error("EOSルームのホストが見つかりません")
+		return ERR_UNAVAILABLE
+	return int(_peer.call("create_client", room.socket_id(), owner))
+
+func is_reconnecting() -> bool:
+	return _reconnect_until > 0
+
+## The old connection is dead: drop it, without hearing about it again, and
+## ask the host for a new one.
+func _try_again() -> void:
+	if _peer != null:
+		if _peer.peer_connected.is_connected(_on_peer_connected):
+			_peer.peer_connected.disconnect(_on_peer_connected)
+		if _peer.peer_disconnected.is_connected(_on_peer_disconnected):
+			_peer.peer_disconnected.disconnect(_on_peer_disconnected)
+		_peer.close()
+	_connected.clear()
+	var err := _start_peer()
+	diagnostic.emit("EOS reconnect attempt: %d" % err)
+	if err != OK:
+		_peer = null
 
 static func to_game(eos_id: int) -> int:
 	return VersusTransport.HOST_PEER if eos_id == EOS_SERVER_PEER else eos_id
@@ -107,7 +138,7 @@ func broadcast(channel: int, reliability: int,
 
 func _send(eos_id: int, channel: int, reliability: int,
 		payload: PackedByteArray) -> void:
-	if _peer == null or _closed:
+	if _peer == null or _closed or is_reconnecting():
 		return
 	if payload.size() + 1 > PAYLOAD_LIMIT:
 		push_error("EOS packet of %d bytes exceeds the game cap %d" % [payload.size() + 1, PAYLOAD_LIMIT])
@@ -136,7 +167,18 @@ func _put(eos_id: int, framed: PackedByteArray, reliability: int) -> void:
 
 ## Connection requests and the socket, once a frame; poll() drains packets.
 func poll_socket() -> void:
-	if _peer == null or _closed:
+	if _closed:
+		return
+	if is_reconnecting():
+		var now := Time.get_ticks_msec()
+		if now >= _reconnect_until:
+			_reconnect_until = 0
+			_set_error("ホストとの接続が切れました")
+			return
+		if now >= _next_attempt:
+			_next_attempt = now + RECONNECT_EVERY_MS
+			_try_again()
+	if _peer == null:
 		return
 	_peer.poll()
 	_answer_requests()
@@ -192,6 +234,10 @@ func close() -> void:
 func _on_peer_connected(id: int) -> void:
 	_connected[id] = true
 	diagnostic.emit("EOS peer connected %d" % id)
+	if not _is_host and id == EOS_SERVER_PEER and is_reconnecting():
+		_reconnect_until = 0
+		reconnects += 1
+		diagnostic.emit("EOS reconnected to the host")
 	if not _is_host and id == EOS_SERVER_PEER:
 		var queued := _early
 		_early = []
@@ -204,8 +250,12 @@ func _on_peer_disconnected(id: int) -> void:
 	if _is_host:
 		_inbox.append({"from": to_game(id), "channel": Channel.CONTROL,
 			"payload": VersusProtocol.bye(255)})
-	elif id == EOS_SERVER_PEER:
-		_set_error("ホストとの接続が切れました")
+	elif id == EOS_SERVER_PEER and not _closed and not is_reconnecting():
+		# Not the end yet: try to get back for a few seconds first.
+		var now := Time.get_ticks_msec()
+		_reconnect_until = now + RECONNECT_WINDOW_MS
+		_next_attempt = now + 250
+		diagnostic.emit("EOS lost the host; reconnecting")
 
 func _set_error(reason: String) -> String:
 	if _error.is_empty():

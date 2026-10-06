@@ -51,6 +51,35 @@ var _next_build_id: int = 1
 var out_events: Array[Dictionary] = []
 
 const SNAPSHOT_EVERY: int = 2       ## 30Hz over 60Hz physics, as the co-op does
+
+## Each runner moves itself and reports where it is; the host does not
+## re-simulate it, but it does refuse a report no runner could have made. The
+## fastest anything in the arena throws a runner is a spring (about 1,100px/s),
+## so twice that plus a little slack is never a real move. A report past it
+## keeps the runner where it last was (for scoring and for everybody else's
+## screen) -- unless it keeps happening for longer than a hiccup, which is a
+## real jump the host did not foresee rather than a lie, and is then believed.
+const MAX_REPORT_SPEED: float = 2400.0
+## The limit in force; a scripted probe whose runners hop from point to point
+## by design sets it to INF.
+var max_report_speed: float = MAX_REPORT_SPEED
+const REPORT_SLACK: float = 48.0
+const REPORT_REJECT_LIMIT: int = 45
+## How long a guest whose connection dropped keeps their seat and their
+## stars: ten seconds, enough for a phone that went to its home screen or lost
+## signal for a moment. Their runner stands where it was meanwhile.
+const GRACE_FRAMES: int = 600
+## Peer -> the token it said hello with (VersusProtocol.hello).
+var _tokens: Dictionary = {}
+## Peer -> the frame its seat is given up at, for guests whose link dropped.
+var _away: Dictionary = {}
+
+## Reports refused so far (for the probes and the diagnostic log).
+var implausible_reports: int = 0
+var _frame: int = 0
+var _last_good: Dictionary = {}     ## seat -> {"at": Vector2, "frame": int}
+var _rejected_run: Dictionary = {}  ## seat -> refusals in a row
+var _trust_until: int = 0
 ## How many guardian constructs can exist at once, across both teams.
 const MAX_BUILDS: int = 12
 ## Eight builders share one arena in a free-for-all, so a few more stand.
@@ -88,6 +117,8 @@ func start(link: VersusTransport, collision: ArenaStage,
 	_next_build_id = 1
 	_reported.clear()
 	_input_seen.clear()
+	_last_good.clear()
+	_rejected_run.clear()
 	_since_snapshot = 0
 	out_events.clear()
 
@@ -142,7 +173,9 @@ func counting() -> bool:
 
 ## One tick. `local` is the host's own runner, observed by its own scene.
 func step(local: VersusMatch.Seat) -> void:
+	_frame += 1
 	_take_post()
+	_expire_away()
 
 	_reported[VersusRoster.SEAT_A_RUNNER] = local
 	# A HELLO only proves a socket joined. The guest must report their
@@ -200,6 +233,15 @@ func _seat_for(seat: int, team: int) -> VersusMatch.Seat:
 	if _reported.has(seat):
 		var s: VersusMatch.Seat = _reported[seat]
 		s.team = team
+		if _away.has(roster.peer_at(seat)):
+			# Waiting for someone whose link dropped: they stand where they
+			# were, and nobody can take their stars off them meanwhile --
+			# nor can they pick one up.
+			var held := s.duplicate_seat()
+			held.invulnerable = true
+			held.can_act = false
+			held.velocity = Vector2.ZERO
+			return held
 		return s
 	var idle := VersusMatch.Seat.new()
 	idle.team = team
@@ -223,24 +265,73 @@ func _take_post() -> void:
 			VersusProtocol.Msg.HOLO, VersusProtocol.Msg.UNHOLO:
 				_on_holo(from, payload)
 			VersusProtocol.Msg.BYE:
-				diagnostic.emit("BYE peer=%d" % from)
-				var vacated := roster.vacate(from)
-				_reported.erase(vacated)
-				# Whatever the leaver was holding goes back into play rather
-				# than staying in an empty chair's hand for the rest of the
-				# match.
-				if vacated >= 0 and roster.is_runner(vacated):
-					var side := roster.side_of(vacated)
-					if side < match_rules.sides:
-						match_rules.return_hand(side)
-						match_rules.seats[side].alive = false
-				if roster.room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
-					playing = false
+				_on_bye(from, payload)
+
+## A guest leaving. A goodbye frees the seat now; a dropped link in the
+## middle of a match holds it for GRACE_FRAMES, in case they come back.
+func _on_bye(from: int, payload: PackedByteArray) -> void:
+	var said := int(payload[1]) if payload.size() > 1 else VersusProtocol.DROPPED
+	diagnostic.emit("BYE peer=%d seat=%d" % [from, said])
+	if said == VersusProtocol.DROPPED and (playing or countdown > 0) \
+			and roster.seat_of(from) >= 0:
+		_away[from] = _frame + GRACE_FRAMES
+		diagnostic.emit("AWAY peer=%d seat=%d: holding it for %d frames" % [
+			from, roster.seat_of(from), GRACE_FRAMES])
+		return
+	_vacate(from)
+
+func _expire_away() -> void:
+	for peer in _away.keys():
+		if _frame >= int(_away[peer]):
+			diagnostic.emit("AWAY peer=%d did not come back" % peer)
+			_vacate(peer)
+
+func _vacate(peer: int) -> void:
+	_away.erase(peer)
+	_tokens.erase(peer)
+	var vacated := roster.vacate(peer)
+	_reported.erase(vacated)
+	_last_good.erase(vacated)
+	# Whatever the leaver was holding goes back into play rather than staying
+	# in an empty chair's hand for the rest of the match.
+	if vacated >= 0 and roster.is_runner(vacated):
+		var side := roster.side_of(vacated)
+		if side < match_rules.sides:
+			match_rules.return_hand(side)
+			match_rules.seats[side].alive = false
+	if roster.room_mode == VersusRoster.RoomMode.DUEL_COMBINED:
+		playing = false
+
+## Bit N set when seat N's guest has dropped and is being waited for.
+func away_mask() -> int:
+	var mask := 0
+	for peer in _away.keys():
+		for seat in range(roster.seat_count()):
+			if roster.peer_at(seat) == int(peer):
+				mask |= 1 << seat
+	return mask
+
+## The guest who said hello with `token` before, on a connection that is
+## not `from`, or -1.
+func _earlier_peer(token: int, from: int) -> int:
+	if token == 0:
+		return -1
+	for peer in _tokens.keys():
+		if int(peer) != from and int(_tokens[peer]) == token and roster.seat_of(int(peer)) >= 0:
+			return int(peer)
+	return -1
 
 func _on_hello(from: int, payload: PackedByteArray) -> void:
 	diagnostic.emit("HELLO peer=%d bytes=%d" % [from, payload.size()])
-	if payload.size() != 5:
-		diagnostic.emit("REJECT HELLO: size != 5")
+	# The version first, whatever the size: an older build's shorter hello
+	# is told to update rather than that its packet is malformed.
+	if payload.size() >= 3 and payload.decode_u16(1) != VersusProtocol.VERSION:
+		diagnostic.emit("REJECT HELLO: version %d" % payload.decode_u16(1))
+		transport.send_to(from, VersusTransport.Channel.CONTROL,
+			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("ゲームのバージョンまたは対戦モードが違います。両端末を同じAPKにしてください"))
+		return
+	if payload.size() != VersusProtocol.HELLO_BYTES:
+		diagnostic.emit("REJECT HELLO: size != %d" % VersusProtocol.HELLO_BYTES)
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
 			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("接続情報が不正です。両端末を更新してください"))
 		return
@@ -257,7 +348,19 @@ func _on_hello(from: int, payload: PackedByteArray) -> void:
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
 			VersusTransport.Reliability.RELIABLE, VersusProtocol.full("ゲームのバージョンまたは対戦モードが違います。両端末を同じAPKにしてください"))
 		return
-	var seat := roster.seat_peer(from, int(hello["wanted_seat"]))
+	var token := int(hello["token"])
+	var earlier := _earlier_peer(token, from)
+	var seat := -1
+	if earlier >= 0:
+		# Back on a new connection: the same chair, the same stars.
+		seat = roster.rebind(earlier, from)
+		_away.erase(earlier)
+		_tokens.erase(earlier)
+		diagnostic.emit("REJOIN peer=%d was peer=%d seat=%d" % [from, earlier, seat])
+	else:
+		seat = roster.seat_peer(from, int(hello["wanted_seat"]))
+	if seat >= 0 and token != 0:
+		_tokens[from] = token
 	if seat < 0:
 		diagnostic.emit("REJECT HELLO: requested seat occupied/unavailable")
 		transport.send_to(from, VersusTransport.Channel.CONTROL,
@@ -283,7 +386,7 @@ func _on_input(from: int, payload: PackedByteArray) -> void:
 		return
 	var s := VersusMatch.Seat.new()
 	s.team = roster.side_of(seat)
-	s.position = m["position"]
+	s.position = _plausible(seat, m["position"], bool(m["alive"]))
 	s.facing = int(m["facing"])
 	s.alive = bool(m["alive"])
 	s.can_act = bool(m["can_act"])
@@ -300,6 +403,49 @@ func _on_input(from: int, payload: PackedByteArray) -> void:
 	if not _input_seen.has(seat):
 		_input_seen[seat] = true
 		diagnostic.emit("FIRST INPUT from peer=%d runner_seat=%d" % [from, seat])
+
+## Where the host takes `seat`'s runner to be, given what it just reported.
+## Measured the short way round the loop, from the last report it believed.
+## A runner who is down (or just got up) may be anywhere: respawning is a
+## jump back to the start.
+func _plausible(seat: int, at: Vector2, alive: bool) -> Vector2:
+	var last: Dictionary = _last_good.get(seat, {})
+	var was_down := _reported.has(seat) and not (_reported[seat] as VersusMatch.Seat).alive
+	# Only in play: before the start and through a rematch's reset everybody
+	# is put back at their start, which is a jump by design.
+	if last.is_empty() or not alive or was_down or not playing or _frame < _trust_until:
+		_believe(seat, at)
+		return at
+	var frames := maxi(1, _frame - int(last["frame"]))
+	var from: Vector2 = last["at"]
+	var moved := VersusStageData.nearest_image(at, from).distance_to(from)
+	var allowed := max_report_speed * float(frames) / 60.0 + REPORT_SLACK
+	if moved <= allowed:
+		_believe(seat, at)
+		return at
+	var run := int(_rejected_run.get(seat, 0)) + 1
+	if run > REPORT_REJECT_LIMIT:
+		diagnostic.emit("REPORT seat=%d believed after %d refusals" % [seat, run - 1])
+		_believe(seat, at)
+		return at
+	_rejected_run[seat] = run
+	implausible_reports += 1
+	if run == 1:
+		diagnostic.emit("REPORT seat=%d refused: %.0fpx in %d frames" % [seat, moved, frames])
+	return from
+
+## Believe every seat's reports for the next half second, wherever they are:
+## for whatever puts runners somewhere on purpose (a probe setting up a
+## scene). A window rather than one report, because reports from before the
+## move may still be on their way.
+func forget_positions() -> void:
+	_trust_until = _frame + 30
+	_last_good.clear()
+	_rejected_run.clear()
+
+func _believe(seat: int, at: Vector2) -> void:
+	_last_good[seat] = {"at": at, "frame": _frame}
+	_rejected_run.erase(seat)
 
 func _on_command(from: int, payload: PackedByteArray) -> void:
 	if payload.size() != 11:
@@ -443,6 +589,8 @@ func _broadcast_snapshot() -> void:
 			else VersusProtocol.PHASE_WAITING
 	var payload := VersusProtocol.snapshot(match_rules.tick,
 		phase_to_send, match_rules.winner, runners, coins, gs,
-		world_revision, epoch, countdown, seat_mask(), match_rules.enemy_down_mask())
+		world_revision, epoch, countdown, seat_mask(), match_rules.enemy_down_mask(),
+		away_mask(), match_rules.hit_log,
+		match_rules.stats if match_rules.phase == VersusMatch.Phase.OVER else [])
 	transport.broadcast(VersusTransport.Channel.SNAPSHOT,
 		VersusTransport.Reliability.UNRELIABLE, payload)

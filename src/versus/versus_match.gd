@@ -79,6 +79,21 @@ var sides: int = 2
 var win_at: int = VersusRules.WIN_AT
 var coin_total: int = VersusRules.COIN_TOTAL
 var on_field: int = VersusRules.ON_FIELD
+## What each side did this match, for the result screen: stars picked up,
+## hits landed on others, stars lost, enemies put down.
+var stats: Array[Dictionary] = []
+## The last few times somebody lost a star and why, newest last, for the
+## line in the corner that says who did what: {"seq", "victim", "by", "how"}.
+## `by` is the side that did it, or -1; `how` one of HOW.
+var hit_log: Array[Dictionary] = []
+enum How { SHOT, STOMP, BUMP, ENEMY, FALL }
+const HIT_LOG_SIZE: int = 5
+var _hit_seq: int = 0
+
+## Ticks of play before the time runs out (VersusRules.MATCH_TICKS); 0 for a
+## match with no clock. After it, the match is in sudden death.
+var time_limit: int = VersusRules.MATCH_TICKS
+var _sudden_death_said: bool = false
 
 ## Ticks until the next coin is allowed to appear.
 ## Coin id -> spawn revision. Only freshly spawned stars hover; dropped
@@ -157,6 +172,13 @@ func setup(collision: ArenaStage, match_seed: int = 20260920,
 	win_at = int(numbers.get("win_at", VersusRules.WIN_AT))
 	coin_total = int(numbers.get("coin_total", VersusRules.COIN_TOTAL))
 	on_field = int(numbers.get("on_field", VersusRules.ON_FIELD))
+	time_limit = int(numbers.get("time_limit", VersusRules.MATCH_TICKS))
+	_sudden_death_said = false
+	stats.clear()
+	for i in range(maxi(side_count, 2)):
+		stats.append({"taken": 0, "hits": 0, "lost": 0, "enemies": 0})
+	hit_log.clear()
+	_hit_seq = 0
 	ledger = ArenaCoin.Ledger.new(coin_total)
 	combat.clear()
 	seats.clear()
@@ -235,6 +257,7 @@ func step(incoming: Array) -> void:
 	# 7. has anybody won
 	tick += 1
 	_check_win()
+	_record(events)
 
 # -------------------------------------------------------- shots and stomps
 func immune(side: int) -> bool:
@@ -621,13 +644,87 @@ func _distance_to_body(at: Vector2, side: int) -> float:
 		clampf(at.y, b.position.y, b.position.y + b.size.y))
 	return at.distance_to(nearest)
 
+# -------------------------------------------------------------- the record
+## Tally this tick's events into `stats` and `hit_log`.
+func _record(happened: Array[Dictionary]) -> void:
+	for e in happened:
+		var side := int(e.get("side", -1))
+		match String(e["kind"]):
+			"pickup":
+				_tally(side, "taken")
+			"drop", "return":
+				_tally(side, "lost")
+			"enemy_down":
+				_tally(int(e.get("by", -1)), "enemies")
+			"hurt":
+				var by := int(e.get("by", -1))
+				_tally(by, "hits")
+				var how := How.ENEMY
+				match String(e.get("how", "")):
+					"shot": how = How.SHOT
+					"stomp": how = How.STOMP
+				_log(side, by, how)
+			"bump":
+				_log(side, -1, How.BUMP)
+			"fell":
+				_log(side, -1, How.FALL)
+
+func _tally(side: int, what: String) -> void:
+	if side >= 0 and side < stats.size():
+		stats[side][what] = int(stats[side][what]) + 1
+
+func _log(victim: int, by: int, how: int) -> void:
+	_hit_seq = (_hit_seq + 1) & 0xFFFF
+	hit_log.append({"seq": _hit_seq, "victim": victim, "by": by, "how": how})
+	while hit_log.size() > HIT_LOG_SIZE:
+		hit_log.pop_front()
+
 # ----------------------------------------------------------------------- end
+## Ticks of play left on the clock, at `at_tick` of a match whose clock is
+## `limit` long. Static, so a guest works it out from the snapshot's tick.
+static func time_left_at(at_tick: int, limit: int) -> int:
+	return maxi(0, limit - at_tick) if limit > 0 else -1
+
+func time_left() -> int:
+	return time_left_at(tick, time_limit)
+
+func in_sudden_death() -> bool:
+	return phase == Phase.PLAYING and time_limit > 0 and tick >= time_limit
+
+## The one side holding more stars than every other, or -1 on a tie.
+func leader() -> int:
+	var best := -1
+	var best_score := -1
+	var tied := false
+	for team in range(sides):
+		var n := score(team)
+		if n > best_score:
+			best = team
+			best_score = n
+			tied = false
+		elif n == best_score:
+			tied = true
+	return -1 if tied else best
+
 func _check_win() -> void:
 	if phase != Phase.PLAYING:
 		return
 	for team in range(sides):
 		if score(team) >= win_at:
-			phase = Phase.OVER
-			winner = team
-			events.append({"kind": "win", "team": team})
+			_win(team, "stars")
 			return
+	if time_limit <= 0 or tick < time_limit:
+		return
+	# Time is up: the most stars wins. Level, and it plays on until somebody
+	# is ahead -- a pickup, a hit or a fall breaks the tie.
+	var lead := leader()
+	if lead >= 0:
+		_win(lead, "time")
+	elif not _sudden_death_said:
+		_sudden_death_said = true
+		events.append({"kind": "sudden_death"})
+
+func _win(team: int, how: String) -> void:
+	phase = Phase.OVER
+	winner = team
+	events.append({"kind": "win", "team": team, "how": how})

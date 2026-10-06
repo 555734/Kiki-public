@@ -13,7 +13,7 @@ class_name VersusProtocol
 ## relay's 1170-byte cap is never in question. Every message begins with a kind
 ## byte, and every message about a person carries their SEAT.
 ##
-## Budget, against the 1100-byte EOS cap: a snapshot is 16 bytes of header, 14
+## Budget, against the 1100-byte EOS cap: a snapshot is 22 bytes of header, 14
 ## per runner and 6 per star, so a full 12-star match is 16 + 28 + 72 = 116
 ## bytes before constructs.
 ## The plan allowed 768 (docs/coin-battle-plan.md:315).
@@ -33,7 +33,7 @@ enum Msg {
 
 ## Bumped whenever the layout below changes. Checked at HELLO, so two different
 ## builds refuse each other by name instead of desynchronising silently.
-const VERSION: int = 11 # Royal Arena: older builds do not know stage 13.
+const VERSION: int = 12 # Rejoin token in HELLO, away seats in SNAPSHOT.
 
 ## Snapshot phases beyond VersusMatch.Phase (PLAYING = 0, OVER = 1). Sent by
 ## the host only; the rules engine never enters them.
@@ -78,19 +78,25 @@ static func _get_vel(b: StreamPeerBuffer) -> Vector2:
 	return Vector2(float(b.get_16()) / VEL_SCALE, float(b.get_16()) / VEL_SCALE)
 
 # ----------------------------------------------------------------- handshake
+## `token` is a number the guest picked when it started, and keeps. If its
+## link drops and comes back -- a new connection, so a new peer id -- the same
+## token is how the host knows to give it back the same seat.
 static func hello(wanted_seat: int,
-		room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT) -> PackedByteArray:
+		room_mode: int = VersusRoster.RoomMode.TEAM_SPLIT, token: int = 0) -> PackedByteArray:
 	var b := _buf(Msg.HELLO)
 	b.put_u16(VERSION)
 	b.put_8(wanted_seat)
 	b.put_u8(room_mode)
+	b.put_u32(token & 0xFFFFFFFF)
 	return b.data_array
+
+const HELLO_BYTES: int = 9
 
 static func read_hello(payload: PackedByteArray) -> Dictionary:
 	var b := reader(payload)
 	b.get_u8()
 	return {"version": b.get_u16(), "wanted_seat": b.get_8(),
-		"room_mode": b.get_u8()}
+		"room_mode": b.get_u8(), "token": b.get_u32()}
 
 ## `stage` is which stage's art the host's arena is painted in (a
 ## Stage.Which). The shape is the same in every theme, so this is only ever a
@@ -118,6 +124,11 @@ static func full(reason: String = "") -> PackedByteArray:
 
 static func read_full_reason(payload: PackedByteArray) -> String:
 	return payload.slice(1).get_string_from_utf8() if payload.size() > 1 else ""
+
+## The seat a guest is leaving from, or DROPPED: what a transport says on
+## its own when a guest's connection is lost, as opposed to the guest choosing
+## to go. A drop holds the seat for a while; a goodbye frees it.
+const DROPPED: int = 255
 
 static func bye(seat: int) -> PackedByteArray:
 	var b := _buf(Msg.BYE)
@@ -203,7 +214,8 @@ static func read_command(payload: PackedByteArray) -> Dictionary:
 static func snapshot(tick: int, phase: int, winner: int, runners: Array,
 		coins: Array, builds: Array, world_revision: int = 0,
 		epoch: int = 0, countdown: int = 0, seat_mask: int = 0,
-		enemy_mask: int = 0) -> PackedByteArray:
+		enemy_mask: int = 0, away_mask: int = 0, hit_log: Array = [],
+		stats: Array = []) -> PackedByteArray:
 	var b := _buf(Msg.SNAPSHOT)
 	b.put_u32(tick)
 	b.put_u8(phase)
@@ -214,6 +226,8 @@ static func snapshot(tick: int, phase: int, winner: int, runners: Array,
 	# Which chairs (up to eight) are taken, one bit each, so every screen can
 	# show who the room is still waiting for.
 	b.put_u8(seat_mask & 0xFF)
+	# Which of those have lost their connection and are being waited for.
+	b.put_u8(away_mask & 0xFF)
 	# Which of the stage's enemies are down, one bit each. Where they are is
 	# a function of the tick (VersusEnemies) and is never sent.
 	b.put_u32(enemy_mask & 0xFFFFFFFF)
@@ -242,7 +256,22 @@ static func snapshot(tick: int, phase: int, winner: int, runners: Array,
 		b.put_u8(int(g["seat"]))
 		_put_pos(b, g["position"])
 		_put_pos(b, g["size"])
+
+	# Who lost a star to whom lately (VersusMatch.hit_log), 5 bytes each.
+	b.put_u8(hit_log.size())
+	for h in hit_log:
+		b.put_u16(int(h["seq"]) & 0xFFFF)
+		b.put_u8(int(h["victim"]) & 0xFF)
+		b.put_8(int(h["by"]))
+		b.put_u8(int(h["how"]))
+	# The match's tallies (VersusMatch.stats), sent once it is over.
+	b.put_u8(stats.size())
+	for t in stats:
+		for key in STAT_KEYS:
+			b.put_u8(clampi(int(t[key]), 0, 255))
 	return b.data_array
+
+const STAT_KEYS: Array[String] = ["taken", "hits", "lost", "enemies"]
 
 static func read_snapshot(payload: PackedByteArray) -> Dictionary:
 	var b := reader(payload)
@@ -250,6 +279,7 @@ static func read_snapshot(payload: PackedByteArray) -> Dictionary:
 	var out := {"tick": b.get_u32(), "phase": b.get_u8(), "winner": b.get_8(),
 		"world_revision": b.get_u32(), "epoch": b.get_u8(),
 		"countdown": b.get_u16(), "seat_mask": b.get_u8()}
+	out["away_mask"] = b.get_u8()
 	out["enemy_mask"] = b.get_u32()
 
 	var runners: Array = []
@@ -286,6 +316,19 @@ static func read_snapshot(payload: PackedByteArray) -> Dictionary:
 		builds.append({"build_id": build_id, "seat": seat,
 			"position": at, "size": size})
 	out["builds"] = builds
+
+	var log: Array = []
+	for i in range(b.get_u8()):
+		log.append({"seq": b.get_u16(), "victim": b.get_u8(), "by": b.get_8(),
+			"how": b.get_u8()})
+	out["hit_log"] = log
+	var stats: Array = []
+	for i in range(b.get_u8()):
+		var t := {}
+		for key in STAT_KEYS:
+			t[key] = b.get_u8()
+		stats.append(t)
+	out["stats"] = stats
 	return out
 
 # ----------------------------------------------------------------- platforms
