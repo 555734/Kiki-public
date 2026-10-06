@@ -13,9 +13,11 @@ func _ready() -> void:
 	hub.scripted = true
 	add_child(hub)
 	var size := hub._screen_size()
+	var rest: Dictionary = ControlLayout.layout("shared", size)["stick"]
 	for mode in ["", "runner"]:
 		hub.solo_role = mode
-		for point in [Vector2(12, size.y - 12), size * Vector2(0.45, 0.6), size * Vector2(0.18, 0.85)]:
+		for point in [Vector2(12, size.y - 12), rest["center"] + Vector2(rest["radius"] * 1.8, -rest["radius"] * 1.2),
+				size * Vector2(0.18, 0.85)]:
 			hub._touch_down(0, point)
 			check(hub._stick_finger == 0 and hub.move_axis == 0.0, "floating press starts neutral anywhere in bottom left")
 			check(hub.stick_place(size)["center"] == point, "visible stick follows its pressed origin")
@@ -31,6 +33,7 @@ func _ready() -> void:
 			hub._touch_up(2)
 			hub._touch_up(0)
 			check(hub.move_axis == 0 and not hub.jump_held, "release clears movement and jump")
+	await _shared_screen_split(hub, size)
 	hub.solo_role = ""
 	hub.runner_on_left = false
 	var mirrored := size * Vector2(0.8, 0.8)
@@ -83,3 +86,53 @@ func _ready() -> void:
 	Stage.use(Stage.Which.GREENFIELD)
 	print("floating controls: %d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures else 0)
+
+## On a shared screen the floating stick only takes presses round where the
+## thumb rests, and a quick tap on it is the guardian's. Steering is unchanged.
+func _shared_screen_split(hub: InputHub, size: Vector2) -> void:
+	hub.solo_role = ""
+	hub.release_everything()
+	hub.take_place_at()
+	var rest: Dictionary = ControlLayout.layout("shared", size)["stick"]
+	var c: Vector2 = rest["center"]
+	var r: float = rest["radius"]
+	var near := c + Vector2(r * 0.6, -r * 0.4)
+	check(ControlLayout.hit("shared", size, false, near) == "stick", "shared: a press by the resting thumb is the stick")
+	for open in [size * Vector2(0.15, 0.3), size * Vector2(0.05, 0.55), c + Vector2(r * 3.2, 0.0)]:
+		check(open.x < size.x * 0.5 and ControlLayout.hit("shared", size, false, open) == "",
+			"shared: the left side away from the thumb is not the stick (%s)" % str(open))
+		hub._touch_down(0, open)
+		check(hub._touch_owner.get(0, "") == "aim", "shared: a press there aims (%s)" % str(open))
+		hub._touch_up(0)
+		check(hub.take_place_at().x != INF, "shared: a tap there shoots or places (%s)" % str(open))
+	hub._touch_down(0, near)
+	hub._touch_up(0, near + Vector2(4, 3))
+	check(hub.move_axis == 0.0 and hub.take_place_at().x != INF,
+		"shared: a quick tap on the floating stick is the guardian's, and moves nobody")
+	hub._touch_down(0, near)
+	hub._touch_move(0, near + Vector2(ControlLayout.stick_travel(hub.stick_place(size)), 0))
+	check(hub.move_axis > 0.99, "shared: dragging from there still steers")
+	hub._touch_up(0)
+	check(hub.take_place_at().x == INF, "shared: a drag on the stick places nothing")
+	hub._touch_down(0, near)
+	# Wall-clock, like the gesture: a headless frame loop does not keep real time.
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 <= StickGesture.TAP_MS + 100:
+		await get_tree().process_frame
+	hub._touch_up(0)
+	check(hub.take_place_at().x == INF, "shared: a long press on the stick places nothing")
+	hub.solo_role = "runner"
+	var far := c + Vector2(r * 3.2, 0.0)
+	check(ControlLayout.hit("runner", size, false, far) == "stick",
+		"runner alone: the whole bottom quarter is still the stick")
+	hub._touch_down(0, near)
+	hub._touch_up(0)
+	check(hub.take_place_at().x == INF, "runner alone: a tap on the stick is not a shot")
+	hub.solo_role = ""
+	ControlLayout.set_place("shared", "stick", Vector2(0.15, 0.75))
+	var fixed: Vector2 = ControlLayout.layout("shared", size)["stick"]["center"]
+	hub._touch_down(0, fixed)
+	hub._touch_up(0)
+	check(hub.take_place_at().x == INF, "a fixed stick keeps its taps")
+	ControlLayout.reset("shared")
+	hub.release_everything()
