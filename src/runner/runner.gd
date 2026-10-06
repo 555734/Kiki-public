@@ -406,7 +406,7 @@ var _launched: bool = false
 func _coasting(axis: float) -> bool:
 	if is_on_floor():
 		return false
-	var limit := Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER
+	var limit := sprint_cap(gear)
 	if absf(velocity.x) <= limit:
 		return false
 	return axis * velocity.x >= 0.0
@@ -449,18 +449,24 @@ static func ground_input(axis: float) -> float:
 ## What the stick is asking for on the ground. Sprint moves this ceiling and
 ## nothing else -- it is not a second acceleration, and it no longer needs the
 ## axis past a threshold before it counts.
-static func ground_target(axis: float, sprint: bool) -> float:
+static func ground_target(axis: float, sprint: bool, top_gear: float = 0.0) -> float:
 	var top := Balance.RUNNER_RUN_SPEED
 	if sprint:
-		top *= Balance.RUNNER_SPRINT_MULTIPLIER
+		top = sprint_cap(top_gear)
 	return ground_input(axis) * top
+
+## The sprint ceiling, raised by however far into second gear the runner is.
+static func sprint_cap(top_gear: float = 0.0) -> float:
+	return Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER \
+		* lerpf(1.0, Balance.RUNNER_TOP_GEAR_MULTIPLIER, clampf(top_gear, 0.0, 1.0))
 
 ## One tick of ordinary running. Pushing, easing off and turning round are three
 ## separate answers, and a reversal spends only the part of the frame it needs
 ## to reach zero before the rest of it accelerates the other way -- so the hard
 ## brake never carries on into the new direction.
-static func ground_step(vx: float, axis: float, sprint: bool, delta: float) -> float:
-	var target := ground_target(axis, sprint)
+static func ground_step(vx: float, axis: float, sprint: bool, delta: float,
+		top_gear: float = 0.0) -> float:
+	var target := ground_target(axis, sprint, top_gear)
 	if target == 0.0:
 		return move_toward(vx, 0.0, Balance.RUNNER_GROUND_DECEL * delta)
 	if vx * target < 0.0:
@@ -486,6 +492,42 @@ func ground_sprint_requested() -> bool:
 		return false
 	return input_hub.dash_held or Options.auto_dash()
 
+# ------------------------------------------------------------ second gear
+#
+# A long run flat out earns one more step of speed. Counted in physics deltas
+# only, so host, guest and replays agree on when it arrives.
+
+## Seconds spent at full sprint speed on the ground, in this run.
+var _gear_time: float = 0.0
+## How far into second gear the runner is, 0..1. Kept through a jump.
+var gear: float = 0.0
+
+func _reset_gear() -> void:
+	_gear_time = 0.0
+	gear = 0.0
+
+## One tick of the gearbox. On the ground it counts time at the sprint cap and
+## drops on anything that breaks the run; in the air it only drops on a turn.
+func _update_gear(axis: float, delta: float) -> void:
+	if state == State.HURT or state == State.DEAD or _crouched:
+		_reset_gear()
+		return
+	var pushing := absf(axis) > 0.1 and axis * velocity.x > 0.0
+	if not is_on_floor():
+		if absf(axis) > 0.1 and not pushing:
+			_reset_gear()
+		return
+	if not pushing or not ground_sprint_requested() or is_on_wall():
+		_reset_gear()
+		return
+	if absf(velocity.x) < sprint_cap() - 6.0:
+		# Short of plain sprint speed: a slope, a bump, a landing. Start over.
+		_reset_gear()
+		return
+	_gear_time += delta
+	if _gear_time >= Balance.RUNNER_TOP_GEAR_DELAY:
+		gear = minf(1.0, gear + delta / Balance.RUNNER_TOP_GEAR_RAMP)
+
 ## Ordinary running only. Crouch slides, wall kicks and the first frame of an
 ## external launch keep their own rates.
 func _runs_on_foot() -> bool:
@@ -499,9 +541,10 @@ func _process_normal(delta: float) -> void:
 	if absf(axis) > 0.1 and _wall_kick_lock <= 0.0:
 		facing = signi(int(signf(axis)))
 
+	_update_gear(axis, delta)
 	var top_speed := Balance.RUNNER_RUN_SPEED
 	if is_sprinting():
-		top_speed *= Balance.RUNNER_SPRINT_MULTIPLIER
+		top_speed = sprint_cap(gear)
 	var target := axis * top_speed
 	if _crouched and is_on_floor():
 		var rate := Balance.RUNNER_TURN_BRAKE if axis * velocity.x < 0.0 \
@@ -512,7 +555,7 @@ func _process_normal(delta: float) -> void:
 	elif _wall_kick_lock > 0.0:
 		pass  # Brief outward kick; vertical control and jump release still work.
 	elif _runs_on_foot():
-		velocity.x = ground_step(velocity.x, axis, ground_sprint_requested(), delta)
+		velocity.x = ground_step(velocity.x, axis, ground_sprint_requested(), delta, gear)
 	elif absf(axis) > 0.05:
 		velocity.x = move_toward(velocity.x, target, _push_rate(axis) * delta)
 	else:
@@ -699,11 +742,11 @@ func _start_ground_jump() -> void:
 	if direction != 0 and _jump_chain == 2:
 		velocity.x = float(direction) * minf(
 			absf(velocity.x) * Balance.RUNNER_DOUBLE_FORWARD_BOOST,
-			Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER * 1.05)
+			sprint_cap(gear) * 1.05)
 	elif direction != 0 and _jump_chain == 3:
 		velocity.x = float(direction) * minf(
 			absf(velocity.x) * Balance.RUNNER_TRIPLE_FORWARD_BOOST,
-			Balance.RUNNER_RUN_SPEED * Balance.RUNNER_SPRINT_MULTIPLIER * 1.12)
+			sprint_cap(gear) * 1.12)
 
 func _reset_jump_chain() -> void:
 	_jump_chain = 0
@@ -960,6 +1003,7 @@ func take_damage(amount: int) -> void:
 	_pound_phase = 0
 	_invuln = Balance.RUNNER_HURT_INVULN
 	_hurt_timer = 0.25
+	_reset_gear()
 	velocity = Vector2(-float(facing) * Balance.RUNNER_HURT_KNOCKBACK.x, Balance.RUNNER_HURT_KNOCKBACK.y)
 	_set_state(State.HURT)
 
@@ -974,6 +1018,7 @@ func die(cause: String) -> void:
 	_reset_jump_chain()
 	_pound_phase = 0
 	_external_takeoff_pending = false
+	_reset_gear()
 	_set_state(State.DEAD)
 	velocity = Vector2.ZERO
 	Events.runner_died.emit(cause)
@@ -1012,6 +1057,7 @@ var _contact_grace: int = 0
 
 func respawn(at: Vector2) -> void:
 	_contact_grace = 2
+	_reset_gear()
 	_end_player_jump()
 	_pound_phase = 0
 	_pound_timer = 0.0

@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.10
+# ストア提出物 — メロスゲーム 0.9.11
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.10（Android versionCode 37）
+対象ビルド: version 0.9.11（Android versionCode 38）
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -327,4 +327,15 @@ App Review が 3.1.1 として扱う可能性は残る。
 
 ```
 Improved movement controls and made the selected platform or shooting button easier to recognize. Platforms now keep the valid section before hitting terrain. Aiming shots no longer scrolls the camera sideways. Stars in Royal Arena are now placed in the air for jump-based competition. Added automated checks for visuals, stage settings, and release verification.
+```
+**新機能 / リリースノート（0.9.11）**
+<!-- release-notes:ja -->
+```
+長く走り続けると、もう一段階速く走れるようになりました。空中でもう一度ジャンプできるようになりました。ステージ1-7と1-8を、毎回違うしかけの部屋を登るステージに作り直しました。対戦モードに3分の時間制限とサドンデス、試合結果の表、スターを落とした理由の表示、ルールのヒント、通信が切れたときの再接続、「1台でためす」の練習相手を追加しました。タッチ操作の不具合も修正しています。
+```
+
+**English release notes (0.9.11)**
+
+```
+Keep running and you now shift into an even faster gear. You can now jump once more in mid-air. Stages 1-7 and 1-8 are rebuilt as climbs through rooms that each use a different gimmick. Versus mode adds a 3-minute time limit with sudden death, a results table, a log of why stars were dropped, rule tips, reconnecting after a dropped connection, and a practice partner for single-device play. Touch control fixes are included too.
 ```

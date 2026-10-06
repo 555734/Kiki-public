@@ -177,6 +177,15 @@ const RUNNER_RUN_SPEED: float = 5.7 * B
 ## Sprinting, as a multiplier on the above. 8.6 blocks a second.
 const RUNNER_SPRINT_MULTIPLIER: float = 1.5
 
+## Second gear: after this long flat out at sprint speed on the ground, the
+## sprint cap rises by RUNNER_TOP_GEAR_MULTIPLIER, reached over
+## RUNNER_TOP_GEAR_RAMP. Stopping, turning, a wall, a hurt or a crouch drop it.
+## Jump HEIGHT never sees it (ground_jump_height clamps at the sprint speed);
+## only the distance a long run-up carries does.
+const RUNNER_TOP_GEAR_DELAY: float = 1.5
+const RUNNER_TOP_GEAR_MULTIPLIER: float = 1.2
+const RUNNER_TOP_GEAR_RAMP: float = 0.3
+
 ## How long it takes to reach full speed, and to stop from it. Written as times
 ## because that is what a thumb feels; the accelerations follow.
 const RUNNER_TIME_TO_TOP_SPEED: float = 0.15

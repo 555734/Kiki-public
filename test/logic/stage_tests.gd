@@ -227,6 +227,21 @@ func _test_level_reachability() -> void:
 	check(beyond_double.filter(func(x: float) -> bool: return x > 8500.0).size() >= 3,
 		"the back half still has three crossings beyond a double jump")
 	print("  gaps beyond a double jump: %s" % str(beyond_double))
+	# Second gear (Balance.RUNNER_TOP_GEAR_*) carries a double jump further, but
+	# only after about two seconds of unbroken running. Reported, not enforced:
+	# whether a gap that falls to it is a fair reward is a design call.
+	var top_reach: float = _reach.get("double_top", 591.0)
+	var to_top_gear: float = Runner.sprint_cap() \
+		* (Balance.RUNNER_TOP_GEAR_DELAY + Balance.RUNNER_TOP_GEAR_RAMP)
+	var within_top: Array[String] = []
+	for i in range(bare.size() - 1):
+		var raw_gap: float = bare[i + 1].position.x - (bare[i].position.x + bare[i].size.x)
+		if bare[i].position.y - bare[i + 1].position.y > 0.0 or raw_gap <= double_reach:
+			continue
+		if raw_gap <= top_reach:
+			within_top.append("%.0f (%.0fpx gap, %.0fpx of floor before it; second gear wants ~%.0f)"
+				% [bare[i].position.x + bare[i].size.x, raw_gap, bare[i].size.x, to_top_gear])
+	print("  gaps a second-gear double jump could clear: %s" % str(within_top))
 
 ## Pipes and block rows are solid now. They have to be solid *and* passable:
 ## every pipe clearable from flat ground, every floating block row high enough to

@@ -73,6 +73,7 @@ func _run_all() -> void:
 	await movement._test_updraft_after_tapped_jump()
 	await movement._test_four_ways_to_change_direction()
 	await movement._test_dash()
+	await movement._test_top_gear()
 	await movement._test_stomp_and_damage()
 	await guardian._test_wall_blocks_projectile()
 	await movement._test_checkpoint_respawn()

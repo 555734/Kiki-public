@@ -119,7 +119,8 @@ func _find_button(root: Node, contains: String) -> Button:
 
 ## One jump from a standing start on the opening plateau, run to landing.
 ## Returns how far it travelled and how high it got.
-func _measure_arc(sprint: bool, repress_sprint: bool, air_jump: bool = false) -> Dictionary:
+func _measure_arc(sprint: bool, repress_sprint: bool, air_jump: bool = false,
+		run_up: int = 70) -> Dictionary:
 	var r: Runner = main.runner
 	var hub: InputHub = main.input_hub
 	hub.release_jump()
@@ -132,7 +133,7 @@ func _measure_arc(sprint: bool, repress_sprint: bool, air_jump: bool = false) ->
 	# stage's gaps are meant to be taken.
 	hub.move_axis = 1.0
 	hub.dash_held = sprint
-	await _physics(70)
+	await _physics(run_up)
 	var start := r.global_position
 	var apex := start.y
 	hub.press_jump()

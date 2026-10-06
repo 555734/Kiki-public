@@ -37,7 +37,7 @@ static func capture(main: Node2D) -> PackedByteArray:
 		},
 		"runner": _node_state(main.runner, [
 			"global_position", "velocity", "state", "hp", "facing",
-			"_invulnerable", "_hurt_timer", "_dash_timer"]),
+			"_invulnerable", "_hurt_timer", "_dash_timer", "_gear_time", "gear"]),
 		"guardian": _node_state(main.guardian, ["gauge", "active_slot"]),
 		"groups": {},
 	}

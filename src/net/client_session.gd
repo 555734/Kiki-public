@@ -44,8 +44,8 @@ var _by_net_id: Dictionary = {}
 ## the ping's reply carries the tick too -- but retrying costs nothing.
 var _welcomed: bool = false
 ## A jump between two consecutive snapshots larger than this cannot be running:
-## the sprint tops out near 440 px/s and snapshots are 33ms apart, so anything
-## past ~15px is already suspicious. 300 leaves a wide margin for a dropped
+## the sprint tops out near 490 px/s (second gear) and snapshots are 33ms apart, so anything
+## past ~17px is already suspicious. 300 leaves a wide margin for a dropped
 ## snapshot or two and still cannot be reached by any legal movement.
 const TELEPORT_PX: float = 300.0
 var _warp_seen: bool = false
