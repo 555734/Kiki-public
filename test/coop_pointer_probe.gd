@@ -14,6 +14,8 @@ func _ready() -> void:
 		for role in ["", "runner"]:
 			for fixed in [false, true]:
 				await exercise(mouse, role, fixed)
+	for control in ["jump", "stick"]:
+		await first_touch_through_input(control)
 	print("co-op pointer probe: %d checks, %d failures" % [checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)
 func press(mouse: bool, at: Vector2, down: bool) -> void:
@@ -93,3 +95,36 @@ func exercise(mouse: bool, role: String, fixed: bool) -> void:
 	main.queue_free()
 	await get_tree().process_frame
 	ControlLayout.reset(mode)
+
+## The first touch of a session, sent the way the engine delivers it: through
+## Input, so emulate_mouse_from_touch also makes a mouse press -- one that
+## arrives before the touch it copies. The control must end up the finger's
+## alone, and be let go when the finger lifts.
+func first_touch_through_input(control: String) -> void:
+	check(Input.is_emulating_mouse_from_touch(), "the project emulates the mouse from touch")
+	Stage.use(Stage.Which.GREENFIELD)
+	var main := preload("res://src/main.tscn").instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	main.get_node("NetPanel")._on_local()
+	await get_tree().process_frame
+	var hub: InputHub = main.input_hub
+	ControlLayout.reset(hub.layout_mode())
+	check(not hub._has_touch, control + ": the hub has not seen a touch yet")
+	var at: Vector2 = hub.cluster(Vector2(1280, 720))[control]["center"]
+	for down in [true, false]:
+		var e := InputEventScreenTouch.new()
+		e.index = 0
+		e.position = at
+		e.pressed = down
+		Input.parse_input_event(e)
+		for i in range(3):
+			await get_tree().process_frame
+		if down:
+			check(hub._touch_owner.get(0, "") == control, control + ": the finger takes the control")
+			check(not hub._touch_owner.has(InputHub.MOUSE_FINGER),
+				control + ": the emulated mouse takes nothing")
+	check(hub._touch_owner.is_empty(), control + ": nothing is left holding a control")
+	check(not hub.jump_held and hub.move_axis == 0.0, control + ": nothing is left pressed")
+	main.queue_free()
+	await get_tree().process_frame
