@@ -175,8 +175,8 @@ static func checkpoints() -> Array[Vector2]:
 	var out: Array[Vector2] = [Vector2(900, 250), Vector2(1800, 200), Vector2(3180, 80),
 		Vector2(4500, 170), Vector2(5180, -30), Vector2(6360, 30),
 		Vector2(6980, 120), Vector2(8220, 250), Vector2(9540, 270)]
-	out.append_array(Sections.build().checkpoints)
 	out.append(Vector2(Sections.ENTRY.get_center().x, Sections.ENTRY.position.y - 50))
+	out.append_array(Sections.build().checkpoints)
 	out.append(RETURN_EXIT)
 	return out
 static func goal() -> Vector2: return Vector2(RETURN_BANK.end.x - 110, RETURN_BANK.position.y - 55)

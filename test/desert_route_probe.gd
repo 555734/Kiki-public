@@ -47,6 +47,20 @@ func run() -> void:
 	add_child(main)
 	main.get_node("NetPanel").queue_free()
 	await get_tree().process_frame
+	# Cross the fold with real checkpoint Areas, then exercise the game's
+	# respawn path. An upstairs arrival appended after the upstairs checkpoints
+	# would give it a larger index than later rooms and break network progress.
+	main.input_hub.scripted = true
+	Route._quiet(get_tree())
+	GameState.reset_run(Stage.start())
+	for i in [8, 9, 10]:
+		main.runner.respawn(Stage.checkpoints()[i] + Vector2(0, 24))
+		for _frame in 6: await get_tree().physics_frame
+		check(GameState.checkpoint_index == i + 1, "real checkpoint advances across the tier change: %d" % (i + 1))
+	var saved := GameState.respawn_position()
+	main._do_respawn()
+	check(main.runner.global_position.distance_to(saved) < 1.0 and saved.y < -500,
+		"real respawn returns to the latest upper checkpoint")
 	var only: Array = []
 	if OS.get_environment("DESERT_ONLY") != "": only = OS.get_environment("DESERT_ONLY").split(",")
 	var missed := await Route.climb_all(get_tree(), main, 0, only)
