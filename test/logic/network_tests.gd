@@ -522,10 +522,10 @@ func _test_host_answers_the_guardian() -> void:
 	# A mismatched build must be told so. The two players will be on different
 	# platforms and will update at different times, and a silent version skew
 	# fails in ways that look like a broken connection.
-	# 0.9.15 used wire 25 with the previous single-tier lava layout. Exercise that exact
+	# 0.9.16 used wire 26 with the previous single-tier coast layout. Exercise that exact
 	# older peer, not just +1: equal wire must never construct different stages.
-	check(Protocol.VERSION > 25, "rebuilt lava rejects the previous wire 25")
-	var stale := PackedByteArray([Protocol.Msg.HELLO, 25])
+	check(Protocol.VERSION > 26, "rebuilt coast rejects the previous wire 26")
+	var stale := PackedByteArray([Protocol.Msg.HELLO, 26])
 	guardian_side.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED, stale)
 	# 16 frames, not 8. The link is 75ms each way and a frame is 16.7ms, so 8

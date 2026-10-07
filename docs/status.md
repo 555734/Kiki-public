@@ -11,6 +11,7 @@ Godot 4.7.2、横画面1280×720。第一章1-1〜1-8、対戦の既定ステー
 - 衝突直前まで残す足場配置、射撃ドラッグによるカメラスクロールの撤去。
 - 対戦スターの空中配置、時間制限・再接続猶予・結果表示・CPUパートナー。
 - クラス・アートmanifestの分割、known failures 0件、全Godot/UI/server/performance CI、署名アップロードと正確なTestFlight build確認。
+- 1-4は上段海岸と下段の港、深い潮だまり、予告付きの噴潮と落下する錨を組み合わせています。構成・生成素材・検証は [coastal-depths.md](coastal-depths.md) を参照してください。
 - 1-5は上段の峡谷と下段の溶岩洞、予兆付きの噴火と隕石を組み合わせています。構成と検証は [molten-depths.md](molten-depths.md)、性能の記録と予算は [perf_budgets.cfg](../tools/perf_budgets.cfg) を参照してください。全端末・全場面のfps保証ではありません。
 
 ## 2026-10-06のレビュー判断（履歴）

@@ -87,7 +87,7 @@ func run() -> void:
 			name = "stage-" + Stage.stage_number()
 		await capture(scene, name, update)
 		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
-			if which in [Stage.Which.DESERT, Stage.Which.SWAMP]:
+			if which in [Stage.Which.DESERT, Stage.Which.SWAMP, Stage.Which.SEA]:
 				# The added upper-tier views review geometry and machinery. Keep
 				# controls out of the way, as in the whole-stage map; the start
 				# view and dedicated UI probes still cover the interactive HUD.
@@ -105,13 +105,15 @@ func run() -> void:
 				scene._snap_camera_to_runner()
 				scene.camera.reset_smoothing()
 				await capture(scene, name + "-" + view[0], update)
-			if which == Stage.Which.SWAMP:
+			if which in [Stage.Which.SWAMP, Stage.Which.SEA]:
 				# At tick zero these authored phases expose both new active
 				# sprites, rather than comparing only harmless cooldown poses.
-				for kind in ["geyser", "meteor"]:
-					var phase := 2.0 if kind == "geyser" else 1.7
+				var kinds := ["surge", "anchor"] if which == Stage.Which.SEA else ["geyser", "meteor"]
+				var type_ := "coastal_hazard" if which == Stage.Which.SEA else "volcanic_hazard"
+				for kind in kinds:
+					var phase := 2.0 if kind == kinds[0] else 1.7
 					var hazard: Dictionary = Stage.gimmicks().filter(func(s: Dictionary) -> bool:
-						return s["type"] == "volcanic_hazard" and s["kind"] == kind and s["phase"] == phase)[0]
+						return s["type"] == type_ and s["kind"] == kind and s["phase"] == phase)[0]
 					scene.runner.position = hazard["pos"] + hazard["travel"] * 0.5 + Vector2(-140, 0)
 					scene._snap_camera_to_runner(); scene.camera.reset_smoothing()
 					await capture(scene, name + "-" + kind, update)

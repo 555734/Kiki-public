@@ -79,11 +79,16 @@ func _draw() -> void:
 		if state["active"]:
 			var r: Rect2 = state["rect"]
 			var painting := Rect2(-width * 1.2, r.position.y, width * 2.4, r.size.y)
-			if not Art.draw_stretched(self, "s15_eruption", painting): draw_rect(r, Color("fa792a"))
+			if not Art.draw_stretched(self, effect_texture(), painting): draw_rect(r, fallback_colour())
 	elif state["active"]:
 		var head: Vector2 = state["head"]
-		if not Art.draw_stretched(self, "s15_meteor", Rect2(head - Vector2(width * 0.5, width * 1.4), Vector2(width, width * 1.9))):
-			draw_circle(head, width * 0.5, Color("dd6634"))
+		if not Art.draw_stretched(self, effect_texture(), Rect2(head - Vector2(width * 0.5, width * 1.4), Vector2(width, width * 1.9))):
+			draw_circle(head, width * 0.5, fallback_colour())
+
+func effect_texture() -> String:
+	return "s15_eruption" if kind == "geyser" else "s15_meteor"
+
+func fallback_colour() -> Color: return Color("fa792a") if kind == "geyser" else Color("dd6634")
 
 func draw_ellipse_vent() -> void:
 	draw_rect(Rect2(-width * 0.65, -8, width * 1.3, 16), Color("522733"))

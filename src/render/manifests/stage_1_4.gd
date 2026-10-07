@@ -1,5 +1,7 @@
 extends RefCounted
 const TEXTURES := {
+	"s14_surge": "stage_1_4/generated/surge_v1.png",
+	"s14_anchor": "stage_1_4/generated/anchor_v1.png",
 	"s14_background": "split/1-4/background/background.png",
 	"s14_puffer_alert": "split/1-4/enemies/puffer_alert.png",
 	"s14_puffer_attack": "split/1-4/enemies/puffer_attack.png",
