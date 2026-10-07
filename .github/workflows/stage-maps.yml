@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - tools/export_stage_maps.*
+      - src/levels/**
       - .github/workflows/stage-maps.yml
 
 permissions:

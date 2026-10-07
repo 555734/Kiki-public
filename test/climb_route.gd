@@ -7,6 +7,7 @@ extends RefCounted
 ##
 ## Steps (see SectionBuilder):
 ##   jump    -- one jump, held
+##   walk    -- grounded movement through a low ceiling or a downward step
 ##   double  -- a jump, then the mid-air second jump at its top
 ##   assist  -- the guardian builds the step's platforms, the runner climbs them
 ##   ride    -- a gimmick does the carrying: springs, pads, warps and updrafts
@@ -14,6 +15,7 @@ extends RefCounted
 ##              blinks, belts, crumbles) are tried from several points of the
 ##              stage clock, since every one of them is a function of it, and
 ##              the step passes if a patient player could make it
+## Steps may opt into sprint; existing routes keep their original inputs.
 
 ## CLIMB_TRACE prints the runner frame by frame; CLIMB_TRACE_ROOM keeps that
 ## to one room.
@@ -55,17 +57,20 @@ static func climb_all(tree: SceneTree, main: Node2D, _max_rise: float = 0.0,
 		var a: Rect2 = step["from"]
 		var b: Rect2 = step["to"]
 		var ok := true
+		var sprint := bool(step.get("sprint", false))
 		match via:
+			"walk":
+				ok = await _walk(tree, main, r, hub, a, b)
 			"jump":
 				if step.has("tries"):
 					ok = await _timed_jump(tree, main, r, hub, a, b, step)
 				else:
-					ok = await _climb(tree, main, r, hub, a, b) or await _climb(tree, main, r, hub, a, b)
+					ok = await _climb(tree, main, r, hub, a, b, true, false, sprint) or await _climb(tree, main, r, hub, a, b, true, false, sprint)
 			"double":
-				ok = await _climb(tree, main, r, hub, a, b, true, true) \
-					or await _climb(tree, main, r, hub, a, b, true, true)
+				ok = await _climb(tree, main, r, hub, a, b, true, true, sprint) \
+					or await _climb(tree, main, r, hub, a, b, true, true, sprint)
 			"assist":
-				ok = await _assisted(tree, main, r, hub, a, b, step["platforms"])
+				ok = await _assisted(tree, main, r, hub, a, b, step["platforms"], sprint)
 			"ride":
 				ok = await _ride(tree, main, r, hub, step)
 		if not ok:
@@ -87,7 +92,7 @@ static func _quiet(tree: SceneTree) -> void:
 
 ## Out of reach alone: the guardian builds the platforms, the runner uses them.
 static func _assisted(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
-		a: Rect2, b: Rect2, plats: Array) -> bool:
+		a: Rect2, b: Rect2, plats: Array, sprint: bool = false) -> bool:
 	for attempt in 2:
 		var g = main.guardian
 		for h in g.holograms_of(Hologram.Kind.PLATFORM):
@@ -111,7 +116,7 @@ static func _assisted(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 		chain.append(b)
 		var ok := true
 		for i in chain.size() - 1:
-			if not await _climb(tree, main, r, hub, chain[i], chain[i + 1], i == 0):
+			if not await _climb(tree, main, r, hub, chain[i], chain[i + 1], i == 0, false, sprint):
 				ok = false
 				break
 		if ok:
@@ -119,7 +124,7 @@ static func _assisted(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 	return false
 
 static func _climb(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
-		a: Rect2, b: Rect2, place: bool = true, double: bool = false) -> bool:
+		a: Rect2, b: Rect2, place: bool = true, double: bool = false, sprint: bool = false) -> bool:
 	# A death on the previous step: let the respawn play out first.
 	for _i in 240:
 		if r.state != Runner.State.DEAD:
@@ -174,7 +179,7 @@ static func _climb(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 		var jump := ((first or second) and r.state != Runner.State.HANG) \
 			or (pull > 0 and pull < 9)
 		pull = maxi(0, pull - 1)
-		hub.drive_runner(axis, 0.0, jump, false)
+		hub.drive_runner(axis, 0.0, jump, sprint)
 		await tree.physics_frame
 		if _tracing and f % 6 == 0:
 			print("   f=%d pos=%s v=%s floor=%s st=%d jump=%s ax=%d" % [f, r.global_position.round(), r.velocity.round(), r.is_on_floor(), r.state, jump, axis])
@@ -188,6 +193,18 @@ static func _on(r: Runner, b: Rect2) -> bool:
 	return r.is_on_floor() and r.global_position.y < b.position.y \
 		and r.global_position.y > b.position.y - 40.0 \
 		and r.global_position.x > b.position.x - 10.0 and r.global_position.x < b.end.x + 10.0
+
+## Low passages and downward steps: jumping would land on the roof instead.
+static func _walk(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub, a: Rect2, b: Rect2) -> bool:
+	r.respawn(Vector2(a.get_center().x, a.position.y - 26))
+	r.velocity = Vector2.ZERO
+	main._snap_camera_to_runner()
+	for f in 240:
+		var dx := b.get_center().x - r.global_position.x
+		hub.drive_runner(0.0 if absf(dx) < 12 else signf(dx), 0, false, false)
+		await tree.physics_frame
+		if f > 10 and _on(r, b): return true
+	return false
 
 # --------------------------------------------------------------------- rides
 static func _ride(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
@@ -212,7 +229,7 @@ static func _timed_jump(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 	var start_tick := Clock.tick
 	for k in int(step["tries"]):
 		await _set_clock(tree, r, a, start_tick + k * int(step.get("spacing", 20)))
-		if await _climb(tree, main, r, hub, a, b):
+		if await _climb(tree, main, r, hub, a, b, true, false, bool(step.get("sprint", false))):
 			return true
 	return false
 
@@ -286,7 +303,7 @@ static func _thrown(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 						and r.velocity.y < 0.0 \
 						and absf(r.global_position.x - b.get_center().x) < b.size.x * 0.5 + 30.0:
 					axis = 0.0
-			hub.drive_runner(axis, 0.0, false, false)
+			hub.drive_runner(axis, 0.0, false, bool(step.get("sprint", false)))
 			await tree.physics_frame
 			if _tracing and f % 6 == 0:
 				print("   s f=%d pos=%s v=%s floor=%s ceil=%s st=%d ax=%d" % [f, r.global_position.round(), r.velocity.round(), r.is_on_floor(), r.is_on_ceiling(), r.state, axis])
@@ -375,6 +392,12 @@ static func _timed(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 	var spacing := int(step.get("spacing", 23))
 	for k in tries:
 		await _set_clock(tree, r, a, start_tick + k * spacing)
+		if step.has("activate"):
+			for target in tree.get_nodes_in_group("switch"):
+				if target is ShootableSwitch and target.switch_id == String(step["activate"]):
+					target.take_damage(1)
+					break
+			for _frame in 30: await tree.physics_frame
 		if await _timed_once(tree, main, r, hub, a, b, pieces, step):
 			return true
 		if OS.get_environment("CLIMB_DEBUG") != "":
@@ -438,7 +461,7 @@ static func _timed_once(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 		else:
 			var dx2 := aim.get_center().x - r.global_position.x - r.velocity.x * 0.3
 			axis = 0.0 if absf(dx2) < 14.0 else signf(dx2)
-		hub.drive_runner(axis, 0.0, jump, false)
+		hub.drive_runner(axis, 0.0, jump, bool(step.get("sprint", false)))
 		await tree.physics_frame
 		if _tracing and (f % 5 == 0 or OS.get_environment("CLIMB_TRACE") == "all"):
 			print("   t ceil=%s f=%d i=%d pos=%s v=%s floor=%s st=%d coy=%.2f buf=%.2f ext=%s aim=%s jump=%s ax=%d" % [r.is_on_ceiling(), f, index, r.global_position.round(), r.velocity.round(), r.is_on_floor(), r.state, r._coyote, r._jump_buffer, r._external_takeoff_pending, aim, jump, axis])
@@ -455,7 +478,8 @@ static func _reachable(r: Runner, aim: Rect2, step: Dictionary) -> bool:
 	var gap := maxf(0.0, maxf(aim.position.x - r.global_position.x, r.global_position.x - aim.end.x))
 	if rise > float(step.get("max_rise", 125.0)) or rise < -420.0:
 		return false
-	return gap <= air_reach(rise) * 0.7
+	var multiplier := Balance.RUNNER_SPRINT_MULTIPLIER if bool(step.get("sprint", false)) else 1.0
+	return gap <= air_reach(rise) * 0.7 * multiplier
 
 ## How far across a held jump carries the runner by the time it is back down
 ## to `rise` above where it left.

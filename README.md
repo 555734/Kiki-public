@@ -50,6 +50,8 @@ bash tools/server-tests.sh
 
 ステージ全体をPNGでレビューする開発ツールは [docs/stage-maps.md](docs/stage-maps.md) を参照してください。
 
+1-6の20区間の設計と検証は [docs/desert-sections.md](docs/desert-sections.md) に記載しています。
+
 - `mobile.yml`: AndroidテストAPKとiOSビルド。pushの成功だけではストア提出を意味しません。
 - `android-play.yml`: 永続署名の `com.sasakiful.melos` AAB。明示した versionCode と提出オプションを使用します。
 - `ios.yml`: `com.sasakiful.sidesky`。署名・アップロードと App Store 審査提出は別オプションです。

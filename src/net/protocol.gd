@@ -106,7 +106,8 @@ enum World {
 ## 21: persistent cooperative rooms and session state.
 ## 22: rebuilt 1-7/1-8 and double-jump/second-gear simulation. Until content
 ##     negotiation exists, this number protects deterministic stage data too.
-const VERSION: int = 22
+## 23: twenty-section desert layout and thin desert ledges.
+const VERSION: int = 23
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

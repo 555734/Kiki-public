@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.12
+# ストア提出物 — メロスゲーム 0.9.13
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.12（Android versionCode 39）
+対象ビルド: version 0.9.13（Android versionCode 40）
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -340,8 +340,8 @@ Improved movement controls and made the selected platform or shooting button eas
 Keep running and you now shift into an even faster gear. You can now jump once more in mid-air. Stages 1-7 and 1-8 are rebuilt as climbs through rooms that each use a different gimmick. Versus mode adds a 3-minute time limit with sudden death, a results table, a log of why stars were dropped, rule tips, reconnecting after a dropped connection, and a practice partner for single-device play. Touch control fixes are included too.
 ```
 
-**新機能 / リリースノート（0.9.12）**
+**新機能 / リリースノート（0.9.13）**
 <!-- release-notes:ja -->
 ```
-新旧バージョンで異なるステージに接続してしまう問題を防ぎました。2段ジャンプと2速を維持しながら、ガーディアンと協力する渡り場を調整しました。縦ステージの中盤・終盤の画像比較と、ステージ設定の型・範囲の検証を追加しました。
+砂漠ステージ1-6を、異なる遊び方を持つ20区間へ拡張しました。風の井戸、振り子、歯車、ピストンの地下道、点滅床との乗り換え、転送、射撃で維持する橋、ガーディアンの救援壁を追加しています。旧ステージを持つバージョンとの通信不一致も防ぎました。
 ```

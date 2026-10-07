@@ -1,12 +1,15 @@
 extends RefCounted
-## Stage 1-6: a readable run of escalating platforming beats. Short jumps
-## teach the rhythm before the crumbling causeway, guardian gap, lift, blinking
-## steps and final sprint. Every free jump stays within the measured ~300px
-## sprint arc; the 790px gap is deliberately a guardian task.
+## Twenty distinct desert encounters. The first ten build on the oasis route;
+## the next ten are authored separately in desert_sections.gd. No room recipe
+## repeats. route() records the production geometry for real-Runner checks.
+const Sections = preload("res://src/levels/desert_sections.gd")
+const PREFIX_NAMES := ["oasis_run", "sand_columns", "low_thorn_corridor", "guarded_rope_bridge",
+	"crumbling_hourglass", "mirage_crossing", "ruin_elevator", "blink_fork", "reversing_dunes", "sigil_causeway"]
 
 const BASE := 900.0
 const START := Vector2(-1040, 350)
 const KILL_Y := 760.0
+const SAND_COLUMN := Rect2(240, 210, 120, 48)
 
 static func kill_y_value() -> float: return KILL_Y
 static func start_position() -> Vector2: return START
@@ -35,6 +38,13 @@ static func ground() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for slab in SLABS:
 		out.append(Rect2(slab[0], slab[2], slab[1] - slab[0], BASE - slab[2]))
+	out.append(Rect2(960, 180, 100, 64)) # Low corridor, ending before the launch pad.
+	out.append(Rect2(4960, 105, 80, 36)) # Lift's intermediate dismount.
+	out.append(Rect2(5620, 170, 150, 40)) # Optional lower blink route.
+	out.append(Rect2(5930, 220, 160, 40))
+	out.append(Rect2(7200, -200, 180, 180)) # Housing above the sigil gate.
+	out.append(SAND_COLUMN)
+	out.append_array(Sections.build().ground)
 	return out
 
 static func solid_decor() -> Array[Rect2]:
@@ -62,6 +72,7 @@ static func decor() -> Array[Dictionary]:
 		{"type": "desert_arch", "pos": Vector2(9930, 320), "height": 210.0},
 		{"type": "desert_bridge", "rect": Rect2(1350, 290, 160, 22)},
 	]
+	out.append_array(Sections.build().decor)
 	return out
 
 static func hazards() -> Array[Dictionary]:
@@ -72,7 +83,7 @@ static func hazards() -> Array[Dictionary]:
 	]
 
 static func enemies() -> Array[Dictionary]:
-	return [
+	var out: Array[Dictionary] = [
 		{"type": "sky_pursuer", "pos": start_position() + Vector2(-550, -24),
 			"activation": 120.0, "delay": 4.0, "speed": 160.0, "catchup": 360.0,
 			"stun": 2.5, "direction": Vector2.RIGHT},
@@ -94,9 +105,11 @@ static func enemies() -> Array[Dictionary]:
 		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(8990, 160), "patrol": 100.0},
 		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(9840, 293), "patrol": 135.0},
 	]
+	out.append_array(Sections.build().enemies)
+	return out
 
 static func gimmicks() -> Array[Dictionary]:
-	return [
+	var out: Array[Dictionary] = [
 		# C: keep moving. Each ledge falls 0.45s after contact.
 		{"type": "crumble", "pos": Vector2(2460, 165), "span": Vector2(110, 30)},
 		{"type": "crumble", "pos": Vector2(2670, 165), "span": Vector2(110, 30)},
@@ -110,7 +123,7 @@ static func gimmicks() -> Array[Dictionary]:
 		{"type": "switch_bridge", "id": "desert_mirage", "pos": Vector2(4025, 205),
 			"span": Vector2(155, 26), "delay": 0.30},
 		# The arrow pad fires sideways over hazards and patrols, unlike a spring.
-		{"type": "trick_pad", "pos": Vector2(1080, 300)},
+		{"type": "trick_pad", "pos": Vector2(1120, 300), "forward": 640.0, "rise": 1200.0},
 		# E: wait for the lift, then make a 170px jump to the high bank.
 		{"type": "moving_platform", "pos": Vector2(4860, 205),
 			"span": Vector2(140, 26), "travel": Vector2(0, -190), "speed": 85.0},
@@ -141,15 +154,21 @@ static func gimmicks() -> Array[Dictionary]:
 			"span": Vector2(120, 30)},
 		{"type": "crumble", "pos": Vector2(9210, 315), "span": Vector2(110, 30)},
 	]
+	out.append_array(Sections.build().gimmicks)
+	return out
 static func veils() -> Array[Dictionary]: return []
 static func checkpoints() -> Array[Vector2]:
-	return [Vector2(940, 250), Vector2(1800, 200), Vector2(3180, 80),
+	var out: Array[Vector2] = [Vector2(900, 250), Vector2(1800, 200), Vector2(3180, 80),
 		Vector2(4500, 170), Vector2(5180, -30), Vector2(6360, 30),
 		Vector2(6980, 120), Vector2(8220, 250), Vector2(9540, 270)]
-static func goal() -> Vector2: return Vector2(10150, 265)
+	out.append_array(Sections.build().checkpoints)
+	return out
+static func goal() -> Vector2:
+	var out := Sections.build().cursor
+	return Vector2(out.end.x - 110, out.position.y - 55)
 
 static func coins() -> Array[Vector2]:
-	return [
+	var out: Array[Vector2] = [
 		Vector2(-760, 340), Vector2(-590, 325),
 		Vector2(-280, 265), Vector2(-115, 235), Vector2(65, 245),
 		Vector2(285, 220), Vector2(450, 185), Vector2(610, 205),
@@ -168,9 +187,63 @@ static func coins() -> Array[Vector2]:
 		Vector2(8790, 235), Vector2(9000, 235), Vector2(9210, 235),
 		Vector2(9680, 250), Vector2(9940, 235),
 	]
+	out.append_array(Sections.build().coins)
+	return out
 
 static func crystals() -> Array[Vector2]: return []
-static func springs() -> Array[Vector2]: return [Vector2(100, 360)]
+static func springs() -> Array[Vector2]:
+	var out: Array[Vector2] = [Vector2(100, 360)]
+	out.append_array(Sections.build().springs)
+	return out
+
+static func ground_one_way(rect: Rect2) -> bool: return rect.size.y <= 48
+
+static func rooms() -> Array[Dictionary]:
+	var g := ground()
+	var indices := [[0, 1], [1, 2], [2, 3], [3, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 13]]
+	var out: Array[Dictionary] = []
+	for i in PREFIX_NAMES.size():
+		var entry: Rect2 = g[indices[i][0]]
+		var exit: Rect2 = g[indices[i][1]]
+		out.append({"name": PREFIX_NAMES[i], "entry": entry, "exit": exit,
+			"x_start": entry.position.x, "x_end": exit.end.x})
+	out.append_array(Sections.build().sections)
+	return out
+
+static func _tail(r: Rect2) -> Rect2:
+	return Rect2(r.end.x - minf(200, r.size.x), r.position.y, minf(200, r.size.x), r.size.y)
+
+static func route() -> Array[Dictionary]:
+	var g := ground()
+	var out: Array[Dictionary] = [
+		{"section": PREFIX_NAMES[0], "via": "jump", "from": _tail(g[0]), "to": g[1]},
+		{"section": PREFIX_NAMES[1], "via": "ride", "how": "spring", "from": g[1], "to": SAND_COLUMN, "at": Vector2(100, 360)},
+		{"section": PREFIX_NAMES[1], "via": "jump", "from": SAND_COLUMN, "to": g[2]},
+		{"section": PREFIX_NAMES[2], "via": "jump", "from": _tail(g[2]), "to": Rect2(870, 300, 80, 48)},
+		{"section": PREFIX_NAMES[2], "via": "walk", "from": Rect2(870, 300, 80, 48), "to": Rect2(990, 300, 30, 48)},
+		{"section": PREFIX_NAMES[3], "via": "ride", "how": "pad", "from": g[3], "to": g[4], "at": Vector2(1120, 300), "dir": 1},
+		{"section": PREFIX_NAMES[3], "via": "jump", "from": _tail(g[4]), "to": g[5]},
+		{"section": PREFIX_NAMES[4], "via": "ride", "how": "timed", "from": _tail(g[5]), "to": g[6],
+			"pieces": [Vector2(2460, 165), Vector2(2670, 165), Vector2(2880, 155)], "tries": 12},
+		{"section": PREFIX_NAMES[5], "via": "assist", "from": _tail(g[6]), "to": g[7],
+			"platforms": [Rect2(3760, 90, 150, 26), Rect2(4100, 110, 150, 26)]},
+		{"section": PREFIX_NAMES[6], "via": "ride", "how": "timed", "from": g[7], "to": g[8],
+			"pieces": [Vector2(4860, 205)], "tries": 16, "spacing": 29},
+		{"section": PREFIX_NAMES[7], "via": "ride", "how": "timed", "from": _tail(g[8]), "to": g[9],
+			"pieces": [Vector2(5690, 20), Vector2(5890, 35), Vector2(6090, 60)], "tries": 20, "spacing": 23},
+		{"section": PREFIX_NAMES[8], "via": "jump", "from": _tail(g[9]), "to": g[10], "tries": 12},
+		{"section": PREFIX_NAMES[9], "via": "ride", "how": "gate", "id": "desert_oracle", "sigil": 2,
+			"from": Rect2(6980, 170, 190, 48), "to": Rect2(7325, 170, 35, 48)},
+		{"section": PREFIX_NAMES[9], "via": "jump", "from": _tail(g[10]), "to": g[11]},
+		{"section": PREFIX_NAMES[9], "via": "jump", "from": _tail(g[11]), "to": g[12]},
+		{"section": PREFIX_NAMES[9], "via": "ride", "how": "timed", "from": _tail(g[12]), "to": g[13],
+			"pieces": [Vector2(8790, 315), Vector2(9000, 315), Vector2(9210, 315)],
+			"activate": "desert_last_mirage", "tries": 12},
+	]
+	out.append_array(Sections.build().route)
+	for step in out:
+		if PREFIX_NAMES.has(step["section"]): step["sprint"] = true
+	return out
 
 static func painted_2d_value() -> bool: return true
 static func needs_key_value() -> bool: return true
