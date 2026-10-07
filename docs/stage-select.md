@@ -2,7 +2,9 @@
 
 `src/ui/net_panel.gd` が2枚の画面を持つ。
 
-1. **ステージを選択** — 6枚のカード（1-1〜1-6）。
+1. **ステージを選択** — 3枚のタイル（サムネイル）を1ページとして並べる（1-1〜1-8 で3ページ）。
+   左へスワイプ／「次のステージ」で次の3枚、右へスワイプ／「前のステージ」で前の3枚。
+   最後のページは2枚（1-7・1-8）で、空き枠を置いて幅を揃える。
 2. **遊び方を選択** — 選んだステージの大きな絵、**追跡者の速さ**、
    ローカル2人プレイ、オンラインの部屋作成／参加。
 
@@ -26,7 +28,8 @@
 
 ## カードの絵
 
-`assets/menu/card_1_1.png` 〜 `card_1_6.png`。
+`assets/menu/card_1_1.png` 〜 `card_1_8.png`。タイルの絵は `StageCards.thumbnail()` が
+`crop_top` から切り出す（走者・敵・足場が見える位置。1-4 と 1-6 は土や柱ばかりにならないよう上寄り）。
 **ステージそのものを縦向きの窓で撮ったもの**で、
 `tools/capture_stage_cards.gd` が書き出す。
 
@@ -55,7 +58,19 @@ xvfb-run -a godot --path . tools/capture_stage_cards.tscn --fixed-fps 60
 1枚のカードではなく2枚の画像が縦に並んで見えていた。
 上側にも薄いグラデーションがあり、選択中を示す ✓ が明るい空の上でも読める。
 
+## 対戦（スターたいせん）のステージ
+
+当面は **ロイヤルアリーナだけ** を出す（`VersusStageData.SELECTABLE_THEMES`）。
+タイルの絵は実際のアリーナを撮った `assets/menu/card_royal.png`。
+撮り直しは `tools/capture_royal_card.tscn`:
+
+```sh
+xvfb-run -a godot --path . --rendering-driver opengl3 tools/capture_royal_card.tscn
+```
+
 ## 検証
 
-- `test/stage_menu_probe.tscn` — 6枚が出ていること、1-V / 1-B / 1-S が
+- `test/stage_menu_probe.tscn` — 3枚ずつ3ページに並ぶこと、各タイルが自分の
+  サムネイルを出していること、矢印とスワイプで3枚ずつ進み戻ること、
+  ロイヤルだけが出ていること、1-V / 1-B / 1-S が
   出ていないこと、2枚目へ進むこと、部屋番号の帯。

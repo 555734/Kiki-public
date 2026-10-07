@@ -1,19 +1,26 @@
 class_name StageSelectView
 extends VBoxContainer
-## The first screen of the start menu: a page of stage cards, the page arrows,
-## a horizontal swipe between pages, and the way into versus.
+## The first screen of the start menu: a page of three stage tiles, the page
+## arrows, a horizontal swipe between pages, and the way into versus.
 ##
-## A card only says which stage was picked; NetPanel decides what that means
+## Each tile is a thumbnail of its stage (StageCards.thumbnail). Swiping left,
+## or tapping the next arrow, moves on to the next three; swiping right, or the
+## previous arrow, goes back to the three before.
+##
+## A tile only says which stage was picked; NetPanel decides what that means
 ## (the play screen, a reload, or the purchase screen for a locked stage).
 
-const PER_PAGE := 1
+const PER_PAGE := StageCards.PER_PAGE
 
 var panel = null
 var page: int = 0
-## The row of cards, which the swipe is measured against.
+## The row of tiles, which the swipe is measured against.
 var row: HBoxContainer = null
-## which -> card button, for the cards on this page.
+## which -> tile button, for the tiles on this page.
 var cards: Dictionary = {}
+## The page arrows, for the probes.
+var previous_button: Button = null
+var next_button: Button = null
 
 var _swipe := StageSwipe.new()
 
@@ -39,7 +46,7 @@ func _init(owner_panel, on_page: int) -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 22)
+	row.add_theme_constant_override("separation", 18)
 	add_child(row)
 	var all := StageCards.all()
 	var first := page * PER_PAGE
@@ -47,9 +54,12 @@ func _init(owner_panel, on_page: int) -> void:
 		var card := _card(all[i])
 		row.add_child(card)
 		cards[int(all[i]["which"])] = card
+	# The last page may hold fewer than three. The blank slots keep the tiles
+	# the same width as on every other page.
 	for i in range(PER_PAGE - row.get_child_count()):
 		var filler := Control.new()
 		filler.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		filler.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(filler)
 	refresh()
 
@@ -61,13 +71,17 @@ func _init(owner_panel, on_page: int) -> void:
 	previous.disabled = page == 0
 	previous.custom_minimum_size = Vector2(200, 54)
 	navigation.add_child(previous)
-	var page_label := UiKit.heading("%d / %d" % [first + 1, all.size()], 20, Color("073f89"))
-	page_label.custom_minimum_size.x = 120
+	previous_button = previous
+	var last := mini(first + PER_PAGE, all.size()) - 1
+	var page_label := UiKit.heading("%s  〜  %s" % [all[first]["number"], all[last]["number"]],
+		20, Color("073f89"))
+	page_label.custom_minimum_size.x = 160
 	navigation.add_child(page_label)
 	var next := UiKit.action_button("次のステージ  ›", func() -> void: panel._change_stage_page(1))
 	next.disabled = first + PER_PAGE >= all.size()
 	next.custom_minimum_size = Vector2(200, 54)
 	navigation.add_child(next)
+	next_button = next
 	# 2v2 versus. Always shown and never locked: versus is free for every
 	# player, whatever they have bought (docs/versus-2v2-stars.md).
 	var versus := UiKit.action_button("⚔  スターたいせん", panel._on_versus)
@@ -126,8 +140,9 @@ func _card(info: Dictionary) -> Button:
 	var which: int = int(info["which"])
 	var button := Button.new()
 	button.text = number
-	button.custom_minimum_size = Vector2(600, 350)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.custom_minimum_size = Vector2(300, 260)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	button.clip_contents = true
 	button.add_theme_font_size_override("font_size", 1)
 	button.add_theme_color_override("font_color", Color.TRANSPARENT)
@@ -141,14 +156,10 @@ func _card(info: Dictionary) -> Button:
 
 	var art := TextureRect.new()
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# Crop each portrait screenshot around its runner, enemy, and terrain. The
-	# caption occupies the bottom of the card, so a centered cover crop hid the
-	# action and left mostly sky visible above the text.
-	var source: Texture2D = info["art"]
-	var crop := AtlasTexture.new()
-	crop.atlas = source
-	crop.region = Rect2(0.0, float(info["crop_top"]), float(source.get_width()), 405.0)
-	art.texture = crop
+	# The thumbnail is cropped around the stage's runner, enemy and terrain.
+	# The caption occupies the bottom of the tile, so a centered cover crop hid
+	# the action and left mostly sky visible above the text.
+	art.texture = StageCards.thumbnail(info)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -212,8 +223,8 @@ func _card(info: Dictionary) -> Button:
 	var lock := UiKit.heading("🔒", 30, Color(1, 1, 1, 0.94))
 	lock.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	lock.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	lock.offset_top = 92
-	lock.offset_bottom = 148
+	lock.offset_top = 70
+	lock.offset_bottom = 126
 	lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(lock)
 

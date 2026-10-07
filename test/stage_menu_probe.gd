@@ -76,15 +76,49 @@ func _ready() -> void:
 				"runner cannot move behind the home screen")
 			check(not GameState.running, "run timer has not started on the home screen")
 			check(panel._stage_back.visible and not panel._stage_back.disabled, "stage selection has a usable back button")
-			for i in StageCards.all().size():
-				panel._change_stage_page(i - panel._stage_page)
+			var all := StageCards.all()
+			var per_page := StageSelectView.PER_PAGE
+			check(per_page == 3 and StageSelectView.page_count() == 3, "eight stages are three tiles per page over three pages")
+			var tile_width := 0.0
+			for page in StageSelectView.page_count():
+				panel._change_stage_page(page - panel._stage_page)
 				await get_tree().process_frame
+				await _capture("coop-stage-page-%d" % (page + 1))
 				var seen := _visible_stages(panel)
-				var info: Dictionary = StageCards.all()[i]
-				check(seen.size() == 1 and seen.has(info["number"]), "exactly one stage on page %d" % (i + 1))
-				check(panel._stage_view.get_child_count() == 1, "one card slot without empty placeholders")
-				var card: Button = panel._select_view.cards[int(info["which"])]
-				check(_card_unlocked(card) == Entitlement.can_play(int(info["which"])), "locks preserved for " + String(info["number"]))
+				var expected := mini(per_page, all.size() - page * per_page)
+				check(seen.size() == expected, "%d stages on page %d" % [expected, page + 1])
+				check(panel._stage_view.get_child_count() == per_page, "three tile slots on page %d, blank ones included" % (page + 1))
+				for k in expected:
+					var info: Dictionary = all[page * per_page + k]
+					check(seen.has(info["number"]), "%s is on page %d" % [info["number"], page + 1])
+					var card: Button = panel._select_view.cards[int(info["which"])]
+					check(_card_unlocked(card) == Entitlement.can_play(int(info["which"])), "locks preserved for " + String(info["number"]))
+					var thumb := _thumbnail(card)
+					check(thumb != null and thumb.texture is AtlasTexture and (thumb.texture as AtlasTexture).atlas == info["art"],
+						"%s tile shows its own stage thumbnail" % info["number"])
+					check(card.size.x > 250.0 and card.size.y > 200.0, "%s tile is large enough to read" % info["number"])
+					if tile_width == 0.0:
+						tile_width = card.size.x
+					check(absf(card.size.x - tile_width) <= 2.0, "tiles share one width (%s: %s vs %s)" % [info["number"], card.size.x, tile_width])
+					check(panel._stage_view.get_global_rect().encloses(card.get_global_rect()), "%s tile stays inside the row" % info["number"])
+			# The arrows are the tap way of turning the page.
+			panel._change_stage_page(-panel._stage_page)
+			await get_tree().process_frame
+			check(panel._select_view.previous_button.disabled and not panel._select_view.next_button.disabled,
+				"first page can only go forward")
+			panel._select_view.next_button.pressed.emit()
+			await get_tree().process_frame
+			check(panel._stage_page == 1 and _visible_stages(panel).has("1-4") and _visible_stages(panel).has("1-6"),
+				"next arrow shows the next three stages")
+			panel._select_view.next_button.pressed.emit()
+			await get_tree().process_frame
+			check(panel._stage_page == 2 and _visible_stages(panel).has("1-8") and not _visible_stages(panel).has("1-6")
+				and panel._select_view.next_button.disabled, "next arrow ends on the last two stages")
+			panel._select_view.previous_button.pressed.emit()
+			await get_tree().process_frame
+			check(panel._stage_page == 1 and _visible_stages(panel).has("1-5"), "previous arrow goes back three stages")
+			panel._change_stage_page(2)
+			await get_tree().process_frame
 			await _capture("coop-stage-card")
 			# A different finger must not steal the swipe; vertical movement must
 			# not turn a page. At the catalogue edge a swipe must not tap a card.
@@ -92,13 +126,13 @@ func _ready() -> void:
 			_touch(panel, centre, true, 0)
 			_touch(panel, centre, true, 1)
 			_drag(panel, centre + Vector2(180, 0), 1)
-			check(panel._stage_page == 7, "second finger cannot steal stage gesture")
+			check(panel._stage_page == 2, "second finger cannot steal stage gesture")
 			_drag(panel, centre + Vector2(0, 160), 0)
-			check(panel._stage_page == 7, "vertical drag does not turn the page")
+			check(panel._stage_page == 2, "vertical drag does not turn the page")
 			panel._stage_1_8.pressed.emit()
 			check(panel._code == null, "vertical drag release is not a stage tap")
 			_drag(panel, centre - Vector2(180, 0), 0)
-			check(panel._stage_page == 7 and panel._select_view._swipe.consumed, "edge swipe stays on last stage and consumes card tap")
+			check(panel._stage_page == 2 and panel._select_view._swipe.consumed, "edge swipe stays on last stage and consumes card tap")
 			panel._stage_1_8.pressed.emit()
 			check(panel._code == null, "edge swipe release cannot open the play screen")
 			_touch(panel, centre, false, 0)
@@ -107,13 +141,13 @@ func _ready() -> void:
 			_drag(panel, centre + Vector2(180, 0), 0)
 			_touch(panel, centre + Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == 6 and _visible_stages(panel).has("1-7"), "right swipe selects previous stage")
+			check(panel._stage_page == 1 and _visible_stages(panel).has("1-4") and _visible_stages(panel).size() == 3, "right swipe goes back to the previous three stages")
 			centre = panel._stage_view.get_global_rect().get_center()
 			_touch(panel, centre, true, 0)
 			_drag(panel, centre - Vector2(180, 0), 0)
 			_touch(panel, centre - Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == 7 and _visible_stages(panel).has("1-8"), "left swipe selects next stage")
+			check(panel._stage_page == 2 and _visible_stages(panel).has("1-7") and _visible_stages(panel).has("1-8"), "left swipe moves on to the next stages")
 			# The mouse has the same browsing gesture on desktop.
 			var mouse := InputEventMouseButton.new()
 			mouse.button_index = MOUSE_BUTTON_LEFT; mouse.pressed = true; mouse.position = centre
@@ -122,7 +156,7 @@ func _ready() -> void:
 			motion.position = centre + Vector2(180, 0)
 			panel._input(motion)
 			await get_tree().process_frame
-			check(panel._stage_page == 6, "mouse drag selects the previous stage")
+			check(panel._stage_page == 1, "mouse drag goes back to the previous three stages")
 			# Versus keeps the five postponed layouts, but offers only Royal.
 			check(VersusStageData.THEMES.size() == 6 and VersusStageData.SELECTABLE_THEMES == [Stage.Which.ROYAL_ARENA], "postponed arenas are retained but not offered")
 			panel._on_versus()
@@ -133,6 +167,9 @@ func _ready() -> void:
 			await get_tree().process_frame
 			check(versus._stage_cards.size() == 1 and versus._stage_id == Stage.Which.ROYAL_ARENA, "versus room offers and selects only Royal Arena")
 			var royal: Button = versus._stage_cards[0]
+			var royal_art := _thumbnail(royal)
+			check(royal_art != null and (royal_art.texture as AtlasTexture).atlas == StageCards.royal()["art"],
+				"Royal tile shows the arena thumbnail")
 			check(int(royal.get_meta("which")) == Stage.Which.ROYAL_ARENA and not royal.disabled, "Royal remains freely selectable")
 			check(versus._back.visible and not versus._back.disabled, "versus room has an explicit back button")
 			await _capture("royal-stage-card")
@@ -143,14 +180,14 @@ func _ready() -> void:
 			_touch(versus, centre, false, 0)
 			_touch(panel, centre, true, 0)
 			_drag(panel, centre + Vector2(180, 0), 0)
-			check(panel._stage_page == 6, "versus gestures cannot move the co-op menu behind it")
+			check(panel._stage_page == 1, "versus gestures cannot move the co-op menu behind it")
 			check(versus._stage_id == Stage.Which.ROYAL_ARENA and versus._code.text == "123456", "single-stage swipe keeps Royal and typed room code")
 			versus._back.pressed.emit()
 			await get_tree().process_frame
 			check(versus._step == 1, "room back returns to versus mode selection")
 			versus._back.pressed.emit()
 			await get_tree().process_frame
-			check(not is_instance_valid(versus) and panel._stage_page == 6, "mode back closes versus and preserves co-op browsing position")
+			check(not is_instance_valid(versus) and panel._stage_page == 1, "mode back closes versus and preserves co-op browsing position")
 
 			# Difficulty belongs to the stage that has been chosen, so it is
 			# not offered before one has been.
@@ -239,6 +276,12 @@ func _visible_stages(panel: Node) -> Dictionary:
 		if node is Button:
 			result[String((node as Button).text)] = true
 	return result
+
+func _thumbnail(card: Button) -> TextureRect:
+	for child in card.get_children():
+		if child is TextureRect and (child as TextureRect).texture is AtlasTexture:
+			return child
+	return null
 
 func _card_unlocked(card: Button) -> bool:
 	if card == null:

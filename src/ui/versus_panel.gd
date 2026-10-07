@@ -380,9 +380,7 @@ func _show_stage_page() -> void:
 			child.queue_free()
 	_stage_cards.clear()
 	var which := VersusStageData.SELECTABLE_THEMES[_stage_index]
-	var info := {"which": Stage.Which.ROYAL_ARENA, "number": "VS",
-		"accent": Color("f8c94b"), "crop_top": 140.0,
-		"art": preload("res://assets/versus/royal/background/royal_sky_kingdom.png")}
+	var info := StageCards.royal()
 	if which != Stage.Which.ROYAL_ARENA: info = StageCards.for_which(which)
 	var card := _stage_card(info)
 	_stage_row.add_child(card)
@@ -433,13 +431,7 @@ func _stage_card(info: Dictionary) -> Button:
 			_stage_id = which
 			_refresh_stage_cards())
 	var art := TextureRect.new()
-	var source: Texture2D = info["art"]
-	var crop := AtlasTexture.new()
-	crop.atlas = source
-	var top := maxf(0.0, float(info["crop_top"]) - 140.0)
-	crop.region = Rect2(0.0, top, float(source.get_width()),
-		minf(620.0, float(source.get_height()) - top))
-	art.texture = crop
+	art.texture = StageCards.thumbnail(info)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

@@ -2,6 +2,12 @@ class_name StageCards
 extends RefCounted
 ## The co-op stages the start menu offers, in menu order.
 
+## How many tiles the stage screen shows at once. A swipe or a tap on an arrow
+## moves to the next or the previous group of this many.
+const PER_PAGE := 3
+## The height of the square-ish window cut out of each portrait picture.
+const CROP_HEIGHT := 405.0
+
 ## The stages the menu offers, in order, with the art each card shows.
 ##
 ## The pictures are rendered from the stages themselves by
@@ -26,7 +32,7 @@ static func all() -> Array[Dictionary]:
 		{"number": "1-4", "name": "THE SUNLIT COAST",
 			"blurb": "岩と桟橋をつないで海の旗へ",
 			"which": Stage.Which.SEA, "accent": Color("1fa7d8"),
-			"art": preload("res://assets/menu/card_1_4.png"), "crop_top": 400.0},
+			"art": preload("res://assets/menu/card_1_4.png"), "crop_top": 230.0},
 		{"number": "1-5", "name": "THE MOLTEN CROSSING",
 			"blurb": "溶岩の谷に足場をつなぐ",
 			"which": Stage.Which.SWAMP, "accent": Color("75b72b"),
@@ -34,7 +40,7 @@ static func all() -> Array[Dictionary]:
 		{"number": "1-6", "name": "THE SANDGLASS RUINS",
 			"blurb": "奇妙な敵が待つ砂漠の遺跡へ",
 			"which": Stage.Which.DESERT, "accent": Color("e6a44b"),
-			"art": preload("res://assets/menu/card_1_6.png"), "crop_top": 330.0},
+			"art": preload("res://assets/menu/card_1_6.png"), "crop_top": 240.0},
 		{"number": "1-7", "name": "THE CLOCKWORK TOWER",
 			"blurb": "仕掛けだらけの塔をふたりで登る",
 			"which": Stage.Which.TOWER, "accent": Color("8c8a78"),
@@ -44,6 +50,25 @@ static func all() -> Array[Dictionary]:
 			"which": Stage.Which.CAVE, "accent": Color("708797"),
 			"art": preload("res://assets/menu/card_1_8.png"), "crop_top": 320.0},
 	]
+
+## The Royal Arena's tile on the versus room screen. It is the only stage that
+## screen offers for now; the picture is the arena itself, rendered by
+## `tools/capture_royal_card.gd`.
+static func royal() -> Dictionary:
+	return {"number": "VS", "name": "ROYAL ARENA",
+		"which": Stage.Which.ROYAL_ARENA, "accent": Color("f8c94b"),
+		"art": preload("res://assets/menu/card_royal.png"),
+		"crop_top": 0.0, "crop_height": 600.0}
+
+## The picture of a card, cut to the window the tile shows.
+static func thumbnail(info: Dictionary) -> Texture2D:
+	var source: Texture2D = info["art"]
+	var crop := AtlasTexture.new()
+	crop.atlas = source
+	var top := float(info["crop_top"])
+	crop.region = Rect2(0.0, top, float(source.get_width()),
+		minf(float(info.get("crop_height", CROP_HEIGHT)), float(source.get_height()) - top))
+	return crop
 
 static func for_which(which: int) -> Dictionary:
 	for info in all():
