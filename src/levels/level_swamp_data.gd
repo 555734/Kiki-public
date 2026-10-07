@@ -21,11 +21,11 @@ static func objective_value() -> String: return OBJECTIVE
 const SLABS := [
 	[-1400.0, 500.0, 400.0],
 	[1800.0, 2400.0, 380.0],
-	[3450.0, 4050.0, 350.0],
+	[3800.0, 4050.0, 350.0],
 	[5020.0, 5570.0, 330.0],
-	[6200.0, 6800.0, 320.0],
+	[6440.0, 6800.0, 320.0],
 	[7860.0, 8400.0, 300.0],
-	[9050.0, 10100.0, 290.0],
+	[9250.0, 10100.0, 290.0],
 ]
 
 static func ground() -> Array[Rect2]:
@@ -70,18 +70,18 @@ static func enemies() -> Array[Dictionary]:
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 190.0,
 			"skin": "s15_magma_slime"},
-		{"type": "walker", "pos": Vector2(3740, 329), "patrol": 200.0,
+		{"type": "walker", "pos": Vector2(3925, 329), "patrol": 90.0,
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(5340, 309), "patrol": 170.0,
 			"skin": "s15_magma_slime"},
-		{"type": "walker", "pos": Vector2(6480, 299), "patrol": 190.0,
+		{"type": "walker", "pos": Vector2(6620, 299), "patrol": 140.0,
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(8160, 279), "patrol": 190.0,
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(9540, 269), "patrol": 170.0,
 			"skin": "s15_magma_slime"},
 		# Stomping golems guard broad banks, clear of checkpoint landings.
-		{"type": "golem", "pos": Vector2(3860, 315), "patrol": 100.0, "period": 5.0},
+		{"type": "golem", "pos": Vector2(3925, 315), "patrol": 90.0, "period": 5.0},
 		{"type": "golem", "pos": Vector2(9730, 255), "patrol": 85.0, "period": 4.8},
 		# Flyers now hang in the jump arcs rather than above them, so the
 		# stepping stones and the raft need the guardian's rifle first.
@@ -104,17 +104,17 @@ static func gimmicks() -> Array[Dictionary]:
 			"span": Vector2(130, 26), "travel": Vector2(800, 0)},
 		{"type": "crumble", "pos": Vector2(2836, 370),
 			"span": Vector2(92, 28)},
-		{"type": "crumble", "pos": Vector2(3086, 360),
+		{"type": "crumble", "pos": Vector2(3000, 360),
 			"span": Vector2(92, 28)},
-		{"type": "crumble", "pos": Vector2(5980, 330),
+		{"type": "crumble", "pos": Vector2(5680, 330),
 			"span": Vector2(92, 28)},
-		{"type": "crumble", "pos": Vector2(8810, 305),
+		{"type": "crumble", "pos": Vector2(8500, 305),
 			"span": Vector2(92, 28)},
 	]
 
 static func checkpoints() -> Array[Vector2]:
-	return [Vector2(1880, 330), Vector2(3530, 300), Vector2(5100, 280),
-		Vector2(6280, 270), Vector2(7950, 250), Vector2(9130, 240)]
+	return [Vector2(1880, 330), Vector2(3860, 300), Vector2(5100, 280),
+		Vector2(6500, 270), Vector2(7950, 250), Vector2(9330, 240)]
 
 static func goal() -> Vector2:
 	return Vector2(9840, 235)
@@ -147,16 +147,16 @@ static func decor() -> Array[Dictionary]:
 		{"type": "swamp_mushroom", "pos": Vector2(1860, 380)},
 		{"type": "swamp_tree", "pos": Vector2(2300, 380), "height": 230.0,
 			"flip": true},
-		{"type": "swamp_reeds", "pos": Vector2(3520, 350)},
+		{"type": "swamp_reeds", "pos": Vector2(3860, 350)},
 		{"type": "swamp_boulder", "pos": Vector2(3960, 350)},
 		{"type": "swamp_tree", "pos": Vector2(5160, 330), "height": 270.0},
 		{"type": "swamp_mushroom", "pos": Vector2(5500, 330)},
-		{"type": "swamp_reeds", "pos": Vector2(6260, 320)},
+		{"type": "swamp_reeds", "pos": Vector2(6500, 320)},
 		{"type": "swamp_tree", "pos": Vector2(6720, 320), "height": 255.0,
 			"flip": true},
 		{"type": "swamp_mushroom", "pos": Vector2(7920, 300)},
 		{"type": "swamp_boulder", "pos": Vector2(8340, 300)},
-		{"type": "swamp_tree", "pos": Vector2(9190, 290), "height": 270.0},
+		{"type": "swamp_tree", "pos": Vector2(9380, 290), "height": 270.0},
 		{"type": "swamp_reeds", "pos": Vector2(9510, 290)},
 		{"type": "swamp_mushroom", "pos": Vector2(10000, 290)},
 	]

@@ -89,7 +89,7 @@ static func ground() -> Array[Rect2]:
 		[12800.0, 13200.0, 40.0],
 		[13350.0, 13800.0, 180.0],   # drop back down
 		[14400.0, 15100.0, 180.0],   # collapsing run bridges 600px
-		[15640.0, 16700.0, 180.0],   # after the last platform gap (540px)
+		[15880.0, 16700.0, 180.0],   # after the last platform gap (780px)
 	]
 	for s in slabs:
 		g.append(Rect2(s[0], s[2], s[1] - s[0], GROUND_BASE - s[2]))

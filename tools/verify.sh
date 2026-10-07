@@ -240,6 +240,9 @@ step "1-7 and 1-8 climbed step by step"
 # Every room's route walked with a real runner (test/climb_route.gd).
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/climb_probe.tscn
 
+step "mandatory guardian crossings resist second gear and double jumps"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/guardian_required_probe.tscn
+
 step "the 1-2 village"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/horror_stage_probe.tscn
 

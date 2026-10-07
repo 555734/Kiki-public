@@ -522,7 +522,10 @@ func _test_host_answers_the_guardian() -> void:
 	# A mismatched build must be told so. The two players will be on different
 	# platforms and will update at different times, and a silent version skew
 	# fails in ways that look like a broken connection.
-	var stale := PackedByteArray([Protocol.Msg.HELLO, Protocol.VERSION + 1])
+	# The released 0.9.10 and initial 0.9.11 both used 21 despite different
+	# deterministic stage data. Exercise that exact older peer, not just +1.
+	check(Protocol.VERSION > 21, "rebuilt climbing stages reject the released wire 21")
+	var stale := PackedByteArray([Protocol.Msg.HELLO, 21])
 	guardian_side.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED, stale)
 	# 16 frames, not 8. The link is 75ms each way and a frame is 16.7ms, so 8

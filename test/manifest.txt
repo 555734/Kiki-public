@@ -24,6 +24,7 @@ test/entitlement_probe.tscn        gated
 test/eos_contract_probe.tscn       gated
 test/ground_movement_probe.tscn    gated
 test/guardian_clear_probe.tscn     gated
+test/guardian_required_probe.tscn  gated
 test/horror_stage_probe.tscn       gated
 test/hud_flow_probe.tscn           gated
 test/iap_ios_probe.tscn            gated

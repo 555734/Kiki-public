@@ -97,6 +97,14 @@ func _test_every_stage_keeps_the_contract() -> void:
 	check(StageSpecSchema.errors([], [typo]).is_empty(), "optional properties retain their defaults")
 	typo["pos"] = "wrong"
 	check(not StageSpecSchema.errors([], [typo]).is_empty(), "invalid placement types are rejected")
+	for invalid in [{"travel": "Vector2(40, 0)"}, {"speed": 0}, {"phase": NAN},
+		{"span": Vector2(-10, 20)}, {"span": 150}]:
+		var bad_spec := {"type": "moving_platform", "pos": Vector2.ZERO}
+		bad_spec.merge(invalid)
+		check(not StageSpecSchema.errors([], [bad_spec]).is_empty(),
+			"malformed platform property is rejected: %s" % invalid)
+	check(not StageSpecSchema.errors([], [{"type": "blink", "pos": Vector2.ZERO, "beat": 0}]).is_empty(),
+		"a zero-duration blink cycle is rejected before building")
 	check(not StageSpecSchema.errors([{"type": "walker", "pos": Vector2.ZERO, "patrlo": 10}], []).is_empty(),
 		"enemy property typos are also rejected")
 	for type in types:
@@ -150,6 +158,7 @@ func _test_level_reachability() -> void:
 	var unaided_max: float = _reach.get("unaided", 340.0)
 	var apex_max: float = _reach.get("apex", 123.0)
 	var one_platform := sprint_jump + Balance.PLATFORM_SIZE.x + sprint_jump
+	var two_platforms := sprint_jump * 3.0 + Balance.PLATFORM_SIZE.x * 2.0
 	var max_step_up := 100.0
 
 	# Which stretches genuinely need the guardian is a question about the *bare*
@@ -180,9 +189,12 @@ func _test_level_reachability() -> void:
 		var gap: float = right.position.x - (left.position.x + left.size.x)
 		if gap <= 0.0:
 			continue   # abutting or overlapping surfaces
-		check(gap <= one_platform,
+		# The first lesson uses one slab. Later cooperative crossings may use
+		# both concurrent slabs; guardian_required_probe flies those real routes.
+		var assist_budget := one_platform if left.end.x < 3200.0 else two_platforms
+		check(gap <= assist_budget,
 			"gap at x=%.0f is %.0fpx, beyond even a platform assist (%.0fpx)"
-				% [left.position.x + left.size.x, gap, one_platform])
+				% [left.position.x + left.size.x, gap, assist_budget])
 		var step_up: float = float(tops[i]["exit"]) - float(tops[i + 1]["board"])
 		if gap <= plain_jump:
 			check(step_up <= max_step_up,

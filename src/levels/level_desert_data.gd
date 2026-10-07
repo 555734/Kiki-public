@@ -2,7 +2,7 @@ extends RefCounted
 ## Stage 1-6: a readable run of escalating platforming beats. Short jumps
 ## teach the rhythm before the crumbling causeway, guardian gap, lift, blinking
 ## steps and final sprint. Every free jump stays within the measured ~300px
-## sprint arc; the 550px gap is deliberately a guardian task.
+## sprint arc; the 790px gap is deliberately a guardian task.
 
 const BASE := 900.0
 const START := Vector2(-1040, 350)
@@ -22,7 +22,7 @@ const SLABS := [
 	[1510.0, 1930.0, 250.0],  # B: rope bridge to high bank
 	[2100.0, 2350.0, 150.0],  # C: launch into crumbling causeway
 	[3070.0, 3650.0, 130.0],  # C: brief landing, then co-op crossing
-	[4200.0, 4660.0, 220.0],  # D: guardian landing
+	[4440.0, 4660.0, 220.0],  # D: guardian landing
 	[5100.0, 5550.0, 20.0],   # E: top of the lift
 	[6270.0, 6740.0, 80.0],   # F: blinking-step landing
 	[6920.0, 7360.0, 170.0],  # G: downhill running jumps
@@ -52,7 +52,7 @@ static func decor() -> Array[Dictionary]:
 		{"type": "desert_flower", "pos": Vector2(2240, 150)},
 		{"type": "desert_crystal", "pos": Vector2(3190, 130)},
 		{"type": "desert_cactus", "pos": Vector2(3500, 130)},
-		{"type": "desert_flower", "pos": Vector2(4320, 220)},
+		{"type": "desert_flower", "pos": Vector2(4500, 220)},
 		{"type": "desert_arch", "pos": Vector2(5320, 20), "height": 200.0},
 		{"type": "desert_crystal", "pos": Vector2(5400, 20)},
 		{"type": "desert_cactus", "pos": Vector2(6630, 80)},
@@ -84,7 +84,7 @@ static func enemies() -> Array[Dictionary]:
 		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(2710, 0), "patrol": 100.0},
 		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(3390, 103), "patrol": 140.0},
 		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(3890, 45), "patrol": 115.0},
-		{"type": "desert_enemy", "kind": "cactus", "pos": Vector2(4470, 187), "patrol": 100.0},
+		{"type": "desert_enemy", "kind": "cactus", "pos": Vector2(4550, 187), "patrol": 60.0},
 		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(4870, 45), "patrol": 90.0},
 		{"type": "desert_enemy", "kind": "fin", "pos": Vector2(5360, 0), "patrol": 100.0},
 		{"type": "desert_enemy", "kind": "jelly", "pos": Vector2(5900, -95), "patrol": 110.0},
@@ -144,7 +144,7 @@ static func gimmicks() -> Array[Dictionary]:
 static func veils() -> Array[Dictionary]: return []
 static func checkpoints() -> Array[Vector2]:
 	return [Vector2(940, 250), Vector2(1800, 200), Vector2(3180, 80),
-		Vector2(4290, 170), Vector2(5180, -30), Vector2(6360, 30),
+		Vector2(4500, 170), Vector2(5180, -30), Vector2(6360, 30),
 		Vector2(6980, 120), Vector2(8220, 250), Vector2(9540, 270)]
 static func goal() -> Vector2: return Vector2(10150, 265)
 
