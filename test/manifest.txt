@@ -86,6 +86,7 @@ tools/capture_store_shots.tscn     capture
 tools/capture_versus_cards.tscn    capture
 
 tools/export_three_assets.tscn     tool
+tools/export_stage_maps.tscn       tool
 
 test/floating_controls_probe.tscn gated
 test/royal_arena_probe.tscn gated
