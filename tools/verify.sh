@@ -50,7 +50,7 @@ step "import pass (registers class_name globals)"
 # images unimported -- and a preload of an unimported image is a parse error,
 # which is how net_panel.gd came to fail the script check on a clean checkout.
 # --import blocks until every asset is in, so it goes first.
-"$GODOT" --headless --path . --import >/dev/null 2>&1
+"$GODOT" --headless --editor --path . --import >/dev/null 2>&1
 if command -v xvfb-run >/dev/null 2>&1; then
 	xvfb-run -a "$GODOT" --headless --editor --quit --path . >/dev/null 2>&1
 else

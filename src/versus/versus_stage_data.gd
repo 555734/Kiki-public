@@ -563,15 +563,18 @@ static func height_fraction(y: float) -> float:
 	return clampf((y - MAP_RECT.position.y) / MAP_RECT.size.y, 0.0, 1.0)
 
 ## The sea's or the poison's surface in the arena, INF for a dry stage.
-## Co-op 1-5 is a climb now and keeps its pool thousands of pixels down,
-## so the marsh arena has its own level, just under its lowest rock.
+## The two-tier co-op coast and lava routes keep their pools much deeper.
+## These compact arenas preserve their own surfaces under their lowest floor.
 static func water_y() -> float:
 	if Stage.water_y() == INF:
 		return INF
+	if theme == Stage.Which.SEA:
+		return SEA_WATER_Y
 	if theme == Stage.Which.SWAMP:
 		return SWAMP_WATER_Y
 	return Stage.water_y()
 
+const SEA_WATER_Y: float = 500.0
 const SWAMP_WATER_Y: float = 520.0
 
 static func kill_y() -> float:
