@@ -32,9 +32,12 @@ func _ready() -> void:
 	check(Art.tex("parallax").resource_path == "res://assets/bg/parallax.png",
 		"switching back to 1-1 restores its original backdrop")
 	Stage.use(Stage.Which.SEA)
-	var puffers := Stage.enemies().filter(func(e: Dictionary) -> bool:
-		return e.get("type") == "mine")
-	check(puffers.size() == 2, "two timed puffers guard coast approaches")
+	var crabs := Stage.enemies().filter(func(e: Dictionary) -> bool:
+		return e.get("type") == "walker" and e.get("skin") == "sea_crab")
+	var turrets := Stage.enemies().filter(func(e: Dictionary) -> bool:
+		return e.get("type") == "turret")
+	check(crabs.size() >= 2 and turrets.size() >= 2,
+		"redesigned coast approaches retain themed crabs and firing turrets")
 	var mine := SkyMine.new()
 	add_child(mine)
 	for mode in 3:
