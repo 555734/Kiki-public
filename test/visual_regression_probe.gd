@@ -86,14 +86,19 @@ func run() -> void:
 			scene.get_node("NetPanel").free()
 			name = "stage-" + Stage.stage_number()
 		await capture(scene, name, update)
-		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.TOWER, Stage.Which.CAVE]:
+		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
+			if which == Stage.Which.DESERT:
+				# The added upper-tier views review geometry and machinery. Keep
+				# controls out of the way, as in the whole-stage map; the start
+				# view and dedicated UI probes still cover the interactive HUD.
+				scene.hud.visible = false
 			# Teleporting the frozen runner must not fire checkpoint/goal areas,
 			# which would make the reference contain a transient screen flash.
 			for area in scene.find_children("*", "Area2D", true, false):
 				area.set_deferred("monitoring", false)
 			await get_tree().process_frame
 			var rooms: Array[Dictionary] = Stage.data().rooms()
-			var last_view := "end" if which in [Stage.Which.SEA, Stage.Which.SWAMP] else "top"
+			var last_view := "end" if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT] else "top"
 			for view in [["middle", rooms[rooms.size() / 2]], [last_view, rooms[-1]]]:
 				var exit: Rect2 = view[1]["exit"]
 				scene.runner.global_position = Vector2(exit.get_center().x, exit.position.y - 26)
@@ -107,11 +112,17 @@ func run() -> void:
 
 func capture(scene: Node, name: String, update: bool) -> void:
 	freeze(scene)
+	# Main enables the global clock when it starts a stage. Freezing only the
+	# scene leaves that autoload ticking while we await rendering frames.
+	Clock.set_physics_process(false)
 	Clock.reset()
 	for _i in 3:
 		await get_tree().process_frame
 		freeze(scene)
 	await RenderingServer.frame_post_draw
+	if Clock.tick != 0:
+		print("FAIL visual clock advanced during frozen capture: ", Clock.tick)
+		failures += 1
 	var frame := get_viewport().get_texture().get_image()
 	if frame.get_size() != Vector2i(1280, 720):
 		push_error("Visual probe needs a 1280x720 viewport")

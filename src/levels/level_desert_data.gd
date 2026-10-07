@@ -1,6 +1,6 @@
 extends RefCounted
 ## Twenty distinct desert encounters. The first ten build on the oasis route;
-## the next ten are authored separately in desert_sections.gd. No room recipe
+## the next ten sit above them in desert_sections.gd. No room recipe
 ## repeats. route() records the production geometry for real-Runner checks.
 const Sections = preload("res://src/levels/desert_sections.gd")
 const PREFIX_NAMES := ["oasis_run", "sand_columns", "low_thorn_corridor", "guarded_rope_bridge",
@@ -10,6 +10,10 @@ const BASE := 900.0
 const START := Vector2(-1040, 350)
 const KILL_Y := 760.0
 const SAND_COLUMN := Rect2(240, 210, 120, 48)
+const RETURN_BANK := Rect2(10700, 320, 650, 580)
+const ASCENT_MOUTH := Vector2(9940, 275)
+const ASCENT_EXIT := Vector2(2330, -630)
+const RETURN_EXIT := Vector2(10940, 270)
 
 static func kill_y_value() -> float: return KILL_Y
 static func start_position() -> Vector2: return START
@@ -45,6 +49,7 @@ static func ground() -> Array[Rect2]:
 	out.append(Rect2(7200, -200, 180, 180)) # Housing above the sigil gate.
 	out.append(SAND_COLUMN)
 	out.append_array(Sections.build().ground)
+	out.append(RETURN_BANK)
 	return out
 
 static func solid_decor() -> Array[Rect2]:
@@ -73,6 +78,10 @@ static func decor() -> Array[Dictionary]:
 		{"type": "desert_bridge", "rect": Rect2(1350, 290, 160, 22)},
 	]
 	out.append_array(Sections.build().decor)
+	out.append({"type": "desert_hourglass", "pos": Vector2(4700, 220), "height": 760.0})
+	for index in [1, 3, 5, 7]:
+		var floor_: Rect2 = Sections.build().sections[index]["exit"]
+		out.append({"type": "desert_column", "pos": floor_.get_center() + Vector2(0, 300), "height": 300.0 + floor_.size.y * 0.5})
 	return out
 
 static func hazards() -> Array[Dictionary]:
@@ -155,17 +164,31 @@ static func gimmicks() -> Array[Dictionary]:
 		{"type": "crumble", "pos": Vector2(9210, 315), "span": Vector2(110, 30)},
 	]
 	out.append_array(Sections.build().gimmicks)
+	# The two marked pairs make the fold a real, host-authoritative route.
+	out.append({"type": "warp", "pos": ASCENT_MOUTH, "exit": ASCENT_EXIT, "mark": 3})
+	out.append({"type": "warp_exit", "pos": ASCENT_EXIT, "mark": 3})
+	out.append({"type": "warp", "pos": _return_mouth(), "exit": RETURN_EXIT, "mark": 4})
+	out.append({"type": "warp_exit", "pos": RETURN_EXIT, "mark": 4})
 	return out
 static func veils() -> Array[Dictionary]: return []
 static func checkpoints() -> Array[Vector2]:
 	var out: Array[Vector2] = [Vector2(900, 250), Vector2(1800, 200), Vector2(3180, 80),
 		Vector2(4500, 170), Vector2(5180, -30), Vector2(6360, 30),
 		Vector2(6980, 120), Vector2(8220, 250), Vector2(9540, 270)]
+	out.append(Vector2(Sections.ENTRY.get_center().x, Sections.ENTRY.position.y - 50))
 	out.append_array(Sections.build().checkpoints)
+	out.append(RETURN_EXIT)
 	return out
-static func goal() -> Vector2:
-	var out := Sections.build().cursor
-	return Vector2(out.end.x - 110, out.position.y - 55)
+static func goal() -> Vector2: return Vector2(RETURN_BANK.end.x - 110, RETURN_BANK.position.y - 55)
+
+static func _return_mouth() -> Vector2:
+	var floor_: Rect2 = Sections.build().cursor
+	return Vector2(floor_.end.x - 100, floor_.position.y - 45)
+
+static func key_position() -> Vector2:
+	# The key makes the upper journey mandatory; the lower goal cannot be rushed.
+	var floor_: Rect2 = Sections.build().cursor
+	return Vector2(floor_.get_center().x - 55, floor_.position.y - 4)
 
 static func coins() -> Array[Vector2]:
 	var out: Array[Vector2] = [
@@ -240,7 +263,11 @@ static func route() -> Array[Dictionary]:
 			"pieces": [Vector2(8790, 315), Vector2(9000, 315), Vector2(9210, 315)],
 			"activate": "desert_last_mirage", "tries": 12},
 	]
+	out.append({"section": PREFIX_NAMES[-1], "via": "ride", "how": "warp", "from": _tail(g[13]),
+		"to": Sections.ENTRY, "at": ASCENT_MOUTH})
 	out.append_array(Sections.build().route)
+	out.append({"section": Sections.NAMES[-1], "via": "ride", "how": "warp", "from": Sections.build().cursor,
+		"to": RETURN_BANK, "at": _return_mouth()})
 	for step in out:
 		if PREFIX_NAMES.has(step["section"]): step["sprint"] = true
 	return out

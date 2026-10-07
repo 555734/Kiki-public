@@ -108,7 +108,8 @@ enum World {
 ##     negotiation exists, this number protects deterministic stage data too.
 ## 23: twenty-section desert layout and thin desert ledges.
 ## 24: rebuilt coast/lava and host-authoritative launching portals.
-const VERSION: int = 24
+## 25: two-tier desert route, upper key and lower goal return.
+const VERSION: int = 25
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

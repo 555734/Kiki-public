@@ -1,5 +1,6 @@
 extends RefCounted
-## Ten individually authored chambers after the original desert's ten beats.
+## Ten individually authored chambers above the lower desert route.
+const ENTRY := Rect2(2200, -580, 260, 48)
 const NAMES := ["wind_well", "pendulum_tomb", "sun_wheel", "piston_underpass",
 	"phase_transfer", "warp_labyrinth", "sniper_windows", "rescue_wall", "falling_escape", "last_sandglass"]
 static var _built: SectionBuilder
@@ -8,7 +9,8 @@ static func build() -> SectionBuilder:
 	# Pure authored data: do not allocate all twenty route/geometry arrays again
 	# when the camera, renderer and builder ask Stage for their separate lists.
 	if _built != null: return _built
-	var b := SectionBuilder.new(Rect2(10100, 320, 200, 48))
+	var b := SectionBuilder.new(ENTRY)
+	b.add_ground(ENTRY)
 	for name in NAMES:
 		var entry := b.cursor
 		b.begin(name, 1)

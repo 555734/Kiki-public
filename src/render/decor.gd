@@ -49,6 +49,7 @@ func _draw() -> void:
 			"streamer": _streamer(item["pos"], float(item.get("scale", 1.0)))
 			"arch": _arch(item["pos"], float(item.get("scale", 1.0)))
 			"desert_arch": _desert_arch(item["pos"], float(item.get("height", 220.0)))
+			"desert_hourglass": _desert_hourglass(item["pos"], float(item.get("height", 760.0)))
 			"desert_crystal": _desert_crystal(item["pos"])
 			"desert_cactus": _desert_cactus(item["pos"])
 			"desert_flower": _desert_flower(item["pos"])
@@ -616,6 +617,24 @@ func _swamp_footing(key: String, rect: Rect2) -> void:
 	draw_line(Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y),
 		Color("523b29"), 6.0)
 
+func _desert_hourglass(base: Vector2, height: float) -> void:
+	# Scenery only: the glass never masks an invisible collision wall.
+	var top := base + Vector2(0, -height)
+	var neck := base + Vector2(0, -height * 0.5)
+	var glass := PackedVector2Array([top + Vector2(-125, 45), top + Vector2(125, 45),
+		neck + Vector2(18, 0), base + Vector2(125, -45), base + Vector2(-125, -45), neck + Vector2(-18, 0)])
+	draw_colored_polygon(glass, Color("a2efff", 0.22))
+	var rim := glass.duplicate(); rim.append(glass[0])
+	draw_polyline(rim, Color("d8f7ff", 0.8), 7.0, true)
+	draw_colored_polygon(PackedVector2Array([top + Vector2(-100, 120), top + Vector2(100, 120), neck]), Color("edbc63", 0.8))
+	draw_colored_polygon(PackedVector2Array([base + Vector2(-104, -48), neck + Vector2(0, 145), base + Vector2(104, -48)]), Color("efb956", 0.9))
+	draw_line(neck, neck + Vector2(0, 145), Color("ffdf94"), 4.0, true)
+	for x in [-175.0, 175.0]:
+		Art.draw_stretched(self, "s16_terrain_column", Rect2(base + Vector2(x - 45, -height), Vector2(90, height)))
+	for y in [0.0, -height]:
+		draw_rect(Rect2(base + Vector2(-190, y - 15), Vector2(380, 30)), Color("dfad65"))
+		draw_rect(Rect2(base + Vector2(-190, y - 15), Vector2(380, 7)), Color("ffdb91"))
+
 func _desert_arch(base: Vector2, height: float) -> void:
 	var left := base + Vector2(-70, -height)
 	var right := base + Vector2(46, -height)
@@ -725,7 +744,7 @@ func _split_decor(item: Dictionary) -> bool:
 	var kind := String(item.get("type", ""))
 	var key := ""
 	if Art.late_pack() != "":
-		var mapping := {"desert_arch": "terrain_arch", "desert_crystal": "crystal",
+		var mapping := {"desert_arch": "terrain_arch", "desert_column": "terrain_column", "desert_crystal": "crystal",
 			"desert_cactus": "palm_small", "desert_flower": "bush", "desert_bridge": "bridge",
 			"tower_banner": "terrain_banner", "tower_lamp": "terrain_lamp", "tower_rail": "rail",
 			"cave_lamp": "terrain_lamp", "cave_crystal": "terrain_crystal", "cave_rail": "rail"}
