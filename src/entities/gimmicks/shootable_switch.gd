@@ -53,7 +53,14 @@ func _process(delta: float) -> void:
 		_remaining -= delta
 		if _remaining <= 0.0:
 			active = false
-			Events.switch_activated.emit(switch_id + ":off")
+			# A later target can renew the same bridge/door from the next island.
+			# Expiring this target must not close a still-active linked target.
+			var renewed := false
+			for other in get_tree().get_nodes_in_group("switch"):
+				if other is ShootableSwitch and other != self and other.switch_id == switch_id and other.active:
+					renewed = true
+					break
+			if not renewed: Events.switch_activated.emit(switch_id + ":off")
 	queue_redraw()
 
 ## How long every switch on a gate goes quiet after a wrong one is shot.
