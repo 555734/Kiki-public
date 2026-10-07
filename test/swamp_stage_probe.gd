@@ -82,10 +82,10 @@ func run() -> void:
 	var guardian: Guardian = main.guardian
 	guardian.select_slot(1)
 	guardian.place_path = PackedVector2Array()
-	main.runner.global_position = Vector2(3110, 260)
+	main.runner.global_position = Vector2(3300, 260)
 	main.runner.velocity = Vector2.ZERO
 	await get_tree().physics_frame
-	guardian.use_active(Vector2(3110, 360))
+	guardian.use_active(Vector2(3300, 360))
 	for _i in 35:
 		main.runner.set("_invuln", 9.0)
 		await get_tree().physics_frame
@@ -95,7 +95,7 @@ func run() -> void:
 	var deaths := [0]
 	var died := func(_cause: String) -> void: deaths[0] += 1
 	Events.runner_died.connect(died)
-	main.runner.global_position = Vector2(3100, 480)
+	main.runner.global_position = Vector2(3300, 480)
 	main.runner.velocity = Vector2.ZERO
 	for _i in 45:
 		await get_tree().physics_frame

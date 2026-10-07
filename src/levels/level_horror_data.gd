@@ -41,7 +41,7 @@ static func solid_decor() -> Array[Rect2]:
 		Rect2(2630, 175, BLOCK * 3.0, BLOCK),
 		Rect2(4300, 270, BLOCK * 3.0, BLOCK),
 		Rect2(5110, 150, BLOCK * 2.0, BLOCK),
-		Rect2(7040, 205, BLOCK * 2.0, BLOCK),
+		Rect2(7100, 205, BLOCK * 2.0, BLOCK),
 		Rect2(8440, 155, BLOCK * 3.0, BLOCK),
 		Rect2(10200, 150, BLOCK * 3.0, BLOCK),
 	]
@@ -229,7 +229,7 @@ static func decor() -> Array[Dictionary]:
 		{"type": "lantern", "pos": Vector2(3340, 350), "scale": 0.72},
 		{"type": "grave", "pos": Vector2(3440, 350), "scale": 0.82},
 		{"type": "cart", "pos": Vector2(4330, 400), "flip": false},
-		{"type": "ruin_blocks", "pos": Vector2(4130, 270), "count": 3, "cell": BLOCK},
+		{"type": "ruin_blocks", "pos": Vector2(4300, 270), "count": 3, "cell": BLOCK},
 		{"type": "puddle", "pos": Vector2(4680, 320), "width": 185.0},
 		{"type": "banner", "pos": Vector2(4840, 320), "flip": true},
 		{"type": "ruin_blocks", "pos": Vector2(5110, 150), "count": 2, "cell": BLOCK},
@@ -239,8 +239,8 @@ static func decor() -> Array[Dictionary]:
 		{"type": "lantern", "pos": Vector2(5980, 280), "scale": 0.78},
 		{"type": "fence", "pos": Vector2(6080, 280), "width": 170.0},
 		{"type": "crow", "pos": Vector2(6200, 145), "flip": false},
-		{"type": "puddle", "pos": Vector2(7040, 340), "width": 220.0},
-		{"type": "ruin_blocks", "pos": Vector2(7040, 205), "count": 2, "cell": BLOCK},
+		{"type": "puddle", "pos": Vector2(7150, 340), "width": 220.0},
+		{"type": "ruin_blocks", "pos": Vector2(7100, 205), "count": 2, "cell": BLOCK},
 		{"type": "lantern", "pos": Vector2(7490, 240), "scale": 0.72},
 
 		# E — tower road: denser props, then a clear shot line to the switch.

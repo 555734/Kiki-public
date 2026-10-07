@@ -51,6 +51,8 @@ func run() -> void:
 		# and the spring lifts the runner over the sea wall.
 		var bridged := false
 		for g in Stage.gimmicks():
+			if g["type"] not in ["moving_platform", "crumble", "blink", "conveyor"]:
+				continue
 			var at: Vector2 = g["pos"]
 			var reach: Vector2 = g.get("travel", Vector2.ZERO)
 			var half := float((g.get("span", Vector2(120, 30)) as Vector2).x) * 0.5

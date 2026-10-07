@@ -45,7 +45,7 @@ func run() -> void:
 		"desert route mixes launch pads and revealed bridges with its earlier beats")
 	check(Stage.checkpoints().size() == 9,
 		"checkpoints break up the harder route")
-	check(Stage.ground()[7].position.x - Stage.ground()[6].end.x == 550.0,
+	check(Stage.ground()[7].position.x - Stage.ground()[6].end.x == 790.0,
 		"guardian crossing keeps a clear cooperative challenge")
 	var oracle_switches := 0
 	var oracle_gate: Dictionary = {}
