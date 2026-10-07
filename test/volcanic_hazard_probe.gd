@@ -25,7 +25,7 @@ func run() -> void:
 	for invalid in [
 		{"kind": "meteor", "travel": Vector2(0, -20)},
 		{"kind": "geyser", "travel": Vector2(1, -20)},
-		{"period": 2.0}, {"width": -1.0}, {"kind": "metoer"}, {"travel": Vector2(INF, 4)}]:
+		{"period": 2.0}, {"period": Vector2.ONE}, {"width": -1.0}, {"kind": "metoer"}, {"travel": Vector2(INF, 4)}]:
 		var spec := {"type": "volcanic_hazard", "pos": Vector2.ZERO}
 		spec.merge(invalid, true)
 		check(not StageSpecSchema.errors([], [spec]).is_empty(), "invalid volcanic spec rejected: " + str(invalid))

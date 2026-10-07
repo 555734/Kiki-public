@@ -77,7 +77,8 @@ static func _validate(specs: Array, schema: Dictionary, category: String, out: A
 		if kind == "volcanic_hazard":
 			if spec.get("kind", "geyser") not in ["geyser", "meteor"]:
 				out.append(label + ": kind must be geyser or meteor")
-			if float(spec.get("period", 4.8)) < 3.0:
+			var period_value: Variant = spec.get("period", 4.8)
+			if (period_value is int or period_value is float) and float(period_value) < 3.0:
 				out.append(label + ": period must leave a safe cooldown (>=3s)")
 			var travel: Variant = spec.get("travel", Vector2(0, -230))
 			if travel is Vector2 and travel.is_finite():
