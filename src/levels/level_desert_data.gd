@@ -187,7 +187,7 @@ static func _return_mouth() -> Vector2:
 
 static func key_position() -> Vector2:
 	# The key makes the upper journey mandatory; the lower goal cannot be rushed.
-	var floor_: Rect2 = Sections.build().sections[6]["exit"]
+	var floor_: Rect2 = Sections.build().cursor
 	return Vector2(floor_.get_center().x - 55, floor_.position.y - 4)
 
 static func coins() -> Array[Vector2]:

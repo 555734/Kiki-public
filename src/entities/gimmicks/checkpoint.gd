@@ -31,6 +31,10 @@ func _on_body_entered(body: Node2D) -> void:
 	if reached or not (body is Runner):
 		return
 	reached = true
+	# Two-tier routes can fall back onto an earlier post that was jumped over.
+	# Visiting it must not replace the later checkpoint's respawn position.
+	if index < GameState.checkpoint_index:
+		return
 	_flash = 1.0
 	Events.checkpoint_reached.emit(index)
 	GameState.checkpoint_position = global_position + Vector2(0, -40)

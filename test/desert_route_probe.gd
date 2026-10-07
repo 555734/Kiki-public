@@ -37,6 +37,8 @@ func run() -> void:
 			transfers += 1
 	check(transfers == 2, "production route really climbs to the upper tier and returns to the goal")
 	check(Stage.key_position().y < -500, "required key remains on the upper journey")
+	check(Stage.key_position().x > rooms[-1]["exit"].position.x,
+		"key is beyond the upper rescue wall so dropping downstairs cannot skip the finale")
 	for checkpoint in Stage.checkpoints():
 		var supported := false
 		for slab in Stage.ground():
@@ -58,6 +60,12 @@ func run() -> void:
 		for _frame in 6: await get_tree().physics_frame
 		check(GameState.checkpoint_index == i + 1, "real checkpoint advances across the tier change: %d" % (i + 1))
 	var saved := GameState.respawn_position()
+	# A fall onto a previously skipped lower checkpoint must not roll back the
+	# upstairs save point, even though its Area has not been reached before.
+	main.runner.respawn(Stage.checkpoints()[0] + Vector2(0, 24))
+	for _frame in 6: await get_tree().physics_frame
+	check(GameState.checkpoint_index == 11 and GameState.respawn_position().distance_to(saved) < 1.0,
+		"falling onto an earlier lower checkpoint preserves the upper save point")
 	main._do_respawn()
 	check(main.runner.global_position.distance_to(saved) < 1.0 and saved.y < -500,
 		"real respawn returns to the latest upper checkpoint")
