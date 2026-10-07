@@ -103,7 +103,10 @@ enum World {
 ## 20: runner input carries a cumulative jump-press count so brief taps survive
 ##     the 30 Hz send interval and dropped unreliable packets. HELLO supplies
 ##     its baseline when authority changes or a client reconnects.
-const VERSION: int = 21
+## 21: persistent cooperative rooms and session state.
+## 22: rebuilt 1-7/1-8 and double-jump/second-gear simulation. Until content
+##     negotiation exists, this number protects deterministic stage data too.
+const VERSION: int = 22
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

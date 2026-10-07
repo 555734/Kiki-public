@@ -76,37 +76,53 @@ func run() -> void:
 			scene.input_hub.assume_touch()
 			scene.get_node("NetPanel").free()
 			name = "stage-" + Stage.stage_number()
-		freeze(scene)
-		Clock.reset()
-		for _i in 3:
+		await capture(scene, name, update)
+		if which in [Stage.Which.TOWER, Stage.Which.CAVE]:
+			# Teleporting the frozen runner must not fire checkpoint/goal areas,
+			# which would make the reference contain a transient screen flash.
+			for area in scene.find_children("*", "Area2D", true, false):
+				area.set_deferred("monitoring", false)
 			await get_tree().process_frame
-			freeze(scene)
-		await RenderingServer.frame_post_draw
-		var frame := get_viewport().get_texture().get_image()
-		if frame.get_size() != Vector2i(1280, 720):
-			push_error("Visual probe needs a 1280x720 viewport")
-			get_tree().quit(1)
-			return
-		frame.save_png(ACTUAL + name + ".png")
-		if update:
-			frame.save_png(BASE + name + ".png")
-		elif not FileAccess.file_exists(BASE + name + ".png"):
-			print("FAIL visual baseline missing: ", name)
-			failures += 1
-		else:
-			var expected := Image.load_from_file(BASE + name + ".png")
-			var bad := different_tiles(expected, frame)
-			print("visual ", name, ": ", bad, " changed tiles")
-			if bad > 0:
-				print("FAIL visual ", name)
-				failures += 1
-		# Prove the comparator rejects a visible missing/covered patch.
-		var changed: Image = frame.duplicate()
-		changed.fill_rect(Rect2i(128, 128, 40, 40), Color.MAGENTA)
-		if different_tiles(frame, changed) == 0:
-			print("FAIL visual comparator missed a visible mutation")
-			failures += 1
+			var rooms: Array[Dictionary] = Stage.data().rooms()
+			for view in [["middle", rooms[rooms.size() / 2]], ["top", rooms[-1]]]:
+				var exit: Rect2 = view[1]["exit"]
+				scene.runner.global_position = Vector2(exit.get_center().x, exit.position.y - 26)
+				scene._snap_camera_to_runner()
+				scene.camera.reset_smoothing()
+				await capture(scene, name + "-" + view[0], update)
 		scene.free()
 		await get_tree().process_frame
 	print("visual regression: ", failures, " failures")
 	get_tree().quit(0 if failures == 0 else 1)
+
+func capture(scene: Node, name: String, update: bool) -> void:
+	freeze(scene)
+	Clock.reset()
+	for _i in 3:
+		await get_tree().process_frame
+		freeze(scene)
+	await RenderingServer.frame_post_draw
+	var frame := get_viewport().get_texture().get_image()
+	if frame.get_size() != Vector2i(1280, 720):
+		push_error("Visual probe needs a 1280x720 viewport")
+		get_tree().quit(1)
+		return
+	frame.save_png(ACTUAL + name + ".png")
+	if update:
+		frame.save_png(BASE + name + ".png")
+	elif not FileAccess.file_exists(BASE + name + ".png"):
+		print("FAIL visual baseline missing: ", name)
+		failures += 1
+	else:
+		var expected := Image.load_from_file(BASE + name + ".png")
+		var bad := different_tiles(expected, frame)
+		print("visual ", name, ": ", bad, " changed tiles")
+		if bad > 0:
+			print("FAIL visual ", name)
+			failures += 1
+	# Prove the comparator rejects a visible missing/covered patch.
+	var changed: Image = frame.duplicate()
+	changed.fill_rect(Rect2i(128, 128, 40, 40), Color.MAGENTA)
+	if different_tiles(frame, changed) == 0:
+		print("FAIL visual comparator missed a visible mutation")
+		failures += 1

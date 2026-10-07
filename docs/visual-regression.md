@@ -16,4 +16,4 @@ godot --path . --rendering-method gl_compatibility --resolution 1280x720 test/vi
 
 `test/visual_baselines/` の画像差分を目視確認してcommitしてください。CIはbaselineを自動更新しません。失敗時の実画像は `build/visual-regression/` とActions artifactに残します。
 
-固定した開始場面のみを対象にしています。全ステージ全位置、全端末の安全領域、実機の入力・fps・発熱を保証しません。詳細位置の素材チェック・seating probe・実機acceptanceを併用してください。
+第一章8ステージとROYAL ARENAの開始場面に加え、1-7/1-8の中盤と最上部も比較します（全13場面）。中盤・最上部はrooms()の中央/最終roomのexitへカメラを移動し、goal/checkpoint Areaによる一時演出は止めます。全ステージ全位置、全端末の安全領域、実機の入力・fps・発熱を保証しません。詳細位置の素材チェック・seating probe・実機acceptanceを併用してください。

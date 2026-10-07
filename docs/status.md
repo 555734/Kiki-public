@@ -1,6 +1,6 @@
 # 現在の開発状況
 
-更新: 2026-10-06 JST。今回の確認開始時の公開mainは `ca3e3bd1` / 0.9.9。PR #1〜#4 の品質改善・新アート・操作修正はmainに統合されています。今回のレビュー修正はPR #5でmainに入り、提出versionは0.9.10です。検証・審査状況は `release-results/0.9.10.md` に記録しています。過去の2026-09-12の記録は `history/status-2026-09-12.md` に保存し、現行仕様として扱いません。
+現行のアプリversionは [project.godot](../project.godot)、通信互換性は [network-compatibility.md](network-compatibility.md)、公開mainのcommitとCIは [GitHub](https://github.com/555734/Kiki-public) を参照してください。提出時点のversion・build・審査結果は [release-results](release-results/) の日付付き記録に保存します。この文書の履歴番号を現在の開発versionとして扱わないでください。
 
 ## 実装済み
 
@@ -9,11 +9,11 @@ Godot 4.7.2、横画面1280×720。第一章1-1〜1-8、対戦の既定ステー
 - 1-2〜1-8の素材差し替え、追跡敵、1-7/1-8の背景調整。
 - 可変移動スティック、大きな右下ジャンプ、足場/射撃の選択表示。
 - 衝突直前まで残す足場配置、射撃ドラッグによるカメラスクロールの撤去。
-- 対戦スターの初期位置を床から140pxに変更（落とされたスターは通常物理）。
+- 対戦スターの空中配置、時間制限・再接続猶予・結果表示・CPUパートナー。
 - クラス・アートmanifestの分割、known failures 0件、全Godot/UI/server/performance CI、署名アップロードと正確なTestFlight build確認。
 - 1-5 の記録されたdraw callsは114、予算300。これは測定場面の値で、全端末・全場面のfps保証ではありません。
 
-## 今回のレビューの判断
+## 2026-10-06のレビュー判断（履歴）
 
 | 指摘 | 判断と対応 |
 |---|---|

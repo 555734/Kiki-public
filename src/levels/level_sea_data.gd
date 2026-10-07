@@ -11,7 +11,7 @@ extends RefCounted
 ##                           belt across the top that turns every 3.2s.
 ##   B  stepping rocks    -- rocks that rise and fall, then a cliff with a
 ##                           turret firing down at the climb.
-##   C  crumbling pier    -- three planks that give way, then 560px of open
+##   C  crumbling pier    -- three planks that give way, then 820px of open
 ##                           water that NEEDS a guardian slab.
 ##   D  sea stacks        -- three pillars climbing 120px each, a sea breeze off
 ##                           the highest one that trades speed for height, then
@@ -19,17 +19,17 @@ extends RefCounted
 ##   E  the lift raft     -- a raft rising 300px up the face of a cliff.
 ##   F  blinking steps    -- three blink platforms over 700px of sea, out of
 ##                           phase, so the crossing is a rhythm.
-##   G  the sea wall      -- a spring over a 280px wall, then 620px of water
+##   G  the sea wall      -- a spring over a 280px wall, then 920px of water
 ##                           with seabirds over it: guardian.
 ##   H  falling bridge    -- a harbour gate whose switch only the rifle reaches,
 ##                           then three crumbling planks, the chaser closing.
-##   I  last climb        -- two steps up and 650px of water: guardian, then a
+##   I  last climb        -- two steps up and 920px of water: guardian, then a
 ##                           beacon sweeping the point, and the flag.
 ##
 ## Jumps are sized against the measured runner (B = 48): a jump rises 154px
 ## (184 at a sprint), a sprint jump carries ~300px, a spring ~307px. So every
 ## unassisted gap is <= 200px, every unassisted step-up <= 120px, and the three
-## guardian crossings are 560..650px -- nothing sits in the unfair middle.
+## guardian crossings are 820..920px -- nothing sits in the unfair middle.
 ##
 ## Enemy vocabulary: crabs walk the sand (the walker, reskinned), seabirds own
 ## the air (the flyer, reskinned), turrets hold the cliff tops, and the purple
@@ -64,7 +64,7 @@ const SLABS := [
 	[600.0, 900.0, 300.0],      # A2 dune step
 	[900.0, 1200.0, 190.0],     # A2 dune top
 	[2120.0, 2500.0, 120.0],    # B cliff (turret)
-	[3600.0, 4000.0, 200.0],    # C landing after the guardian crossing
+	[3860.0, 4000.0, 200.0],    # C landing after the guardian crossing
 	[4150.0, 4300.0, 80.0],     # D sea stack 1
 	[4450.0, 4600.0, -40.0],    # D sea stack 2
 	[4750.0, 4900.0, -160.0],   # D sea stack 3, the high point
@@ -72,11 +72,11 @@ const SLABS := [
 	[5900.0, 6300.0, 0.0],      # E cliff the raft climbs to
 	[7000.0, 7400.0, 180.0],    # F landing after the blink steps
 	[7400.0, 8000.0, -100.0],   # G sea wall top (spring below)
-	[8620.0, 9100.0, 120.0],    # G beach after the guardian crossing
+	[8920.0, 9100.0, 120.0],    # G beach after the guardian crossing
 	[9700.0, 10100.0, 60.0],    # H landing after the falling bridge
 	[10100.0, 10350.0, -40.0],  # I step
 	[10350.0, 10600.0, -140.0], # I step (turret)
-	[11250.0, 12400.0, 100.0],  # I lighthouse point
+	[11520.0, 12400.0, 100.0],  # I lighthouse point
 ]
 
 static func ground() -> Array[Rect2]:
@@ -126,10 +126,10 @@ static func enemies() -> Array[Dictionary]:
 		{"type": "walker", "pos": Vector2(-300, 379), "patrol": 160.0, "skin": "sea_crab"},
 		{"type": "walker", "pos": Vector2(320, 379), "patrol": 140.0, "skin": "sea_crab"},
 		{"type": "walker", "pos": Vector2(2260, 99), "patrol": 90.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(3820, 179), "patrol": 120.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(3940, 179), "patrol": 45.0, "skin": "sea_crab"},
 		{"type": "walker", "pos": Vector2(5300, 279), "patrol": 150.0, "skin": "sea_crab"},
 		{"type": "walker", "pos": Vector2(7720, -121), "patrol": 180.0, "skin": "sea_crab"},
-		{"type": "walker", "pos": Vector2(8860, 99), "patrol": 150.0, "skin": "sea_crab"},
+		{"type": "walker", "pos": Vector2(8980, 99), "patrol": 45.0, "skin": "sea_crab"},
 		{"type": "walker", "pos": Vector2(11700, 79), "patrol": 220.0, "skin": "sea_crab"},
 		# Pufferfish telegraph an expanding hurt area above safe bank approaches.
 		{"type": "mine", "pos": Vector2(2010, 52), "bob": Vector2(0, 18), "period": 3.8},
@@ -152,8 +152,8 @@ static func enemies() -> Array[Dictionary]:
 ## drops and the open water under everything -- and that does not change here;
 ## what changes is how many different questions it asks on the way down.
 ##
-## Everything added is INSIDE a slab. The three guardian crossings (560, 620
-## and 650px) are the spine of the stage and the probe allows no spare: a
+## Everything added is INSIDE a slab. The three guardian crossings (820, 920
+## and 920px) are the spine of the stage and the probe allows no spare: a
 ## gimmick whose x-span touched one would read as bridging it, and the stage
 ## would quietly stop needing a second player for that crossing.
 static func gimmicks() -> Array[Dictionary]:
@@ -205,13 +205,13 @@ static func checkpoints() -> Array[Vector2]:
 	return [
 		Vector2(960, 140),
 		Vector2(2160, 70),
-		Vector2(3660, 150),
+		Vector2(3920, 150),
 		Vector2(5160, 250),
 		Vector2(5960, -50),
 		Vector2(7060, 130),
 		Vector2(8680, 70),
 		Vector2(9760, 10),
-		Vector2(11320, 50),
+		Vector2(11600, 50),
 	]
 
 static func goal() -> Vector2:
@@ -255,7 +255,7 @@ static func decor() -> Array[Dictionary]:
 		# B
 		{"type": "sea_palm", "pos": Vector2(2180, 120), "height": 260.0, "flip": true},
 		# C
-		{"type": "sea_seaweed", "pos": Vector2(3660, 200)},
+		{"type": "sea_seaweed", "pos": Vector2(3920, 200)},
 		{"type": "sea_boulder", "pos": Vector2(3930, 200), "width": 110.0},
 		# D -- stacks and the beach below.
 		{"type": "sea_grass", "pos": Vector2(4820, -160)},
@@ -272,7 +272,7 @@ static func decor() -> Array[Dictionary]:
 		# H
 		{"type": "sea_grass", "pos": Vector2(9800, 60)},
 		# I -- lighthouse point.
-		{"type": "sea_grass", "pos": Vector2(11320, 100)},
+		{"type": "sea_grass", "pos": Vector2(11600, 100)},
 		{"type": "sea_palm_small", "pos": Vector2(11500, 100), "height": 200.0},
 		{"type": "sea_boulder", "pos": Vector2(11950, 100), "width": 140.0},
 		{"type": "sea_palm", "pos": Vector2(12330, 100), "height": 310.0, "flip": true},

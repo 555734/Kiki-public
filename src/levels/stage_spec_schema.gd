@@ -61,3 +61,15 @@ static func _validate(specs: Array, schema: Dictionary, category: String, out: A
 		for key in spec:
 			if key != "type" and key != "pos" and not schema[kind].has(key):
 				out.append(label + ": unknown property " + String(key))
+			elif key in ["pos", "span", "size"] or (kind == "moving_platform" and key == "travel"):
+				var vector: Variant = spec[key]
+				if not vector is Vector2 or not vector.is_finite():
+					out.append(label + ": " + String(key) + " must be a finite Vector2")
+				elif key in ["span", "size"] and (vector.x <= 0 or vector.y <= 0):
+					out.append(label + ": " + String(key) + " must have positive dimensions")
+			elif key in ["period", "beat", "phase"] or (kind == "moving_platform" and key == "speed"):
+				var number: Variant = spec[key]
+				if not (number is int or number is float) or not is_finite(float(number)):
+					out.append(label + ": " + String(key) + " must be finite numeric data")
+				elif key != "phase" and float(number) <= 0:
+					out.append(label + ": " + String(key) + " must be positive")

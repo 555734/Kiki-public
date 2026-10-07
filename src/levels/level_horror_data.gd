@@ -37,9 +37,9 @@ static func pit_centre_x_value() -> float: return 4600.0
 static func solid_decor() -> Array[Rect2]:
 	return [
 		Rect2(170, 245, BLOCK * 3.0, BLOCK),
-		Rect2(1830, 286, BLOCK * 2.0, BLOCK),
+		Rect2(2070, 286, BLOCK * 2.0, BLOCK),
 		Rect2(2630, 175, BLOCK * 3.0, BLOCK),
-		Rect2(4130, 270, BLOCK * 3.0, BLOCK),
+		Rect2(4300, 270, BLOCK * 3.0, BLOCK),
 		Rect2(5110, 150, BLOCK * 2.0, BLOCK),
 		Rect2(7040, 205, BLOCK * 2.0, BLOCK),
 		Rect2(8440, 155, BLOCK * 3.0, BLOCK),
@@ -49,31 +49,31 @@ static func solid_decor() -> Array[Rect2]:
 static func ground() -> Array[Rect2]:
 	var g: Array[Rect2] = []
 	# A  : fog road and first enemy read.
-	# B  : broken bridge -- 1260..1690 NEEDS one Orion platform.
-	# C  : old village -- 3520..3970 NEEDS one Orion platform.
-	# D  : flooded ruins -- 6310..6920 NEEDS two Orion platforms.
+	# B  : broken bridge -- 1260..2020 NEEDS one Orion platform.
+	# C  : old village -- 3520..4280 NEEDS one Orion platform.
+	# D  : flooded ruins -- 6310..7070 NEEDS two Orion platforms.
 	# E  : tower road -- moving/crumbling pieces and the shootable gate.
-	# F  : village gate -- 9530..10040 NEEDS one or two Orion platforms.
+	# F  : village gate -- 9530..10300 NEEDS one or two Orion platforms.
 	var slabs := [
 		[-1600.0, 420.0, 400.0],
 		[520.0, 900.0, 352.0],
 		[1010.0, 1260.0, 305.0],
-		[1690.0, 2300.0, 400.0],
+		[2020.0, 2300.0, 400.0],
 		[2410.0, 2710.0, 330.0],
 		[2820.0, 3150.0, 255.0],
 		[3260.0, 3520.0, 350.0],
-		[3970.0, 4480.0, 400.0],
+		[4280.0, 4480.0, 400.0],
 		[4590.0, 4920.0, 320.0],
 		[5040.0, 5360.0, 250.0],
 		[5480.0, 5790.0, 360.0],
 		[5910.0, 6310.0, 280.0],
-		[6920.0, 7320.0, 340.0],
+		[7070.0, 7320.0, 340.0],
 		[7440.0, 7750.0, 240.0],
 		[7870.0, 8200.0, 360.0],
 		[8320.0, 8660.0, 290.0],
 		[8790.0, 9130.0, 210.0],
 		[9250.0, 9530.0, 330.0],
-		[10040.0, 10850.0, 260.0],
+		[10300.0, 10850.0, 260.0],
 	]
 	for s in slabs:
 		g.append(Rect2(s[0], s[2], s[1] - s[0], GROUND_BASE - s[2]))
@@ -105,9 +105,9 @@ static func enemies() -> Array[Dictionary]:
 		},
 		# Thornmites: low, horned quadrupeds; explicitly not mushroom/walker skins.
 		{"type": "thornmite", "pos": Vector2(250, 345), "patrol": 115.0},
-		{"type": "thornmite", "pos": Vector2(1950, 345), "patrol": 150.0},
+		{"type": "thornmite", "pos": Vector2(2170, 345), "patrol": 150.0},
 		{"type": "thornmite", "pos": Vector2(2990, 205), "patrol": 105.0},
-		{"type": "thornmite", "pos": Vector2(4210, 345), "patrol": 135.0},
+		{"type": "thornmite", "pos": Vector2(4400, 345), "patrol": 135.0},
 		{"type": "thornmite", "pos": Vector2(5620, 305), "patrol": 105.0},
 		{"type": "thornmite", "pos": Vector2(7100, 285), "patrol": 120.0},
 		{"type": "thornmite", "pos": Vector2(8500, 235), "patrol": 105.0},
@@ -148,10 +148,10 @@ static func gimmicks() -> Array[Dictionary]:
 static func checkpoints() -> Array[Vector2]:
 	return [
 		Vector2(1790, 350),
-		Vector2(4050, 350),
+		Vector2(4330, 350),
 		Vector2(5550, 310),
 		Vector2(7000, 290),
-		Vector2(10120, 210),
+		Vector2(10400, 210),
 	]
 
 static func goal() -> Vector2:
@@ -166,13 +166,13 @@ static func crystals() -> Array[Vector2]:
 		Vector2(1740, 320),
 		Vector2(2675, 105),
 		Vector2(3340, 270),
-		Vector2(4050, 315),
+		Vector2(4330, 315),
 		Vector2(5145, 85),
 		Vector2(6100, 185),
-		Vector2(6990, 260),
+		Vector2(7130, 260),
 		Vector2(8120, 270),
 		Vector2(9360, 250),
-		Vector2(10130, 180),
+		Vector2(10410, 180),
 	]
 
 static func springs() -> Array[Vector2]:
@@ -186,11 +186,11 @@ static func coins() -> Array[Vector2]:
 		Vector2(610, 270), Vector2(690, 240), Vector2(775, 255),
 		Vector2(1100, 205), Vector2(1180, 180),
 		Vector2(1360, 245), Vector2(1475, 220), Vector2(1585, 250),
-		Vector2(1870, 300), Vector2(1980, 275),
+		Vector2(2110, 300), Vector2(2210, 275),
 		Vector2(2460, 245), Vector2(2560, 215),
 		Vector2(2860, 165), Vector2(2980, 135), Vector2(3090, 165),
 		Vector2(3380, 270), Vector2(3650, 235), Vector2(3830, 260),
-		Vector2(4080, 300), Vector2(4180, 275),
+		Vector2(4340, 300), Vector2(4410, 275),
 		Vector2(4680, 225), Vector2(4780, 195),
 		Vector2(5120, 120), Vector2(5210, 95),
 		Vector2(5600, 270), Vector2(5700, 245),
@@ -218,9 +218,9 @@ static func decor() -> Array[Dictionary]:
 
 		# B — broken bridge / village approach.
 		{"type": "roots", "pos": Vector2(1180, 305), "flip": false},
-		{"type": "banner", "pos": Vector2(1780, 400), "flip": false},
+		{"type": "banner", "pos": Vector2(2060, 400), "flip": false},
 		{"type": "grave", "pos": Vector2(2050, 400), "scale": 0.72},
-		{"type": "ruin_blocks", "pos": Vector2(1830, 286), "count": 2, "cell": BLOCK},
+		{"type": "ruin_blocks", "pos": Vector2(2070, 286), "count": 2, "cell": BLOCK},
 		{"type": "fence", "pos": Vector2(2440, 330), "width": 175.0},
 		{"type": "ruin_blocks", "pos": Vector2(2630, 175), "count": 3, "cell": BLOCK},
 		{"type": "crow", "pos": Vector2(3040, 200), "flip": true},
@@ -228,7 +228,7 @@ static func decor() -> Array[Dictionary]:
 		# C — old village, alternating height and enclosed silhouettes.
 		{"type": "lantern", "pos": Vector2(3340, 350), "scale": 0.72},
 		{"type": "grave", "pos": Vector2(3440, 350), "scale": 0.82},
-		{"type": "cart", "pos": Vector2(4040, 400), "flip": false},
+		{"type": "cart", "pos": Vector2(4330, 400), "flip": false},
 		{"type": "ruin_blocks", "pos": Vector2(4130, 270), "count": 3, "cell": BLOCK},
 		{"type": "puddle", "pos": Vector2(4680, 320), "width": 185.0},
 		{"type": "banner", "pos": Vector2(4840, 320), "flip": true},
@@ -253,7 +253,7 @@ static func decor() -> Array[Dictionary]:
 		{"type": "roots", "pos": Vector2(9360, 330), "flip": false},
 
 		# F — final gate. Warm lights take over as the village gets close.
-		{"type": "lantern", "pos": Vector2(10120, 260), "scale": 0.92},
+		{"type": "lantern", "pos": Vector2(10400, 260), "scale": 0.92},
 		{"type": "ruin_blocks", "pos": Vector2(10200, 150), "count": 3, "cell": BLOCK},
 		{"type": "banner", "pos": Vector2(10430, 260), "flip": true},
 		{"type": "fence", "pos": Vector2(10520, 260), "width": 160.0},
