@@ -58,6 +58,13 @@ func _physics_process(_delta: float) -> void:
 
 func _draw() -> void:
 	var at := head_at(Clock.tick)
+	if kind != "boulder":
+		var beat := fposmod(Clock.seconds_at(Clock.tick, phase_offset) / period, 1.0)
+		# The shared clock warns before the falling stone reaches the lane.
+		if beat >= 0.10 and beat < 0.30:
+			var target := Vector2(0, travel + 40)
+			draw_line(target - Vector2(28, 0), target + Vector2(28, 0), Color("ffb64d"), 4.0, true)
+			draw_colored_polygon(PackedVector2Array([target + Vector2(-8, -18), target + Vector2(8, -18), target + Vector2(0, -5)]), Color("ffb64d"))
 	if (Art.style(self) == "cave"):
 		var key := "s18_boulder" if kind == "boulder" else "s18_terrain_stalactite"
 		var box := Rect2(at - Vector2(39, 39), Vector2(78, 78)) if kind == "boulder" else Rect2(at - Vector2(26, 40), Vector2(52, 80))

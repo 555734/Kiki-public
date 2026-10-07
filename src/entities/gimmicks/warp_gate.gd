@@ -10,6 +10,10 @@ extends Node2D
 @export var size: Vector2 = Vector2(90, 120)
 ## Where this mouth delivers the runner, in world space.
 @export var exit: Vector2 = Vector2.ZERO
+## Optional host-authoritative launch after teleporting. Ordinary portals
+## preserve their old velocity; an explicit vector uses Runner's launch state.
+var exit_velocity := Vector2.ZERO
+var launches := false
 ## A one-way gate still draws its exit mouth; only the entry is live.
 @export var is_exit: bool = false
 ## 1-5 for a gate in a row of several: a colour and a count of pips, shown on
@@ -31,6 +35,8 @@ static func from_spec(spec: Dictionary, runner: Runner) -> Node2D:
 	portal.runner = runner
 	portal.is_exit = String(spec.get("type")) == "warp_exit"
 	portal.exit = spec.get("exit", Vector2.ZERO)
+	portal.launches = spec.has("exit_velocity")
+	portal.exit_velocity = spec.get("exit_velocity", Vector2.ZERO)
 	portal.size = spec.get("size", Vector2(90, 120))
 	portal.mark = int(spec.get("mark", 0))
 	return portal
@@ -45,6 +51,8 @@ func _physics_process(delta: float) -> void:
 		return
 	var from := runner.global_position
 	runner.global_position = exit
+	if launches and runner is Runner:
+		runner.launch(exit_velocity)
 	_cooldown = Balance.WARP_COOLDOWN
 	Events.runner_warped.emit(from, exit)
 
@@ -94,6 +102,13 @@ func _draw_cave() -> void:
 
 ## The mark: a coloured rim and dice pips over the mouth.
 func _draw_mark() -> void:
+	if launches and not is_exit:
+		var direction := exit_velocity.normalized()
+		var base := Vector2(0, -size.y * 0.5 - 50)
+		var tip := base + direction * 24
+		var side := direction.orthogonal() * 7
+		draw_line(base - direction * 10, tip, Color("fff1b4"), 4.0, true)
+		draw_colored_polygon(PackedVector2Array([tip, tip - direction * 12 + side, tip - direction * 12 - side]), Color("fff1b4"))
 	if mark <= 0:
 		return
 	var c: Color = MARK_COLOURS[clampi(mark, 1, 5)]

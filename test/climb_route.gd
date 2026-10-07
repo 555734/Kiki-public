@@ -59,6 +59,8 @@ static func climb_all(tree: SceneTree, main: Node2D, _max_rise: float = 0.0,
 		var ok := true
 		var sprint := bool(step.get("sprint", false))
 		match via:
+			"drop":
+				ok = await _drop(tree, main, r, hub, a, b)
 			"walk":
 				ok = await _walk(tree, main, r, hub, a, b)
 			"jump":
@@ -195,6 +197,16 @@ static func _on(r: Runner, b: Rect2) -> bool:
 		and r.global_position.x > b.position.x - 10.0 and r.global_position.x < b.end.x + 10.0
 
 ## Low passages and downward steps: jumping would land on the roof instead.
+static func _drop(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub, a: Rect2, b: Rect2) -> bool:
+	r.respawn(Vector2(a.get_center().x, a.position.y - 26))
+	r.velocity = Vector2.ZERO
+	main._snap_camera_to_runner()
+	hub.drive_runner(0, 0, false, false)
+	for f in 420:
+		await tree.physics_frame
+		if f > 20 and _on(r, b): return true
+	return false
+
 static func _walk(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub, a: Rect2, b: Rect2) -> bool:
 	r.respawn(Vector2(a.get_center().x, a.position.y - 26))
 	r.velocity = Vector2.ZERO
@@ -250,6 +262,9 @@ static func _opened(tree: SceneTree, main: Node2D, r: Runner, hub: InputHub,
 		step: Dictionary) -> bool:
 	var id := String(step["id"])
 	var want := int(step.get("sigil", 0))
+	# A previous route step may leave movement held. Waiting for a shot must
+	# not walk the freshly respawned Runner off this step's starting island.
+	hub.drive_runner(0, 0, false, false)
 	r.respawn(Vector2((step["from"] as Rect2).get_center().x, (step["from"] as Rect2).position.y - 26.0))
 	main._snap_camera_to_runner()
 	await tree.physics_frame

@@ -88,6 +88,9 @@ tools/capture_versus_cards.tscn    capture
 tools/export_three_assets.tscn     tool
 tools/export_stage_maps.tscn       tool
 test/desert_route_probe.tscn       gated
+test/radical_route_probe.tscn      gated
+test/warp_launch_probe.tscn        gated
+test/bridge_refresh_probe.tscn     gated
 
 test/floating_controls_probe.tscn gated
 test/royal_arena_probe.tscn gated

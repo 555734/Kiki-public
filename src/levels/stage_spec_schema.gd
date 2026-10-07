@@ -27,7 +27,7 @@ const GIMMICKS := {
 	"tower_trap": ["kind", "length", "travel", "period", "phase", "facing"],
 	"blink": ["span", "beat", "colour", "phase", "one_way"],
 	"conveyor": ["span", "speed", "flip", "dir", "phase", "one_way"],
-	"warp": ["exit", "size", "mark"],
+	"warp": ["exit", "size", "mark", "exit_velocity"],
 	"warp_exit": ["exit", "size", "mark"],
 	"crumble": ["span", "one_way"],
 	"laser": ["dir", "length"],
@@ -61,7 +61,7 @@ static func _validate(specs: Array, schema: Dictionary, category: String, out: A
 		for key in spec:
 			if key != "type" and key != "pos" and not schema[kind].has(key):
 				out.append(label + ": unknown property " + String(key))
-			elif key in ["pos", "span", "size"] or (kind == "moving_platform" and key == "travel"):
+			elif key in ["pos", "span", "size", "exit", "exit_velocity"] or (kind == "moving_platform" and key == "travel"):
 				var vector: Variant = spec[key]
 				if not vector is Vector2 or not vector.is_finite():
 					out.append(label + ": " + String(key) + " must be a finite Vector2")

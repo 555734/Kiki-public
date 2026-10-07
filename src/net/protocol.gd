@@ -107,7 +107,8 @@ enum World {
 ## 22: rebuilt 1-7/1-8 and double-jump/second-gear simulation. Until content
 ##     negotiation exists, this number protects deterministic stage data too.
 ## 23: twenty-section desert layout and thin desert ledges.
-const VERSION: int = 23
+## 24: rebuilt coast/lava and host-authoritative launching portals.
+const VERSION: int = 24
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
