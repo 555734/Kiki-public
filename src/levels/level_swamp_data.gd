@@ -1,8 +1,8 @@
 extends RefCounted
 ## Twenty unique production encounters; authored geometry and routes share a builder.
 const Sections = preload("res://src/levels/molten_sections.gd")
-const WATER_Y := 520.0
-const KILL_Y := 620.0
+const WATER_Y := 1450.0
+const KILL_Y := 1550.0
 const START := Vector2(-1050, 330)
 static func kill_y_value() -> float: return KILL_Y
 static func water_y_value() -> float: return WATER_Y
@@ -26,7 +26,7 @@ static func coins() -> Array[Vector2]:
 	return out
 static func crystals() -> Array[Vector2]: return []
 static func key_position() -> Vector2:
-	var exit: Rect2 = rooms()[15]["exit"]
+	var exit: Rect2 = rooms()[-1]["exit"]
 	return Vector2(exit.get_center().x - 45, exit.position.y - 4)
 static func veils() -> Array[Dictionary]: return []
 static func goal() -> Vector2:

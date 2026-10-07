@@ -109,7 +109,7 @@ enum World {
 ## 23: twenty-section desert layout and thin desert ledges.
 ## 24: rebuilt coast/lava and host-authoritative launching portals.
 ## 25: two-tier desert route, upper key and lower goal return.
-const VERSION: int = 25
+const VERSION: int = 26
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
