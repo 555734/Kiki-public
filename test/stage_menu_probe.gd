@@ -182,11 +182,11 @@ func _ready() -> void:
 			_drag(panel, centre + Vector2(180, 0), 0)
 			check(panel._stage_page == 1, "versus gestures cannot move the co-op menu behind it")
 			check(versus._stage_id == Stage.Which.ROYAL_ARENA and versus._code.text == "123456", "single-stage swipe keeps Royal and typed room code")
-			versus._back.pressed.emit()
-			await get_tree().process_frame
-			check(versus._step == 1, "room back returns to versus mode selection")
-			versus._back.pressed.emit()
-			await get_tree().process_frame
+			# A real tap, not .pressed.emit(): the full-screen content once sat
+			# over the back button and swallowed every tap meant for it.
+			await _click(versus._back)
+			check(versus._step == 1, "tapping room back returns to versus mode selection")
+			await _click(versus._back)
 			check(not is_instance_valid(versus) and panel._stage_page == 1, "mode back closes versus and preserves co-op browsing position")
 
 			# Difficulty belongs to the stage that has been chosen, so it is
@@ -295,6 +295,17 @@ func _touch(target: Node, at: Vector2, pressed: bool, index: int) -> void:
 	var event := InputEventScreenTouch.new()
 	event.position = at; event.pressed = pressed; event.index = index
 	target._input(event)
+
+func _click(button: Button) -> void:
+	var at := button.get_global_rect().get_center()
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = at
+		event.global_position = at
+		button.get_viewport().push_input(event, false)
+		await get_tree().process_frame
 
 func _drag(target: Node, at: Vector2, index: int) -> void:
 	var event := InputEventScreenDrag.new()

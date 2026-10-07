@@ -102,7 +102,13 @@ func _ready() -> void:
 	_content.add_theme_constant_override("margin_right", 40)
 	_content.add_theme_constant_override("margin_top", 108)
 	_content.add_theme_constant_override("margin_bottom", 24)
+	# The content fills the whole screen (only its margins leave the top bar
+	# free), so as the later sibling it sat over the back button and took every
+	# tap meant for it. Let taps fall through to whatever is drawn in it, and
+	# keep the back button above it as well.
+	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_content)
+	move_child(_back, -1)
 	_show_modes()
 
 # ---------------------------------------------------------------- background
