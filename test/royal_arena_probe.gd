@@ -12,7 +12,8 @@ func _ready() -> void:
 	check(panel._stage_id == Stage.Which.ROYAL_ARENA, "menu selects Royal Arena")
 	panel._choose_mode(VersusRoster.RoomMode.FREE_FOR_ALL)
 	await get_tree().process_frame
-	check(panel._stage_cards.size() == 6, "all five previous stages remain")
+	check(panel._stage_cards.size() == 1 and int(panel._stage_cards[0].get_meta("which")) == Stage.Which.ROYAL_ARENA, "Royal is the only visible arena")
+	check(VersusStageData.THEMES.size() == 6 and VersusStageData.SELECTABLE_THEMES == [Stage.Which.ROYAL_ARENA], "all five postponed arena layouts remain internally")
 	panel.queue_free()
 	VersusStageData.use_theme(Stage.Which.ROYAL_ARENA)
 	var assets := 0

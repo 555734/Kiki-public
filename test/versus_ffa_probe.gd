@@ -67,7 +67,8 @@ func _ready() -> void:
 	await get_tree().process_frame
 	check(panel._room_mode() == VersusRoster.RoomMode.TEAM_SPLIT and panel._seat.visible
 		and panel._seat_buttons.size() == 3, "and 2対2 still asks which chair")
-	check(panel._stage_cards.size() == VersusStageData.THEMES.size() and panel._stage_id == Stage.Which.ROYAL_ARENA, "Royal Arena defaults alongside five existing stages")
+	check(panel._stage_cards.size() == 1 and panel._stage_id == Stage.Which.ROYAL_ARENA, "Royal Arena is the only offered stage")
+	check(VersusStageData.THEMES.size() == 6, "the five postponed layouts remain available internally")
 	panel.queue_free()
 	links = VersusLoopback.mesh(PEOPLE, 0.04)
 	for i in range(PEOPLE):
