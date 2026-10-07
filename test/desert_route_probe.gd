@@ -25,7 +25,18 @@ func run() -> void:
 		fingerprints[str(pattern)] = true
 	check(rooms.size() == 20 and names.size() == 20, "twenty distinct authored sections")
 	check(fingerprints.size() == 20, "no section repeats the same relative route recipe")
-	check(Stage.goal().x > 15000 and Stage.goal().x < 30000, "extended route fits network coordinates")
+	check(Stage.goal().x > 10000 and Stage.goal().x < 12000, "two-tier route ends on the lower right bank")
+	var lower: Rect2 = rooms[0]["entry"]
+	var upper: Rect2 = rooms[10]["entry"]
+	check(upper.position.x > lower.position.x and upper.position.x < Stage.goal().x * 0.4 and lower.position.y - upper.position.y > 800,
+		"upper ruins overlap the lower route horizontally with clear vertical separation")
+	check(rooms[19]["exit"].end.x < 10500, "twenty encounters are folded into one shared horizontal span")
+	var transfers := 0
+	for step in Stage.route():
+		if step.get("how", "") == "warp" and absf(step["to"].position.y - step["from"].position.y) > 500:
+			transfers += 1
+	check(transfers == 2, "production route really climbs to the upper tier and returns to the goal")
+	check(Stage.key_position().y < -500, "required key remains on the upper journey")
 	for checkpoint in Stage.checkpoints():
 		var supported := false
 		for slab in Stage.ground():

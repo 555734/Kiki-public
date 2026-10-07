@@ -525,7 +525,7 @@ func _test_host_answers_the_guardian() -> void:
 	# 0.9.13 used wire 23 with the previous coast/lava layouts. Exercise that exact
 	# older peer, not just +1: equal wire must never construct different stages.
 	check(Protocol.VERSION > 23, "rebuilt coast/lava reject the previous wire 23")
-	var stale := PackedByteArray([Protocol.Msg.HELLO, 23])
+	var stale := PackedByteArray([Protocol.Msg.HELLO, 24])
 	guardian_side.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED, stale)
 	# 16 frames, not 8. The link is 75ms each way and a frame is 16.7ms, so 8

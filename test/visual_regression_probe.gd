@@ -86,14 +86,14 @@ func run() -> void:
 			scene.get_node("NetPanel").free()
 			name = "stage-" + Stage.stage_number()
 		await capture(scene, name, update)
-		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.TOWER, Stage.Which.CAVE]:
+		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
 			# Teleporting the frozen runner must not fire checkpoint/goal areas,
 			# which would make the reference contain a transient screen flash.
 			for area in scene.find_children("*", "Area2D", true, false):
 				area.set_deferred("monitoring", false)
 			await get_tree().process_frame
 			var rooms: Array[Dictionary] = Stage.data().rooms()
-			var last_view := "end" if which in [Stage.Which.SEA, Stage.Which.SWAMP] else "top"
+			var last_view := "end" if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT] else "top"
 			for view in [["middle", rooms[rooms.size() / 2]], [last_view, rooms[-1]]]:
 				var exit: Rect2 = view[1]["exit"]
 				scene.runner.global_position = Vector2(exit.get_center().x, exit.position.y - 26)

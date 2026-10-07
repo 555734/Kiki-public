@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.14
+# ストア提出物 — メロスゲーム 0.9.15
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.14（Android versionCode 40）
+対象ビルド: version 0.9.15（Android versionCode 42）。提出前の原稿であり、ストア提出済みを意味しません。
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -350,4 +350,10 @@ Keep running and you now shift into an even faster gear. You can now jump once m
 <!-- release-notes:ja -->
 ```
 海岸1-4と溶岩1-5を、それぞれ異なる遊び方の20区間へ作り直しました。空中へ射出する転送門、踏み抜く床、予告付きの落石、上下を入れ替えるルート、歯車と動く床の乗り継ぎなどを追加しています。旧地形を持つバージョンとの通信不一致も防ぎました。
+```
+
+**新機能 / リリースノート（0.9.15）**
+<!-- release-notes:ja -->
+```
+砂漠ステージ1-6を上下二段の遺跡へ改修しました。20の異なる区間を下段と上段に重ね、転送門で上段へ進み、鍵を取って右下のゴールへ戻ります。中央に大きな砂時計と上段の支柱を追加し、旧配置のバージョンとの通信不一致も防ぎました。
 ```
