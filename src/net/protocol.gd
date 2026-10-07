@@ -109,6 +109,7 @@ enum World {
 ## 23: twenty-section desert layout and thin desert ledges.
 ## 24: rebuilt coast/lava and host-authoritative launching portals.
 ## 25: two-tier desert route, upper key and lower goal return.
+## 26: two-tier lava, Clock-based eruptions/meteors and safe chase folds.
 const VERSION: int = 26
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
@@ -394,4 +395,3 @@ static func reader(payload: PackedByteArray) -> Array:
 	if payload.is_empty():
 		return [0, b]
 	return [b.get_u8(), b]
-

@@ -73,6 +73,30 @@ func _stage(which: int, label: String) -> void:
 		var gap_after: float = (main.runner.global_position - pursuer.global_position).dot(forward)
 		check(gap_after < gap_before - 100.0,
 			"%s chaser closes in once awake (%.0f -> %.0f px)" % [label, gap_before, gap_after])
+		if which in [Stage.Which.SWAMP, Stage.Which.DESERT]:
+			var fold: WarpGate = null
+			for node in main.level.find_children("*", "", true, false):
+				if node is WarpGate and not node.is_exit and node.exit.x < node.global_position.x - 1000:
+					fold = node; break
+			check(fold != null, label + " builds an actual backwards tier-transfer portal")
+			if fold != null:
+				pursuer.set_physics_process(false)
+				pursuer.take_damage(1, "snipe")
+				var pause: float = pursuer.get("_stun_left")
+				pursuer.global_position = fold.global_position - forward * 450
+				main.runner.global_position = fold.global_position
+				fold._physics_process(Clock.DT)
+				check(main.runner.global_position == fold.exit, label + " actual portal reaches the other tier")
+				var gap: float = (main.runner.global_position - pursuer.global_position).dot(forward)
+				check(absf(gap - 450) < 1 and main.runner.state != Runner.State.DEAD,
+					label + " chase resumes behind the new route without an exit ambush")
+				check(pursuer.get("_stun_left") == pause and pursuer.get("_wake_left") >= 1.0,
+					label + " tier transfer preserves Guardian stun and allows exit grace")
+				var at := pursuer.global_position
+				Clock.is_host = false
+				Events.runner_warped.emit(fold.global_position, fold.exit)
+				check(pursuer.global_position == at, label + " guest warp FX cannot reposition the authoritative chaser")
+				Clock.is_host = true
 	main.queue_free()
 	await get_tree().process_frame
 	await get_tree().process_frame
