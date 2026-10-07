@@ -112,11 +112,17 @@ func run() -> void:
 
 func capture(scene: Node, name: String, update: bool) -> void:
 	freeze(scene)
+	# Main enables the global clock when it starts a stage. Freezing only the
+	# scene leaves that autoload ticking while we await rendering frames.
+	Clock.set_physics_process(false)
 	Clock.reset()
 	for _i in 3:
 		await get_tree().process_frame
 		freeze(scene)
 	await RenderingServer.frame_post_draw
+	if Clock.tick != 0:
+		print("FAIL visual clock advanced during frozen capture: ", Clock.tick)
+		failures += 1
 	var frame := get_viewport().get_texture().get_image()
 	if frame.get_size() != Vector2i(1280, 720):
 		push_error("Visual probe needs a 1280x720 viewport")
