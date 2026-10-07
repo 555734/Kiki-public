@@ -87,6 +87,11 @@ func run() -> void:
 			name = "stage-" + Stage.stage_number()
 		await capture(scene, name, update)
 		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
+			if which == Stage.Which.DESERT:
+				# The added upper-tier views review geometry and machinery. Keep
+				# controls out of the way, as in the whole-stage map; the start
+				# view and dedicated UI probes still cover the interactive HUD.
+				scene.hud.visible = false
 			# Teleporting the frozen runner must not fire checkpoint/goal areas,
 			# which would make the reference contain a transient screen flash.
 			for area in scene.find_children("*", "Area2D", true, false):
