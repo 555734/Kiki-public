@@ -82,7 +82,7 @@ func run() -> void:
 	var deaths := [0]
 	var died := func(_cause: String) -> void: deaths[0] += 1
 	Events.runner_died.connect(died)
-	main.runner.global_position = Vector2(void_x, 480)
+	main.runner.global_position = Vector2(void_x, Stage.water_y() - 40)
 	main.runner.velocity = Vector2.ZERO
 	for _i in 45:
 		await get_tree().physics_frame

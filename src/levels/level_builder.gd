@@ -430,6 +430,7 @@ static func configure_gimmick(node: Node2D, spec: Dictionary) -> void:
 ## Every gimmick type a stage spec can name. Each script parses its own spec
 ## in from_spec(); adding a type is a line here and a from_spec there.
 const GIMMICKS := {
+	"volcanic_hazard": preload("res://src/entities/gimmicks/volcanic_hazard.gd"),
 	"moving_platform": preload("res://src/entities/gimmicks/moving_platform.gd"),
 	"cave_trap": preload("res://src/entities/gimmicks/cave_trap.gd"),
 	"switch_bridge": preload("res://src/entities/gimmicks/switch_bridge.gd"),

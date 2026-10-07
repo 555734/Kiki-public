@@ -32,6 +32,18 @@ func _ready() -> void:
 	_wake_left = wake_delay
 	if runner != null: _origin = runner.global_position
 	_activated = activation_distance <= 0.0
+	Events.runner_warped.connect(_on_runner_warped)
+
+func _on_runner_warped(from: Vector2, to: Vector2) -> void:
+	if not Clock.is_host: return
+	var forward := chase_direction.normalized()
+	if forward.length_squared() < 0.5: forward = Vector2.RIGHT
+	if (to - from).dot(forward) >= -300.0: return
+	# Folded courses resume the chase from behind, instead of leaving the
+	# pursuer ahead of the new route. Keep any Guardian stun already earned.
+	var gap := clampf((from - global_position).dot(forward), 300.0, 900.0)
+	global_position = to - forward * gap + Vector2(0, -24)
+	_wake_left = maxf(_wake_left, 1.0)
 
 func _build_body() -> void:
 	_add_box(Vector2(106, 92))
