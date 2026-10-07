@@ -27,7 +27,7 @@ static func coins() -> Array[Vector2]:
 static func crystals() -> Array[Vector2]: return []
 static func key_position() -> Vector2:
 	var exit: Rect2 = rooms()[13]["exit"]
-	return Vector2(exit.get_center().x - 45, exit.position.y - 55)
+	return Vector2(exit.get_center().x - 45, exit.position.y - 4)
 static func veils() -> Array[Dictionary]: return []
 static func goal() -> Vector2:
 	var last := Sections.build().cursor
