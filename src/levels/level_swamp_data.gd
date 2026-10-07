@@ -70,18 +70,18 @@ static func enemies() -> Array[Dictionary]:
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(2100, 359), "patrol": 190.0,
 			"skin": "s15_magma_slime"},
-		{"type": "walker", "pos": Vector2(3870, 329), "patrol": 200.0,
+		{"type": "walker", "pos": Vector2(3925, 329), "patrol": 90.0,
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(5340, 309), "patrol": 170.0,
 			"skin": "s15_magma_slime"},
-		{"type": "walker", "pos": Vector2(6480, 299), "patrol": 190.0,
+		{"type": "walker", "pos": Vector2(6620, 299), "patrol": 140.0,
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(8160, 279), "patrol": 190.0,
 			"skin": "s15_magma_slime"},
 		{"type": "walker", "pos": Vector2(9540, 269), "patrol": 170.0,
 			"skin": "s15_magma_slime"},
 		# Stomping golems guard broad banks, clear of checkpoint landings.
-		{"type": "golem", "pos": Vector2(3860, 315), "patrol": 100.0, "period": 5.0},
+		{"type": "golem", "pos": Vector2(3925, 315), "patrol": 90.0, "period": 5.0},
 		{"type": "golem", "pos": Vector2(9730, 255), "patrol": 85.0, "period": 4.8},
 		# Flyers now hang in the jump arcs rather than above them, so the
 		# stepping stones and the raft need the guardian's rifle first.
