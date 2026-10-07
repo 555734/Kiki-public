@@ -254,6 +254,9 @@ static func surface_tops() -> Array[float]:
 const DEFAULT_THEME: int = Stage.Which.ROYAL_ARENA
 const THEMES: Array[int] = [DEFAULT_THEME, Stage.Which.GREENFIELD, Stage.Which.HORROR,
 	Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]
+## Only these arenas are offered for new matches; keep the other layouts
+## addressable for future rework and existing network theme identifiers.
+const SELECTABLE_THEMES: Array[int] = [DEFAULT_THEME]
 static var theme: int = DEFAULT_THEME
 
 ## Paint the arena as `which` from now on. Also points Stage at it, which is

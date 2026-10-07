@@ -70,7 +70,7 @@ func run() -> void:
 		"selection includes the desert, tower and cave stages")
 	if panel != null:
 		await get_tree().process_frame
-		check(panel._stage_1_6 != null, "desert card appears on the second page")
+		check(panel._stage_1_6 != null, "desert card appears on its own page")
 		panel.queue_free()
 	for _i in 30:
 		await get_tree().physics_frame

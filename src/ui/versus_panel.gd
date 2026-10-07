@@ -57,6 +57,10 @@ var _code: LineEdit = null
 var _seat: Control = null
 var _seat_buttons: Array[Button] = []
 var _stage_cards: Array[Button] = []
+var _stage_row: HBoxContainer = null
+var _stage_index := 0
+var _stage_navigation: HBoxContainer = null
+var _swipe := StageSwipe.new()
 var _status: Label = null
 var _rules: Label = null
 var _host_button: Button = null
@@ -283,7 +287,7 @@ func _choose_mode(mode: int) -> void:
 func _show_room() -> void:
 	_clear()
 	_step = 2
-	_back.text = tr("‹  あそびかた")
+	_back.text = tr("‹  もどる")
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 26)
 	_content.add_child(row)
@@ -296,22 +300,16 @@ func _show_room() -> void:
 	left.add_child(_label("ステージ", 24, Color.WHITE, true, HORIZONTAL_ALIGNMENT_LEFT))
 	left.add_child(_label("部屋を作る人が えらびます。入る人は 作った人の ステージに なります",
 		16, Color(0.86, 0.92, 1.0), false, HORIZONTAL_ALIGNMENT_LEFT))
-	var cards := HBoxContainer.new()
-	cards.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cards.add_theme_constant_override("separation", 12)
-	left.add_child(cards)
-	_stage_cards.clear()
-	var all := NetPanel.cards()
-	all.push_front({"which": Stage.Which.ROYAL_ARENA, "number": "VS",
-		"accent": Color("f8c94b"), "crop_top": 140.0,
-		"art": preload("res://assets/versus/royal/background/royal_sky_kingdom.png")})
-	for which in VersusStageData.THEMES:
-		for info in all:
-			if int(info["which"]) == which:
-				var card := _stage_card(info)
-				cards.add_child(card)
-				_stage_cards.append(card)
-	_refresh_stage_cards()
+	_stage_index = maxi(0, VersusStageData.SELECTABLE_THEMES.find(_stage_id))
+	_stage_id = VersusStageData.SELECTABLE_THEMES[_stage_index]
+	_stage_row = HBoxContainer.new()
+	_stage_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(_stage_row)
+	_stage_navigation = HBoxContainer.new()
+	_stage_navigation.alignment = BoxContainer.ALIGNMENT_CENTER
+	_stage_navigation.add_theme_constant_override("separation", 16)
+	left.add_child(_stage_navigation)
+	_show_stage_page()
 	_rules = _label("", 17, Color(1.0, 0.88, 0.55), false, HORIZONTAL_ALIGNMENT_LEFT)
 	left.add_child(_rules)
 
@@ -375,6 +373,52 @@ func _steps() -> VBoxContainer:
 		box.add_child(_label(line, 15, INK, false, HORIZONTAL_ALIGNMENT_LEFT))
 	return box
 
+func _show_stage_page() -> void:
+	for host in [_stage_row, _stage_navigation]:
+		for child in host.get_children():
+			host.remove_child(child)
+			child.queue_free()
+	_stage_cards.clear()
+	var which := VersusStageData.SELECTABLE_THEMES[_stage_index]
+	var info := {"which": Stage.Which.ROYAL_ARENA, "number": "VS",
+		"accent": Color("f8c94b"), "crop_top": 140.0,
+		"art": preload("res://assets/versus/royal/background/royal_sky_kingdom.png")}
+	if which != Stage.Which.ROYAL_ARENA: info = StageCards.for_which(which)
+	var card := _stage_card(info)
+	_stage_row.add_child(card)
+	_stage_cards.append(card)
+	var count := VersusStageData.SELECTABLE_THEMES.size()
+	if count > 1:
+		var previous := _pill("‹", func() -> void: _change_stage(-1))
+		previous.custom_minimum_size = Vector2(64, 48)
+		previous.disabled = _stage_index == 0
+		_stage_navigation.add_child(previous)
+	var counter := _label("%d / %d" % [_stage_index + 1, count], 18, Color.WHITE)
+	counter.custom_minimum_size.x = 120
+	counter.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_stage_navigation.add_child(counter)
+	if count > 1:
+		var next := _pill("›", func() -> void: _change_stage(1))
+		next.custom_minimum_size = Vector2(64, 48)
+		next.disabled = _stage_index == count - 1
+		_stage_navigation.add_child(next)
+	_refresh_stage_cards()
+
+func _change_stage(direction: int) -> void:
+	var destination := clampi(_stage_index + direction, 0, VersusStageData.SELECTABLE_THEMES.size() - 1)
+	if destination == _stage_index: return
+	_stage_index = destination
+	_stage_id = VersusStageData.SELECTABLE_THEMES[_stage_index]
+	_show_stage_page()
+
+func _input(event: InputEvent) -> void:
+	if _step == 2 and is_instance_valid(_stage_row):
+		if _swipe.handle(event, _stage_row.get_global_rect(), _change_stage):
+			get_viewport().set_input_as_handled()
+	if event.is_action_pressed("ui_cancel"):
+		_on_back()
+		get_viewport().set_input_as_handled()
+
 func _stage_card(info: Dictionary) -> Button:
 	var which: int = int(info["which"])
 	var accent: Color = info["accent"]
@@ -385,8 +429,9 @@ func _stage_card(info: Dictionary) -> Button:
 	card.clip_contents = true
 	card.focus_mode = Control.FOCUS_NONE
 	card.pressed.connect(func() -> void:
-		_stage_id = which
-		_refresh_stage_cards())
+		if not _swipe.consumed:
+			_stage_id = which
+			_refresh_stage_cards())
 	var art := TextureRect.new()
 	var source: Texture2D = info["art"]
 	var crop := AtlasTexture.new()
@@ -419,7 +464,8 @@ func _stage_card(info: Dictionary) -> Button:
 	number.add_theme_constant_override("outline_size", 6)
 	caption.add_child(number)
 	var full := tr(VersusStageData.theme_label(which))
-	var name_label := _label(full.substr(full.find(" ") + 1), 15, Color.WHITE)
+	var caption_name := full if which == Stage.Which.ROYAL_ARENA else full.substr(full.find(" ") + 1)
+	var name_label := _label(caption_name, 24, Color.WHITE)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	caption.add_child(name_label)
@@ -541,7 +587,7 @@ func _go(how: int, code: String, seat: int) -> void:
 		else VersusRoster.RoomMode.TEAM_SPLIT
 	VersusLaunch.link = VersusLaunch.Link.EOS
 	# A guest paints whatever the host chose; the WELCOME says which.
-	VersusLaunch.stage = _stage_id if how != VersusLaunch.How.JOIN else VersusStageData.DEFAULT_THEME
+	VersusLaunch.stage = _stage_id if how != VersusLaunch.How.JOIN and VersusStageData.SELECTABLE_THEMES.has(_stage_id) else VersusStageData.DEFAULT_THEME
 	get_tree().change_scene_to_file("res://src/versus/versus_main.tscn")
 
 # ------------------------------------------------------------------- widgets
@@ -552,6 +598,9 @@ func _clear() -> void:
 	_seat = null
 	_code = null
 	_stage_cards.clear()
+	_stage_row = null
+	_stage_navigation = null
+	_swipe = StageSwipe.new()
 	_rules = null
 	_host_button = null
 	_status = null

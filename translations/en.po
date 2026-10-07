@@ -1294,3 +1294,6 @@ msgstr "Build a platform to block shots from above"
 
 msgid "頭を ふみつけても 当たり。敵も ふめば たおせる"
 msgstr "Stomping a head counts as a hit. Enemies go down when stomped too"
+
+msgid "ロイヤル・アリーナ"
+msgstr "Royal Arena"

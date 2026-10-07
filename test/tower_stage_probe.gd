@@ -65,7 +65,7 @@ func run() -> void:
 	await get_tree().process_frame
 	var panel := main.get_node_or_null("NetPanel")
 	check(panel != null and panel._stage_1_7 != null,
-		"third menu page shows the tower card")
+		"the tower menu page shows its card")
 	if panel != null:
 		panel.queue_free()
 	for _i in 25:
