@@ -231,6 +231,7 @@ step "the 1-8 cave"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/cave_stage_probe.tscn
 
 step "the 1-6 desert climb"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_route_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_stage_probe.tscn
 
 step "the 1-7 tower"

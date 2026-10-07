@@ -90,7 +90,13 @@ func crossings() -> Array[Dictionary]:
 				crossing("channel D", ground[3], ground[4]),
 				crossing("channel F", ground[5], ground[6])]
 		Stage.Which.DESERT:
-			return [crossing("causeway", ground[6], ground[7])]
+			var out: Array[Dictionary] = [crossing("causeway", ground[6], ground[7])]
+			for step in Stage.route():
+				if step["via"] == "assist" and step["section"] == "rescue_wall":
+					var copy := step.duplicate()
+					copy["name"] = "1-6 rescue_wall"
+					out.append(copy)
+			return out
 		Stage.Which.TOWER, Stage.Which.CAVE:
 			var out: Array[Dictionary] = []
 			for step in Stage.route():
@@ -104,7 +110,7 @@ func crossings() -> Array[Dictionary]:
 func assisted(step: Dictionary) -> bool:
 	main.guardian.clear_constructs()
 	main._respawn_timer = -1.0
-	if Stage.current() in [Stage.Which.TOWER, Stage.Which.CAVE]:
+	if Stage.current() in [Stage.Which.TOWER, Stage.Which.CAVE] or step.get("section", "") == "rescue_wall":
 		return await Route._assisted(get_tree(), main, main.runner, main.input_hub,
 			step["from"], step["to"], step["platforms"])
 	var chain: Array[Rect2] = [step["from"]]

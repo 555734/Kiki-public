@@ -36,14 +36,17 @@ func run() -> void:
 	for spec in Stage.gimmicks():
 		var kind: String = spec["type"]
 		gimmick_counts[kind] = int(gimmick_counts.get(kind, 0)) + 1
-	check(gimmick_counts.get("crumble", 0) == 5
-		and gimmick_counts.get("blink", 0) == 3
-		and gimmick_counts.get("moving_platform", 0) == 1
-		and gimmick_counts.get("conveyor", 0) == 1
-		and gimmick_counts.get("switch_bridge", 0) == 3
-		and gimmick_counts.get("trick_pad", 0) == 2,
+	check(gimmick_counts.get("crumble", 0) >= 6
+		and gimmick_counts.get("blink", 0) >= 4
+		and gimmick_counts.get("moving_platform", 0) >= 2
+		and gimmick_counts.get("conveyor", 0) >= 2
+		and gimmick_counts.get("switch_bridge", 0) >= 5
+		and gimmick_counts.get("trick_pad", 0) >= 3
+		and gimmick_counts.has("updraft") and gimmick_counts.has("tower_trap")
+		and gimmick_counts.has("warp") and gimmick_counts.has("gear_wheel")
+		and gimmick_counts.has("clock_hand"),
 		"desert route mixes launch pads and revealed bridges with its earlier beats")
-	check(Stage.checkpoints().size() == 9,
+	check(Stage.checkpoints().size() >= 14,
 		"checkpoints break up the harder route")
 	check(Stage.ground()[7].position.x - Stage.ground()[6].end.x == 790.0,
 		"guardian crossing keeps a clear cooperative challenge")
@@ -112,7 +115,7 @@ func run() -> void:
 			await get_tree().physics_frame
 		check(oracle._shape.disabled, "guardian shot opens the oracle gate")
 	check(mirage != null and delayed_mirage != null and mirage_switch != null
-		and pad_count == 2,
+		and pad_count >= 3,
 		"new desert set pieces build in the live level")
 	if mirage != null and delayed_mirage != null and mirage_switch != null:
 		check(mirage._shape.disabled, "mirage starts as a visible ghost, without collision")
