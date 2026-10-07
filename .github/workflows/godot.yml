@@ -64,7 +64,7 @@ jobs:
       - name: Install pinned EOS runtime required by project autoloads
         run: bash tools/install-eosg.sh linux
       - name: Import project
-        run: xvfb-run -a "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
+        run: xvfb-run -a "$GODOT" --headless --editor --path . --import >/dev/null 2>&1 || true
       # Software GL under xvfb: frame times here mean nothing, but draw calls
       # and object counts are the scene's own and match a phone's.
       - name: Draw-call and object budgets (tools/perf_budgets.cfg)

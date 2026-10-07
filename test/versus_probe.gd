@@ -476,6 +476,8 @@ func _test_themes() -> void:
 				hidden += 1
 		check(hidden == 0, "%s: every solid piece is visible (%d invisible)" % [name, hidden])
 		check(VersusStageData.decor().size() >= 5, "%s: and it has its own scenery" % name)
+		if VersusStageData.theme == Stage.Which.SEA:
+			check(VersusStageData.water_y() == 500.0, "coastal arena preserves its surface independently of the deep co-op course")
 		if VersusStageData.water_y() != INF:
 			check(VersusStageData.water_y() > VersusStageData.surface_tops()[-1] + 40.0
 					and VersusStageData.water_y() < VersusStageData.kill_y(),

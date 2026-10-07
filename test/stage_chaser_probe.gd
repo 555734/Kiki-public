@@ -73,7 +73,7 @@ func _stage(which: int, label: String) -> void:
 		var gap_after: float = (main.runner.global_position - pursuer.global_position).dot(forward)
 		check(gap_after < gap_before - 100.0,
 			"%s chaser closes in once awake (%.0f -> %.0f px)" % [label, gap_before, gap_after])
-		if which in [Stage.Which.SWAMP, Stage.Which.DESERT]:
+		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT]:
 			var fold: WarpGate = null
 			for node in main.level.find_children("*", "", true, false):
 				if node is WarpGate and not node.is_exit and node.exit.x < node.global_position.x - 1000:

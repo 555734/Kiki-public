@@ -110,7 +110,8 @@ enum World {
 ## 24: rebuilt coast/lava and host-authoritative launching portals.
 ## 25: two-tier desert route, upper key and lower goal return.
 ## 26: two-tier lava, Clock-based eruptions/meteors and safe chase folds.
-const VERSION: int = 26
+## 27: two-tier coast, shared-clock surges and falling anchors.
+const VERSION: int = 27
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

@@ -18,6 +18,7 @@ const ENEMIES := {
 	"turret": ["aim", "burst"],
 }
 const GIMMICKS := {
+	"coastal_hazard": ["kind", "travel", "width", "period", "phase"],
 	"volcanic_hazard": ["kind", "travel", "width", "period", "phase"],
 	"moving_platform": ["span", "travel", "speed", "phase", "style", "one_way"],
 	"cave_trap": ["kind", "travel", "period", "phase"],
@@ -62,25 +63,27 @@ static func _validate(specs: Array, schema: Dictionary, category: String, out: A
 		for key in spec:
 			if key != "type" and key != "pos" and not schema[kind].has(key):
 				out.append(label + ": unknown property " + String(key))
-			elif key in ["pos", "span", "size", "exit", "exit_velocity"] or (kind in ["moving_platform", "volcanic_hazard"] and key == "travel"):
+			elif key in ["pos", "span", "size", "exit", "exit_velocity"] or (kind in ["moving_platform", "volcanic_hazard", "coastal_hazard"] and key == "travel"):
 				var vector: Variant = spec[key]
 				if not vector is Vector2 or not vector.is_finite():
 					out.append(label + ": " + String(key) + " must be a finite Vector2")
 				elif key in ["span", "size"] and (vector.x <= 0 or vector.y <= 0):
 					out.append(label + ": " + String(key) + " must have positive dimensions")
-			elif key in ["period", "beat", "phase"] or (kind == "moving_platform" and key == "speed") or (kind == "volcanic_hazard" and key == "width"):
+			elif key in ["period", "beat", "phase"] or (kind == "moving_platform" and key == "speed") or (kind in ["volcanic_hazard", "coastal_hazard"] and key == "width"):
 				var number: Variant = spec[key]
 				if not (number is int or number is float) or not is_finite(float(number)):
 					out.append(label + ": " + String(key) + " must be finite numeric data")
 				elif key != "phase" and float(number) <= 0:
 					out.append(label + ": " + String(key) + " must be positive")
-		if kind == "volcanic_hazard":
-			if spec.get("kind", "geyser") not in ["geyser", "meteor"]:
-				out.append(label + ": kind must be geyser or meteor")
+		if kind in ["volcanic_hazard", "coastal_hazard"]:
+			var kinds := ["surge", "anchor"] if kind == "coastal_hazard" else ["geyser", "meteor"]
+			var motion: Variant = spec.get("kind", kinds[0])
+			if motion not in kinds:
+				out.append(label + ": unknown hazard kind")
 			var period_value: Variant = spec.get("period", 4.8)
 			if (period_value is int or period_value is float) and float(period_value) < 3.0:
 				out.append(label + ": period must leave a safe cooldown (>=3s)")
 			var travel: Variant = spec.get("travel", Vector2(0, -230))
 			if travel is Vector2 and travel.is_finite():
-				if (spec.get("kind", "geyser") == "geyser" and (travel.y >= 0 or travel.x != 0)) or (spec.get("kind") == "meteor" and travel.y <= 0):
-					out.append(label + ": geysers rise vertically and meteors fall")
+				if (motion == kinds[0] and (travel.y >= 0 or travel.x != 0)) or (motion == kinds[1] and travel.y <= 0):
+					out.append(label + ": jets rise vertically and falling hazards descend")

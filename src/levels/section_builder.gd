@@ -164,7 +164,7 @@ static func kind_of(spec: Dictionary) -> String:
 static func sweep(spec: Dictionary) -> Rect2:
 	var at: Vector2 = spec.get("pos", Vector2.ZERO)
 	match String(spec.get("type", "")):
-		"volcanic_hazard":
+		"volcanic_hazard", "coastal_hazard":
 			var travel_: Vector2 = spec.get("travel", Vector2(0, -230))
 			var size_ := Vector2.ONE * float(spec.get("width", 64.0))
 			return Rect2(at - size_ * 0.5, size_).merge(Rect2(at + travel_ - size_ * 0.5, size_))

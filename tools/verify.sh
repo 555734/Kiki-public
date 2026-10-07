@@ -50,7 +50,7 @@ step "import pass (registers class_name globals)"
 # images unimported -- and a preload of an unimported image is a parse error,
 # which is how net_panel.gd came to fail the script check on a clean checkout.
 # --import blocks until every asset is in, so it goes first.
-"$GODOT" --headless --path . --import >/dev/null 2>&1
+"$GODOT" --headless --editor --path . --import >/dev/null 2>&1
 if command -v xvfb-run >/dev/null 2>&1; then
 	xvfb-run -a "$GODOT" --headless --editor --quit --path . >/dev/null 2>&1
 else
@@ -137,6 +137,7 @@ step "can two people cross the poison marsh"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/swamp_stage_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/radical_route_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/volcanic_hazard_probe.tscn
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/coastal_hazard_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/warp_launch_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/bridge_refresh_probe.tscn
 

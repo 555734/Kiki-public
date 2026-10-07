@@ -1,4 +1,5 @@
 extends Node
+@export var coastal := false
 var failures: Array[String] = []
 func _ready() -> void: call_deferred("run")
 func check(ok: bool, message: String) -> void:
@@ -6,27 +7,30 @@ func check(ok: bool, message: String) -> void:
 	if not ok: failures.append(message)
 
 func run() -> void:
-	Stage.use(Stage.Which.SWAMP)
+	Stage.use(Stage.Which.SEA if coastal else Stage.Which.SWAMP)
+	var hazard_type := "coastal_hazard" if coastal else "volcanic_hazard"
+	var kinds := ["surge", "anchor"] if coastal else ["geyser", "meteor"]
 	var rooms: Array[Dictionary] = Stage.data().rooms()
 	var upper: Rect2 = rooms[1]["exit"]
 	var lower: Rect2 = rooms[11]["entry"]
 	check(lower.position.y - upper.position.y >= 800 and lower.position.x < rooms[9]["exit"].position.x,
 		"real lower course overlaps the upper canyon horizontally")
-	var descent: Array = Stage.route().filter(func(s: Dictionary) -> bool: return s["section"] == "caldera_descent")
-	check(descent.size() == 5 and descent[3]["to"].position.y - descent[0]["from"].position.y == 850,
-		"four real terraces descend into the caldera before the lower-course portal")
-	check(Stage.key_position().x > rooms[-1]["exit"].position.x and Stage.key_position().y > 800,
-		"the gate key is beyond both final lower-course Guardian rescues")
-	var counts := {"geyser": 0, "meteor": 0}
+	var room := "tidal_sink" if coastal else "caldera_descent"
+	var descent: Array = Stage.route().filter(func(s: Dictionary) -> bool: return s["section"] == room)
+	check(descent.size() == 5 and descent[3]["to"].position.y - descent[0]["from"].position.y == (820 if coastal else 850),
+		"four real terraces descend before the lower-course portal")
+	check(Stage.key_position().x > rooms[-1]["exit"].position.x and Stage.key_position().y > (600 if coastal else 800),
+		"the gate key is beyond the final lower-course Guardian rescue")
+	var counts := {kinds[0]: 0, kinds[1]: 0}
 	for spec in Stage.gimmicks():
-		if spec["type"] == "volcanic_hazard": counts[spec["kind"]] += 1
-	check(counts["geyser"] >= 8 and counts["meteor"] >= 7, "mixed authored eruptions and meteor strikes")
-	for key in ["s15_meteor", "s15_eruption"]: check(Art.tex(key) != null, key + " sprite imports")
+		if spec["type"] == hazard_type: counts[spec["kind"]] += 1
+	check(counts[kinds[0]] >= 8 and counts[kinds[1]] >= 7, "mixed authored rising and falling hazards")
+	for key in (["s14_surge", "s14_anchor"] if coastal else ["s15_meteor", "s15_eruption"]): check(Art.tex(key) != null, key + " sprite imports")
 	for invalid in [
-		{"kind": "meteor", "travel": Vector2(0, -20)},
-		{"kind": "geyser", "travel": Vector2(1, -20)},
+		{"kind": kinds[1], "travel": Vector2(0, -20)},
+		{"kind": kinds[0], "travel": Vector2(1, -20)},
 		{"period": 2.0}, {"period": Vector2.ONE}, {"width": -1.0}, {"kind": "metoer"}, {"travel": Vector2(INF, 4)}]:
-		var spec := {"type": "volcanic_hazard", "pos": Vector2.ZERO}
+		var spec := {"type": hazard_type, "pos": Vector2.ZERO}
 		spec.merge(invalid, true)
 		check(not StageSpecSchema.errors([], [spec]).is_empty(), "invalid volcanic spec rejected: " + str(invalid))
 	var main := preload("res://src/main.tscn").instantiate()
@@ -35,14 +39,16 @@ func run() -> void:
 	main.input_hub.scripted = true
 	for enemy in get_tree().get_nodes_in_group("enemy"): enemy.queue_free()
 	Clock.set_physics_process(false)
-	for kind in ["geyser", "meteor"]:
-		var spec := {"type": "volcanic_hazard", "pos": Vector2(-2000, 1000), "kind": kind,
-			"travel": Vector2(0, -230) if kind == "geyser" else Vector2(0, 320)}
+	for kind in kinds:
+		var spec := {"type": hazard_type, "pos": Vector2(-2000, 1000), "kind": kind,
+			"travel": Vector2(0, -230) if kind == kinds[0] else Vector2(0, 320)}
 		var trap: VolcanicHazard = main.level._make_gimmick(spec)
 		trap.position = spec["pos"]
 		add_child(trap); trap.set_physics_process(false)
 		# Rebuild and guest evaluation agree at every boundary, including wrap.
-		var clone: VolcanicHazard = VolcanicHazard.from_spec(spec, main.runner)
+		var clone: VolcanicHazard = main.level._make_gimmick(spec)
+		var texture := ("s14_surge" if kind == kinds[0] else "s14_anchor") if coastal else ("s15_eruption" if kind == kinds[0] else "s15_meteor")
+		check(trap.effect_texture() == texture, kind + " uses its own themed sprite")
 		add_child(clone); clone.set_physics_process(false); clone.collision_layer = 0
 		for tick in [0, 12, 83, 84, 100, 125, 135, 155, 156, 288, 372, 65536]:
 			Clock.is_host = true
@@ -53,7 +59,7 @@ func run() -> void:
 		check(trap.state_at(30)["warning"] and not trap.state_at(30)["active"], kind + " warns before damage")
 		check(not trap.state_at(83)["active"] and trap.state_at(84)["active"], kind + " damage begins after the full telegraph")
 		check(not trap.state_at(170)["active"], kind + " cooldown is harmless")
-		if kind == "meteor":
+		if kind == kinds[1]:
 			check(trap.state_at(84)["head"] == Vector2.ZERO and trap.state_at(126)["head"] == trap.travel,
 				"meteor falls from source to destination before disappearing")
 		Clock.tick = 105
@@ -95,5 +101,5 @@ func run() -> void:
 	check(GameState.has_key, "real Runner picks up the required key on the final dry bank")
 	main.free(); Clock.is_host = true
 	Stage.use(Stage.Which.GREENFIELD)
-	print("volcanic hazard probe: ", failures.size(), " failures")
+	print("coastal hazard probe: " if coastal else "volcanic hazard probe: ", failures.size(), " failures")
 	get_tree().quit(0 if failures.is_empty() else 1)
