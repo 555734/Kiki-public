@@ -37,6 +37,12 @@ func _ready() -> void:
 	# Wide authored holes are the co-op contract: these are wider than an
 	# unaided jump and are bridged by Orion's temporary 150px platforms.
 	var ground := Stage.ground()
+	for checkpoint in Stage.checkpoints():
+		var supported := false
+		for slab in ground:
+			if checkpoint.x >= slab.position.x + 16.0 and checkpoint.x <= slab.end.x - 16.0:
+				supported = true
+		check(supported, "checkpoint respawn stays on a bank: %s" % checkpoint)
 	var p2_gaps := 0
 	for i in range(ground.size() - 1):
 		var right: float = ground[i].position.x + ground[i].size.x

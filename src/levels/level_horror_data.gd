@@ -43,14 +43,14 @@ static func solid_decor() -> Array[Rect2]:
 		Rect2(5110, 150, BLOCK * 2.0, BLOCK),
 		Rect2(7100, 205, BLOCK * 2.0, BLOCK),
 		Rect2(8440, 155, BLOCK * 3.0, BLOCK),
-		Rect2(10200, 150, BLOCK * 3.0, BLOCK),
+		Rect2(10500, 150, BLOCK * 3.0, BLOCK),
 	]
 
 static func ground() -> Array[Rect2]:
 	var g: Array[Rect2] = []
 	# A  : fog road and first enemy read.
-	# B  : broken bridge -- 1260..2020 NEEDS one Orion platform.
-	# C  : old village -- 3520..4280 NEEDS one Orion platform.
+	# B  : broken bridge -- 1260..2020 NEEDS Orion platforms.
+	# C  : old village -- 3520..4280 NEEDS Orion platforms.
 	# D  : flooded ruins -- 6310..7070 NEEDS two Orion platforms.
 	# E  : tower road -- moving/crumbling pieces and the shootable gate.
 	# F  : village gate -- 9530..10300 NEEDS one or two Orion platforms.
@@ -147,10 +147,10 @@ static func gimmicks() -> Array[Dictionary]:
 
 static func checkpoints() -> Array[Vector2]:
 	return [
-		Vector2(1790, 350),
-		Vector2(4330, 350),
+		Vector2(2230, 350),
+		Vector2(4460, 350),
 		Vector2(5550, 310),
-		Vector2(7000, 290),
+		Vector2(7250, 290),
 		Vector2(10400, 210),
 	]
 
@@ -163,7 +163,7 @@ static func crystals() -> Array[Vector2]:
 	return [
 		Vector2(-260, 320),
 		Vector2(1080, 225),
-		Vector2(1740, 320),
+		Vector2(2230, 320),
 		Vector2(2675, 105),
 		Vector2(3340, 270),
 		Vector2(4330, 315),
@@ -254,7 +254,7 @@ static func decor() -> Array[Dictionary]:
 
 		# F — final gate. Warm lights take over as the village gets close.
 		{"type": "lantern", "pos": Vector2(10400, 260), "scale": 0.92},
-		{"type": "ruin_blocks", "pos": Vector2(10200, 150), "count": 3, "cell": BLOCK},
+		{"type": "ruin_blocks", "pos": Vector2(10500, 150), "count": 3, "cell": BLOCK},
 		{"type": "banner", "pos": Vector2(10430, 260), "flip": true},
 		{"type": "fence", "pos": Vector2(10520, 260), "width": 160.0},
 	]
