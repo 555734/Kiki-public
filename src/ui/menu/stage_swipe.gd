@@ -36,6 +36,9 @@ func _begin(at: Vector2, bounds: Rect2, touch: bool, index: int) -> void:
 
 func _track(at: Vector2, turn: Callable) -> bool:
 	var distance := at - _start
+	# Moving a finger is not a tap, even if this is a vertical drag or the
+	# horizontal movement has not yet reached the page-turn threshold.
+	if distance.length() >= 24.0: consumed = true
 	if absf(distance.x) < 90.0 or absf(distance.x) < absf(distance.y) * 1.4: return false
 	consumed = true
 	_active = false
