@@ -42,6 +42,9 @@ static var _join_only: bool = false
 ## The screens and flows this panel switches between. See src/ui/menu/.
 var _select_view: StageSelectView = null
 var _play_view: PlayModeView = null
+var _versus_view: Control = null
+var _stage_back: Button = null
+var _returning_to_title := false
 var _purchase := PurchaseFlow.new(self)
 ## The strip across the live game that shows a host's room code. While it is
 ## up, _status/_phase_label/_cancel point at its widgets instead of the menu's.
@@ -133,6 +136,13 @@ func _ready() -> void:
 	_screen_host.add_theme_constant_override("margin_right", 54)
 	_screen_host.add_theme_constant_override("margin_bottom", 24)
 	_root.add_child(_screen_host)
+	_stage_back = UiKit.action_button("‹  もどる", _on_stage_back)
+	_stage_back.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_stage_back.offset_left = -252
+	_stage_back.offset_right = -54
+	_stage_back.offset_top = 30
+	_stage_back.offset_bottom = 84
+	_root.add_child(_stage_back)
 	_stage_page = StageCards.page_of(Stage.current(), StageSelectView.PER_PAGE)
 
 	# Between stages of a kept room (CoopRoom) this is the stage list, with
@@ -176,9 +186,21 @@ func _show_stage_screen() -> void:
 	_join_only = false
 	_clear_screen()
 	_logo.show()
+	_stage_back.show()
 	_select_view = StageSelectView.new(self, _stage_page)
 	_screen_host.add_child(_select_view)
 	_refresh_stage_buttons()
+
+func _on_stage_back() -> void:
+	_returning_to_title = true
+	Clock.set_physics_process(false)
+	GameState.running = false
+	fresh_run = false
+	_open_play_after_reload = false
+	_join_only = false
+	CoopRoom.close()
+	if main != null and main.link != null and main.link.busy(): main.link.cancel()
+	get_tree().change_scene_to_file("res://src/boot.tscn")
 
 func _on_leave_room() -> void:
 	CoopRoom.close()
@@ -203,6 +225,7 @@ func _on_difficulty(value: int) -> void:
 func _show_play_screen() -> void:
 	_clear_screen()
 	_logo.show()
+	_stage_back.hide()
 	_play_view = PlayModeView.new(self)
 	_screen_host.add_child(_play_view)
 	_local = _play_view.local_button
@@ -341,6 +364,7 @@ func _close_banner() -> void:
 	_show_play_screen()
 
 func _exit_tree() -> void:
+	if _returning_to_title: return
 	if main != null and is_instance_valid(main) and main.input_hub != null:
 		main.input_hub.set_listening(true)
 		main.input_hub.set_process(true)
@@ -370,7 +394,9 @@ func _on_local() -> void:
 ## The 2v2 star match. No Entitlement check on purpose: versus is free.
 func _on_versus() -> void:
 	_close_keyboard()
-	_root.add_child(load("res://src/ui/versus_panel.gd").new())
+	if is_instance_valid(_versus_view): return
+	_versus_view = load("res://src/ui/versus_panel.gd").new()
+	_root.add_child(_versus_view)
 
 ## Hands differ and so do phones. The defaults are a guess; this is where the
 ## guess gets corrected.
@@ -418,6 +444,7 @@ func _close_keyboard() -> void:
 ## A tap anywhere off the field puts the keyboard away. Watched in _input so
 ## it works over cards and panels that would swallow the press themselves.
 func _input(event: InputEvent) -> void:
+	if is_instance_valid(_versus_view): return
 	if _select_view != null and is_instance_valid(_select_view) and _root.visible:
 		_select_view.handle_swipe(event)
 	if _code == null or not is_instance_valid(_code) or not _code.has_focus():

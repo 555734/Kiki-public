@@ -6,7 +6,7 @@ extends VBoxContainer
 ## A card only says which stage was picked; NetPanel decides what that means
 ## (the play screen, a reload, or the purchase screen for a locked stage).
 
-const PER_PAGE := 3
+const PER_PAGE := 1
 
 var panel = null
 var page: int = 0
@@ -15,13 +15,7 @@ var row: HBoxContainer = null
 ## which -> card button, for the cards on this page.
 var cards: Dictionary = {}
 
-var _swipe_active: bool = false
-var _swipe_touch: bool = false
-var _swipe_index: int = -1
-var _swipe_start: Vector2 = Vector2.ZERO
-## Set when a drag turned the page, so the card under the finger does not
-## also count as tapped.
-var _swipe_consumed: bool = false
+var _swipe := StageSwipe.new()
 
 func _init(owner_panel, on_page: int) -> void:
 	panel = owner_panel
@@ -42,6 +36,7 @@ func _init(owner_panel, on_page: int) -> void:
 	add_child(UiKit.spacer(8))
 
 	row = HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 22)
@@ -66,8 +61,7 @@ func _init(owner_panel, on_page: int) -> void:
 	previous.disabled = page == 0
 	previous.custom_minimum_size = Vector2(200, 54)
 	navigation.add_child(previous)
-	var page_label := UiKit.heading("%d–%d / %d" % [first + 1,
-		mini(first + PER_PAGE, all.size()), all.size()], 20, Color("073f89"))
+	var page_label := UiKit.heading("%d / %d" % [first + 1, all.size()], 20, Color("073f89"))
 	page_label.custom_minimum_size.x = 120
 	navigation.add_child(page_label)
 	var next := UiKit.action_button("次のステージ  ›", func() -> void: panel._change_stage_page(1))
@@ -76,7 +70,7 @@ func _init(owner_panel, on_page: int) -> void:
 	navigation.add_child(next)
 	# 2v2 versus. Always shown and never locked: versus is free for every
 	# player, whatever they have bought (docs/versus-2v2-stars.md).
-	var versus := UiKit.action_button("⚔  2対2 たいせん", panel._on_versus)
+	var versus := UiKit.action_button("⚔  スターたいせん", panel._on_versus)
 	versus.custom_minimum_size = Vector2(240, 54)
 	versus.add_theme_color_override("font_color", Color("b8420f"))
 	# Not from inside a co-op room: that would be leaving it by another door.
@@ -132,8 +126,8 @@ func _card(info: Dictionary) -> Button:
 	var which: int = int(info["which"])
 	var button := Button.new()
 	button.text = number
-	button.custom_minimum_size = Vector2(0, 350)
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.custom_minimum_size = Vector2(600, 350)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	button.clip_contents = true
 	button.add_theme_font_size_override("font_size", 1)
 	button.add_theme_color_override("font_color", Color.TRANSPARENT)
@@ -141,7 +135,7 @@ func _card(info: Dictionary) -> Button:
 	button.add_theme_stylebox_override("hover", UiKit.stage_style(accent, 0.28, 18, 4))
 	button.add_theme_stylebox_override("pressed", UiKit.stage_style(accent, 0.42, 18, 4))
 	button.pressed.connect(func() -> void:
-		if not _swipe_consumed:
+		if not _swipe.consumed:
 			panel._select_stage(which))
 	panel.guard(button)
 
@@ -234,35 +228,5 @@ func _card(info: Dictionary) -> Button:
 ## A horizontal drag across the cards turns the page. Read from the panel's
 ## _input, because the cards are buttons and would swallow the drag.
 func handle_swipe(event: InputEvent) -> void:
-	if event is InputEventScreenTouch:
-		if event.pressed:
-			_begin(event.position, true, event.index)
-		elif _swipe_touch and event.index == _swipe_index:
-			_swipe_active = false
-	elif event is InputEventScreenDrag:
-		if _swipe_active and _swipe_touch and event.index == _swipe_index:
-			_track(event.position)
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed and not _swipe_active:
-			_begin(event.position, false, -1)
-		elif not event.pressed and not _swipe_touch:
-			_swipe_active = false
-	elif event is InputEventMouseMotion and _swipe_active and not _swipe_touch:
-		_track(event.position)
-
-func _begin(position: Vector2, touch: bool, index: int) -> void:
-	if not row.get_global_rect().has_point(position):
-		return
-	_swipe_active = true
-	_swipe_touch = touch
-	_swipe_index = index
-	_swipe_start = position
-	_swipe_consumed = false
-
-func _track(position: Vector2) -> void:
-	var distance := position.x - _swipe_start.x
-	if absf(distance) < 90.0 or absf(distance) < absf(position.y - _swipe_start.y) * 1.4:
-		return
-	_swipe_consumed = true
-	_swipe_active = false
-	panel._change_stage_page(1 if distance < 0.0 else -1)
+	if _swipe.handle(event, row.get_global_rect(), panel._change_stage_page):
+		get_viewport().set_input_as_handled()
