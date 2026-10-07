@@ -81,14 +81,6 @@ func crossings() -> Array[Dictionary]:
 			relay["platforms"] = [Rect2(-400, 4040, 150, 26), Rect2(-200, 3960, 150, 26),
 				Rect2(0, 3880, 150, 26), Rect2(200, 3800, 150, 26)]
 			return [relay]
-		Stage.Which.SEA:
-			return [crossing("pier C", Stage.solid_decor()[-1], ground[4]),
-				crossing("sea wall G", ground[11], ground[12]),
-				crossing("summit I", ground[15], ground[16])]
-		Stage.Which.SWAMP:
-			return [crossing("channel B", Stage.solid_decor()[4], ground[2]),
-				crossing("channel D", ground[3], ground[4]),
-				crossing("channel F", ground[5], ground[6])]
 		Stage.Which.DESERT:
 			var out: Array[Dictionary] = [crossing("causeway", ground[6], ground[7])]
 			for step in Stage.route():
@@ -97,7 +89,7 @@ func crossings() -> Array[Dictionary]:
 					copy["name"] = "1-6 rescue_wall"
 					out.append(copy)
 			return out
-		Stage.Which.TOWER, Stage.Which.CAVE:
+		Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.TOWER, Stage.Which.CAVE:
 			var out: Array[Dictionary] = []
 			for step in Stage.route():
 				if step["via"] == "assist":
@@ -110,9 +102,9 @@ func crossings() -> Array[Dictionary]:
 func assisted(step: Dictionary) -> bool:
 	main.guardian.clear_constructs()
 	main._respawn_timer = -1.0
-	if Stage.current() in [Stage.Which.TOWER, Stage.Which.CAVE] or step.get("section", "") == "rescue_wall":
+	if Stage.current() in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.TOWER, Stage.Which.CAVE] or step.get("section", "") == "rescue_wall":
 		return await Route._assisted(get_tree(), main, main.runner, main.input_hub,
-			step["from"], step["to"], step["platforms"])
+			step["from"], step["to"], step["platforms"], bool(step.get("sprint", false)))
 	var chain: Array[Rect2] = [step["from"]]
 	chain.append_array(step["platforms"])
 	chain.append(step["to"])

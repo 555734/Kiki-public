@@ -135,6 +135,8 @@ run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/sea_stage_pro
 
 step "can two people cross the poison marsh"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/swamp_stage_probe.tscn
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/radical_route_probe.tscn
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/warp_launch_probe.tscn
 
 step "can two people beat the Keeper"
 # The boss stage. Its claims are arcs too -- how long a jump keeps the runner

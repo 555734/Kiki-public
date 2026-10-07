@@ -52,12 +52,21 @@ func run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(BASE))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(ACTUAL))
 	var update := OS.get_cmdline_user_args().has("--write-baseline")
+	var selection := "all"
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--stage="): selection = arg.trim_prefix("--stage=")
+	if selection not in ["all", "1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "royal-arena"]:
+		push_error("Invalid visual stage selection")
+		get_tree().quit(1)
+		return
 	for which in [Stage.Which.GREENFIELD, Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS,
 		Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE,
 		Stage.Which.ROYAL_ARENA]:
 		seed(42)
 		Clock.reset()
 		Stage.use(which)
+		var key := "royal-arena" if which == Stage.Which.ROYAL_ARENA else Stage.stage_number()
+		if selection != "all" and key != selection: continue
 		var scene: Node
 		var name: String
 		if which == Stage.Which.ROYAL_ARENA:
@@ -77,14 +86,15 @@ func run() -> void:
 			scene.get_node("NetPanel").free()
 			name = "stage-" + Stage.stage_number()
 		await capture(scene, name, update)
-		if which in [Stage.Which.TOWER, Stage.Which.CAVE]:
+		if which in [Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.TOWER, Stage.Which.CAVE]:
 			# Teleporting the frozen runner must not fire checkpoint/goal areas,
 			# which would make the reference contain a transient screen flash.
 			for area in scene.find_children("*", "Area2D", true, false):
 				area.set_deferred("monitoring", false)
 			await get_tree().process_frame
 			var rooms: Array[Dictionary] = Stage.data().rooms()
-			for view in [["middle", rooms[rooms.size() / 2]], ["top", rooms[-1]]]:
+			var last_view := "end" if which in [Stage.Which.SEA, Stage.Which.SWAMP] else "top"
+			for view in [["middle", rooms[rooms.size() / 2]], [last_view, rooms[-1]]]:
 				var exit: Rect2 = view[1]["exit"]
 				scene.runner.global_position = Vector2(exit.get_center().x, exit.position.y - 26)
 				scene._snap_camera_to_runner()

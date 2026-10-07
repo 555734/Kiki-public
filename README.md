@@ -61,3 +61,5 @@ bash tools/server-tests.sh
 実機でしか確かめられない項目は [docs/release-acceptance.md](docs/release-acceptance.md)、実施状況は `docs/release-results/` に記録します。自動テストの成功を実機の合格に置き換えないでください。
 
 `dist/` のAPKは歴史的なコピーです。最新テストAPKは Actions の成果物を使用してください。
+
+1-4・1-5の各20区間の設計と検証は [docs/coast-molten-encounters.md](docs/coast-molten-encounters.md) に記載しています。
