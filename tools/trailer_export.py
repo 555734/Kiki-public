@@ -5,7 +5,7 @@ as separate stems, and the cut list that puts them back together.
     python3 tools/trailer_export.py <capture dir> <out dir>
 
 Writes into <out dir>:
-    shots/NN_<name>.mp4     each shot, high-quality H.264, 30 fps, no audio
+    shots/<name>.mp4        each shot, high-quality H.264, 30 fps, no audio
     stems/*.wav             music, game sounds and designed sounds, unmixed
     soundtrack.wav          the mix the auto-cut uses
     cutlist.csv             shot, start, duration (seconds and frames)
@@ -29,8 +29,8 @@ def main() -> None:
     (out / "shots").mkdir(parents=True, exist_ok=True)
     (out / "stems").mkdir(parents=True, exist_ok=True)
     rows = []
-    for i, shot in enumerate(shots["shots"], 1):
-        name = f"{i:02d}_{shot['name']}"
+    for shot in shots["shots"]:
+        name = shot["name"]
         subprocess.run([
             "ffmpeg", "-v", "error", "-y", "-framerate", str(fps),
             "-start_number", str(shot["start"]), "-i", str(cap / "frames" / "%05d.png"),
