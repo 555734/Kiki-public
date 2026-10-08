@@ -30,7 +30,7 @@ fi
 	| grep -E '^(shot|trailer)'
 
 cap="$("$godot" --headless --path . --quit-after 1 \
-	-s tools/print_user_dir.gd 2>/dev/null | tail -1)/trailer"
+	-s tools/print_user_dir.gd 2>/dev/null | grep "^/" | tail -1)/trailer"
 mkdir -p "$(dirname "$out")"
 python3 tools/trailer_mix.py "$cap" "$cap/soundtrack.wav"
 ffmpeg -v error -y -framerate 30 -i "$cap/frames/%05d.png" -i "$cap/soundtrack.wav" \
