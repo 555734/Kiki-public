@@ -84,6 +84,7 @@ test/tower_review_capture.tscn     capture
 tools/capture_stage_cards.tscn     capture
 tools/capture_store_shots.tscn     capture
 tools/capture_versus_cards.tscn    capture
+tools/capture_trailer.tscn         capture
 
 tools/export_three_assets.tscn     tool
 tools/export_stage_maps.tscn       tool
