@@ -21,20 +21,23 @@ func list() -> Array:
 	return [
 		{"name": "01_caught", "stage": W.HORROR, "sec": 3.3, "preroll": 30},
 		{"name": "02_drawn", "stage": W.SWAMP, "sec": 7.9, "preroll": 30},
-		{"name": "03_desert", "stage": W.DESERT, "beats": 6, "preroll": 30, "music_in": true},
-		{"name": "04_chase", "stage": W.HORROR, "beats": 6, "preroll": 30},
-		{"name": "05_cliff", "stage": W.SEA, "beats": 6, "preroll": 30},
-		{"name": "06_golem", "stage": W.SKYWARD_RUINS, "beats": 6, "preroll": 30},
-		{"name": "07_climb", "stage": W.TOWER, "beats": 4, "preroll": 30},
+		# BUILD: four bars.
+		{"name": "03_desert", "stage": W.DESERT, "beats": 4, "preroll": 30, "music_in": true, "zoom": 1.15},
+		{"name": "04_chase", "stage": W.HORROR, "beats": 4, "preroll": 30, "zoom": 1.35},
+		{"name": "05_cliff", "stage": W.SEA, "beats": 4, "preroll": 30, "zoom": 1.2},
+		{"name": "06_golem", "stage": W.SKYWARD_RUINS, "beats": 4, "preroll": 30, "zoom": 1.3},
+		# DROP: eight bars.
+		{"name": "07_climb", "stage": W.TOWER, "beats": 4, "preroll": 30, "zoom": 1.35},
 		{"name": "08_arena", "arena": true, "beats": 4, "preroll": 300},
-		{"name": "09a_lava", "stage": W.SWAMP, "beats": 2, "preroll": 75},
-		{"name": "09b_spikes", "stage": W.SKYWARD_RUINS, "beats": 2, "preroll": 30},
-		{"name": "09c_golem", "stage": W.SKYWARD_RUINS, "beats": 2, "preroll": 60},
-		{"name": "09d_walker", "stage": W.GREENFIELD, "beats": 2, "preroll": 30},
-		{"name": "10_cave", "stage": W.CAVE, "beats": 4, "preroll": 30},
+		{"name": "09a_lava", "stage": W.SWAMP, "beats": 2, "preroll": 75, "zoom": 1.3},
+		{"name": "09b_spikes", "stage": W.SKYWARD_RUINS, "beats": 2, "preroll": 30, "zoom": 1.15},
+		{"name": "09c_golem", "stage": W.SKYWARD_RUINS, "beats": 2, "preroll": 60, "zoom": 1.3},
+		{"name": "09d_walker", "stage": W.GREENFIELD, "beats": 2, "preroll": 30, "zoom": 1.1},
+		{"name": "10_cave", "stage": W.CAVE, "beats": 4, "preroll": 30, "zoom": 1.4},
 		{"name": "11_arena", "arena": true, "beats": 4, "preroll": 600},
-		{"name": "12_coast", "stage": W.SEA, "beats": 4, "preroll": 30},
-		{"name": "13_hero", "stage": W.SEA, "beats": 6, "preroll": 30},
+		{"name": "12_coast", "stage": W.SEA, "beats": 2, "preroll": 30, "zoom": 1.4},
+		{"name": "13_hero", "stage": W.SEA, "beats": 6, "preroll": 30, "zoom": 1.15},
+		# STING.
 		{"name": "14_title", "stage": W.GREENFIELD, "beats": 12, "preroll": 30},
 	]
 
@@ -60,6 +63,10 @@ class Rig extends Node:
 	## Camera shake, in world pixels. Applied as the camera's offset so it
 	## never feeds back into the follow.
 	var shake := 0.0
+	## An impact's jolt: added to the shake and dying away by itself.
+	var kick := 0.0
+	## The shot's framing multiplier, on top of the zoom it animates.
+	var scale := 1.0
 	var tick := 0
 	var factor := 1.0
 	var _snapped := false
@@ -82,8 +89,9 @@ class Rig extends Node:
 		var k := clampf(float(tick) / float(maxi(zoom_ticks, 1)), 0.0, 1.0)
 		k = k * k * (3.0 - 2.0 * k)
 		factor = lerpf(zoom_from, zoom_to, k)
-		cam.zoom = Vector2.ONE * Balance.CAMERA_ZOOM * factor
-		cam.offset = Vector2(_rng.randf_range(-1, 1), _rng.randf_range(-1, 1)) * shake
+		cam.zoom = Vector2.ONE * Balance.CAMERA_ZOOM * factor * scale
+		kick *= 0.82
+		cam.offset = Vector2(_rng.randf_range(-1, 1), _rng.randf_range(-1, 1)) * (shake + kick)
 		var target := point
 		if follow != null and is_instance_valid(follow):
 			var y := follow.global_position.y
@@ -279,8 +287,18 @@ func rig(ctx: Dictionary) -> Rig:
 	r.main = ctx["main"]
 	r.follow = r.main.runner
 	r.main.add_child(r)
+	r.scale = float((ctx["shot"] as Dictionary).get("zoom", 1.0))
 	ctx["rig"] = r
 	return r
+
+## Hit-stop: the world holds for a few frames on an impact, with a flash and
+## a jolt -- the beat that makes a hit read as a hit.
+func impact(c: Dictionary, frames := 4, flash := 0.45) -> void:
+	if c.has("main"):
+		c["freeze"] = frames
+	ov().flash(cap.shot_time(), 0.16, flash)
+	if c.has("rig"):
+		(c["rig"] as Rig).kick = 14.0
 
 func pilot(ctx: Dictionary, steps: Array) -> Pilot:
 	var p := Pilot.new()
@@ -404,9 +422,7 @@ func setup_01_caught(ctx: Dictionary) -> Callable:
 		if m.runner.state == Runner.State.DEAD:
 			if int(state["dead_at"]) < 0:
 				state["dead_at"] = t
-				ov().flash(cap.shot_time(), 0.18, 0.7)
-				r.shake = 10.0
-			r.shake = maxf(0.0, r.shake - 0.6)
+				impact(c, 6, 0.75)
 			drive(c, 0.0)
 		else:
 			run.tick()
@@ -479,6 +495,7 @@ func setup_02_drawn(ctx: Dictionary) -> Callable:
 			if t == t0 + 22:
 				build(c, lines[0])
 				s["built1"] = t
+				impact(c, 3, 0.3)
 			if t >= t0 - 4 and (int(s["built1"]) < 0 or t < int(s["built1"]) + 8):
 				c["speed"] = 0.25
 		# Landed on it: pull back, the interface appears, stroke two begins.
@@ -628,6 +645,7 @@ func setup_04_chase(ctx: Dictionary) -> Callable:
 				and m.runner.global_position.x - pursuer.global_position.x < 150.0 \
 				and t - int(c.get("last_shot", -999)) > T(0.8):
 			shoot(c, pursuer.global_position)
+			impact(c, 4, 0.35)
 			c["last_shot"] = t
 
 ## 1-4: along the first island, lighthouse behind.
@@ -645,16 +663,50 @@ func setup_12_coast(ctx: Dictionary) -> Callable:
 		else:
 			run.tick()
 
-## 1-6: the mirage crossing, a long gap the guardian bridges in two strokes.
+## 1-6: the mirage crossing. The guardian bridges the whole gap in two long
+## strokes, each drawn just ahead of the runner, who never breaks stride.
 func setup_03_desert(ctx: Dictionary) -> Callable:
 	var step: Dictionary = route_steps("mirage_crossing")[0]
-	place_runner(ctx, on_ledge(step["from"], 0.25))
+	var a: Rect2 = step["from"]
+	var b: Rect2 = step["to"]
+	place_runner(ctx, on_ledge(a, 0.15))
+	clear_enemies(ctx, Rect2(a.position - Vector2(300, 600), Vector2(1700, 1000)))
 	var r := rig(ctx)
-	r.zoom_from = 1.1
-	r.zoom_to = 1.0
-	r.zoom_ticks = T(2.7)
-	r.offset = Vector2(160, -70)
-	return assisted(ctx, step, [-0.1, 0.55], 0.0, true)
+	r.zoom_from = 1.0
+	r.zoom_to = 0.92
+	r.zoom_ticks = T(2.2)
+	r.offset = Vector2(170, -40)
+	r.dead_y = 80.0
+	# Each stroke's ends sit level with the ground it meets: the platform's top
+	# is 13px above the line drawn.
+	var mid := (a.end.x + b.position.x) * 0.5
+	var lines := [
+		arc_line(Vector2(a.end.x + 18, a.position.y + 13), Vector2(mid - 10, lerpf(a.position.y, b.position.y, 0.5) + 13), -14.0),
+		arc_line(Vector2(mid + 14, lerpf(a.position.y, b.position.y, 0.5) + 15), Vector2(b.position.x - 16, b.position.y + 13), -12.0),
+	]
+	var strokes := [stroke(ctx), stroke(ctx)]
+	var draw_at := [T(0.05), T(0.62)]
+	var draw_len := T(0.38)
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		for k in 2:
+			var t0: int = draw_at[k]
+			_paint(strokes[k], lines[k], t >= t0, clampf(float(t - t0) / float(draw_len), 0.0, 1.0),
+				t - t0 - draw_len)
+			if t == t0 + draw_len:
+				build(c, lines[k])
+		# Off the mark as the first stroke lands, so it is there when needed.
+		# Flat out and never a jump: the bridge is the whole point.
+		drive(c, 1.0 if t >= 8 else 0.0, false, true)
+
+## A drawn line from `from` to `to`, bowed by `bulge` (negative is upwards) --
+## a stroke a finger makes in one sweep.
+static func arc_line(from: Vector2, to: Vector2, bulge: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for k in 24:
+		var u := float(k) / 23.0
+		out.append(from.lerp(to, u) + Vector2(0, sin(u * PI) * bulge))
+	return out
 
 ## 1-3: the pursuer rises out of the clouds at the first island, and the
 ## guardian's shot knocks it back down before it reaches the runner.
@@ -680,6 +732,7 @@ func setup_06_golem(ctx: Dictionary) -> Callable:
 		drive(c, 0.0, t >= T(0.95) and t < T(1.25))
 		if pursuer != null and t == T(0.85):
 			shoot(c, pursuer.global_position)
+			impact(c, 4, 0.35)
 
 ## 1-7: the first flight of the clockwork tower, zig-zag. It opens the
 ## digest, and the drive layer comes in with it.
@@ -741,7 +794,7 @@ func setup_14_title(ctx: Dictionary) -> Callable:
 	cap.cue("drive_out")
 	cap.cue("hit")
 	ov().flash(0.0, 0.35, 0.9)
-	ov().end_card(0.15, "MELOS GAME", ["AVAILABLE NOW ON", "GOOGLE PLAY & THE APP STORE"])
+	ov().end_card(0.15, "MELOS GAME", ["AVAILABLE NOW", "GOOGLE PLAY", "APP STORE"])
 	ov().fade(5.0, 5.45, 0.0, 1.0)
 	return func(c: Dictionary) -> void:
 		drive(c, 1.0 if int(c["t"]) > -12 else 0.0)
@@ -754,15 +807,12 @@ func setup_11_arena(ctx: Dictionary) -> Callable:
 ## A death, as the digest shows it: a flash and a jolt as it lands.
 func dies(ctx: Dictionary, inner: Callable) -> Callable:
 	var m: Node2D = ctx["main"]
-	var r: Rig = ctx["rig"]
 	var s := {"at": -1}
 	return func(c: Dictionary) -> void:
 		inner.call(c)
 		if m.runner.state == Runner.State.DEAD and int(s["at"]) < 0 and int(c["t"]) >= 0:
 			s["at"] = c["t"]
-			ov().flash(cap.shot_time(), 0.2, 0.75)
-			r.shake = 12.0
-		r.shake = maxf(0.0, r.shake - 0.8)
+			impact(c, 5, 0.7)
 
 ## 1-5: the same jump as the cold open, with nobody drawing.
 func setup_09a_lava(ctx: Dictionary) -> Callable:

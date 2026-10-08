@@ -180,30 +180,100 @@ func _draw_card() -> void:
 	var age := t - float(_card["at"])
 	if age < 0.0:
 		return
-	var dim := clampf(age / 0.5, 0.0, 1.0)
-	_canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(1280, 720)), Color(INK, 0.6 * dim))
-	# The app icon drops in first, the title punches in under it, then the lines.
-	var k := clampf(age / 0.35, 0.0, 1.0)
-	var s := 176.0 * lerpf(0.6, 1.0, _ease_out_back(k))
-	var icon_rect := Rect2(Vector2(640, 196) - Vector2(s, s) * 0.5, Vector2(s, s))
-	var a := clampf(age / 0.12, 0.0, 1.0)
-	_canvas.draw_rect(icon_rect.grow(6.0), Color(1, 1, 1, a))
-	_canvas.draw_texture_rect(ICON, icon_rect, false, Color(1, 1, 1, a))
-	_draw_caption({"text": _card["title"], "at": _card["at"] + 0.3,
-		"until": 9999.0, "pos": Vector2(640, 378), "size": 124})
 	var ci := _canvas.get_canvas_item()
+	var dim := clampf(age / 0.4, 0.0, 1.0)
+	# A deep wash over the game, darker at the foot, and slow sunburst rays
+	# behind the title: the end card should read as a poster, not a pause.
+	_canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(1280, 720)), Color(INK, 0.55 * dim))
+	_canvas.draw_polygon(PackedVector2Array([Vector2(0, 360), Vector2(1280, 360),
+		Vector2(1280, 720), Vector2(0, 720)]), PackedColorArray([Color(INK, 0.0),
+		Color(INK, 0.0), Color(INK, 0.6 * dim), Color(INK, 0.6 * dim)]))
+	var spin := age * 0.18
+	for i in 16:
+		var a0 := spin + TAU * i / 16.0
+		var a1 := a0 + TAU / 32.0
+		_canvas.draw_colored_polygon(PackedVector2Array([Vector2(640, 300),
+			Vector2(640, 300) + Vector2.from_angle(a0) * 1100.0,
+			Vector2(640, 300) + Vector2.from_angle(a1) * 1100.0]),
+			Color(ACCENT, 0.07 * dim))
+	# The icon drops in, rounded, on a soft shadow.
+	var k := clampf(age / 0.35, 0.0, 1.0)
+	var s := 168.0 * lerpf(0.5, 1.0, _ease_out_back(k))
+	var c := Vector2(640, 168 + (1.0 - k) * -40.0)
+	var a := clampf(age / 0.1, 0.0, 1.0)
+	_rounded(Rect2(c - Vector2(s, s) * 0.5 + Vector2(0, 10), Vector2(s, s)).grow(4), s * 0.22,
+		Color(0, 0, 0, 0.35 * a), null)
+	_rounded(Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)).grow(6), s * 0.24, Color(1, 1, 1, a), null)
+	_rounded(Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), s * 0.22, Color(1, 1, 1, a), ICON)
+	# The title punches in with an extruded edge under it.
+	var title_age := age - 0.25
+	if title_age >= 0.0:
+		var tk := clampf(title_age / 0.22, 0.0, 1.0)
+		var sc := lerpf(0.4, 1.0, _ease_out_back(tk))
+		var text := String(_card["title"])
+		var size := 132
+		var w := TITLE_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var ta := clampf(title_age / 0.06, 0.0, 1.0)
+		_canvas.draw_set_transform_matrix(Transform2D(0.0, Vector2(sc, sc), 0.0, Vector2(640, 368)))
+		var base := Vector2(-w * 0.5, size * 0.33)
+		for d in range(12, 0, -2):
+			TITLE_FONT.draw_string_outline(ci, base + Vector2(0, d), text, HORIZONTAL_ALIGNMENT_LEFT,
+				-1, size, 16, Color(0.10, 0.36, 0.55, ta))
+		TITLE_FONT.draw_string_outline(ci, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 16, Color(INK, ta))
+		TITLE_FONT.draw_string(ci, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(WHITE, ta))
+		_canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
+	# Then where to get it: a line, and a pill for each store.
 	var lines: Array = _card["lines"]
-	for i in lines.size():
-		var line_age := age - 0.85 - 0.3 * i
-		if line_age < 0.0:
+	var line_age := age - 0.75
+	if line_age >= 0.0 and lines.size() > 0:
+		var la := clampf(line_age / 0.25, 0.0, 1.0)
+		var head := String(lines[0])
+		var hw := BODY_FONT.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+		var hy := 478.0 + (1.0 - la) * 10.0
+		BODY_FONT.draw_string_outline(ci, Vector2(640 - hw * 0.5, hy), head,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 30, 8, Color(INK, la))
+		BODY_FONT.draw_string(ci, Vector2(640 - hw * 0.5, hy), head,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(ACCENT, la))
+	var pills: Array = lines.slice(1)
+	for i in pills.size():
+		var pa := age - 0.95 - 0.12 * i
+		if pa < 0.0:
 			continue
-		var la := clampf(line_age / 0.3, 0.0, 1.0)
-		var size := 36 if i == 0 else 44
-		var text := String(lines[i])
-		var w := BODY_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		var y := 478.0 + 58.0 * i + (1.0 - la) * 14.0
-		var col := Color(WHITE, la) if i == 0 else Color(ACCENT, la)
-		BODY_FONT.draw_string_outline(ci, Vector2(640 - w * 0.5, y), text,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, Color(INK, la))
-		BODY_FONT.draw_string(ci, Vector2(640 - w * 0.5, y), text,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
+		var pk := clampf(pa / 0.25, 0.0, 1.0)
+		var label := String(pills[i])
+		var size := 34
+		var w := BODY_FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 64.0
+		var gap := 28.0
+		var total := 0.0
+		for p in pills:
+			total += BODY_FONT.get_string_size(String(p), HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 64.0
+		total += gap * (pills.size() - 1)
+		var x := 640.0 - total * 0.5
+		for j in i:
+			x += BODY_FONT.get_string_size(String(pills[j]), HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 64.0 + gap
+		var r := Rect2(x, 512.0 + (1.0 - _ease_out_back(pk)) * 24.0, w, 62.0)
+		var pa_alpha := clampf(pa / 0.08, 0.0, 1.0)
+		_rounded(r.grow(3), 34.0, Color(1, 1, 1, 0.9 * pa_alpha), null)
+		_rounded(r, 31.0, Color(0.05, 0.06, 0.10, 0.95 * pa_alpha), null)
+		BODY_FONT.draw_string(ci, Vector2(r.position.x + 32.0, r.position.y + 43.0), label,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(WHITE, pa_alpha))
+
+## A filled rounded rectangle, optionally textured edge to edge.
+func _rounded(r: Rect2, radius: float, color: Color, tex: Texture2D) -> void:
+	radius = minf(radius, minf(r.size.x, r.size.y) * 0.5)
+	var pts := PackedVector2Array()
+	var corners := [Vector2(r.end.x - radius, r.position.y + radius),
+		Vector2(r.end.x - radius, r.end.y - radius),
+		Vector2(r.position.x + radius, r.end.y - radius),
+		Vector2(r.position.x + radius, r.position.y + radius)]
+	for ci in 4:
+		for k in 7:
+			var ang := -PI * 0.5 + PI * 0.5 * ci + PI * 0.5 * k / 6.0
+			pts.append(corners[ci] + Vector2.from_angle(ang) * radius)
+	if tex == null:
+		_canvas.draw_colored_polygon(pts, color)
+		return
+	var uvs := PackedVector2Array()
+	for p in pts:
+		uvs.append((p - r.position) / r.size)
+	_canvas.draw_polygon(pts, PackedColorArray([color]), uvs, tex)

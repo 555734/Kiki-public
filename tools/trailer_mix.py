@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
-"""Mix the trailer's soundtrack: the game's own music, every sound the game
-played while the shots were filmed, and the cues the shots asked for.
+"""Mix the trailer's soundtrack: the score composed to the cut
+(tools/trailer_music.py), every sound the game played while the shots were
+filmed, and the designed sounds the shots' cues ask for.
 
     python3 tools/trailer_mix.py <capture dir> <out.wav>
 
 <capture dir> is what tools/capture_trailer.gd wrote (shots.json, sfx.json).
-The music is the stage loop and its drive layer from tools/make_audio.py, both
-132 BPM and the same length. Both start at the `music_in` cue, so the shots
-after it -- which the capture times in beats -- cut on the bar lines.
+Besides <out.wav> it writes <capture dir>/stems/{music,sfx,design}.wav, the
+three layers before the final mix, for an editor to rebalance.
 
 Cues (shots.json "cues", each at a film time):
     rumble / rumble_stop   a low earth rumble that builds, then stops dead
     silence                the effects drop out until the music comes in
-    music_in               the base loop starts, on an impact
-    drive_in / drive_out   the drive layer on top of it
-    hit                    an impact: a sub thump and a burst of noise
-The music fades out over the last two seconds.
+    music_in               the score begins, on an impact
+    drive_in / drive_out   the score's drop and its closing sting
 """
 import json
 import sys
@@ -24,12 +22,15 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import trailer_music
+
 ROOT = Path(__file__).resolve().parent.parent
 AUDIO = ROOT / "assets" / "audio"
 RATE = 44100
 
-MUSIC_DB = -5.0
-SFX_DB = -4.0
+MUSIC_DB = -3.0
+SFX_DB = -6.0
 
 
 def load(name: str) -> np.ndarray:
@@ -91,6 +92,17 @@ def impact(seed: int = 3) -> np.ndarray:
     return (thump * 0.95 + burst * 0.5).astype(np.float32)
 
 
+def write_wav(path: Path, x: np.ndarray, channels: int) -> None:
+    pcm = (np.clip(x, -1.0, 1.0) * 32767.0).astype(np.int16)
+    if channels == 2:
+        pcm = np.repeat(pcm[:, None], 2, axis=1)
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(channels)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes(pcm.tobytes())
+
+
 def main() -> None:
     cap = Path(sys.argv[1])
     out = Path(sys.argv[2])
@@ -98,7 +110,7 @@ def main() -> None:
     sfx = json.loads((cap / "sfx.json").read_text())
     cues = shots.get("cues", [])
     duration = shots["frames"] / shots["fps"]
-    n = int(round(duration * RATE))
+    n = round(duration * RATE)
     t = np.arange(n) / RATE
 
     def first(name: str, default: float) -> float:
@@ -107,21 +119,14 @@ def main() -> None:
                 return float(c["t"])
         return default
 
-    # Music: both layers from music_in; the drive layer only between its cues.
-    music_in = first("music_in", 0.0)
-    base = load("music_stage")
-    drive = load("music_drive")
-    start = int(music_in * RATE)
-    loops = (n - start) // len(base) + 2
-    base_track = np.zeros(n, dtype=np.float32)
-    drive_track = np.zeros(n, dtype=np.float32)
-    base_track[start:] = np.tile(base, loops)[: n - start]
-    drive_track[start:] = np.tile(drive, loops)[: n - start]
-    drive_in = first("drive_in", duration)
-    drive_out = first("drive_out", duration)
-    drive_gain = ramp(t, drive_in - 0.02, 0.04, True) * ramp(t, drive_out, 0.25, False)
-    music = (base_track + drive_track * drive_gain) * ramp(t, duration - 2.0, 2.0, False)
-    mix = music * db(MUSIC_DB)
+    # The score, composed to this cut's cues.
+    music_in, drop, title, _ = trailer_music.cue_times(cap)
+    score = trailer_music.compose(music_in, drop, title, duration)
+    score /= max(1e-6, float(np.max(np.abs(score))))
+    music = np.zeros(n, dtype=np.float32)
+    music[: min(n, len(score))] = score[:n]
+    music *= ramp(t, duration - 1.2, 1.2, False)
+    music *= db(MUSIC_DB)
 
     # Effects, dropped while a silence holds (until the music arrives).
     silence = first("silence", -1.0)
@@ -138,41 +143,38 @@ def main() -> None:
         pitch = float(s.get("pitch", 1.0))
         if abs(pitch - 1.0) > 1e-3:
             clip = resample(clip, pitch)
-        at = int(round(at_s * RATE))
+        at = round(at_s * RATE)
         if at >= n:
             continue
         clip = clip[: n - at] * db(float(s.get("db", 0.0)) + SFX_DB)
         sfx_track[at:at + len(clip)] += clip
     if silence >= 0.0:
         sfx_track *= np.where((t >= silence) & (t < music_in), 0.0, 1.0).astype(np.float32)
-    mix += sfx_track
 
-    # Designed sound: the rumble and the impacts.
+    # Designed sound: the rumble, and the impact the score comes in on.
+    design = np.zeros(n, dtype=np.float32)
     r0 = first("rumble", -1.0)
     if r0 >= 0.0:
         r1 = first("rumble_stop", r0 + 2.0)
         x = rumble(r1 - r0)
         a = int(r0 * RATE)
-        mix[a:a + len(x)] += x[: n - a] * db(-3.0)
-    hits = [float(c["t"]) for c in cues if c["cue"] == "hit"]
+        design[a:a + len(x)] += x[: n - a] * db(-3.0)
     if "music_in" in [c["cue"] for c in cues]:
-        hits.append(music_in)
-    boom = impact()
-    for h in hits:
-        a = int(h * RATE)
-        if a < n:
-            mix[a:a + len(boom)] += boom[: n - a] * db(-4.0)
+        boom = impact()
+        a = int(music_in * RATE)
+        design[a:a + len(boom)] += boom[: n - a] * db(-4.0)
+
+    stems = cap / "stems"
+    stems.mkdir(exist_ok=True)
+    for name, layer in (("music", music), ("sfx", sfx_track), ("design", design)):
+        write_wav(stems / f"{name}.wav", layer, 1)
+    mix = music + sfx_track + design
 
     # Gentle bus compression by a soft clip, then peak at -1 dBFS.
     mix = np.tanh(mix * 1.3) / np.tanh(1.3)
     mix *= db(-1.0) / max(1e-6, float(np.max(np.abs(mix))))
-    stereo = np.repeat((mix * 32767.0).astype(np.int16)[:, None], 2, axis=1)
     out.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(out), "wb") as w:
-        w.setnchannels(2)
-        w.setsampwidth(2)
-        w.setframerate(RATE)
-        w.writeframes(stereo.tobytes())
+    write_wav(out, mix, 2)
     print(f"mixed {duration:.2f}s, {len(sfx)} sounds, {len(cues)} cues -> {out}")
 
 

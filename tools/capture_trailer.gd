@@ -19,8 +19,8 @@ extends Node
 ## camera and the overlay keep moving.
 ##
 ## The shots before the music are timed in seconds; from the shot that brings
-## the music in, they are timed in beats of it (132 BPM, tools/make_audio.py),
-## so the cuts land on the beat without editing afterwards. Sounds the game
+## the music in, they are timed in beats of it (110 BPM, the tempo
+## tools/trailer_music.py composes the score in), so the cuts land on the beat. Sounds the game
 ## plays are logged with their film time instead of recorded -- the audio driver
 ## is a dummy here -- and so are the shots' audio cues (silence, rumble, music);
 ## trailer_mix.py builds the soundtrack from both.
@@ -35,7 +35,7 @@ const Overlay := preload("res://tools/trailer_overlay.gd")
 const DESIGN := Vector2i(1280, 720)
 const FPS := 30
 const TICK_HZ := 60
-const BPM := 132.0
+const BPM := 110.0
 const BEAT := 60.0 / BPM
 
 var size := Vector2i(1920, 1080)
@@ -140,7 +140,7 @@ func run() -> void:
 func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 	shots_log.append({"name": shot["name"], "start": frame, "frames": frames,
 		"film_start": film_start})
-	var ctx: Dictionary = {"t": 0, "frames": frames, "speed": 1.0, "freeze": 0}
+	var ctx: Dictionary = {"t": 0, "frames": frames, "speed": 1.0, "freeze": 0, "shot": shot}
 	_begin = frame
 	if shot.has("stage"):
 		await _open_coop(int(shot["stage"]))
