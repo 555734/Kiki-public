@@ -3,8 +3,10 @@
 #
 #   tools/make_trailer.sh /path/to/godot [out.mp4] [-- capture args]
 #
-# Films every shot (tools/capture_trailer.gd), mixes the soundtrack
-# (tools/trailer_mix.py) and encodes 1920x1080 30 fps H.264 + AAC. On Linux
+# Films every shot (tools/capture_trailer.gd), mixes the soundtrack around a
+# score composed to the cut (tools/trailer_mix.py, tools/trailer_music.py),
+# encodes 1920x1080 30 fps H.264 + AAC, and next to it writes editor/: every
+# shot as a clip, the audio stems and the cut list (tools/trailer_export.py). On Linux
 # without a display it runs under xvfb-run; rendering is real OpenGL either
 # way, which is why --headless cannot be used.
 #
@@ -34,4 +36,5 @@ python3 tools/trailer_mix.py "$cap" "$cap/soundtrack.wav"
 ffmpeg -v error -y -framerate 30 -i "$cap/frames/%05d.png" -i "$cap/soundtrack.wav" \
 	-c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -r 30 \
 	-c:a aac -b:a 192k -shortest -movflags +faststart "$out"
+python3 tools/trailer_export.py "$cap" "$(dirname "$out")/editor"
 echo "trailer: $out"

@@ -172,8 +172,11 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 		var hold: int = int(ctx["freeze"])
 		ctx["freeze"] = 0
 		if hold > 0 and t >= 0:
+			# The world holds; then this same tick goes on to run as usual, so
+			# whatever the shot did on it is not done a second time.
 			written += await _freeze(ctx, mini(hold, frames - written))
-			continue
+			if written >= frames:
+				break
 		await RenderingServer.frame_post_draw
 		_log_sounds(now(), t >= 0)
 		if t >= 0:

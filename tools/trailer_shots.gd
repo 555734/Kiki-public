@@ -461,6 +461,9 @@ func setup_02_drawn(ctx: Dictionary) -> Callable:
 	var s := {"jump": -1, "built1": -1, "land": -1, "frozen": false}
 	cap.cue("rumble")
 	ctx["on_freeze"] = func(c: Dictionary, k: int) -> void:
+		# Only the reveal; a hit-stop's short hold is not this.
+		if not s["frozen"]:
+			return
 		if k == 0:
 			# Push in on the hand and the runner it is drawing for.
 			r.zoom_go(r.factor * 1.5, 70)
