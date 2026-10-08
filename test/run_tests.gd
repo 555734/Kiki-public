@@ -92,6 +92,7 @@ func _run_all() -> void:
 	await network._test_loopback_link()
 	network._test_bandwidth_budget()
 	await network._test_host_answers_the_guardian()
+	await network._test_malformed_packets_are_dropped()
 	await network._test_client_shows_the_host()
 	await network._test_a_dead_enemy_stays_dead_on_both_screens()
 	await controls._test_connect_screen_responds_to_touch()

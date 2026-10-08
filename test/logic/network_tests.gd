@@ -554,6 +554,98 @@ func _test_host_answers_the_guardian() -> void:
 		"a duplicate command is ignored rather than acted on twice")
 	session.queue_free()
 
+## Packets that are not whole must be dropped at the door. StreamPeerBuffer
+## answers zero past the end of a packet rather than failing, so without a
+## length check a short PLACE builds a platform at the stage's corner and a
+## short snapshot puts the runner there.
+func _test_malformed_packets_are_dropped() -> void:
+	_current = "malformed packets are dropped"
+	# Snapshots: every truncation of a real one is refused, the whole one is not.
+	var snap := Snapshot.new()
+	snap.tick = 77
+	snap.runner_position = Vector2(2100, 120)
+	for id in [3, 9]:
+		snap.dirty_enemies.append({"id": id, "x": 500.0, "y": 300.0, "hp": 2})
+	var wire := snap.encode()
+	check(Snapshot.decode(wire) != null and Snapshot.decode(wire).dirty_enemies.size() == 2,
+		"a whole snapshot still decodes")
+	check(wire.size() == Snapshot.HEADER_BYTES + 2 * Snapshot.ENEMY_BYTES,
+		"and the size constants match what encode() writes")
+	var refused_all := true
+	for n in wire.size():
+		if Snapshot.decode(wire.slice(0, n)) != null:
+			refused_all = false
+	check(refused_all, "every truncation of a snapshot is refused")
+	# Random bytes: never an error, and anything accepted is as long as it says.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20261007
+	var sound := true
+	for _i in 400:
+		var junk := PackedByteArray()
+		junk.resize(rng.randi_range(0, 60))
+		for k in junk.size():
+			junk[k] = rng.randi() & 0xFF
+		var got := Snapshot.decode(junk)
+		if got != null and junk.size() < Snapshot.HEADER_BYTES + Snapshot.ENEMY_BYTES * got.dirty_enemies.size():
+			sound = false
+	check(sound, "random bytes never decode into more than they carry")
+
+	# Commands the host receives: each builder's output is exactly the minimum
+	# the table asks for, and one byte fewer is not whole.
+	var built := {
+		Protocol.Msg.PING: Protocol.ping(1),
+		Protocol.Msg.AIM: Protocol.aim(Vector2.ZERO, Vector2.ZERO, Vector2.ZERO),
+		Protocol.Msg.PLACE: Protocol.place(1, Vector2(100, 100), 5, 1),
+		Protocol.Msg.FIRE: Protocol.fire(Vector2(100, 100), 5, 1),
+		Protocol.Msg.SLOT: Protocol.slot(1),
+		Protocol.Msg.UNDO: Protocol.undo(1),
+		Protocol.Msg.MARK: Protocol.mark(Vector2(100, 100), 1),
+		Protocol.Msg.RUNNER_INPUT: Protocol.runner_input(0.5, 0.0, true, false, 1, 1),
+	}
+	for kind in built:
+		var body: int = (built[kind] as PackedByteArray).size() - 1
+		var least: int = Protocol.MIN_BODY[kind]
+		# PLACE's shape count is optional on the wire (get_shape allows for its
+		# absence), so its builder writes one byte more than the minimum.
+		check(Protocol.is_complete(kind, body) and body - least <= (1 if kind == Protocol.Msg.PLACE else 0),
+			"message %d: its builder writes what the host requires" % kind)
+		check(not Protocol.is_complete(kind, least - 1), "message %d: one byte short is not whole" % kind)
+	check(Protocol.is_complete(Protocol.Msg.HELLO, 1) and not Protocol.is_complete(Protocol.Msg.HELLO, 0),
+		"an older build's handshake still reaches the version check")
+	check(Protocol.is_complete(Protocol.Msg.WELCOME, 0), "kinds without a minimum pass")
+
+	# And the host itself: short commands change nothing; the whole one works.
+	await _boot()
+	var pair := LoopbackTransport.pair(0.075)
+	var session := HostSession.new()
+	session.main = main
+	session.transport = pair[0]
+	add_child(session)
+	await _frames(2)
+	session.authority.measured_one_way = 0.075
+	session.authority.client_interp_buffer = 0.075
+	var guardian_side: LoopbackTransport = pair[1]
+	main.guardian.gauge = Balance.GAUGE_MAX
+	main.runner.global_position = Vector2(2100, 120)
+	main.runner.velocity = Vector2.ZERO
+	await _pump(pair, 1)
+	var at: Vector2 = main.runner.global_position + Vector2(0,
+		Balance.RUNNER_SIZE.y * 0.5 + Balance.PLATFORM_SIZE.y * 0.5)
+	var place := Protocol.place(1, at, Clock.tick, 40)
+	for n in [1, 3, 6, 10]:
+		guardian_side.send(NetTransport.Channel.COMMAND,
+			NetTransport.Reliability.RELIABLE_ORDERED, place.slice(0, n))
+	await _pump(pair, 14)
+	check(main.guardian.holograms_of(Hologram.Kind.PLATFORM).is_empty(),
+		"truncated PLACE commands build nothing")
+	check_near(main.guardian.gauge, Balance.GAUGE_MAX, 0.01, "and cost nothing")
+	guardian_side.send(NetTransport.Channel.COMMAND,
+		NetTransport.Reliability.RELIABLE_ORDERED, place)
+	await _pump(pair, 14)
+	check(main.guardian.holograms_of(Hologram.Kind.PLATFORM).size() == 1,
+		"the whole command builds its one platform")
+	session.queue_free()
+
 ## The other half: a client fed real snapshots puts the runner where the host
 ## said, and turns a spawn message into an actual construct.
 func _test_client_shows_the_host() -> void:

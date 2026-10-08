@@ -45,6 +45,7 @@ func run() -> void:
 	await _the_friend_pass()
 	await _the_pass_expires_with_the_room()
 	_not_in_a_public_room()
+	_purchases_go_to_a_fixed_address()
 
 	if main != null:
 		main.queue_free()
@@ -327,6 +328,29 @@ func _welcome_token(side: LoopbackTransport) -> String:
 		b.get_utf8_string()
 		return Protocol.opt_string(b)
 	return ""
+
+## Receipts and tokens go to one compiled-in HTTPS address. The room relay's
+## saved address -- which old installs may still hold -- must not redirect them.
+func _purchases_go_to_a_fixed_address() -> void:
+	var had_relay := NetLink.recall("relay", "<none>")
+	var had_override := NetLink.recall("entitlement_url", "<none>")
+	check(Balance.ENTITLEMENT_BASE_URL.begins_with("https://"), "the purchase address is HTTPS")
+	NetLink.remember("relay", "https://evil.example")
+	NetLink.remember("entitlement_url", "")
+	check(EntitlementClient.base_url() == Balance.ENTITLEMENT_BASE_URL,
+		"a saved relay address does not receive purchases")
+	NetLink.remember("relay", "wss://old.example/relay")
+	check(EntitlementClient.base_url() == Balance.ENTITLEMENT_BASE_URL,
+		"nor does a websocket one")
+	NetLink.remember("entitlement_url", "http://evil.example")
+	check(EntitlementClient.base_url() == Balance.ENTITLEMENT_BASE_URL,
+		"a test address must be HTTPS or local")
+	NetLink.remember("entitlement_url", "https://test.example")
+	check(EntitlementClient.base_url() == (
+		"https://test.example" if OS.is_debug_build() else Balance.ENTITLEMENT_BASE_URL),
+		"only a debug build honours a test address")
+	NetLink.remember("relay", "" if had_relay == "<none>" else had_relay)
+	NetLink.remember("entitlement_url", "" if had_override == "<none>" else had_override)
 
 func _boot(which: int) -> void:
 	Stage.use(which)

@@ -13,6 +13,9 @@
  *   POST /entitlement/renew      an old token     -> a fresher one
  *   POST /entitlement/dev-enrol  a phrase         -> a developer token
  *   POST /entitlement/review-enrol a reviewer code -> a limited review token
+ *   GET  /entitlement/health     alive; with the admin secret, what it can reach
+ *   GET  /entitlement/recent     the last requests (admin secret only)
+ *   GET  /entitlement/apple-check the App Store credential check (admin only)
  *
  * Why a token at all, rather than the game asking "is this person allowed?"
  * every time: the answer has to work with the aeroplane mode, and it has to
@@ -35,6 +38,13 @@ const DEV_TTL = 7 * DAY;
  *  This is the whole of the "call the store API less" requirement: a player
  *  renewing monthly costs one Google/Apple call a month, not one per launch. */
 const RECHECK_AFTER = 7 * DAY;
+/** How many times one purchase may be moved to a different device inside one
+ *  token lifetime. A move cannot recall the token the old device still holds
+ *  (the client checks tokens offline, for up to FULL_TTL), so every move leaves
+ *  one more device able to play until its own token runs out. The cap bounds
+ *  that: at most REBIND_LIMIT + 1 devices hold a live token for one purchase.
+ *  Generous on purpose -- a reinstall is a new device id and is a real use. */
+const REBIND_LIMIT = 4;
 const DEFAULT_DEV_MAX = 2;
 const DEFAULT_REVIEW_MAX = 5;
 const PRODUCT_ID = "full_unlock";
@@ -117,17 +127,54 @@ async function mintToken(env, { puid, kind, platform, ttl }) {
   return `${b64urlEncode(payload)}.${b64urlEncode(signature)}`;
 }
 
+/** The public half of the signing key, derived from the private half this
+ *  Worker already holds, so there is one secret to configure and no second one
+ *  to drift out of step. Kept per isolate: importing a 2048-bit key is not
+ *  free and the key does not change under a running Worker. */
+const publicKeys = new Map();
+
+async function verifyKey(env) {
+  const pem = env.ENTITLEMENT_SIGNING_KEY;
+  if (!pem) throw new Error("no signing key configured");
+  if (!publicKeys.has(pem)) {
+    const priv = await crypto.subtle.importKey(
+      "pkcs8", pemToArrayBuffer(pem),
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]);
+    const jwk = await crypto.subtle.exportKey("jwk", priv);
+    publicKeys.set(pem, await crypto.subtle.importKey(
+      "jwk", { kty: "RSA", n: jwk.n, e: jwk.e, alg: "RS256", ext: true },
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]));
+  }
+  return publicKeys.get(pem);
+}
+
 /**
- * Read a token we issued. The signature is NOT re-checked here: only this
- * Worker can make one, the claims are looked up against our own table anyway,
- * and a forged token gets nowhere because the binding it names will not exist.
- * The client is the side that has to verify, and it does.
+ * Check a token we issued, the way the app does: the signature over the raw
+ * payload bytes, then the version, the kind, the expiry and the device. Returns
+ * the claims, or null for anything that does not pass -- there is no partial
+ * success.
+ *
+ * Reading the payload without checking the signature used to be enough
+ * because renew() looks every claim up in our own table anyway. It is checked
+ * here all the same: an API that accepts a signed token should not depend on
+ * every future route remembering to distrust the unsigned fields.
  */
-function readToken(token) {
+async function verifyToken(env, token) {
   try {
-    const [payload] = String(token).split(".");
-    const claims = JSON.parse(new TextDecoder().decode(b64urlDecode(payload)));
-    return claims && typeof claims === "object" ? claims : null;
+    const parts = String(token).split(".");
+    if (parts.length !== 2) return null;
+    const payload = b64urlDecode(parts[0]);
+    const signature = b64urlDecode(parts[1]);
+    if (payload.length === 0 || signature.length === 0) return null;
+    if (!await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5", await verifyKey(env), signature, payload)) return null;
+    const claims = JSON.parse(new TextDecoder().decode(payload));
+    if (!claims || typeof claims !== "object") return null;
+    if (claims.v !== TOKEN_VERSION) return null;
+    if (claims.kind !== "full" && claims.kind !== "dev") return null;
+    if (!(Number(claims.exp) > Date.now() / 1000)) return null;
+    if (typeof claims.puid !== "string" || claims.puid === "") return null;
+    return claims;
   } catch {
     return null;
   }
@@ -366,14 +413,39 @@ export async function health(env) {
   return { ok: apple.ok && google.ok && signing.ok, apple, google, signing };
 }
 
+/** Constant-time comparison of two strings, by way of their digests so that
+ *  neither the content nor the length of the secret shows in the timing. */
+async function sameSecret(given, secret) {
+  const digest = async (text) => new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  const [a, b] = await Promise.all([digest(given), digest(secret)]);
+  let difference = 0;
+  for (let i = 0; i < a.length; i++) difference |= a[i] ^ b[i];
+  return difference === 0;
+}
+
+/**
+ * The operator's routes -- the store connectivity checks and the record of
+ * recent purchase requests -- are for whoever holds ENTITLEMENT_ADMIN_SECRET.
+ * Left open they let anybody spend our Apple and Google API quota and read
+ * when purchases are being made. With no secret configured they stay closed.
+ */
+async function isAdmin(request, env) {
+  if (!env.ENTITLEMENT_ADMIN_SECRET) return false;
+  const given = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  return given !== "" && await sameSecret(given, env.ENTITLEMENT_ADMIN_SECRET);
+}
+
 export async function handleEntitlement(request, env, url) {
   if (request.method === "GET" && url.pathname === "/entitlement/health") {
+    // Anybody may ask whether the Worker is up; only the operator may ask what
+    // it can reach, which spends store API calls and names missing settings.
+    if (!await isAdmin(request, env)) return json({ alive: true });
     return json(await health(env));
   }
-  if (request.method === "GET" && url.pathname === "/entitlement/apple-check") {
-    return json(await appleCheck(env));
-  }
-  if (request.method === "GET" && url.pathname === "/entitlement/recent") {
+  if (request.method === "GET" && ["/entitlement/apple-check", "/entitlement/recent"].includes(url.pathname)) {
+    if (!await isAdmin(request, env)) return json({ message: "unauthorized" }, 401);
+    if (url.pathname === "/entitlement/apple-check") return json(await appleCheck(env));
     if (!env.ENTITLEMENTS) return json({ message: "entitlements not configured" }, 503);
     const stub = env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("global"));
     return stub.fetch("https://entitlement.local/recent");
@@ -457,6 +529,31 @@ export class Entitlements {
     await this.state.storage.put("recent", recent.slice(0, 30));
   }
 
+  /**
+   * Whether the purchase may move to `puid` now, and the moves it has made
+   * inside the last token lifetime. A purchase that is already on `puid` is
+   * not moving, however often it is asked about.
+   */
+  moves(existing, puid) {
+    const now = Math.floor(Date.now() / 1000);
+    const recent = ((existing && existing.moves) || []).filter((t) => now - t < FULL_TTL);
+    const moving = !!existing && existing.puid !== puid;
+    return { recent, moving, blocked: moving && recent.length >= REBIND_LIMIT };
+  }
+
+  tooManyMoves() {
+    return json({
+      message: "この購入は短い間に何度も別の端末へ移されています。しばらくしてからお試しください。",
+    }, 429);
+  }
+
+  /** Point the purchase at `puid`, recording the move if it is one. */
+  async bind(key, existing, puid, fields) {
+    const { recent, moving } = this.moves(existing, puid);
+    if (moving) recent.push(Math.floor(Date.now() / 1000));
+    await this.state.storage.put(`bind:${key}`, { ...(existing || {}), ...fields, puid, moves: recent });
+  }
+
   async verify(body) {
     const key = receiptKey(body);
     if (!key) return json({ message: "unknown platform" }, 400);
@@ -468,10 +565,20 @@ export class Entitlements {
 
     // The same receipt arriving from a different device is a reinstall or a
     // new phone, which is allowed and is the whole of "機種変更". It rebinds:
-    // the purchase follows the store account, and only the newest device holds
-    // it, so a receipt cannot be shared around as a second copy of the game.
+    // the purchase follows the store account, and the newest device is the one
+    // the server renews for.
+    //
+    // What a move does NOT do is take the token off the device it left: the app
+    // checks a token's signature offline and it stays good until it expires
+    // (FULL_TTL), which is what lets the game run on a plane. So "one purchase,
+    // one device" holds for renewal, not for the days a token has left, and the
+    // honest limit is REBIND_LIMIT moves per token lifetime rather than a
+    // promise the server cannot keep. Asked before the store is, so a refused
+    // move costs no Google or Apple call.
+    if (this.moves(existing, body.puid).blocked) return this.tooManyMoves();
+
     if (fresh) {
-      await this.state.storage.put(`bind:${key}`, { ...existing, puid: body.puid });
+      await this.bind(key, existing, body.puid, {});
       return json({ token: await this.issue(body.puid, "full", platform) });
     }
 
@@ -483,6 +590,7 @@ export class Entitlements {
       // receipt, say yes on the strength of that; otherwise say "try later"
       // rather than "you did not buy this", because we do not know that.
       if (existing) {
+        await this.bind(key, existing, body.puid, {});
         return json({ token: await this.issue(body.puid, "full", platform) });
       }
       return json({ message: String(err && err.message || err) }, 503);
@@ -497,8 +605,7 @@ export class Entitlements {
       return json({ message, revoked: true }, 402);
     }
 
-    await this.state.storage.put(`bind:${key}`, {
-      puid: body.puid,
+    await this.bind(key, existing, body.puid, {
       orderId: answer.orderId,
       checkedAt: Math.floor(Date.now() / 1000),
     });
@@ -510,7 +617,7 @@ export class Entitlements {
    * store API call count to roughly one per purchase per month.
    */
   async renew(body) {
-    const claims = readToken(body.token);
+    const claims = await verifyToken(this.env, body.token);
     if (!claims) return json({ message: "bad token" }, 400);
     if (claims.puid !== body.puid) return json({ message: "not your token" }, 403);
 
@@ -636,6 +743,6 @@ export class Entitlements {
 }
 
 export const _internals = {
-  mintToken, readToken, receiptKey, b64urlEncode, b64urlDecode,
-  FULL_TTL, DEV_TTL, RECHECK_AFTER, TOKEN_VERSION,
+  mintToken, verifyToken, receiptKey, b64urlEncode, b64urlDecode,
+  FULL_TTL, DEV_TTL, RECHECK_AFTER, TOKEN_VERSION, REBIND_LIMIT,
 };

@@ -15,7 +15,7 @@
  * things only a real store account proves.
  */
 import { webcrypto } from "node:crypto";
-import { Entitlements, _internals, appleCheck, googleCheck, signingCheck } from "./entitlement.js";
+import { Entitlements, _internals, appleCheck, googleCheck, signingCheck, handleEntitlement } from "./entitlement.js";
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -72,17 +72,39 @@ async function main() {
     await webcrypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey,
       _internals.b64urlDecode(signature), _internals.b64urlDecode(payload)),
     "a minted token verifies against the public half of the signing key");
-  const claims = _internals.readToken(token);
+  const claims = await _internals.verifyToken(env, token);
   check(claims.v === _internals.TOKEN_VERSION && claims.kind === "full"
     && claims.puid === "device-a", "and carries the version, the kind and the device");
   check(claims.exp - claims.iat === _internals.FULL_TTL,
     "a purchase token lasts 30 days, so the game works on a plane");
   const devToken = await _internals.mintToken(env,
     { puid: "device-a", kind: "dev", platform: "android", ttl: _internals.DEV_TTL });
-  const devClaims = _internals.readToken(devToken);
+  const devClaims = await _internals.verifyToken(env, devToken);
   check(devClaims.exp - devClaims.iat === _internals.DEV_TTL,
     "a developer token lasts a week, so withdrawing it needs no app update");
-  check(_internals.readToken("nonsense") === null, "junk is not a token");
+  check(await _internals.verifyToken(env, "nonsense") === null, "junk is not a token");
+
+  // The Worker checks what it is handed as the app does, not just reads it.
+  const other = await makeKeyPem();
+  const foreign = await _internals.mintToken({ ENTITLEMENT_SIGNING_KEY: other.privatePem },
+    { puid: "device-a", kind: "full", platform: "android", ttl: _internals.FULL_TTL });
+  check(await _internals.verifyToken(env, foreign) === null,
+    "a token signed with some other key is refused");
+  const forged = `${_internals.b64urlEncode(new TextEncoder().encode(JSON.stringify(
+    { ...claims, puid: "device-z" })))}.${signature}`;
+  check(await _internals.verifyToken(env, forged) === null,
+    "a token whose payload was edited after signing is refused");
+  const expired = await _internals.mintToken(env,
+    { puid: "device-a", kind: "full", platform: "android", ttl: -60 });
+  check(await _internals.verifyToken(env, expired) === null, "an expired token is refused");
+  const odd = await _internals.mintToken(env,
+    { puid: "device-a", kind: "root", platform: "android", ttl: 600 });
+  check(await _internals.verifyToken(env, odd) === null, "a token of an unknown kind is refused");
+  check(await _internals.verifyToken(env, `${token}.extra`) === null,
+    "a token with extra parts is refused");
+  const nobody = await _internals.mintToken(env,
+    { puid: "", kind: "full", platform: "android", ttl: 600 });
+  check(await _internals.verifyToken(env, nobody) === null, "a token naming nobody is refused");
 
   // --- one purchase, one device -------------------------------------------
   let storeAnswer = { ok: true, orderId: "GPA.1" };
@@ -113,6 +135,62 @@ async function main() {
     "the same receipt on a new device moves the purchase to it");
   check(storage.map.size === 1,
     "and does not become a second copy of the game");
+
+  // A move leaves the old device's token alive: the app checks it offline for
+  // up to FULL_TTL. What the server can do is stop renewing it, and stop the
+  // purchase being walked across more than REBIND_LIMIT devices.
+  const tokenOnA = (await (await unit.verify({ ...receipt, puid: "device-a" })).json()).token;
+  const tokenOnB = (await (await unit.verify({ ...receipt, puid: "device-b" })).json()).token;
+  check(!!await _internals.verifyToken(env, tokenOnA),
+    "the token the old device holds still verifies after the purchase moves");
+  const renewOld = await (await unit.renew({ token: tokenOnA, puid: "device-a" })).json();
+  check(renewOld.revoked === true, "but the old device is no longer renewed");
+  check(!!(await (await unit.renew({ token: tokenOnB, puid: "device-b" })).json()).token,
+    "and the device the purchase moved to is");
+  storeCalls = 0;
+  const walked = fakeStorage();
+  const walker = new Entitlements({ storage: walked }, env);
+  walker.askStore = unit.askStore;
+  const walking = { platform: "android", purchase_token: "tok-walk" };
+  await walker.verify({ ...walking, puid: "w0" });
+  let moved = 0;
+  for (let i = 1; i <= _internals.REBIND_LIMIT; i++) {
+    if ((await walker.verify({ ...walking, puid: `w${i}` })).ok) moved++;
+  }
+  check(moved === _internals.REBIND_LIMIT, "a purchase can move REBIND_LIMIT times");
+  storeCalls = 0;
+  walked.map.get("bind:android:tok-walk").checkedAt = 0;
+  const beyond = await walker.verify({ ...walking, puid: "w-extra" });
+  check(beyond.status === 429 && walked.map.get("bind:android:tok-walk").puid === `w${_internals.REBIND_LIMIT}`,
+    "the next move is refused and the purchase stays where it was");
+  check(storeCalls === 0, "and a refused move costs no store call");
+  check((await walker.verify({ ...walking, puid: `w${_internals.REBIND_LIMIT}` })).ok,
+    "the device that holds it can still ask, however often");
+  for (const t of walked.map.get("bind:android:tok-walk").moves.keys()) {
+    walked.map.get("bind:android:tok-walk").moves[t] -= _internals.FULL_TTL + 1;
+  }
+  check((await walker.verify({ ...walking, puid: "w-later" })).ok,
+    "moves older than a token lifetime no longer count");
+
+  // The operator's routes need the admin secret; the public one only says it is up.
+  const adminEnv = { ...env, ENTITLEMENT_ADMIN_SECRET: "let-me-in" };
+  const ask = (path, headers = {}, e = adminEnv) => handleEntitlement(
+    new Request(`https://x.test${path}`, { headers }), e, new URL(`https://x.test${path}`));
+  const publicHealth = await (await ask("/entitlement/health")).json();
+  check(publicHealth.alive === true && publicHealth.signing === undefined,
+    "the public health check says only that the Worker is up");
+  const wrongHealth = await (await ask("/entitlement/health", { authorization: "Bearer nope" })).json();
+  check(wrongHealth.signing === undefined, "and so does one with the wrong secret");
+  const adminHealth = await (await ask("/entitlement/health",
+    { authorization: "Bearer let-me-in" })).json();
+  check(adminHealth.signing && adminHealth.signing.ok === true,
+    "the admin secret opens the full report");
+  check((await ask("/entitlement/recent")).status === 401, "recent requests need the secret");
+  check((await ask("/entitlement/apple-check")).status === 401, "so does the Apple check");
+  check((await ask("/entitlement/recent", { authorization: "Bearer let-me-in" })).status === 503,
+    "with it, they are answered (503 here: no Durable Object in this test)");
+  check((await ask("/entitlement/recent", { authorization: "Bearer let-me-in" }, env)).status === 401,
+    "with no secret configured the routes stay closed, whatever is sent");
 
   // --- refunds -------------------------------------------------------------
   storeAnswer = { ok: false, reason: "refunded" };

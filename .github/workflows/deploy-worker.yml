@@ -73,6 +73,22 @@ jobs:
           printf '%s' "$APPLE_IAP_KEY" | npx --no-install wrangler secret put APPLE_ASC_KEY
           printf '%s' "$APPLE_IAP_KEY_ID" | npx --no-install wrangler secret put APPLE_ASC_KEY_ID
           printf '%s' "$APPLE_IAP_ISSUER_ID" | npx --no-install wrangler secret put APPLE_ASC_ISSUER_ID
+      # /entitlement/health, /recent and /apple-check answer only to this
+      # secret (server/signaling/entitlement.js). A fixed ENTITLEMENT_ADMIN_SECRET
+      # repository secret keeps them usable by hand afterwards; without one, a
+      # fresh key is made on every deploy and only the health step below knows it.
+      - name: Admin key for the operator routes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FIXED_ADMIN_SECRET: ${{ secrets.ENTITLEMENT_ADMIN_SECRET }}
+        run: |
+          set -euo pipefail
+          admin="$FIXED_ADMIN_SECRET"
+          [ -n "$admin" ] || admin=$(openssl rand -hex 32)
+          echo "::add-mask::$admin"
+          printf '%s' "$admin" | npx --no-install wrangler secret put ENTITLEMENT_ADMIN_SECRET
+          echo "ENTITLEMENT_ADMIN_SECRET=$admin" >> "$GITHUB_ENV"
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -89,7 +105,8 @@ jobs:
           set -euo pipefail
           want=$(sed -n 's/.*sha256 = \([0-9a-f]*\).*/\1/p' ../../entitlement_key.json | head -1)
           for i in $(seq 1 20); do
-            body=$(curl -sS -m 30 https://side-sky-signalling.a3506124.workers.dev/entitlement/health || true)
+            body=$(curl -sS -m 30 -H "authorization: Bearer $ENTITLEMENT_ADMIN_SECRET" \
+              https://side-sky-signalling.a3506124.workers.dev/entitlement/health || true)
             case "$body" in *signing*) break ;; esac
             sleep 6
           done

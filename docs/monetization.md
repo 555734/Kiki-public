@@ -109,8 +109,23 @@ HELLO は再接続時もまったく同じ経路で処理される（`HostSessio
 - 通信で「自分は購入者だ」と名乗るだけでは何も起きない
 - アプリの中に隠し解除機能も、秘密鍵も、ストアAPIの資格情報も**存在しない**
 - 1つの購入が同時に2人のゲストを連れてくることはできない（ロビーが2人上限）
+- 購入のレシートとトークンは、アプリに埋め込んだ固定のHTTPSアドレス
+  （`Balance.ENTITLEMENT_BASE_URL`）にしか送られない。ルーム中継の保存設定
+  （`user://net.cfg` の `relay`）には従わない。リリースビルドは上書きを一切読まず、
+  デバッグビルドだけが `entitlement_url`（HTTPSかローカル）で試験用Workerへ向けられる
+- Worker は受け取ったトークンの**署名・version・kind・期限・puid**を検証してから
+  `/renew` を処理する（ペイロードを読むだけにしない）
 
 **守れないこと**
+
+**1購入＝1端末は、更新（renew）についてだけ成り立つ。** 機種変更で購入を新端末へ
+付け替えても、旧端末に発行済みの `full` トークンは署名だけでオフライン検証される
+ため、期限（30日）まで使える。旧端末は次の更新で `revoked` になるが、その日までは
+使える。これは「機内モードでも遊べる」ことと引き換えの仕様で、サーバが回収する手段は
+ない（厳密に1端末にするなら、短命のオンラインlease が要り、オフライン30日を諦める）。
+その代わり、付け替えは **同じ購入につき30日間に4回まで**（`REBIND_LIMIT`）で、超えると
+`429` を返す。これで1つの購入を同時に使える端末は最大5台に抑えられる。
+再インストールも新しい端末IDなので1回に数える。
 
 **APKを改造した人間は、自分の端末で全ステージを解放できる。** これは Godot に
 限らず、サーバ権威でないゲーム全部に当てはまる。ここでやっているのは
@@ -130,6 +145,20 @@ SQLite-backed Durable Objects・1日10万リクエストまで）。
 | `POST /entitlement/verify` | ストアのレシート → 検証 → 署名トークン |
 | `POST /entitlement/renew` | 期限が近いトークン → ストアに聞かずに延長 |
 | `POST /entitlement/dev-enrol` | 開発者の合言葉 → `dev` トークン |
+| `GET /entitlement/health` | 公開は `{alive:true}` のみ。管理者キー付きで Apple/Google/署名鍵の疎通と指紋 |
+| `GET /entitlement/recent` | 直近の購入リクエストの記録（**管理者キーのみ**） |
+| `GET /entitlement/apple-check` | App Store 資格情報の確認（**管理者キーのみ**） |
+
+管理者キーは Worker の秘密 `ENTITLEMENT_ADMIN_SECRET`。`Authorization: Bearer <キー>`
+で送る。未設定なら管理用ルートは閉じたまま。`deploy-worker` ワークフローは
+リポジトリの秘密 `ENTITLEMENT_ADMIN_SECRET` があればそれを、なければデプロイごとに
+作った使い捨てのキーを入れてヘルスチェックに使う。手元で `recent` を読みたいときは
+前者を設定しておく:
+
+```sh
+curl -H "authorization: Bearer $ENTITLEMENT_ADMIN_SECRET" \
+  https://side-sky-signalling.a3506124.workers.dev/entitlement/recent
+```
 
 実装は `server/signaling/entitlement.js`。テストは
 `server/signaling/entitlement.test.mjs`（`npm run test:entitlement`、
@@ -155,7 +184,9 @@ iOS（StoreKit 1）の**復元は毎回新しい transactionId** を返すので
 `original_transaction_id`（プラグインに `tools/patches/inappstore-original-id.patch`
 を当てて取り出す）。Apple への照会も元の id を先に、だめなら復元の id で行う。
 Worker は `bind:<platform>:<receipt>` の行を**新しい端末に付け替える**。
-だから機種変更は動き、レシートの使い回しで2本目のコピーにはならない。
+だから機種変更は動く。ただし旧端末のトークンは期限まで残る（§4）ので、
+レシートの使い回しを止めるのは「付け替え回数の上限」と「旧端末の更新停止」で、
+即時の無効化ではない。
 
 ### Android の acknowledge について
 

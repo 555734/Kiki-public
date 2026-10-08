@@ -143,6 +143,30 @@ static func get_shape(b: StreamPeerBuffer) -> PackedVector2Array:
 		out.append(Vector2(x, float(b.get_16())))
 	return out
 
+## The fewest bytes after the kind byte that each message the HOST receives
+## from its partner must carry (what its builder above writes, with an empty
+## shape and nothing optional). The handler reads with get_u8/get_u16, which
+## answer zero past the end of a packet rather than failing, so without this
+## a truncated PLACE is a platform at the stage's corner and a truncated
+## RUNNER_INPUT is a stick pushed nowhere. HELLO is only asked for its version
+## byte: an older build's handshake has to get as far as "you need to update".
+const MIN_BODY := {
+	Msg.HELLO: 1,
+	Msg.PING: 4,
+	Msg.AIM: 12,
+	Msg.PLACE: 11,
+	Msg.FIRE: 12,
+	Msg.SLOT: 1,
+	Msg.UNDO: 2,
+	Msg.MARK: 5,
+	Msg.RUNNER_INPUT: 7,
+}
+
+## Whether a packet of `kind` with `body_bytes` after the kind byte is whole
+## enough to read. Kinds with no entry (every other message) pass.
+static func is_complete(kind: int, body_bytes: int) -> bool:
+	return body_bytes >= int(MIN_BODY.get(kind, 0))
+
 static func _buf(kind: int) -> StreamPeerBuffer:
 	var b := StreamPeerBuffer.new()
 	b.big_endian = false

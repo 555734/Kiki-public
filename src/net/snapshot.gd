@@ -65,7 +65,17 @@ func encode() -> PackedByteArray:
 		b.put_u8(int(e.get("hp", 1)))
 	return b.data_array
 
+## What encode() writes before the enemy list, and each enemy after it.
+const HEADER_BYTES: int = 14
+const ENEMY_BYTES: int = 6
+
+## Null for anything that is not a whole snapshot. Reading past the end of a
+## StreamPeerBuffer hands back zeros rather than failing, so a truncated packet
+## used to decode as a snapshot of tick 0 with the runner at the stage's corner
+## -- and the client would have put its puppet there.
 static func decode(bytes: PackedByteArray) -> Snapshot:
+	if bytes.size() < HEADER_BYTES or bytes.size() < HEADER_BYTES + ENEMY_BYTES * bytes[HEADER_BYTES - 1]:
+		return null
 	var b := StreamPeerBuffer.new()
 	b.big_endian = false
 	b.data_array = bytes

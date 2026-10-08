@@ -610,6 +610,10 @@ const MAX_PARTICLE_BURSTS: int = 8
 ## Online play. ENet over UDP on this port; nothing else needs to be reachable.
 const NET_PORT: int = 24680
 const DEFAULT_RELAY := "https://side-sky-signalling.a3506124.workers.dev"
+## Where purchases are verified. The same Worker today, but its own constant:
+## the room relay's address has been a saved, user-changeable setting and
+## store receipts must never follow it (EntitlementClient.base_url).
+const ENTITLEMENT_BASE_URL := "https://side-sky-signalling.a3506124.workers.dev"
 
 const USE_TEXTURES: bool = true
 const RUNNER_SPRITE_H: float = 60.0

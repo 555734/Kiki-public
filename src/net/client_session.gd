@@ -454,6 +454,8 @@ func select_slot(slot: int) -> void:
 func _handle(packet: Dictionary) -> void:
 	if int(packet["channel"]) == NetTransport.Channel.SNAPSHOT:
 		var s := Snapshot.decode(packet["payload"])
+		if s == null:
+			return
 		# Sixteen bits on the wire, widened against the clock we already keep.
 		s.tick = Clock.widen(s.tick, Clock.tick)
 		# The freshest statement of the host's time there is: thirty a second,

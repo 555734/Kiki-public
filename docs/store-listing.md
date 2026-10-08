@@ -265,7 +265,7 @@ godot --path . --rendering-method gl_compatibility --rendering-driver opengl3   
 - [x] ✅ Worker の Apple 鍵が App Store Server API に通る（health の apple）
 - [x] スクリーンショットとフィーチャーグラフィックを用意した（`store-assets/`）
 - [x] 実機で**実際に1回購入した**（iOS / Android、2026-10-04）
-- [x] **再インストール後に「購入を復元する」が通った**（iOS、2026-10-04 21:02、`/entitlement/recent` で確認）
+- [x] **再インストール後に「購入を復元する」が通った**（iOS、2026-10-04 21:02、`/entitlement/recent` で確認。管理者キーが要る：docs/monetization.md §5）
 
 ### 残っている判断（人が決めること）
 

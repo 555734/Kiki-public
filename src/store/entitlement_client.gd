@@ -23,12 +23,22 @@ const REVIEW_ENROL := "/entitlement/review-enrol"
 ## on the device and "購入を復元する" will pick it up.
 const TIMEOUT := 12.0
 
-## The same Worker the rest of the project points at, and the same saved
-## override, so a test deployment moves everything at once rather than leaving
-## the store talking to production.
+## Where receipts and tokens are sent: a fixed HTTPS address compiled into the
+## app, and nothing a file on the device can change. It used to share the room
+## relay's saved setting, which meant a stale address left in user://net.cfg by
+## an old install would have received the store receipt (and, with it, the
+## ability to be handed a purchase it never made).
+##
+## Only a debug build -- the editor, or an export made with debug on -- may be
+## pointed at a test Worker, through its own `entitlement_url` key, and only at
+## HTTPS or a local `wrangler dev`. Shipped builds ignore the key.
 func base_url() -> String:
-	var saved := NetLink.recall("relay", "")
-	return saved if not saved.is_empty() else Balance.DEFAULT_RELAY
+	if OS.is_debug_build():
+		var override := NetLink.recall("entitlement_url", "")
+		if override.begins_with("https://") or override.begins_with("http://localhost") \
+				or override.begins_with("http://127.0.0.1"):
+			return override
+	return Balance.ENTITLEMENT_BASE_URL
 
 ## Exchange a store receipt for an entitlement token.
 ## Returns {"token": "..."} or {"error": "<what to show the player>"}.

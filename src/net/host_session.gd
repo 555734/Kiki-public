@@ -309,6 +309,8 @@ func _handle(packet: Dictionary) -> void:
 	var parsed := Protocol.reader(packet["payload"])
 	var kind: int = parsed[0]
 	var b: StreamPeerBuffer = parsed[1]
+	if not Protocol.is_complete(kind, b.get_available_bytes()):
+		return
 	match kind:
 		Protocol.Msg.HELLO:
 			# Both devices have to be running the same build. The version was
