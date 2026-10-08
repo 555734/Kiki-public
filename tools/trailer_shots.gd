@@ -24,7 +24,7 @@ func list() -> Array:
 		{"name": "d01_cave", "stage": W.CAVE, "until": 24.792, "preroll": 30},
 		{"name": "d02_menu", "stage": W.GREENFIELD, "menu": true, "until": 25.792, "preroll": 30},
 		{"name": "d03_draw", "stage": W.GREENFIELD, "until": 26.75, "preroll": 30},
-		{"name": "d04_spikes", "stage": W.SKYWARD_RUINS, "until": 27.5, "preroll": 30},
+		{"name": "d04_spikes", "stage": W.SKYWARD_RUINS, "until": 27.5, "preroll": 70},
 		{"name": "d05_brawl", "ffa": true, "until": 28.792, "preroll": 90 + 180 + 300},
 		{"name": "d06_tower", "stage": W.TOWER, "until": 29.542, "preroll": 30},
 		{"name": "d07_tower", "stage": W.TOWER, "until": 30.583, "preroll": 150},
@@ -860,11 +860,12 @@ func setup_d03_draw(ctx: Dictionary) -> Callable:
 	var start := Stage.start()
 	place_runner(ctx, start)
 	m.input_hub.solo_role = ""
-	var line := arc_line(start + Vector2(150, -60), start + Vector2(330, -78), -10.0)
+	# Open sky over the grass, between the runner and the first block.
+	var line := arc_line(start + Vector2(30, -120), start + Vector2(185, -134), -9.0)
 	var st := stroke(ctx)
 	var r := rig(ctx)
-	var centre := start + Vector2(240, -80)
-	r.cut_to(centre + Vector2(-40, 30), 1.25)
+	var centre := start + Vector2(108, -130)
+	r.cut_to(start + Vector2(200, -50), 1.25)
 	ov().blueprint("platform", 0.0, 0.42)
 	var t0 := T(0.1)
 	var len := T(0.3)
@@ -876,6 +877,7 @@ func setup_d03_draw(ctx: Dictionary) -> Callable:
 		m.input_hub.aim_at_world(st.head() if t >= t0 else line[0])
 		if t == t0 + len:
 			build(c, line)
+			m.guardian.select_slot(3)
 		if t == snap:
 			r.cut_to(centre + Vector2(0, 10), 2.1)
 		drive(c, 0.0)
@@ -897,7 +899,7 @@ func setup_d04_spikes(ctx: Dictionary) -> Callable:
 		if m.runner.state == Runner.State.DEAD and r.follow != null:
 			r.cut_to(m.camera.global_position, r.factor)
 			r.zoom_go(r.factor * 0.85, T(0.5))
-		drive(c, 1.0 if int(c["t"]) > -46 else 0.0, false, true)
+		drive(c, 1.0 if int(c["t"]) > -68 else 0.0, false, true)
 
 ## 27.5-28.79. The star battle, eight of them, wide.
 func setup_d05_brawl(ctx: Dictionary) -> Callable:
@@ -936,7 +938,7 @@ func setup_d08_golem(ctx: Dictionary) -> Callable:
 	r.zoom_from = 1.05
 	r.zoom_to = 1.2
 	r.zoom_ticks = T(1.3)
-	r.offset = Vector2(110, 70)
+	r.offset = Vector2(110, 110)
 	r.dead_y = 40.0
 	r.lead = 0.0
 	return func(c: Dictionary) -> void:
@@ -945,7 +947,7 @@ func setup_d08_golem(ctx: Dictionary) -> Callable:
 			pursuer.global_position = m.runner.global_position + Vector2(230, 380)
 		if t == -1:
 			m.runner.facing = 1
-		drive(c, 0.0, t >= T(0.6) and t < T(0.9))
+		drive(c, 0.0)
 		if pursuer != null and t == T(0.5):
 			shoot(c, pursuer.global_position)
 			impact(c, 4, 0.35)
