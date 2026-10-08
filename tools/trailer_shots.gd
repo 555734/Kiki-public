@@ -639,7 +639,7 @@ func setup_r01_caught(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	place_runner(ctx, Vector2(-760, 300))
 	# Held weakly: the stage frees its pursuer once it has made the catch.
-	var hold := weakref(pursuer_of(ctx))
+	var hold: WeakRef = weakref(pursuer_of(ctx))
 	var r := rig(ctx)
 	r.zoom_from = 1.0
 	r.zoom_to = 1.0
