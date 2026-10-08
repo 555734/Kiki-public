@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the 30-second trailer from the real game.
+# Build the trailer from the real game.
 #
 #   tools/make_trailer.sh /path/to/godot [out.mp4] [-- capture args]
 #
