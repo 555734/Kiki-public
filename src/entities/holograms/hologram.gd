@@ -45,6 +45,11 @@ var trigger: LaunchTrigger = null
 
 var _age: float = 0.0
 var _fade_in: float = 0.0
+## Seconds this one has been on screen, for the arrival pop. Local display time,
+## not the stage clock: nothing in play reads it.
+var _pop: float = 0.0
+## How long a new platform flashes and rings as it arrives.
+const POP_TIME := 0.32
 var _material: ShaderMaterial = null
 
 ## A 1x1 white texture, so draw_texture_rect gives the shader a real 0..1 UV.
@@ -117,6 +122,7 @@ func _process(delta: float) -> void:
 		death_tick = birth_tick + Clock.ticks_for(lifetime)
 	_age = float(Clock.tick - birth_tick) * Clock.DT
 	_fade_in = minf(1.0, _fade_in + delta / maxf(Balance.PLACE_FADE_IN, 0.001))
+	_pop += delta
 	var remaining := float(death_tick - Clock.tick) * Clock.DT
 	if remaining <= 0.0:
 		expire()
@@ -130,6 +136,7 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if kind == Kind.PLATFORM and path.size() >= 2:
 		_draw_platform()
+		_draw_arrival()
 		return
 	if Balance.USE_TEXTURES:
 		# The painted slab already carries the hex lattice, so the shader is not
@@ -152,6 +159,21 @@ func _draw() -> void:
 				Rect2(-size * 0.5 - Vector2(6, 6), size + Vector2(12, 12)), tint):
 			return
 	draw_texture_rect(white_texture(), Rect2(-size * 0.5, size), false)
+
+## A drawn platform arriving: it lands white-hot and a ring of light swells
+## off it and fades. Without it a platform simply appeared, and the moment the
+## guardian's stroke became something to stand on -- the moment this game is
+## built around -- went by without a beat.
+func _draw_arrival() -> void:
+	if _pop >= POP_TIME:
+		return
+	var k := _pop / POP_TIME
+	var thick := Balance.PLATFORM_SIZE.y
+	var ring := Balance.C_HOLO
+	ring.a = 0.55 * (1.0 - k)
+	draw_polyline(path, ring, thick + 8.0 + 26.0 * k, true)
+	for i in range(path.size() - 1):
+		_slab(path[i], path[i + 1], thick, 0.0, Color(1.0, 1.0, 1.0, 0.85 * pow(1.0 - k, 2.0)))
 
 ## A platform, level or drawn: a solid slab in C_PLATFORM with a dark rim,
 ## laid along each segment, with a round cap on every bend so the joins do not

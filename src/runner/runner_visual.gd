@@ -25,6 +25,8 @@ var _trail: Array = []
 var _trail_left: float = 0.0
 ## Dust puffs in world space: [position, age, size].
 var _dust: Array = []
+## Seconds since the runner died, or -1 while alive. Drives the death tumble.
+var _dead_t: float = -1.0
 
 func _ready() -> void:
 	z_index = 10
@@ -35,6 +37,8 @@ func _process(delta: float) -> void:
 	# Keep the player visible through the post-hit safety window. The old
 	# on/off blink was especially harsh amid the dense hazards in 1-8.
 	self_modulate.a = 0.68 if runner.is_invulnerable() else 1.0
+	_dead_t = (0.0 if _dead_t < 0.0 else _dead_t + delta) \
+		if runner.state == Runner.State.DEAD else -1.0
 	var speed := absf(runner.velocity.x)
 	match runner.state:
 		Runner.State.RUN:
@@ -125,6 +129,8 @@ func _draw() -> void:
 	if runner == null:
 		return
 
+	if _dead_t >= 0.0 and _draw_death():
+		return
 	_draw_shadow()
 	_draw_dust()
 	_draw_trail()
@@ -253,6 +259,39 @@ func _draw_painted() -> bool:
 		ok = Art.draw_sprite(self, key, Vector2.ZERO, h)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	return ok
+
+## The death, drawn rather than simulated: the body stays where it fell and
+## the respawn is unchanged; only the picture moves. A beat held big and still
+## with a burst of light behind it, then a tumble up and out of the frame, as a
+## platformer death has always read. Before this the runner just stopped, and
+## "I died" was something a player had to infer from the HUD.
+const DEATH_HOLD := 0.14
+const DEATH_RISE := 420.0
+const DEATH_GRAVITY := 1500.0
+
+func _draw_death() -> bool:
+	var h := Balance.RUNNER_SPRITE_H * Balance.RUNNER_POSE_HEADROOM
+	var t := _dead_t
+	var facing := float(runner.facing)
+	if t < DEATH_HOLD:
+		var k := t / DEATH_HOLD
+		draw_circle(Vector2.ZERO, lerpf(14.0, 46.0, k), Color(1.0, 0.95, 0.8, 0.55 * (1.0 - k)))
+		draw_arc(Vector2.ZERO, lerpf(18.0, 62.0, k), 0.0, TAU, 32,
+			Color(1.0, 1.0, 1.0, 0.9 * (1.0 - k)), lerpf(6.0, 1.5, k), true)
+		draw_set_transform(Vector2.ZERO, 0.0, _paint_scale(1.18, 1.18))
+		var ok := Art.draw_sprite(self, "runner_reach", Vector2(0.0, h * 0.5), h)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return ok
+	var u := t - DEATH_HOLD
+	var rise := -DEATH_RISE * u + 0.5 * DEATH_GRAVITY * u * u
+	var alpha := 1.0 - clampf((u - 0.6) / 0.35, 0.0, 1.0)
+	if alpha <= 0.0:
+		return true
+	draw_set_transform(Vector2(0.0, rise), u * 7.5 * facing, _paint_scale(1.08, 1.08))
+	var drawn := Art.draw_sprite(self, "runner_reach", Vector2(0.0, h * 0.5), h, false,
+		Color(1, 1, 1, alpha))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	return drawn
 
 ## Faded copies of the current pose where the body just was: dash and wall
 ## kick read as speed instead of as a teleport.

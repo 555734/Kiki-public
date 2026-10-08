@@ -30,7 +30,8 @@ func _ready() -> void:
 	Events.coin_collected.connect(func(at: Vector2) -> void: _burst(at, "spark", 0.7))
 	Events.rescue_scored.connect(func(tier: int, at: Vector2) -> void:
 		_burst(at, "materialize", 0.9 + float(tier) * 0.5)
-		_burst(at, "spark", 0.6 + float(tier) * 0.35))
+		_burst(at, "spark", 0.6 + float(tier) * 0.35)
+		_ring(at, Balance.C_HOLO, 24.0, 70.0 + 22.0 * float(tier), 0.4))
 	Events.spring_bounced.connect(func(at: Vector2) -> void: _burst(at, "dust", 1.4))
 	# Bigger than the stage's own spring: this one had a person behind it.
 	Events.runner_launched.connect(func(at: Vector2) -> void: _burst(at, "dust", 2.2))
@@ -77,6 +78,7 @@ func _process(_delta: float) -> void:
 func _on_enemy_killed(enemy: Node2D, by: String) -> void:
 	if is_instance_valid(enemy):
 		_burst(enemy.global_position, "poof", 1.2 if by == "snipe" else 1.0)
+		_ring(enemy.global_position, Color(1.0, 0.92, 0.7), 16.0, 78.0, 0.32)
 
 ## Both ends, so the trip reads as a trip. Flashing only the arrival looks like
 ## the runner blinked out of existence and reappeared for no reason.
@@ -86,6 +88,11 @@ func _on_runner_warped(from: Vector2, to: Vector2) -> void:
 
 func _on_shot_fired(_from: Vector2, to: Vector2, hit: bool) -> void:
 	_burst(to, "spark" if hit else "puff", 1.0)
+	# A hit lands with a flash and a ring; a miss only puffs. The guardian has
+	# to be able to tell which it was without looking for the enemy.
+	if hit:
+		_ring(to, SPARK, 10.0, 56.0, 0.26)
+		_ring(to, Color.WHITE, 4.0, 30.0, 0.14, 9.0)
 
 func _on_hologram_spawned(_kind: int, at: Vector2) -> void:
 	_burst(at, "materialize", 1.0)
@@ -217,6 +224,45 @@ func _float_text(at: Vector2, text: String, colour: Color) -> void:
 		label.global_position + Vector2(0.0, -46.0), 0.9)
 	tween.tween_property(label, "modulate:a", 0.0, 0.9).set_delay(0.35)
 	tween.chain().tween_callback(label.queue_free)
+
+## A ring of light that swells from `r0` to `r1` and thins out: the shape of
+## an impact. Drawn, not particles, so it is crisp at any zoom.
+class Ring extends Node2D:
+	var colour := Color.WHITE
+	var r0 := 10.0
+	var r1 := 60.0
+	var life := 0.3
+	var width := 6.0
+	var _t := 0.0
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if _t >= life:
+			queue_free()
+			return
+		queue_redraw()
+
+	func _draw() -> void:
+		var k := _t / life
+		var e := 1.0 - pow(1.0 - k, 3.0)
+		var c := colour
+		c.a *= 1.0 - k
+		draw_arc(Vector2.ZERO, lerpf(r0, r1, e), 0.0, TAU, 40, c, lerpf(width, 1.0, k), true)
+
+func _ring(at: Vector2, colour: Color, r0: float, r1: float, life: float,
+		width := 6.0) -> void:
+	if _live_bursts >= Balance.MAX_PARTICLE_BURSTS:
+		return
+	var ring := Ring.new()
+	ring.colour = colour
+	ring.r0 = r0
+	ring.r1 = r1
+	ring.life = life
+	ring.width = width
+	ring.global_position = at
+	add_child(ring)
+	_live_bursts += 1
+	ring.tree_exited.connect(_on_burst_finished)
 
 func _on_burst_finished() -> void:
 	_live_bursts = maxi(0, _live_bursts - 1)

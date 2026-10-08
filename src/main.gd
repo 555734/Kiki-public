@@ -121,6 +121,11 @@ func _ready() -> void:
 	preview.guardian = guardian
 	add_child(preview)
 
+	var wisp := preload("res://src/render/guardian_wisp.gd").new()
+	wisp.name = "GuardianWisp"
+	wisp.guardian = guardian
+	add_child(wisp)
+
 	scope = Scope.new()
 	scope.name = "Scope"
 	scope.guardian = guardian
