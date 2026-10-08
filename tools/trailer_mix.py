@@ -14,6 +14,8 @@ Cues (shots.json "cues", each at a film time):
     silence                the effects drop out until the music comes in
     music_in               the score begins, on an impact
     drive_in / drive_out   the score's drop and its closing sting
+    card                   a blueprint card flapping down onto the screen
+    grid                   a blueprint's grid switching on: a rising blip
 """
 import json
 import sys
@@ -92,6 +94,30 @@ def impact(seed: int = 3) -> np.ndarray:
     return (thump * 0.95 + burst * 0.5).astype(np.float32)
 
 
+def whoosh(seed: int = 11) -> np.ndarray:
+    """A sheet of paper thrown down: a short swell of airy noise, a flap."""
+    n = int(0.45 * RATE)
+    t = np.arange(n) / RATE
+    rng = np.random.default_rng(seed)
+    x = rng.standard_normal(n).astype(np.float32)
+    x = lowpass(x, 3200.0) - lowpass(x, 500.0)
+    env = np.clip(t / 0.08, 0.0, 1.0) * np.exp(-np.clip(t - 0.08, 0.0, None) * 11.0)
+    flap = 0.7 + 0.3 * np.sin(2 * np.pi * 26.0 * t)
+    x = x * env * flap
+    return (x / max(1e-6, float(np.max(np.abs(x)))) * 0.8).astype(np.float32)
+
+
+def blip() -> np.ndarray:
+    """Three quick rising square-wave notes, the same voice as the score."""
+    out = []
+    for f in (880.0, 1174.7, 1760.0):
+        m = int(0.045 * RATE)
+        tt = np.arange(m) / RATE
+        sq = np.sign(np.sin(2 * np.pi * f * tt)) * 0.25
+        out.append(sq * np.exp(-tt * 30.0))
+    return np.concatenate(out).astype(np.float32)
+
+
 def write_wav(path: Path, x: np.ndarray, channels: int) -> None:
     pcm = (np.clip(x, -1.0, 1.0) * 32767.0).astype(np.int16)
     if channels == 2:
@@ -132,11 +158,17 @@ def main() -> None:
     silence = first("silence", -1.0)
     cache: dict = {}
     sfx_track = np.zeros(n, dtype=np.float32)
+    last: dict = {}
     for s in sfx:
         at_s = float(s["t"])
         if silence >= 0.0 and silence <= at_s < music_in:
             continue
         key = s["key"]
+        # The free-for-all runs eight copies of the game side by side, and
+        # each plays the same event's sound: keep one.
+        if at_s - last.get(key, -1.0) < 0.05:
+            continue
+        last[key] = at_s
         if key not in cache:
             cache[key] = load(key)
         clip = cache[key]
@@ -163,6 +195,14 @@ def main() -> None:
         boom = impact()
         a = int(music_in * RATE)
         design[a:a + len(boom)] += boom[: n - a] * db(-4.0)
+
+    for c in cues:
+        x = whoosh() if c["cue"] == "card" else blip() if c["cue"] == "grid" else None
+        if x is None:
+            continue
+        a = int(float(c["t"]) * RATE)
+        if a < n:
+            design[a:a + len(x)] += x[: n - a] * db(-8.0)
 
     stems = cap / "stems"
     stems.mkdir(exist_ok=True)

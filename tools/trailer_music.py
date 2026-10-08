@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 
 RATE = 44100
-TEMPO = 110.0
+TEMPO = 108.0
 BEAT = 60.0 / TEMPO
 
 # A minor: Am - F - C - G, one chord a bar.
@@ -170,6 +170,13 @@ class Track:
 
 
 def compose(music_in: float, drop: float, title: float, end: float) -> np.ndarray:
+    # The build is a whole number of bars, so the tempo is fitted to the cut:
+    # as close to TEMPO as lands the drop exactly on a downbeat.
+    global BEAT
+    span = drop - music_in
+    if span > 0:
+        bars = max(1, round(span / (4 * 60.0 / TEMPO)))
+        BEAT = span / (bars * 4)
     tr = Track(end)
     bar = BEAT * 4
 

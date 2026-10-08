@@ -9,36 +9,29 @@ const W := Stage.Which
 
 var cap: Node = null
 
-## The reference trailer's shape, in this game's terms:
-##   cold open (no music)  -- the runner caught; a fall saved by a platform out
-##                            of nowhere; the camera pulls back and stops on
-##                            the hand drawing it: THIS IS YOU.
-##   music in              -- what the guardian does: draw, shoot, save.
-##   drive layer in        -- the digest: every stage, the star battle, and
-##                            the runs that do not make it.
-##   title                 -- available now.
+## Shot for shot, the reference trailer, cut where it cuts (film seconds):
+##    0.0  one runner, caught                 4.0  pull back: everyone, at once
+##    8.96 THIS IS YOU -- the guardian        11.29 the wide: a card, DRAW THE WAY
+##   ~17.2 SAVE YOUR RUNNER, then a wall      22.21 the drop: the digest
+##   35.88 black                              36.05 the title, where to get it
+## Times inside a shot are film times too (film()), so the overlay, the cues
+## and the action line up with the reference's.
 func list() -> Array:
 	return [
-		{"name": "01_caught", "stage": W.HORROR, "sec": 3.3, "preroll": 30},
-		{"name": "02_drawn", "stage": W.SWAMP, "sec": 7.9, "preroll": 30},
-		# BUILD: four bars.
-		{"name": "03_desert", "stage": W.DESERT, "beats": 4, "preroll": 30, "music_in": true, "zoom": 1.15},
-		{"name": "04_chase", "stage": W.HORROR, "beats": 4, "preroll": 30, "zoom": 1.35},
-		{"name": "05_cliff", "stage": W.SEA, "beats": 4, "preroll": 30, "zoom": 1.2},
-		{"name": "06_golem", "stage": W.SKYWARD_RUINS, "beats": 4, "preroll": 30, "zoom": 1.3},
-		# DROP: eight bars.
-		{"name": "07_climb", "stage": W.TOWER, "beats": 4, "preroll": 30, "zoom": 1.35},
-		{"name": "08_arena", "arena": true, "beats": 4, "preroll": 300},
-		{"name": "09a_lava", "stage": W.SWAMP, "beats": 2, "preroll": 75, "zoom": 1.3},
-		{"name": "09b_spikes", "stage": W.SKYWARD_RUINS, "beats": 2, "preroll": 30, "zoom": 1.15},
-		{"name": "09c_golem", "stage": W.SKYWARD_RUINS, "beats": 2, "preroll": 60, "zoom": 1.3},
-		{"name": "09d_walker", "stage": W.GREENFIELD, "beats": 2, "preroll": 30, "zoom": 1.1},
-		{"name": "10_cave", "stage": W.CAVE, "beats": 4, "preroll": 30, "zoom": 1.4},
-		{"name": "11_arena", "arena": true, "beats": 4, "preroll": 600},
-		{"name": "12_coast", "stage": W.SEA, "beats": 2, "preroll": 30, "zoom": 1.4},
-		{"name": "13_hero", "stage": W.SEA, "beats": 6, "preroll": 30, "zoom": 1.15},
-		# STING.
-		{"name": "14_title", "stage": W.GREENFIELD, "beats": 12, "preroll": 30},
+		{"name": "r01_caught", "stage": W.HORROR, "until": 4.0, "preroll": 30},
+		{"name": "r02_crowd", "ffa": true, "until": 8.958, "preroll": 90 + 180 + 60},
+		{"name": "r03_you", "stage": W.DESERT, "until": 22.833, "preroll": 60},
+		{"name": "d01_cave", "stage": W.CAVE, "until": 24.792, "preroll": 30},
+		{"name": "d02_menu", "stage": W.GREENFIELD, "menu": true, "until": 25.792, "preroll": 30},
+		{"name": "d03_draw", "stage": W.GREENFIELD, "until": 26.75, "preroll": 30},
+		{"name": "d04_spikes", "stage": W.SKYWARD_RUINS, "until": 27.5, "preroll": 30},
+		{"name": "d05_brawl", "ffa": true, "until": 28.792, "preroll": 90 + 180 + 300},
+		{"name": "d06_tower", "stage": W.TOWER, "until": 29.542, "preroll": 30},
+		{"name": "d07_tower", "stage": W.TOWER, "until": 30.583, "preroll": 150},
+		{"name": "d08_golem", "stage": W.SKYWARD_RUINS, "until": 31.875, "preroll": 30},
+		{"name": "d09_cliff", "stage": W.SEA, "until": 33.9, "preroll": 30},
+		{"name": "d10_lava", "stage": W.SWAMP, "until": 36.05, "preroll": 30},
+		{"name": "e01_title", "stage": W.GREENFIELD, "until": 40.5, "preroll": 30},
 	]
 
 # --------------------------------------------------------------------- helpers
@@ -75,6 +68,15 @@ class Rig extends Node:
 	func _ready() -> void:
 		process_priority = 300
 		_rng.seed = 1234
+
+	## A hard cut inside the shot: hold `at`, at zoom `z`, from the next frame.
+	func cut_to(at: Vector2, z: float) -> void:
+		follow = null
+		point = at
+		zoom_from = z
+		zoom_to = z
+		factor = z
+		_snapped = false
 
 	## Ease from the current zoom to `z` over `ticks` from now.
 	func zoom_go(z: float, ticks: int) -> void:
@@ -388,137 +390,7 @@ func ov() -> Node:
 static func T(sec: float) -> int:
 	return int(round(sec * 60.0))
 
-# ----------------------------------------------------------------------- shots
-
-## Cold open. 1-2, close in and letterboxed: one runner, running. The
-## pursuer comes up behind and catches them -- in slow motion at the end.
-func setup_01_caught(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(-760, 300))
-	var pursuer := pursuer_of(ctx)
-	var r := rig(ctx)
-	r.zoom_from = 1.9
-	r.zoom_to = 1.75
-	r.zoom_ticks = T(3.0)
-	r.lead = 30.0
-	r.offset = Vector2(-90, -20)
-	r.dead_y = 20.0
-	ov().letterbox(0.0, 0.01, 84.0, 84.0)
-	# Smash to black on the way out.
-	ov().fade(3.05, 3.25, 0.0, 1.0)
-	var run := autorun(ctx)
-	run.sprint = false
-	var state := {"dead_at": -1}
-	return func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		if t == -20 and pursuer != null:
-			pursuer.global_position = m.runner.global_position + Vector2(-470, -24)
-			pursuer._wake_left = 0.0
-			pursuer._activated = true
-			pursuer.cruise_speed = 480.0
-		if t < -12:
-			drive(c, 0.0)
-			return
-		if m.runner.state == Runner.State.DEAD:
-			if int(state["dead_at"]) < 0:
-				state["dead_at"] = t
-				impact(c, 6, 0.75)
-			drive(c, 0.0)
-		else:
-			run.tick()
-		# Slow down as it closes the last stretch, and stay slow through the catch.
-		var gap: float = m.runner.global_position.x - pursuer.global_position.x if pursuer != null else 999.0
-		var dead_for := t - int(state["dead_at"]) if int(state["dead_at"]) >= 0 else -1
-		c["speed"] = 0.25 if (gap < 120.0 and dead_for < 0) or (dead_for >= 0 and dead_for < 30) else 1.0
-
-## Cold open, continued. 1-5's lava gap. The ground shakes. The runner goes
-## for a jump that cannot be made -- and in slow motion a line is drawn under
-## them and becomes a platform. The camera pulls back as the next one is drawn,
-## the interface appears, and the world stops on the hand that is drawing it.
-func setup_02_drawn(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	var step: Dictionary = route_steps("cold_rock_rescue")[1]
-	var a: Rect2 = step["from"]
-	var b: Rect2 = step["to"]
-	var plats: Array = step["platforms"]
-	place_runner(ctx, on_ledge(a, 0.3))
-	var r := rig(ctx)
-	r.zoom_from = 1.45
-	r.zoom_to = 1.3
-	r.zoom_ticks = T(2.0)
-	r.offset = Vector2(110, -70)
-	r.lead = 60.0
-	# Hold the horizon through the jump: the lava gap and the line being drawn
-	# over it are the picture, not the top of the runner's arc.
-	r.dead_y = 120.0
-	ov().letterbox(0.0, 0.01, 84.0, 84.0)
-	var lines := [hand_line(plats[0]), hand_line(plats[1])]
-	var strokes := [stroke(ctx), stroke(ctx)]
-	var go := pilot(ctx, [{"from": a, "to": plats[0], "sprint": true},
-		{"from": plats[0], "to": plats[1], "sprint": true},
-		{"from": plats[1], "to": b, "sprint": true}])
-	var tremor := T(1.7)
-	var s := {"jump": -1, "built1": -1, "land": -1, "frozen": false}
-	cap.cue("rumble")
-	ctx["on_freeze"] = func(c: Dictionary, k: int) -> void:
-		# Only the reveal; a hit-stop's short hold is not this.
-		if not s["frozen"]:
-			return
-		if k == 0:
-			# Push in on the hand and the runner it is drawing for.
-			r.zoom_go(r.factor * 1.5, 70)
-			r.point = (m.runner.global_position + (strokes[1] as Stroke).head()) * 0.5 + Vector2(0, -30)
-			r.follow = null
-			ov().note("THIS IS YOU", cap.shot_time() + 0.25, cap.shot_time() + 2.4,
-				Vector2(250, 250))
-		var head: Vector2 = (strokes[1] as Stroke).head()
-		ov().note_target = m.get_viewport().get_canvas_transform() * head
-	return func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		c["speed"] = 1.0
-		if s["frozen"] and r.follow == null:
-			r.follow = m.runner
-		# The tremor: shake builds, then stops dead as the runner sets off.
-		r.shake = clampf(float(t) / float(tremor), 0.0, 1.0) * 7.0 if t < tremor else 0.0
-		if t < tremor:
-			drive(c, 0.0)
-			return
-		if t == tremor:
-			cap.cue("rumble_stop")
-		go.tick()
-		var rn: Runner = m.runner
-		if int(s["jump"]) < 0 and not rn.is_on_floor():
-			s["jump"] = t
-		# Stroke one: drawn while the runner is in the air over the lava.
-		var j: int = s["jump"]
-		if j >= 0:
-			var t0 := j + 10
-			var grow := clampf(float(t - t0) / 22.0, 0.0, 1.0)
-			_paint(strokes[0], lines[0], t >= t0, grow, t - t0 - 22)
-			if t == t0 + 22:
-				build(c, lines[0])
-				s["built1"] = t
-				impact(c, 3, 0.3)
-			if t >= t0 - 4 and (int(s["built1"]) < 0 or t < int(s["built1"]) + 8):
-				c["speed"] = 0.25
-		# Landed on it: pull back, the interface appears, stroke two begins.
-		if int(s["built1"]) >= 0 and int(s["land"]) < 0 and rn.is_on_floor():
-			s["land"] = t
-			r.zoom_go(0.85, T(0.5))
-			ov().letterbox(cap.shot_time(), cap.shot_time() + 0.6, 84.0, 0.0)
-			show_hud(c)
-		var l: int = s["land"]
-		if l >= 0:
-			var t1 := l + 4
-			var grow2 := clampf(float(t - t1) / 40.0, 0.0, 1.0)
-			_paint(strokes[1], lines[1], t >= t1, grow2, t - t1 - 40)
-			m.input_hub.aim_at_world((strokes[1] as Stroke).head())
-			if t == t1 + 40:
-				build(c, lines[1])
-			if t == t1 + 22 and not s["frozen"]:
-				s["frozen"] = true
-				c["freeze"] = 78
-				cap.cue("silence")
+# ----------------------------------------------------------------- play
 
 ## The star battle: both seats played by the game's own practice partner
 ## (VersusCpu), each with its own seed, so the match is a real one.
@@ -544,8 +416,84 @@ func arena_play(ctx: Dictionary, zoom: float, seeds := [11, 29]) -> Callable:
 		var want := (p0 + p1) * 0.5 + Vector2(0, -40) - cam.global_position
 		cam.offset = cam.offset.lerp(want, 0.12)
 
-func setup_08_arena(ctx: Dictionary) -> Callable:
-	return arena_play(ctx, 1.1)
+## みんなで スターたいせん: eight seats, every one played by VersusCpu. The
+## pre-roll seats everyone, presses start and sits out the countdown; `fit`
+## frames all eight (zooming to hold them), otherwise P1 at `zoom`. With
+## `open_zoom` the shot opens that tight and pulls back from there.
+func ffa_play(ctx: Dictionary, zoom: float, fit: bool, open_zoom := 0.0) -> Callable:
+	var host: Node = ctx["arena"]
+	var scenes: Array = ctx["ffa"]
+	var cpus: Array = []
+	for i in scenes.size():
+		cpus.append(VersusCpu.new(100 + i * 37))
+	var preroll := int((ctx["shot"] as Dictionary).get("preroll", 0))
+	var state := {"started": false, "zoom": zoom, "lined_up": false}
+	# Everyone starts on the widest platform and goes for each other there:
+	# one brawl in one place, rather than eight people spread over the arena.
+	var stage_floor := Rect2()
+	for r in VersusStageData.floors():
+		if r.size.x > stage_floor.size.x:
+			stage_floor = r
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		for sc in scenes:
+			if sc.menu != null:
+				sc.menu.visible = false
+		host._layer.visible = false
+		if not state["started"] and t >= -preroll + 90 and host.can_start():
+			host._start_button.pressed.emit()
+			state["started"] = true
+		var all_moving := true
+		for sc in scenes:
+			all_moving = all_moving and sc.can_move()
+		if all_moving and not state["lined_up"]:
+			state["lined_up"] = true
+			for i in scenes.size():
+				var sc = scenes[i]
+				var me: Runner = sc.runners[sc.local_team]
+				var x := lerpf(stage_floor.position.x + 60.0, stage_floor.end.x - 60.0,
+					float(i) / float(scenes.size() - 1))
+				me.global_position = Vector2(x, stage_floor.position.y - 26.0)
+				me.velocity = Vector2.ZERO
+			host.host.forget_positions()
+		var none: Array[Vector2] = []
+		for i in scenes.size():
+			var sc = scenes[i]
+			if not sc.can_move():
+				continue
+			var me: Runner = sc.runners[sc.local_team]
+			(cpus[i] as VersusCpu).think(me, sc.input.hubs[0],
+				host.runners[(i + 3) % scenes.size()].global_position, none,
+				host.match_rules, sc.local_team)
+		var cam: Camera2D = host.view.camera
+		if t == 0 and open_zoom > 0.0:
+			# Open tight on one of them, and let the framing pull back.
+			state["zoom"] = open_zoom
+		var p0: Vector2 = host.runners[0].global_position
+		var want_zoom: float = state["zoom"]
+		var centre := p0
+		if fit:
+			# Frame the bunch: everyone near the median runner, so one who
+			# has fallen away does not pull the whole shot wide.
+			var pts: Array[Vector2] = []
+			for r in host.runners:
+				if r.visible:
+					pts.append(VersusStageData.nearest_image(r.global_position, p0))
+			var xs := pts.map(func(v: Vector2) -> float: return v.x)
+			var ys := pts.map(func(v: Vector2) -> float: return v.y)
+			xs.sort()
+			ys.sort()
+			var mid := Vector2(xs[xs.size() / 2], ys[ys.size() / 2])
+			var box := Rect2(mid, Vector2.ZERO)
+			for v in pts:
+				if v.distance_to(mid) < 520.0:
+					box = box.expand(v)
+			centre = box.get_center()
+			var view := Vector2(1280, 720) / Balance.CAMERA_ZOOM
+			want_zoom = clampf(minf(view.x / (box.size.x + 300.0), view.y / (box.size.y + 260.0)), 0.95, zoom)
+		state["zoom"] = lerpf(float(state["zoom"]), want_zoom, 0.08)
+		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * float(state["zoom"])
+		cam.offset = cam.offset.lerp(centre + Vector2(0, -40) - cam.global_position, 0.12)
 
 ## Draw a stroke's state for this tick: visible, how much of it is drawn, and
 ## fading out once it has become a platform (`after` ticks past completion).
@@ -618,90 +566,6 @@ func pursuer_of(ctx: Dictionary) -> Node2D:
 			return e
 	return null
 
-## 1-2's pursuer at the runner's back; the guardian's shot knocks it away.
-func setup_04_chase(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(-760, 300))
-	var pursuer := pursuer_of(ctx)
-	var r := rig(ctx)
-	r.zoom_from = 1.25
-	r.zoom_to = 1.12
-	r.zoom_ticks = T(3.6)
-	r.lead = 40.0
-	r.offset = Vector2(-170, -50)
-	var run := autorun(ctx)
-	run.sprint = false
-	var fired := [false]
-	return func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		if t == -20 and pursuer != null:
-			# Already awake and close behind.
-			pursuer.global_position = m.runner.global_position + Vector2(-330, -30)
-			pursuer._wake_left = 0.0
-			pursuer._activated = true
-		if t < -12:
-			drive(c, 0.0)
-			return
-		run.tick()
-		# Fire as it is about to close: the shot is the save, not a warning.
-		if pursuer != null and not pursuer.stunned() and t > T(0.9) \
-				and m.runner.global_position.x - pursuer.global_position.x < 150.0 \
-				and t - int(c.get("last_shot", -999)) > T(0.8):
-			shoot(c, pursuer.global_position)
-			impact(c, 4, 0.35)
-			c["last_shot"] = t
-
-## 1-4: along the first island, lighthouse behind.
-func setup_12_coast(ctx: Dictionary) -> Callable:
-	place_runner(ctx, Vector2(-760, 300))
-	var run := autorun(ctx)
-	var r := rig(ctx)
-	r.zoom_from = 1.35
-	r.zoom_to = 1.2
-	r.zoom_ticks = T(1.8)
-	r.lead = 160.0
-	return func(c: Dictionary) -> void:
-		if int(c["t"]) < -16:
-			drive(c, 0.0)
-		else:
-			run.tick()
-
-## 1-6: the mirage crossing. The guardian bridges the whole gap in two long
-## strokes, each drawn just ahead of the runner, who never breaks stride.
-func setup_03_desert(ctx: Dictionary) -> Callable:
-	var step: Dictionary = route_steps("mirage_crossing")[0]
-	var a: Rect2 = step["from"]
-	var b: Rect2 = step["to"]
-	place_runner(ctx, on_ledge(a, 0.15))
-	clear_enemies(ctx, Rect2(a.position - Vector2(300, 600), Vector2(1700, 1000)))
-	var r := rig(ctx)
-	r.zoom_from = 1.0
-	r.zoom_to = 0.92
-	r.zoom_ticks = T(2.2)
-	r.offset = Vector2(170, -40)
-	r.dead_y = 80.0
-	# Each stroke's ends sit level with the ground it meets: the platform's top
-	# is 13px above the line drawn.
-	var mid := (a.end.x + b.position.x) * 0.5
-	var lines := [
-		arc_line(Vector2(a.end.x + 18, a.position.y + 13), Vector2(mid - 10, lerpf(a.position.y, b.position.y, 0.5) + 13), -14.0),
-		arc_line(Vector2(mid + 14, lerpf(a.position.y, b.position.y, 0.5) + 15), Vector2(b.position.x - 16, b.position.y + 13), -12.0),
-	]
-	var strokes := [stroke(ctx), stroke(ctx)]
-	var draw_at := [T(0.05), T(0.62)]
-	var draw_len := T(0.38)
-	return func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		for k in 2:
-			var t0: int = draw_at[k]
-			_paint(strokes[k], lines[k], t >= t0, clampf(float(t - t0) / float(draw_len), 0.0, 1.0),
-				t - t0 - draw_len)
-			if t == t0 + draw_len:
-				build(c, lines[k])
-		# Off the mark as the first stroke lands, so it is there when needed.
-		# Flat out and never a jump: the bridge is the whole point.
-		drive(c, 1.0 if t >= 8 else 0.0, false, true)
-
 ## A drawn line from `from` to `to`, bowed by `bulge` (negative is upwards) --
 ## a stroke a finger makes in one sweep.
 static func arc_line(from: Vector2, to: Vector2, bulge: float) -> PackedVector2Array:
@@ -710,102 +574,6 @@ static func arc_line(from: Vector2, to: Vector2, bulge: float) -> PackedVector2A
 		var u := float(k) / 23.0
 		out.append(from.lerp(to, u) + Vector2(0, sin(u * PI) * bulge))
 	return out
-
-## 1-3: the pursuer rises out of the clouds at the first island, and the
-## guardian's shot knocks it back down before it reaches the runner.
-func setup_06_golem(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	var island := Rect2(-520, 6380, 760, 150)
-	place_runner(ctx, on_ledge(island, 0.3))
-	var pursuer := pursuer_of(ctx)
-	var r := rig(ctx)
-	r.zoom_from = 1.0
-	r.zoom_to = 1.12
-	r.zoom_ticks = T(1.8)
-	r.offset = Vector2(110, 70)
-	r.dead_y = 40.0
-	r.lead = 0.0
-	return func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		if t == -20 and pursuer != null:
-			pursuer.global_position = m.runner.global_position + Vector2(230, 420)
-		if t == -1:
-			m.runner.facing = 1
-		# Stand, face it, and hop as the shot lands.
-		drive(c, 0.0, t >= T(0.95) and t < T(1.25))
-		if pursuer != null and t == T(0.85):
-			shoot(c, pursuer.global_position)
-			impact(c, 4, 0.35)
-
-## 1-7: the first flight of the clockwork tower, zig-zag. It opens the
-## digest, and the drive layer comes in with it.
-func setup_07_climb(ctx: Dictionary) -> Callable:
-	cap.cue("drive_in")
-	var go := hops(ctx, route_slice(0, 5), 0.6)
-	var r := rig(ctx)
-	r.zoom_from = 1.25
-	r.zoom_to = 1.15
-	r.zoom_ticks = T(1.8)
-	r.offset = Vector2(0, -100)
-	r.dead_y = 30.0
-	r.lead = 0.0
-	return func(c: Dictionary) -> void:
-		if int(c["t"]) < -16:
-			drive(c, 0.0)
-		else:
-			go.tick()
-
-## 1-4's cliff: two platforms drawn up a sheer face, climbed as they appear.
-func setup_05_cliff(ctx: Dictionary) -> Callable:
-	var step: Dictionary = route_steps("cliff_rescue")[0]
-	place_runner(ctx, on_ledge(step["from"], 0.35))
-	clear_enemies(ctx, Rect2((step["from"] as Rect2).position - Vector2(600, 900), Vector2(1500, 1400)))
-	var r := rig(ctx)
-	r.zoom_from = 1.05
-	r.zoom_to = 1.15
-	r.zoom_ticks = T(2.7)
-	r.offset = Vector2(60, -150)
-	r.dead_y = 40.0
-	r.lead = 0.0
-	return assisted(ctx, step, [-0.05, 0.6], 0.15, false)
-
-## 1-8: up the mine mouth, ledge to ledge.
-func setup_10_cave(ctx: Dictionary) -> Callable:
-	var go := hops(ctx, route_slice(0, 5), 0.5)
-	var r := rig(ctx)
-	r.zoom_from = 0.95
-	r.zoom_to = 1.05
-	r.zoom_ticks = T(2.7)
-	r.offset = Vector2(0, 50)
-	r.dead_y = 30.0
-	r.lead = 0.0
-	return func(c: Dictionary) -> void:
-		if int(c["t"]) < -12:
-			drive(c, 0.0)
-		else:
-			go.tick()
-
-## The title over 1-1's opening field, the music's last bar under it.
-func setup_14_title(ctx: Dictionary) -> Callable:
-	place_runner(ctx, Vector2(-200, 374))
-	var r := rig(ctx)
-	r.zoom_from = 1.15
-	r.zoom_to = 1.0
-	r.zoom_ticks = T(5.4)
-	r.offset = Vector2(120, -60)
-	r.smooth = 2.0
-	cap.cue("drive_out")
-	cap.cue("hit")
-	ov().flash(0.0, 0.35, 0.9)
-	ov().end_card(0.15, "MELOS GAME", ["AVAILABLE NOW", "GOOGLE PLAY", "APP STORE"])
-	ov().fade(5.0, 5.45, 0.0, 1.0)
-	return func(c: Dictionary) -> void:
-		drive(c, 1.0 if int(c["t"]) > -12 else 0.0)
-
-# ----------------------------------------------------------------- the digest
-
-func setup_11_arena(ctx: Dictionary) -> Callable:
-	return arena_play(ctx, 1.9, [5, 77])
 
 ## A death, as the digest shows it: a flash and a jolt as it lands.
 func dies(ctx: Dictionary, inner: Callable) -> Callable:
@@ -817,87 +585,416 @@ func dies(ctx: Dictionary, inner: Callable) -> Callable:
 			s["at"] = c["t"]
 			impact(c, 5, 0.7)
 
-## 1-5: the same jump as the cold open, with nobody drawing.
-func setup_09a_lava(ctx: Dictionary) -> Callable:
-	var step: Dictionary = route_steps("cold_rock_rescue")[1]
-	place_runner(ctx, on_ledge(step["from"], 0.15))
-	var r := rig(ctx)
-	r.zoom_from = 1.3
-	r.zoom_to = 1.4
-	r.zoom_ticks = T(0.9)
-	r.offset = Vector2(60, 40)
-	r.dead_y = 40.0
-	r.smooth_y = 6.0
-	var go := pilot(ctx, [{"from": step["from"], "to": step["platforms"][0], "sprint": true}])
-	return dies(ctx, func(c: Dictionary) -> void: go.tick())
+func drive(ctx: Dictionary, axis: float, jump := false, sprint := false) -> void:
+	(ctx["main"].input_hub as InputHub).drive_runner(axis, 0.0, jump, sprint)
 
-## 1-3: straight into the spikes on the first island, on the last heart.
-func setup_09b_spikes(ctx: Dictionary) -> Callable:
+## Film seconds, as ticks of the current shot: the reference's timings.
+static func film(ctx: Dictionary, sec: float) -> int:
+	return T(sec - float(ctx["film_start"]))
+
+## Film seconds, as the overlay's shot seconds.
+static func film_s(ctx: Dictionary, sec: float) -> float:
+	return sec - float(ctx["film_start"])
+
+## Where a world rect is on the screen, in design pixels.
+static func on_screen(ctx: Dictionary, world: Rect2) -> Rect2:
+	var xf: Transform2D = (ctx["main"] as Node).get_viewport().get_canvas_transform()
+	var a := xf * world.position
+	var b := xf * world.end
+	return Rect2(a, b - a).abs()
+
+## The 1-6 creature of `kind` nearest to `near`.
+func desert_enemy(ctx: Dictionary, kind: String, near: Vector2) -> DesertEnemy:
+	var best: DesertEnemy = null
+	for n in (ctx["main"] as Node).level.find_children("*", "", true, false):
+		if n is DesertEnemy and (n as DesertEnemy).kind == kind:
+			if best == null or (n as Node2D).global_position.distance_to(near) \
+					< best.global_position.distance_to(near):
+				best = n
+	return best
+
+## Steer a jelly along a straight line between film times: its own drift
+## stays, small, on top.
+static func glide(j: DesertEnemy, from: Vector2, to: Vector2, k: float) -> void:
+	if not is_instance_valid(j):
+		return
+	j.patrol_half_width = 14.0
+	j._origin = from.lerp(to, clampf(k, 0.0, 1.0))
+
+func place_wall(ctx: Dictionary, at: Vector2) -> void:
+	var g: Guardian = ctx["main"].guardian
+	g.gauge = Balance.GAUGE_MAX
+	g.select_slot(2)
+	g._last_refusal = ""
+	g.use_active(at)
+	if g._last_refusal != "":
+		push_warning("trailer: wall at %s refused: %s" % [at, g._last_refusal])
+
+# ----------------------------------------------------------------------- shots
+
+## 0.0-4.0. 1-2: one runner, running, the camera alongside. The pursuer
+## comes up from behind and takes them. The camera stops where it is and the
+## empty frame holds -- until the ground starts to shake.
+func setup_r01_caught(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(-760, 300))
+	# Held weakly: the stage frees its pursuer once it has made the catch.
+	var hold := weakref(pursuer_of(ctx))
+	var r := rig(ctx)
+	r.zoom_from = 1.0
+	r.zoom_to = 1.0
+	r.lead = 0.0
+	r.offset = Vector2(190, -70)
+	r.smooth = 9.0
+	r.dead_y = 40.0
+	var run := autorun(ctx)
+	run.sprint = false
+	var s := {"dead": -1}
+	var shake_at := film(ctx, 3.3)
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		var pursuer: Node2D = hold.get_ref()
+		if t == -20 and pursuer != null:
+			pursuer.global_position = m.runner.global_position + Vector2(-660, -24)
+			pursuer._wake_left = 0.0
+			pursuer._activated = true
+			pursuer.cruise_speed = 470.0
+		if t < -12:
+			drive(c, 0.0)
+			return
+		if m.runner.state == Runner.State.DEAD:
+			if int(s["dead"]) < 0:
+				s["dead"] = t
+				r.cut_to(m.camera.global_position, r.factor)
+			drive(c, 0.0)
+		else:
+			run.tick()
+		if t == shake_at:
+			cap.cue("rumble")
+		r.shake = clampf(float(t - shake_at) / float(T(0.7)), 0.0, 1.0) * 6.0 if t >= shake_at else 0.0
+
+## 4.0-8.96. みんなで スターたいせん: the cut lands tight, the ground still
+## shaking, and pulls straight back to all eight of them going at it.
+func setup_r02_crowd(ctx: Dictionary) -> Callable:
+	var inner := ffa_play(ctx, 1.15, true, 2.6)
+	var stop := T(0.9)
+	return func(c: Dictionary) -> void:
+		inner.call(c)
+		var t: int = c["t"]
+		var cam: Camera2D = (ctx["arena"] as Node).view.camera
+		var shake := clampf(1.0 - float(t) / float(stop), 0.0, 1.0) * 6.0
+		cam.offset += Vector2(sin(t * 2.7), cos(t * 3.1)) * shake
+		if t == stop:
+			cap.cue("rumble_stop")
+
+## 8.96-22.83. 1-6, one continuous take on the mirage crossing.
+##   8.96   tight on the guardian's light: THIS IS YOU. 10.0 everything stops.
+##  11.29   the wide. The platform card lands, and turns into the grid over
+##          the gap; the music comes in; the bridge is drawn as the runner
+##          arrives and crosses it. DRAW THE WAY.
+##  ~17.2   the rifle's grid: the stage's pursuer comes for the runner and is
+##          shot back, twice. SAVE YOUR RUNNER.
+##  ~21.3   the wall's grid; the wall goes up.
+##  22.21   the drop: hard in on the wall and the runner.
+func setup_r03_you(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	var g: Guardian = m.guardian
+	var hub: InputHub = m.input_hub
+	var step: Dictionary = route_steps("mirage_crossing")[0]
+	var a: Rect2 = step["from"]
+	var b: Rect2 = step["to"]
+	place_runner(ctx, Vector2(3085, a.position.y - 26.0))
+	m.runner.facing = 1
+	for e in [desert_enemy(ctx, "scarab", Vector2(3390, 103)), desert_enemy(ctx, "cactus", Vector2(4550, 187))]:
+		if e != null:
+			e.free()
+	# The jellies stay out of it; the stage's pursuer is held back until it is
+	# wanted, then comes for the runner across the gap.
+	for near in [Vector2(3890, 45), Vector2(4870, 45)]:
+		glide(desert_enemy(ctx, "jelly", near), Vector2(near.x, -2400), Vector2(near.x, -2400), 0.0)
+	var pursuer := pursuer_of(ctx)
+	if pursuer != null:
+		pursuer.global_position = Vector2(1500, 300)
+		pursuer._activated = true
+		pursuer._wake_left = 9999.0
+	# The guardian's light, hovering over the gap, the reticle up.
+	hub.solo_role = ""
+	g.select_slot(3)
+	(m.get_node("GuardianWisp") as Node).set("_awake", true)
+	var light := Vector2(3700, 30)
+	var r := rig(ctx)
+	var close_z := 2.4
+	var light_at := Vector2(930, 372)
+	var cam_z := Balance.CAMERA_ZOOM * close_z
+	# The light hovers 22px over the aim.
+	r.cut_to(light + Vector2(0, -22) - (light_at - Vector2(640, 360)) / cam_z, close_z)
+	var wide := Vector2(4035, -64)
+	var wide_z := 0.52
+	var tag_size := 110
+	var tag_k := tag_size / 72.0
+	var tag_w: float = ov().TAG_FONT.get_string_size("THIS IS YOU", HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x
+	var arrow_tip := light_at + Vector2(-34, 52)
+	var arrow_from := arrow_tip - Vector2(38, -38) * tag_k
+	ov().tag([[film_s(ctx, 9.0), "THIS"], [film_s(ctx, 9.5), "THIS IS YOU"]], film_s(ctx, 11.0),
+		Vector2(arrow_from.x - 12.0 * tag_k - tag_w, arrow_from.y + tag_size * 0.12), tag_size)
+	ov().card("platform", film_s(ctx, 11.29), film_s(ctx, 12.87))
+	ov().title([[film_s(ctx, 15.5), "DRAW"], [film_s(ctx, 15.9), "DRAW THE WAY"]],
+		film_s(ctx, 17.3), Vector2(640, 238))
+	ov().blueprint("snipe", film_s(ctx, 17.2), film_s(ctx, 18.2))
+	ov().title([[film_s(ctx, 20.0), "SAVE"], [film_s(ctx, 20.4), "SAVE YOUR RUNNER"]],
+		film_s(ctx, 21.45), Vector2(640, 238))
+	ov().blueprint("wall", film_s(ctx, 21.3), film_s(ctx, 22.21))
+	# The bridge: two strokes, each ending level with the ground it meets.
+	var mid := (a.end.x + b.position.x) * 0.5
+	var mid_y := lerpf(a.position.y, b.position.y, 0.5)
+	var lines := [
+		arc_line(Vector2(a.end.x + 18, a.position.y + 13), Vector2(mid - 10, mid_y + 13), -14.0),
+		arc_line(Vector2(mid + 14, mid_y + 15), Vector2(b.position.x - 16, b.position.y + 13), -12.0),
+	]
+	var strokes := [stroke(ctx), stroke(ctx)]
+	var draw_at := [film(ctx, 13.4), film(ctx, 14.2)]
+	var draw_len := T(0.4)
+	var gap_rect := Rect2(a.end.x - 20, a.position.y - 90, b.position.x - a.end.x + 40, 200)
+	var wall_at := Vector2(b.position.x + 128, b.position.y - Balance.WALL_SIZE.y * 0.5 - 2.0)
+	var stand_x := b.position.x + 40.0
+	# The pursuer: woken over the gap, shot back twice.
+	var chase_from := Vector2(a.end.x - 20, a.position.y - 70)
+	var t_chase := film(ctx, 17.35)
+	var shots := [film(ctx, 18.3), film(ctx, 19.95)]
+	var t_wide := film(ctx, 11.29)
+	var t_drop := film(ctx, 22.21)
+	var t_run := film(ctx, 13.3)
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		var rn: Runner = m.runner
+		# The light idles over the gap until the wide; then it is the hand.
+		var drift := Vector2(sin(t * 0.03) * 16.0, cos(t * 0.041) * 10.0)
+		var aim := light + drift
+		if t == film(ctx, 10.0):
+			cap.cue("silence")
+		if t == t_wide:
+			r.cut_to(wide, wide_z)
+			r.zoom_go(wide_z * 0.97, film(ctx, 22.21) - t_wide)
+			cap.cue("card")
+		if t == film(ctx, 12.87) or t == film(ctx, 17.2) or t == film(ctx, 21.3):
+			cap.cue("grid")
+		if t == film(ctx, 13.3):
+			cap.cue("music_in")
+		# The bridge.
+		for k in 2:
+			var t0: int = draw_at[k]
+			_paint(strokes[k], lines[k], t >= t0, clampf(float(t - t0) / float(draw_len), 0.0, 1.0),
+				t - t0 - draw_len)
+			if t >= t0 and t <= t0 + draw_len:
+				aim = (strokes[k] as Stroke).head()
+			if t == t0 + draw_len:
+				build(c, lines[k])
+				g.select_slot(3)
+		# The runner: in from the left as the music comes in, across, and stops.
+		if t < t_run:
+			drive(c, 0.0)
+		elif rn.global_position.x < stand_x and rn.global_position.y < b.position.y + 40.0:
+			drive(c, 1.0, false, true)
+		else:
+			var hop := t >= t_drop + 2 and t < t_drop + 16
+			drive(c, 0.0, hop)
+		# The pursuer comes for the runner; the guardian knocks it back, twice,
+		# the second time for good.
+		if pursuer != null:
+			if t == t_chase:
+				pursuer.global_position = chase_from
+				pursuer._wake_left = 0.0
+			for k in shots.size():
+				var ts: int = shots[k]
+				if t > ts - 24 and t <= ts:
+					aim = aim.lerp(pursuer.global_position, 0.5)
+				if t == ts:
+					if k == shots.size() - 1:
+						pursuer.stun_duration = 30.0
+					shoot(c, pursuer.global_position)
+		# The wall.
+		if t > film(ctx, 21.4) and t < film(ctx, 22.0):
+			aim = aim.lerp(wall_at, 0.25)
+		if t == film(ctx, 22.0):
+			place_wall(c, wall_at)
+			g.select_slot(3)
+		if t >= film(ctx, 21.3):
+			ov().blueprint_rect = on_screen(c, Rect2(wall_at - Vector2(70, 120), Vector2(140, 240)))
+		elif t >= film(ctx, 17.2):
+			ov().blueprint_rect = on_screen(c, Rect2(chase_from - Vector2(100, 90), Vector2(200, 180)))
+		else:
+			ov().blueprint_rect = on_screen(c, gap_rect)
+		# The drop: hard in on the wall and the runner.
+		if t == t_drop:
+			r.cut_to(Vector2((stand_x + wall_at.x) * 0.5 - 10.0, b.position.y - 110.0), 1.45)
+			cap.cue("drive_in")
+		hub.aim_at_world(aim)
+
+# ------------------------------------------------------------------ the digest
+
+## 22.83-24.79. 1-8: up the mine mouth, ledge to ledge.
+func setup_d01_cave(ctx: Dictionary) -> Callable:
+	var go := hops(ctx, route_slice(0, 5), 0.5)
+	var r := rig(ctx)
+	r.zoom_from = 1.25
+	r.zoom_to = 1.4
+	r.zoom_ticks = T(2.0)
+	r.offset = Vector2(0, 40)
+	r.dead_y = 30.0
+	r.lead = 0.0
+	return func(c: Dictionary) -> void:
+		if int(c["t"]) < -12:
+			drive(c, 0.0)
+		else:
+			go.tick()
+
+## 24.79-25.79. The start screen, as a player first sees it.
+func setup_d02_menu(_ctx: Dictionary) -> Callable:
+	return func(_c: Dictionary) -> void:
+		pass
+
+## 25.79-26.75. 1-1: the grid, a stroke, the platform pops in -- and the
+## camera jumps in on it.
+func setup_d03_draw(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	var start := Stage.start()
+	place_runner(ctx, start)
+	m.input_hub.solo_role = ""
+	var line := arc_line(start + Vector2(150, -60), start + Vector2(330, -78), -10.0)
+	var st := stroke(ctx)
+	var r := rig(ctx)
+	var centre := start + Vector2(240, -80)
+	r.cut_to(centre + Vector2(-40, 30), 1.25)
+	ov().blueprint("platform", 0.0, 0.42)
+	var t0 := T(0.1)
+	var len := T(0.3)
+	var snap := film(ctx, 26.25)
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		ov().blueprint_rect = on_screen(c, Rect2(centre - Vector2(140, 70), Vector2(280, 140)))
+		_paint(st, line, t >= t0, clampf(float(t - t0) / float(len), 0.0, 1.0), t - t0 - len)
+		m.input_hub.aim_at_world(st.head() if t >= t0 else line[0])
+		if t == t0 + len:
+			build(c, line)
+		if t == snap:
+			r.cut_to(centre + Vector2(0, 10), 2.1)
+		drive(c, 0.0)
+
+## 26.75-27.5. 1-3, as close as it goes: straight into the spikes.
+func setup_d04_spikes(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var island := Rect2(-520, 6380, 760, 150)
 	place_runner(ctx, on_ledge(island, 0.05))
 	var r := rig(ctx)
-	r.zoom_from = 1.5
-	r.zoom_to = 1.65
-	r.zoom_ticks = T(0.9)
-	r.offset = Vector2(40, -20)
+	r.zoom_from = 3.0
+	r.zoom_to = 2.4
+	r.zoom_ticks = T(0.75)
+	r.offset = Vector2(30, -20)
 	r.dead_y = 40.0
-	return dies(ctx, func(c: Dictionary) -> void:
+	r.lead = 40.0
+	return func(c: Dictionary) -> void:
 		m.runner.hp = 1
-		drive(c, 1.0 if int(c["t"]) > -40 else 0.0, false, true))
+		if m.runner.state == Runner.State.DEAD and r.follow != null:
+			r.cut_to(m.camera.global_position, r.factor)
+			r.zoom_go(r.factor * 0.85, T(0.5))
+		drive(c, 1.0 if int(c["t"]) > -46 else 0.0, false, true)
 
-## 1-3: nobody shoots the golem this time.
-func setup_09c_golem(ctx: Dictionary) -> Callable:
+## 27.5-28.79. The star battle, eight of them, wide.
+func setup_d05_brawl(ctx: Dictionary) -> Callable:
+	return ffa_play(ctx, 1.0, true)
+
+func _tower(ctx: Dictionary, z: float) -> Callable:
+	var go := hops(ctx, route_slice(0, 6), 0.6)
+	var r := rig(ctx)
+	r.zoom_from = z
+	r.zoom_to = z * 1.06
+	r.zoom_ticks = T(1.0)
+	r.offset = Vector2(0, -90)
+	r.dead_y = 30.0
+	r.lead = 0.0
+	return func(c: Dictionary) -> void:
+		if int(c["t"]) < 14 - int((ctx["shot"] as Dictionary)["preroll"]):
+			drive(c, 0.0)
+		else:
+			go.tick()
+
+## 28.79-29.54 and 29.54-30.58. 1-7: the clockwork tower, wide, then close.
+func setup_d06_tower(ctx: Dictionary) -> Callable:
+	return _tower(ctx, 0.8)
+
+func setup_d07_tower(ctx: Dictionary) -> Callable:
+	return _tower(ctx, 1.45)
+
+## 30.58-31.88. 1-3: the pursuer rises out of the clouds; the shot knocks it
+## back down.
+func setup_d08_golem(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var island := Rect2(-520, 6380, 760, 150)
 	place_runner(ctx, on_ledge(island, 0.3))
 	var pursuer := pursuer_of(ctx)
 	var r := rig(ctx)
-	r.zoom_from = 1.25
-	r.zoom_to = 1.35
-	r.zoom_ticks = T(0.9)
-	r.offset = Vector2(60, 40)
-	r.dead_y = 60.0
-	r.lead = 0.0
-	return dies(ctx, func(c: Dictionary) -> void:
-		if int(c["t"]) == -38 and pursuer != null:
-			pursuer.global_position = m.runner.global_position + Vector2(150, 330)
-		drive(c, 0.0))
-
-## 1-1: head first into a walker, on the last heart.
-func setup_09d_walker(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(960, 374))
-	var r := rig(ctx)
-	r.zoom_from = 1.6
-	r.zoom_to = 1.75
-	r.zoom_ticks = T(0.9)
-	r.offset = Vector2(60, -20)
-	return dies(ctx, func(c: Dictionary) -> void:
-		m.runner.hp = 1
-		drive(c, 1.0 if int(c["t"]) > -17 else 0.0, false, true))
-
-## 1-4's last lighthouse rescue: two platforms drawn up the cliff, climbed as
-## they appear, the last landing slowed down -- the digest's last word.
-func setup_13_hero(ctx: Dictionary) -> Callable:
-	var step: Dictionary = route_steps("last_lighthouse_rescue")[0]
-	place_runner(ctx, on_ledge(step["from"], 0.35))
-	clear_enemies(ctx, Rect2((step["from"] as Rect2).position - Vector2(700, 900), Vector2(1600, 1400)))
-	var r := rig(ctx)
 	r.zoom_from = 1.05
-	r.zoom_to = 1.3
-	r.zoom_ticks = T(2.7)
-	r.offset = Vector2(60, -140)
+	r.zoom_to = 1.2
+	r.zoom_ticks = T(1.3)
+	r.offset = Vector2(110, 70)
 	r.dead_y = 40.0
 	r.lead = 0.0
-	var inner := assisted(ctx, step, [-0.05, 0.55], 0.1, false)
-	var b: Rect2 = step["to"]
 	return func(c: Dictionary) -> void:
-		inner.call(c)
-		var rn: Runner = ctx["main"].runner
-		# Slow over the last ledge: from the moment the runner is above it.
-		c["speed"] = 0.4 if rn.global_position.y < b.position.y + 10.0 \
-			and not rn.is_on_floor() else 1.0
+		var t: int = c["t"]
+		if t == -20 and pursuer != null:
+			pursuer.global_position = m.runner.global_position + Vector2(230, 380)
+		if t == -1:
+			m.runner.facing = 1
+		drive(c, 0.0, t >= T(0.6) and t < T(0.9))
+		if pursuer != null and t == T(0.5):
+			shoot(c, pursuer.global_position)
+			impact(c, 4, 0.35)
 
-func drive(ctx: Dictionary, axis: float, jump := false, sprint := false) -> void:
-	(ctx["main"].input_hub as InputHub).drive_runner(axis, 0.0, jump, sprint)
+## 31.88-33.9. 1-4's cliff: two platforms drawn up a sheer face, climbed as
+## they appear.
+func setup_d09_cliff(ctx: Dictionary) -> Callable:
+	var step: Dictionary = route_steps("cliff_rescue")[0]
+	place_runner(ctx, on_ledge(step["from"], 0.35))
+	clear_enemies(ctx, Rect2((step["from"] as Rect2).position - Vector2(600, 900), Vector2(1500, 1400)))
+	ctx["main"].input_hub.solo_role = ""
+	var r := rig(ctx)
+	r.zoom_from = 1.0
+	r.zoom_to = 1.1
+	r.zoom_ticks = T(2.0)
+	r.offset = Vector2(60, -150)
+	r.dead_y = 40.0
+	r.lead = 0.0
+	return assisted(ctx, step, [-0.05, 0.6], 0.15, false)
+
+## 33.9-35.88, then black. 1-5: across the lava on drawn platforms, wide.
+func setup_d10_lava(ctx: Dictionary) -> Callable:
+	var step: Dictionary = route_steps("cold_rock_rescue")[1]
+	place_runner(ctx, on_ledge(step["from"], 0.3))
+	ctx["main"].input_hub.solo_role = ""
+	var r := rig(ctx)
+	r.zoom_from = 0.8
+	r.zoom_to = 0.86
+	r.zoom_ticks = T(2.0)
+	r.offset = Vector2(160, -60)
+	r.dead_y = 120.0
+	r.lead = 40.0
+	var black := film_s(ctx, 35.875)
+	ov().fade(black, black + 0.001, 0.0, 1.0)
+	return assisted(ctx, step, [0.0, 0.5], 0.1, true)
+
+## 36.05-40.5. The title over 1-1's opening field.
+func setup_e01_title(ctx: Dictionary) -> Callable:
+	place_runner(ctx, Vector2(-200, 374))
+	var r := rig(ctx)
+	r.zoom_from = 1.15
+	r.zoom_to = 1.0
+	r.zoom_ticks = T(4.4)
+	r.offset = Vector2(120, -60)
+	r.smooth = 2.0
+	cap.cue("drive_out")
+	cap.cue("hit")
+	ov().flash(0.0, 0.35, 0.9)
+	ov().end_card(0.15, "MELOS GAME", ["AVAILABLE NOW", "GOOGLE PLAY", "APP STORE"])
+	ov().fade(4.0, 4.45, 0.0, 1.0)
+	return func(c: Dictionary) -> void:
+		drive(c, 1.0 if int(c["t"]) > -12 else 0.0)

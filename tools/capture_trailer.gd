@@ -30,6 +30,47 @@ extends Node
 const MainScene: PackedScene = preload("res://src/main.tscn")
 const ArenaScene: PackedScene = preload("res://src/versus/versus_main.tscn")
 const ShotsScript := preload("res://tools/trailer_shots.gd")
+## みんなで スターたいせん, filmed: eight real seats over an in-process link,
+## the way test/versus_ffa_probe.gd plays it. Only the host's view is drawn.
+const FFA_SEATS := 8
+
+class FfaLink extends VersusTransport:
+	var bus_peer: VersusLoopback
+	func local_peer() -> int:
+		return bus_peer.local_peer()
+	func send_to(peer: int, channel: int, reliability: int, payload: PackedByteArray) -> void:
+		bus_peer.send_to(peer, channel, reliability, payload)
+	func broadcast(channel: int, reliability: int, payload: PackedByteArray) -> void:
+		bus_peer.broadcast(channel, reliability, payload)
+	func poll() -> Array[Dictionary]:
+		return bus_peer.poll()
+	func close() -> void:
+		bus_peer.close()
+
+class FfaScene extends "res://src/versus/versus_main.gd":
+	var bus_peer: VersusLoopback
+	func _read_command_line() -> void:
+		mode = Mode.HOST if bus_peer.local_peer() == 0 else Mode.CLIENT
+		room_mode = VersusRoster.RoomMode.FREE_FOR_ALL
+		room_code = "345678"
+		_seat = 0 if mode == Mode.HOST else -1
+		_theme = Stage.Which.ROYAL_ARENA
+		_set_local_team()
+	func _open_link(_as_host: bool) -> void:
+		var l := FfaLink.new()
+		l.bus_peer = bus_peer
+		link = l
+	func _start_debug_log() -> void:
+		pass
+
+## Moves the in-process link's packets along, before anyone reads them.
+class LinkPump extends Node:
+	var links: Array = []
+	func _ready() -> void:
+		process_physics_priority = -200
+	func _physics_process(delta: float) -> void:
+		for l in links:
+			l.advance(delta)
 const Overlay := preload("res://tools/trailer_overlay.gd")
 
 const DESIGN := Vector2i(1280, 720)
@@ -113,7 +154,10 @@ func run() -> void:
 	var beats := 0.0
 	for shot in shots.list():
 		var start := at
-		if shot.has("beats"):
+		if shot.has("until"):
+			# Cut at a fixed film time: the reference trailer's own cut points.
+			at = int(round(float(shot["until"]) * FPS))
+		elif shot.has("beats"):
 			if anchor < 0:
 				anchor = at
 			beats += float(shot["beats"])
@@ -140,14 +184,19 @@ func run() -> void:
 func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 	shots_log.append({"name": shot["name"], "start": frame, "frames": frames,
 		"film_start": film_start})
-	var ctx: Dictionary = {"t": 0, "frames": frames, "speed": 1.0, "freeze": 0, "shot": shot}
+	var ctx: Dictionary = {"t": 0, "frames": frames, "speed": 1.0, "freeze": 0, "shot": shot,
+		"film_start": float(film_start) / FPS}
 	_begin = frame
 	if shot.has("stage"):
-		await _open_coop(int(shot["stage"]))
+		await _open_coop(int(shot["stage"]), bool(shot.get("menu", false)))
 		ctx["main"] = main
 	elif shot.get("arena", false):
 		await _open_arena()
 		ctx["arena"] = main
+	elif shot.get("ffa", false):
+		await _open_ffa()
+		ctx["arena"] = main
+		ctx["ffa"] = _ffa_scenes
 	overlay.begin_shot()
 	if shot.get("music_in", false):
 		cue("music_in")
@@ -192,13 +241,20 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 		main.queue_free()
 		main = null
 		await get_tree().process_frame
+	for n in _ffa_extra:
+		n.queue_free()
+	_ffa_extra.clear()
+	_ffa_scenes.clear()
 
-func _open_coop(which: int) -> void:
+## `menu`: film the start screen as a player first sees it, instead of play.
+func _open_coop(which: int, menu := false) -> void:
 	Stage.use(which)
 	main = MainScene.instantiate()
 	view.add_child(main)
 	view.move_child(overlay, -1)
 	await get_tree().process_frame
+	if menu:
+		return
 	# The home screen goes; the HUD layers stay alive (main reads them) but
 	# are not drawn unless a shot asks for them.
 	main.get_node("NetPanel").free()
@@ -231,6 +287,38 @@ func _open_arena() -> void:
 	# every tick, over whatever the shot steered.
 	main.input.shared_keyboard = false
 	main.cpu_enabled = false
+
+## The free-for-all: the host's scene goes in the filmed view, the seven
+## guests each in a viewport of their own that is never drawn.
+var _ffa_scenes: Array = []
+var _ffa_extra: Array = []
+
+func _open_ffa() -> void:
+	var links: Array = VersusLoopback.mesh(FFA_SEATS, 0.02)
+	var pump := LinkPump.new()
+	pump.links = links
+	add_child(pump)
+	_ffa_extra.append(pump)
+	for i in FFA_SEATS:
+		var scene := FfaScene.new()
+		scene.bus_peer = links[i]
+		if i == 0:
+			view.add_child(scene)
+			view.move_child(overlay, -1)
+			main = scene
+		else:
+			var guest_view := SubViewport.new()
+			guest_view.size = Vector2i(320, 180)
+			guest_view.world_2d = World2D.new()
+			guest_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+			add_child(guest_view)
+			guest_view.add_child(scene)
+			_ffa_extra.append(guest_view)
+		_ffa_scenes.append(scene)
+	await get_tree().process_frame
+	for scene in _ffa_scenes:
+		scene.input.hubs[0].scripted = true
+		scene.input.hubs[0].set_listening(false)
 
 ## Stop the world and keep filming: the stage clock and every gameplay node
 ## stand still, the camera and the overlay do not. Co-op shots only.
