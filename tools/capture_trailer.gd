@@ -165,7 +165,7 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 			view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		overlay.set_time(shot_time() if t >= 0 else 0.0, frame)
 		tick.call(ctx)
-		if _trace and t % 10 == 0 and ctx.has("main"):
+		if _trace and t % int(OS.get_environment("TRAILER_TRACE")) == 0 and ctx.has("main"):
 			var r: Runner = main.runner
 			print("  t=%d pos=%s v=%s st=%d floor=%s" % [t, r.global_position.round(),
 				r.velocity.round(), r.state, r.is_on_floor()])

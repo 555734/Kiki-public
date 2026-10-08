@@ -20,7 +20,7 @@ var cap: Node = null
 func list() -> Array:
 	return [
 		{"name": "01_caught", "stage": W.HORROR, "sec": 3.3, "preroll": 30},
-		{"name": "02_drawn", "stage": W.SWAMP, "sec": 9.0, "preroll": 30},
+		{"name": "02_drawn", "stage": W.SWAMP, "sec": 7.9, "preroll": 30},
 		{"name": "03_desert", "stage": W.DESERT, "beats": 6, "preroll": 30, "music_in": true},
 		{"name": "04_chase", "stage": W.HORROR, "beats": 6, "preroll": 30},
 		{"name": "05_cliff", "stage": W.SEA, "beats": 6, "preroll": 30},
@@ -34,7 +34,7 @@ func list() -> Array:
 		{"name": "10_cave", "stage": W.CAVE, "beats": 4, "preroll": 30},
 		{"name": "11_arena", "arena": true, "beats": 4, "preroll": 600},
 		{"name": "12_coast", "stage": W.SEA, "beats": 4, "preroll": 30},
-		{"name": "13_hero", "stage": W.SWAMP, "beats": 6, "preroll": 30},
+		{"name": "13_hero", "stage": W.SEA, "beats": 6, "preroll": 30},
 		{"name": "14_title", "stage": W.GREENFIELD, "beats": 12, "preroll": 30},
 	]
 
@@ -525,7 +525,7 @@ func arena_play(ctx: Dictionary, zoom: float, seeds := [11, 29]) -> Callable:
 		cam.offset = cam.offset.lerp(want, 0.12)
 
 func setup_08_arena(ctx: Dictionary) -> Callable:
-	return arena_play(ctx, 0.75)
+	return arena_play(ctx, 1.1)
 
 ## Draw a stroke's state for this tick: visible, how much of it is drawn, and
 ## fading out once it has become a platform (`after` ticks past completion).
@@ -749,7 +749,7 @@ func setup_14_title(ctx: Dictionary) -> Callable:
 # ----------------------------------------------------------------- the digest
 
 func setup_11_arena(ctx: Dictionary) -> Callable:
-	return arena_play(ctx, 1.45, [5, 77])
+	return arena_play(ctx, 1.9, [5, 77])
 
 ## A death, as the digest shows it: a flash and a jolt as it lands.
 func dies(ctx: Dictionary, inner: Callable) -> Callable:
@@ -824,11 +824,12 @@ func setup_09d_walker(ctx: Dictionary) -> Callable:
 		m.runner.hp = 1
 		drive(c, 1.0 if int(c["t"]) > -17 else 0.0, false, true))
 
-## 1-5's furnace face: two platforms drawn up the wall, climbed as they
-## appear, the last landing slowed down -- the digest's last word.
+## 1-4's last lighthouse rescue: two platforms drawn up the cliff, climbed as
+## they appear, the last landing slowed down -- the digest's last word.
 func setup_13_hero(ctx: Dictionary) -> Callable:
-	var step: Dictionary = route_steps("furnace_rescue")[0]
-	place_runner(ctx, on_ledge(step["from"], 0.3))
+	var step: Dictionary = route_steps("last_lighthouse_rescue")[0]
+	place_runner(ctx, on_ledge(step["from"], 0.35))
+	clear_enemies(ctx, Rect2((step["from"] as Rect2).position - Vector2(700, 900), Vector2(1600, 1400)))
 	var r := rig(ctx)
 	r.zoom_from = 1.05
 	r.zoom_to = 1.3
