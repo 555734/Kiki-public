@@ -45,6 +45,15 @@ var _grids: Array = []
 ## Where a blueprint settles, in design pixels: the screen rect of the thing
 ## being placed. A shot moves it every frame, as the camera may.
 var blueprint_rect := Rect2(560, 300, 200, 120)
+## A voice call, the way a chat app shows one: {"at", "answer"} -- the banner
+## rings from `at`, is answered at `answer` and becomes the in-call bar.
+var _call: Dictionary = {}
+## The name tag that rides next to the guardian's finger: "" for none, and
+## where the fingertip is on the screen this frame (design px).
+var finger_name := ""
+var finger_at := Vector2(INF, INF)
+## A finger tapping the screen itself (the call's answer button): [at_sec, pos].
+var _taps: Array = []
 
 func _ready() -> void:
 	layer = 90
@@ -67,6 +76,10 @@ func begin_shot() -> void:
 		(c["sub"] as Node).queue_free()
 	_cards = []
 	_grids = []
+	_call = {}
+	_taps = []
+	finger_name = ""
+	finger_at = Vector2(INF, INF)
 	t = 0.0
 
 func end_shot() -> void:
@@ -123,6 +136,12 @@ func _draw_all() -> void:
 		_draw_tag(g)
 	for g in _titles:
 		_draw_title(g)
+	if finger_name != "" and finger_at.x != INF:
+		_draw_finger_tag()
+	if not _call.is_empty():
+		_draw_call()
+	for tap in _taps:
+		_draw_tap(tap)
 	if not _note.is_empty():
 		_draw_note()
 	if not _card.is_empty():
@@ -660,3 +679,125 @@ func _draw_face(c: Control, kind: String) -> void:
 	for k in parts.size():
 		BODY_FONT.draw_string(ci, Vector2(560, 464 + k * 15), String(parts[k]),
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.7))
+
+# ------------------------------------------------------------------ the call
+
+const PORTRAITS := {
+	"ORION": preload("res://assets/ui/portrait_orion.png"),
+	"LIRA": preload("res://assets/ui/portrait_lira.png"),
+}
+const CALL_BG := Color(0.12, 0.13, 0.16, 0.96)
+const CALL_LINE := Color(1, 1, 1, 0.08)
+const CALL_GREEN := Color(0.18, 0.80, 0.44)
+const CALL_RED := Color(0.93, 0.27, 0.27)
+
+## A voice call from `caller`: rings from `at`, answered at `answer`. Until
+## `until` the in-call bar stays up in the corner (INF: to the end of the shot).
+func voice_call(caller: String, at: float, answer: float, until: float = INF,
+		people: Array = []) -> void:
+	_call = {"caller": caller, "at": at, "answer": answer, "until": until,
+		"people": people if not people.is_empty() else [caller]}
+
+## A fingertip tapping the screen at `pos` (design px) at `at`.
+func tap(at: float, pos: Vector2) -> void:
+	_taps.append([at, pos])
+
+func _avatar(centre: Vector2, radius: float, who: String, alpha: float, ring := 0.0) -> void:
+	if ring > 0.0:
+		_canvas.draw_arc(centre, radius + 4.0, 0, TAU, 40, Color(CALL_GREEN, ring * alpha), 3.5, true)
+	var tex: Texture2D = PORTRAITS.get(who)
+	_canvas.draw_circle(centre, radius, Color(0.2, 0.22, 0.28, alpha))
+	if tex != null:
+		var pts := PackedVector2Array()
+		var uvs := PackedVector2Array()
+		for k in 32:
+			var d := Vector2.from_angle(TAU * k / 32.0)
+			pts.append(centre + d * radius)
+			uvs.append(Vector2(0.5, 0.5) + d * 0.5 * 0.86)
+		_canvas.draw_polygon(pts, PackedColorArray([Color(1, 1, 1, alpha)]), uvs, tex)
+
+func _draw_call() -> void:
+	var age := t - float(_call["at"])
+	if age < 0.0 or t > float(_call["until"]):
+		return
+	var ci := _canvas.get_canvas_item()
+	var answered := t >= float(_call["answer"])
+	if not answered:
+		# The incoming banner, sliding down from the top, ringing.
+		var k := _ease_out_back(clampf(age / 0.35, 0.0, 1.0))
+		var w := 560.0
+		var h := 120.0
+		var ring := sin(age * TAU * 2.0)
+		var shake := ring * 3.0 if fmod(age, 1.2) < 0.6 else 0.0
+		var r := Rect2(640.0 - w * 0.5 + shake, lerpf(-h - 10.0, 26.0, k), w, h)
+		_rounded(r.grow(2), 26.0, CALL_LINE, null)
+		_rounded(r, 24.0, CALL_BG, null)
+		var who := String(_call["caller"])
+		var pulse := 0.5 + 0.5 * absf(ring)
+		_avatar(r.position + Vector2(66, h * 0.5), 38.0, who, 1.0, pulse)
+		BODY_FONT.draw_string(ci, r.position + Vector2(122, 54), who, HORIZONTAL_ALIGNMENT_LEFT,
+			-1, 30, Color.WHITE)
+		BODY_FONT.draw_string(ci, r.position + Vector2(122, 88), "Incoming voice call...",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1, 0.65))
+		for b in 2:
+			var c := r.position + Vector2(w - 150.0 + 76.0 * b, h * 0.5)
+			var col := CALL_RED if b == 0 else CALL_GREEN
+			var grow := 1.0 + (0.08 * pulse if b == 1 else 0.0)
+			_canvas.draw_circle(c, 28.0 * grow, col)
+			_draw_phone(c, 0.9 * grow, b == 0)
+		return
+	# Answered: the bar in the corner, with whoever is on the call.
+	var since := t - float(_call["answer"])
+	var k2 := clampf(since / 0.3, 0.0, 1.0)
+	var people: Array = _call["people"]
+	var w2 := 214.0 + 58.0 * people.size()
+	var bar := Rect2(lerpf(640.0 - w2 * 0.5, 22.0, _smooth(k2)), lerpf(26.0, 20.0, k2), w2, 64)
+	_rounded(bar.grow(2), 34.0, CALL_LINE, null)
+	_rounded(bar, 32.0, CALL_BG, null)
+	_canvas.draw_circle(bar.position + Vector2(30, 32), 8.0, CALL_GREEN)
+	BODY_FONT.draw_string(ci, bar.position + Vector2(48, 30), "Voice connected",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 18, CALL_GREEN)
+	BODY_FONT.draw_string(ci, bar.position + Vector2(48, 50), "%d in call" % people.size(),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.6))
+	for i in people.size():
+		var c := bar.position + Vector2(214.0 + 58.0 * i, 32)
+		# Talking: the green ring comes and goes, a little out of step per person.
+		var talk := clampf(sin(t * 7.0 + i * 2.1) * 0.8 + sin(t * 3.3 + i) * 0.6, 0.0, 1.0)
+		_avatar(c, 22.0, String(people[i]), 1.0, talk)
+
+func _draw_phone(c: Vector2, s: float, hang_up: bool) -> void:
+	# A handset: two ear pieces and the bar between them.
+	var rot := 2.35 if hang_up else 0.0
+	_canvas.draw_set_transform(c, rot, Vector2(s, s))
+	_canvas.draw_line(Vector2(-9, -6), Vector2(9, -6), Color.WHITE, 6.0, true)
+	_canvas.draw_circle(Vector2(-10, -2), 5.0, Color.WHITE)
+	_canvas.draw_circle(Vector2(10, -2), 5.0, Color.WHITE)
+	_canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+func _draw_tap(tap: Array) -> void:
+	var age := t - float(tap[0])
+	if age < -0.4 or age > 0.5:
+		return
+	var at: Vector2 = tap[1]
+	if age < 0.0:
+		# The finger coming in to press.
+		var k := 1.0 + age / 0.4
+		_canvas.draw_circle(at, 26.0, Color(1, 1, 1, 0.18 * k))
+		_canvas.draw_circle(at, 13.0, Color(1, 1, 1, 0.5 * k))
+		return
+	var k2 := age / 0.5
+	_canvas.draw_arc(at, lerpf(14.0, 48.0, k2), 0, TAU, 32, Color(1, 1, 1, 0.8 * (1.0 - k2)), 4.0, true)
+	_canvas.draw_circle(at, 13.0 * (1.0 - k2), Color(1, 1, 1, 0.7))
+
+## Where on the screen the answer button sits, for the tap that presses it.
+func call_answer_point() -> Vector2:
+	return Vector2(640.0 - 280.0 + 560.0 - 150.0 + 76.0, 26.0 + 60.0)
+
+func _draw_finger_tag() -> void:
+	var ci := _canvas.get_canvas_item()
+	var size := 20
+	var w := BODY_FONT.get_string_size(finger_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 22.0
+	var r := Rect2(finger_at + Vector2(30, 34), Vector2(w, 30))
+	_rounded(r, 15.0, Color(0.21, 0.84, 1.0, 0.95), null)
+	BODY_FONT.draw_string(ci, r.position + Vector2(11, 22), finger_name,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.03, 0.10, 0.16))

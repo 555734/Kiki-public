@@ -16,6 +16,8 @@ Cues (shots.json "cues", each at a film time):
     drive_in / drive_out   the score's drop and its closing sting
     card                   a blueprint card flapping down onto the screen
     grid                   a blueprint's grid switching on: a rising blip
+    ring / answer          a phone ringing / the call picked up
+    slam                   something heavy coming down
 """
 import json
 import sys
@@ -118,6 +120,18 @@ def blip() -> np.ndarray:
     return np.concatenate(out).astype(np.float32)
 
 
+def ringtone() -> np.ndarray:
+    """A phone ringing: two quick square-wave chirps, twice, in the score's voice."""
+    out = np.zeros(int(1.6 * RATE), dtype=np.float32)
+    for burst in (0.0, 0.8):
+        for k, f in enumerate((1318.5, 1568.0, 1318.5, 1568.0)):
+            a = int((burst + k * 0.09) * RATE)
+            m = int(0.075 * RATE)
+            tt = np.arange(m) / RATE
+            out[a:a + m] += np.sign(np.sin(2 * np.pi * f * tt)) * 0.22 * np.exp(-tt * 6.0)
+    return out
+
+
 def write_wav(path: Path, x: np.ndarray, channels: int) -> None:
     pcm = (np.clip(x, -1.0, 1.0) * 32767.0).astype(np.int16)
     if channels == 2:
@@ -197,7 +211,8 @@ def main() -> None:
         design[a:a + len(boom)] += boom[: n - a] * db(-4.0)
 
     for c in cues:
-        x = whoosh() if c["cue"] == "card" else blip() if c["cue"] == "grid" else None
+        x = {"card": whoosh, "grid": blip, "answer": blip, "ring": ringtone,
+             "slam": impact}.get(c["cue"], lambda: None)()
         if x is None:
             continue
         a = int(float(c["t"]) * RATE)
