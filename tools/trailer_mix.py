@@ -43,7 +43,9 @@ FOLEY = Path(__file__).resolve().parent / "trailer_assets" / "sfx"
 FOLEY_DB = 2.0
 # The game's own synthesised sounds that the foley plays a recording of
 # instead: kept out, so a shot is a gunshot and not a gunshot over a blip.
-REPLACED = {"shot", "hit", "enemy_die", "die", "hurt", "jump", "land", "gate"}
+REPLACED = {"shot", "hit", "enemy_die", "die", "hurt", "jump", "land", "gate",
+            # and the play-session jingles, which a trailer has no use for
+            "game_over", "checkpoint", "respawn"}
 
 
 def load(name: str) -> np.ndarray:
@@ -142,6 +144,39 @@ def ringtone() -> np.ndarray:
     return out
 
 
+# The hits the music ducks under.
+DUCK_ON = {"gun", "explosion", "cannon", "gate_slam", "punch_heavy", "stab"}
+
+
+def room(x: np.ndarray) -> np.ndarray:
+    """A small room: 0.35 s of decaying, darkened noise, by FFT convolution."""
+    rng = np.random.default_rng(5)
+    k = int(0.35 * RATE)
+    ir = rng.standard_normal(k).astype(np.float32) * np.exp(-np.arange(k) / (0.07 * RATE))
+    ir = lowpass(ir, 3500.0)
+    ir[: int(0.012 * RATE)] = 0.0          # a pre-delay: the tail, not a smear
+    ir /= np.sqrt(np.sum(ir ** 2)) + 1e-9
+    m = 1 << int(np.ceil(np.log2(len(x) + k)))
+    y = np.fft.irfft(np.fft.rfft(x, m) * np.fft.rfft(ir, m), m)[: len(x)]
+    return y.astype(np.float32)
+
+
+def duck(times: list, n: int) -> np.ndarray:
+    """Music gain: down 7 dB on each hit, back over 0.4 s."""
+    g = np.ones(n, dtype=np.float32)
+    low = db(-7.0)
+    for at in times:
+        a = int(at * RATE)
+        if a >= n:
+            continue
+        hold = min(n, a + int(0.12 * RATE))
+        g[a:hold] = np.minimum(g[a:hold], low)
+        rel = np.linspace(low, 1.0, int(0.4 * RATE)).astype(np.float32)
+        b = min(n, hold + len(rel))
+        g[hold:b] = np.minimum(g[hold:b], rel[: b - hold])
+    return g
+
+
 def write_wav(path: Path, x: np.ndarray, channels: int) -> None:
     pcm = (np.clip(x, -1.0, 1.0) * 32767.0).astype(np.int16)
     if channels == 2:
@@ -182,6 +217,8 @@ def main() -> None:
     silence = first("silence", -1.0)
     cache: dict = {}
     sfx_track = np.zeros(n, dtype=np.float32)
+    foley_track = np.zeros(n, dtype=np.float32)
+    hits: list = []
     last: dict = {}
     for s in sfx:
         at_s = float(s["t"])
@@ -206,9 +243,30 @@ def main() -> None:
             continue
         gain = FOLEY_DB if key.startswith("foley/") else SFX_DB
         clip = clip[: n - at] * db(float(s.get("db", 0.0)) + gain)
-        sfx_track[at:at + len(clip)] += clip
+        if key.startswith("foley/"):
+            foley_track[at:at + len(clip)] += clip
+            if key[6:] in DUCK_ON:
+                hits.append(at_s)
+        else:
+            sfx_track[at:at + len(clip)] += clip
     if silence >= 0.0:
         sfx_track *= np.where((t >= silence) & (t < music_in), 0.0, 1.0).astype(np.float32)
+
+    # One space for every recording: a short, dark room tail under them all,
+    # so clips recorded in different places sound like one place.
+    foley_track += room(foley_track) * db(-14.0)
+    sfx_track += foley_track
+    # The music steps aside for a moment on every big hit.
+    music *= duck(hits, n)
+    # Before the music, the world: a quiet country bed under the opening.
+    bed = load("foley/ambience")
+    reps = int(np.ceil((music_in + 1.0) * RATE / len(bed))) + 1
+    bed = np.tile(bed, reps)[: min(n, int((music_in + 1.0) * RATE))]
+    bt = np.arange(len(bed)) / RATE
+    # Darkened and far back: it is air, not a sound anyone should notice.
+    bed = lowpass(bed, 2500.0)
+    bed *= ramp(bt, 0.0, 0.3, True) * ramp(bt, music_in, 1.0, False) * db(-17.0)
+    sfx_track[: len(bed)] += bed
 
     # Designed sound: the rumble, and the impact the score comes in on.
     design = np.zeros(n, dtype=np.float32)

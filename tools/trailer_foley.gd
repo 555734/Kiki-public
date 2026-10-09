@@ -50,8 +50,8 @@ func _on_killed(enemy: Node2D, by: String) -> void:
 	if enemy is Turret:
 		play("explosion", 0.0)
 	elif by == "swipe":
-		play("soft_hit", -4.0, _rng.randf_range(1.1, 1.3))
-		play("flap", -8.0, 1.3)
+		play("squeak", -3.0, _rng.randf_range(0.9, 1.2))
+		play("flap", -5.0, _rng.randf_range(1.0, 1.25))
 	elif by != "flick":
 		play("gun_hit", -3.0)
 
@@ -59,8 +59,8 @@ func _on_killed(enemy: Node2D, by: String) -> void:
 ## it, and the body hitting the ground.
 func _on_died(_cause: String) -> void:
 	play("stab", 0.0)
-	play("squish", -5.0)
-	play("thud", -3.0)
+	play("squish", -3.0)
+	play("thud", -2.0)
 
 func _on_hold(node: Node2D) -> void:
 	if not is_instance_valid(node):
@@ -69,7 +69,7 @@ func _on_hold(node: Node2D) -> void:
 	if node is LiftGate:
 		if held:
 			play("latch", -3.0)
-			play("creak", -6.0, 0.85)
+			play("creak", -5.0)
 		else:
 			get_tree().create_timer(Balance.LIFT_GATE_DROP).timeout.connect(func() -> void:
 				play("gate_slam", 0.0))
@@ -120,7 +120,7 @@ func tick(main: Node) -> void:
 	var step := int(float(v.get("_run_t"))) / 4
 	if r.state == Runner.State.RUN and r.is_on_floor():
 		if step != _last_step:
-			play("step_%d" % _rng.randi_range(0, 4), -4.0, _rng.randf_range(0.92, 1.08))
+			play("step_%d" % _rng.randi_range(0, 5), -3.0, _rng.randf_range(0.94, 1.06))
 	_last_step = step
 	for e in get_tree().get_nodes_in_group("instant_death"):
 		if not (e is Node2D) or not main.is_ancestor_of(e) or not e.has_method("stunned"):
@@ -135,13 +135,17 @@ func tick(main: Node) -> void:
 		if speed > 120.0:
 			if not _hound_seen.has(id):
 				_hound_seen[id] = true
-				play("bark_0", -2.0)
-			if cap.now() - _last_gallop > 0.2:
+				play("bark_0", -1.0)
+			# Its paws on the stones: a recorded run, laid end to end.
+			if cap.now() - _last_gallop > 1.25:
 				_last_gallop = cap.now()
-				play("gallop_%d" % _rng.randi_range(0, 4), -9.0, 0.7)
-		elif bool(vis.get("_woke")) and speed < 15.0 and _rng.randf() < 0.025:
-			# Held at the bars: barking at them.
-			play("bark_1", -4.0, _rng.randf_range(0.95, 1.05))
+				play("gallop", -6.0, 0.85)
+		elif bool(vis.get("_woke")) and speed < 15.0 and _rng.randf() < 0.03:
+			# Held at the bars or knocked back: a growl, or barking at it.
+			if _rng.randf() < 0.4:
+				play("growl", -5.0, _rng.randf_range(0.9, 1.0))
+			else:
+				play("bark_%d" % _rng.randi_range(1, 2), -3.0, _rng.randf_range(0.95, 1.05))
 
 ## A new shot builds a new game: forget the last one's runner and hound.
 func reset() -> void:
