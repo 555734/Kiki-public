@@ -776,6 +776,11 @@ func setup_f1_chasm(ctx: Dictionary) -> Callable:
 		if int(state["leapt"]) < 0 and not rn.is_on_floor() and rn.global_position.x > LevelCastleData.CHASM.x - 20.0:
 			state["leapt"] = t
 			c["speed"] = 0.5
+			# The rush of the drop, and far below, the landing.
+			cap.foley.play("whoosh", -2.0, 0.62)
+		if int(state["leapt"]) >= 0 and t - int(state["leapt"]) == T(0.95):
+			cap.foley.play("thud", -5.0, 0.6)
+			cap.foley.play("squish", -12.0, 0.8)
 		var since := t - int(state["leapt"])
 		if int(state["leapt"]) >= 0 and since == T(0.45):
 			c["speed"] = 1.0
@@ -1077,7 +1082,8 @@ func setup_d3_cannon(ctx: Dictionary) -> Callable:
 			cannon = n
 	if cannon != null:
 		cannon.burst = 1
-		cannon._cooldown = 0.45
+		# Fires a moment into the shot, not in the pre-roll: seen and heard.
+		cannon._cooldown = 0.75
 	var r := rig(ctx)
 	r.cut_to(Vector2(3560, 300), 1.35)
 	var spot := Vector2(3560, cannon.global_position.y if cannon != null else 353.0)

@@ -90,6 +90,10 @@ var main: Node = null
 
 var frame := 0           # next film frame to write
 var sfx: Array = []      # {"t", "key", "pitch", "db"}
+## The recorded-sound layer (tools/trailer_foley.gd) and whether a shot's
+## frames are being kept, which is when it listens.
+var foley: Node = null
+var recording := false
 var cues: Array = []     # {"t", "cue"}
 var shots_log: Array = []
 var _voice_cursor := 0
@@ -138,6 +142,9 @@ func run() -> void:
 	view.transparent_bg = false
 	view.audio_listener_enable_2d = false
 	add_child(view)
+	foley = preload("res://tools/trailer_foley.gd").new()
+	foley.cap = self
+	add_child(foley)
 	overlay = Overlay.new()
 	view.add_child(overlay)
 
@@ -172,6 +179,8 @@ func run() -> void:
 		print("shot %-14s %4d frames  (%.1fs to render)" % [shot["name"], at - start,
 			(Time.get_ticks_msec() - t0) / 1000.0])
 
+	for e in foley.entries:
+		sfx.append({"t": e["t"], "key": "foley/" + String(e["key"]), "pitch": e["pitch"], "db": e["db"]})
 	var f := FileAccess.open(dir + "/sfx.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(sfx, "  "))
 	f = FileAccess.open(dir + "/shots.json", FileAccess.WRITE)
@@ -209,6 +218,8 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 		ctx["arena"] = main
 		ctx["ffa"] = _ffa_scenes
 	overlay.begin_shot()
+	foley.reset()
+	recording = false
 	if shot.get("music_in", false):
 		cue("music_in")
 	var tick: Callable = shots.call("setup_" + String(shot["name"]), ctx)
@@ -224,7 +235,10 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 		if t == 0:
 			view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		overlay.set_time(shot_time() if t >= 0 else 0.0, frame)
+		recording = t >= 0
 		tick.call(ctx)
+		if ctx.has("main"):
+			foley.tick(ctx["main"])
 		if _trace and t % int(OS.get_environment("TRAILER_TRACE")) == 0 and ctx.has("main"):
 			var r: Runner = main.runner
 			print("  t=%d pos=%s v=%s st=%d floor=%s" % [t, r.global_position.round(),

@@ -37,8 +37,18 @@ MUSIC_DB = -3.0
 SFX_DB = -6.0
 
 
+# The recorded foley layer (tools/trailer_foley.gd): CC0 recordings cut by
+# tools/import_trailer_sfx.py. Its keys arrive as "foley/<clip>".
+FOLEY = Path(__file__).resolve().parent / "trailer_assets" / "sfx"
+FOLEY_DB = 2.0
+# The game's own synthesised sounds that the foley plays a recording of
+# instead: kept out, so a shot is a gunshot and not a gunshot over a blip.
+REPLACED = {"shot", "hit", "enemy_die", "die", "hurt", "jump", "land", "gate"}
+
+
 def load(name: str) -> np.ndarray:
-    with wave.open(str(AUDIO / f"{name}.wav")) as w:
+    path = FOLEY / f"{name[6:]}.wav" if name.startswith("foley/") else AUDIO / f"{name}.wav"
+    with wave.open(str(path)) as w:
         assert w.getsampwidth() == 2, name
         data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
         data = data.astype(np.float32) / 32768.0
@@ -178,6 +188,8 @@ def main() -> None:
         if silence >= 0.0 and silence <= at_s < music_in:
             continue
         key = s["key"]
+        if key in REPLACED:
+            continue
         # The free-for-all runs eight copies of the game side by side, and
         # each plays the same event's sound: keep one.
         if at_s - last.get(key, -1.0) < 0.05:
@@ -192,7 +204,8 @@ def main() -> None:
         at = round(at_s * RATE)
         if at >= n:
             continue
-        clip = clip[: n - at] * db(float(s.get("db", 0.0)) + SFX_DB)
+        gain = FOLEY_DB if key.startswith("foley/") else SFX_DB
+        clip = clip[: n - at] * db(float(s.get("db", 0.0)) + gain)
         sfx_track[at:at + len(clip)] += clip
     if silence >= 0.0:
         sfx_track *= np.where((t >= silence) & (t < music_in), 0.0, 1.0).astype(np.float32)
