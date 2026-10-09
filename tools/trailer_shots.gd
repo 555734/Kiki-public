@@ -9,34 +9,34 @@ const W := Stage.Which
 
 var cap: Node = null
 
-## The call, all of it on 1-9 -- the stage built for it -- and paced after the
-## reference: a slow opening, then quicker and closer to the title. Film seconds:
-##    0.0  out of black, down from the castle on its hill to one small runner.
-##    3.2  alone: the ravine (slowed at the leap), the boulder, the shut gate
-##         and the hound -- each quicker and closer; cut to black.
-##    9.6  close on the runner at the gate. A call; a finger -- THIS IS YOU --
+## The call, all of it on 1-9 -- the stage built for it. Something happens in
+## the first second, and the call -- the film's first surprise -- comes at five.
+## Film seconds:
+##    0.0  mid-sprint at the broken bridge: the leap, slowed, falls short.
+##    2.0  alone, quicker and closer: the boulder; the shut gate and the hound;
+##         cut to black.
+##    5.0  close on the runner at the gate. A call; a finger -- THIS IS YOU --
 ##         holds the gate up; the hound gets the bars.
-##   16.6  the drop, faster and faster, wide then in close on each moment:
-##         the bridge, the hound shot off their heels, the bats, the cannonball
-##         sent home, the boulder, the dark, the slingshot, the giant flicked
-##         away in slow motion and a fist in the air.
-##   35.2  the title, at the castle door, still on the call.
+##   10.6  the drop, faster and faster, wide then in close on each moment: the
+##         hound shot off their heels, the bats, the cannonball sent home, the
+##         bridge drawn over the ravine, the boulder, the dark, the slingshot,
+##         the giant flicked away in slow motion and a fist in the air.
+##   28.6  the title at the castle door, and who made it.
 func list() -> Array:
 	return [
-		{"name": "a0_open", "stage": W.CASTLE, "until": 3.2, "preroll": 30},
-		{"name": "f1_chasm", "stage": W.CASTLE, "until": 5.8, "preroll": 30},
-		{"name": "f2_boulder", "stage": W.CASTLE, "until": 7.2, "preroll": 30},
-		{"name": "f3_hound", "stage": W.CASTLE, "until": 9.6, "preroll": 30},
-		{"name": "c1_call", "stage": W.CASTLE, "until": 16.6, "preroll": 30},
-		{"name": "d1_bridge", "stage": W.CASTLE, "until": 19.0, "preroll": 30},
-		{"name": "d1b_snipe", "stage": W.CASTLE, "until": 21.2, "preroll": 30},
-		{"name": "d2_bats", "stage": W.CASTLE, "until": 23.2, "preroll": 30},
-		{"name": "d3_cannon", "stage": W.CASTLE, "until": 25.6, "preroll": 30},
-		{"name": "d4_boulder", "stage": W.CASTLE, "until": 27.6, "preroll": 30},
-		{"name": "d5_dark", "stage": W.CASTLE, "until": 29.4, "preroll": 30},
-		{"name": "d6_sling", "stage": W.CASTLE, "until": 31.4, "preroll": 30},
-		{"name": "d7_golem", "stage": W.CASTLE, "until": 35.2, "preroll": 30},
-		{"name": "e1_title", "stage": W.CASTLE, "until": 40.6, "preroll": 30},
+		{"name": "f1_chasm", "stage": W.CASTLE, "until": 2.0, "preroll": 30},
+		{"name": "f2_boulder", "stage": W.CASTLE, "until": 3.2, "preroll": 30},
+		{"name": "f3_hound", "stage": W.CASTLE, "until": 5.0, "preroll": 30},
+		{"name": "c1_call", "stage": W.CASTLE, "until": 10.6, "preroll": 30},
+		{"name": "d1b_snipe", "stage": W.CASTLE, "until": 12.8, "preroll": 30},
+		{"name": "d2_bats", "stage": W.CASTLE, "until": 14.8, "preroll": 30},
+		{"name": "d3_cannon", "stage": W.CASTLE, "until": 17.2, "preroll": 30},
+		{"name": "d1_bridge", "stage": W.CASTLE, "until": 19.6, "preroll": 30},
+		{"name": "d4_boulder", "stage": W.CASTLE, "until": 21.4, "preroll": 30},
+		{"name": "d5_dark", "stage": W.CASTLE, "until": 23.0, "preroll": 30},
+		{"name": "d6_sling", "stage": W.CASTLE, "until": 25.0, "preroll": 30},
+		{"name": "d7_golem", "stage": W.CASTLE, "until": 28.6, "preroll": 30},
+		{"name": "e1_title", "stage": W.CASTLE, "until": 34.0, "preroll": 30},
 	]
 
 # --------------------------------------------------------------------- helpers
@@ -749,42 +749,17 @@ static func road_at(x: float) -> Rect2:
 
 # ----------------------------------------------------------------------- alone
 #
-# Paced like the reference: one slow establishing take, then the failures
-# getting quicker and closer, the last one cut to black.
+# Straight in: the first leap in the first second, then the failures quicker
+# and closer, the last one cut to black.
 
-## 0.0-3.2. Out of black on the castle far off on its hill; the camera comes
-## down the sky to the road and settles close on one small figure standing
-## alone. A breath, a blink, and they set off.
-func setup_a0_open(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	hound_off(ctx)
-	place_runner(ctx, Vector2(300, ROAD_Y))
-	m.runner.facing = 1
-	var r := rig(ctx)
-	r.cut_to(Vector2(620, -300), 0.9)
-	r.smooth = 4.0
-	r.smooth_y = 4.0
-	ov().fade(0.0, 0.7, 1.0, 0.0)
-	return func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		var rn: Runner = m.runner
-		if t == T(0.25):
-			r.dolly_to(rn.global_position + Vector2(50, -55), T(2.2))
-			r.zoom_go(2.3, T(2.4))
-		if t == T(2.65):
-			r.follow = rn
-			r.offset = Vector2(90, -55)
-			r.lead = 60.0
-			r.smooth = 6.0
-		drive(c, 1.0 if t >= T(2.6) else 0.0)
-
-## 3.2-5.8. A: tracked from the side at the runner's pace, a leap at the
-## broken edge that hangs in slow motion -- and falls short, down into the dark.
+## 0.0-2.0. A: in mid-sprint at the broken bridge, tracked from the side; the
+## leap hangs in slow motion -- and falls short, down into the dark.
 func setup_f1_chasm(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	hound_off(ctx)
-	place_runner(ctx, Vector2(380, ROAD_Y))
+	place_runner(ctx, Vector2(330, ROAD_Y))
 	m.runner.facing = 1
+	ov().fade(0.0, 0.2, 1.0, 0.0)
 	var r := rig(ctx)
 	r.zoom_from = 1.45
 	r.zoom_to = 1.45
@@ -807,13 +782,14 @@ func setup_f1_chasm(ctx: Dictionary) -> Callable:
 			# The camera stops at the edge and looks down after them.
 			r.dolly_to(Vector2(LevelCastleData.CHASM.x + 260.0, 520.0), T(0.8))
 			r.zoom_go(1.3, T(0.8))
-		if t < -10 or rn.state == Runner.State.DEAD:
+		# Running from the pre-roll on: flat out by the first frame.
+		if rn.state == Runner.State.DEAD:
 			drive(c, 0.0)
 		else:
 			drive(c, 1.0, at_edge or (not rn.is_on_floor() and rn.velocity.y < 0.0), true)
 	return dies(ctx, inner)
 
-## 5.8-7.2. D: closer, quicker. Into the tunnel -- and the boulder.
+## 2.0-3.2. D: closer, quicker. Into the tunnel -- and the boulder.
 func setup_f2_boulder(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	hound_off(ctx)
@@ -826,20 +802,20 @@ func setup_f2_boulder(ctx: Dictionary) -> Callable:
 		drive(c, 1.0 if int(c["t"]) > -6 and m.runner.state != Runner.State.DEAD else 0.0)
 	return dies(ctx, inner)
 
-## 7.2-9.6. E: the gate is shut. A skid, a look back -- the camera pushes in
+## 3.2-5.0. E: the gate is shut. A skid, a look back -- the camera pushes in
 ## on the face -- and the hound comes out of nowhere. Cut to black.
 func setup_f3_hound(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(LevelCastleData.GATE_X - 330.0, ROAD_Y))
+	place_runner(ctx, Vector2(LevelCastleData.GATE_X - 250.0, ROAD_Y))
 	m.runner.facing = 1
 	var hold: WeakRef = weakref(pursuer_of(ctx))
 	var r := rig(ctx)
-	r.zoom_from = 1.7
-	r.zoom_to = 1.7
+	r.zoom_from = 1.8
+	r.zoom_to = 1.8
 	r.lead = 0.0
 	r.offset = Vector2(20, -60)
 	r.smooth = 8.0
-	ov().fade(1.95, 2.4, 0.0, 1.0)
+	ov().fade(1.5, 1.8, 0.0, 1.0)
 	var inner := func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		var rn: Runner = m.runner
@@ -848,25 +824,25 @@ func setup_f3_hound(ctx: Dictionary) -> Callable:
 			p.global_position = Vector2(-3000, 335)
 			p.set("_wake_left", 9999.0)
 			p.set("_activated", true)
-		if t == T(0.75):
-			rn.visual.react(1, 0.35)
-		if t == T(1.05):
+		if t == T(0.45):
+			rn.visual.react(1, 0.3)
+		if t == T(0.7):
 			# Stopped dead at the bars, and a look back at what is coming.
 			rn.visual.react(0, 1.0)
-			r.zoom_go(2.7, T(0.5))
+			r.zoom_go(2.7, T(0.4))
 			r.offset = Vector2(-40, -45)
-		if t == T(1.2) and p != null:
-			p.global_position = rn.global_position + Vector2(-430, -40)
+		if t == T(0.8) and p != null:
+			p.global_position = rn.global_position + Vector2(-400, -40)
 			p.set("_wake_left", 0.0)
-			p.set("cruise_speed", 420.0)
-			p.set("catchup_speed", 520.0)
-		var go := t > -12 and t < T(0.75) and rn.state != Runner.State.DEAD
+			p.set("cruise_speed", 520.0)
+			p.set("catchup_speed", 560.0)
+		var go := t > -12 and t < T(0.45) and rn.state != Runner.State.DEAD
 		drive(c, 1.0 if go else 0.0)
 	return dies(ctx, inner)
 
 # ------------------------------------------------------------------- the call
 
-## 9.6-16.6. Out of black, close on the runner at the gate. The call; the
+## 5.0-10.6. Out of black, close on the runner at the gate. The call; the
 ## finger appears -- THIS IS YOU -- and holds the gate up; the hound gets the
 ## bars instead.
 func setup_c1_call(ctx: Dictionary) -> Callable:
@@ -883,17 +859,17 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 	r.cut_to(Vector2(gx - 60.0, ROAD_Y - 60.0), 2.5)
 	r.zoom_go(2.75, T(2.4))
 	r.smooth = 4.0
-	ov().fade(0.0, 0.45, 1.0, 0.0)
-	ov().voice_call(CALLER, 0.4, 2.15, INF, ["LIRA", CALLER])
-	ov().tap(2.15, ov().call_answer_point())
-	var t_ring := T(0.4)
-	var t_answer := T(2.15)
-	var t_finger := T(2.5)
-	var t_tag := T(2.9)
-	var t_press := T(4.1)
-	var t_wolf := T(3.7)
-	var t_run := T(4.35)
-	var t_drop := T(5.15)
+	ov().fade(0.0, 0.3, 1.0, 0.0)
+	ov().voice_call(CALLER, 0.25, 1.4, INF, ["LIRA", CALLER])
+	ov().tap(1.4, ov().call_answer_point())
+	var t_ring := T(0.25)
+	var t_answer := T(1.4)
+	var t_finger := T(1.7)
+	var t_tag := T(2.0)
+	var t_press := T(3.0)
+	var t_wolf := T(2.6)
+	var t_run := T(3.25)
+	var t_drop := T(4.05)
 	var hello := Vector2(gx + 110.0, 255)
 	var state := {"pressed": false, "released": false, "lift": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
@@ -922,7 +898,7 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 		if t == t_tag:
 			var at := _screen(c, hello)
 			ov().tag([[float(t) / 60.0, "THIS IS"], [float(t) / 60.0 + 0.3, "THIS IS YOU"]],
-				float(t) / 60.0 + 1.15, at + Vector2(-380, 14), 76)
+				float(t) / 60.0 + 1.0, at + Vector2(-380, 14), 76)
 		if t == t_wolf and p != null:
 			p.global_position = rn.global_position + Vector2(-760, -40)
 			p.set("_wake_left", 0.0)
@@ -931,7 +907,7 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 		# Hello: the finger waves where it appeared, then goes to the gate.
 		if gate != null and t > t_finger and t < t_press - 6:
 			var k := float(t - t_finger) / 60.0
-			var go_k := clampf((float(t - t_finger) - 66.0) / 24.0, 0.0, 1.0)
+			var go_k := clampf((float(t - t_finger) - 46.0) / 24.0, 0.0, 1.0)
 			hub.aim_at_world(hello.lerp(gate.hand_point() + Vector2(0, -30), go_k)
 				+ Vector2(sin(k * 9.0) * 18.0 * (1.0 - go_k), 0.0))
 		var lift_from: Vector2 = state["lift"]
@@ -954,7 +930,7 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 		if t == t_drop - 14:
 			r.dolly_to(Vector2(gx + 40.0, ROAD_Y - 90.0), T(0.35))
 			r.zoom_go(1.6, T(0.35))
-		if t == t_drop + T(0.9):
+		if t == t_drop + T(0.75):
 			rn.visual.react(4, 0.7)
 
 # ------------------------------------------------------------------ the digest
@@ -962,7 +938,7 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 # Faster and faster, each beat closer than the last: wide enough to read the
 # obstacle, then in on the moment.
 
-## 16.6-19.0. A: two strokes over the ravine, and the runner never breaks stride.
+## 17.2-19.6. A: two strokes over the ravine, and the runner never breaks stride.
 func setup_d1_bridge(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var c0 := LevelCastleData.CHASM
@@ -972,7 +948,6 @@ func setup_d1_bridge(ctx: Dictionary) -> Callable:
 	hound_off(ctx)
 	guardian_on(ctx, true)
 	on_call(ctx)
-	cap.cue("drive_in")
 	var r := rig(ctx)
 	r.zoom_from = 1.1
 	r.zoom_to = 1.5
@@ -991,7 +966,7 @@ func setup_d1_bridge(ctx: Dictionary) -> Callable:
 		draw_stroke(c, t, T(0.75), T(0.4), lines[1])
 		drive(c, 1.0 if t >= 6 else 0.0, false, true)
 
-## 19.0-21.2. Tracked from the side: the hound on the runner's heels. Two
+## 10.6-12.8. Tracked from the side: the hound on the runner's heels. Two
 ## taps -- BANG, BANG -- it flashes white, is thrown back, sees stars.
 func setup_d1b_snipe(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1003,6 +978,7 @@ func setup_d1b_snipe(ctx: Dictionary) -> Callable:
 	var hold: WeakRef = weakref(pursuer_of(ctx))
 	guardian_on(ctx)
 	on_call(ctx)
+	cap.cue("drive_in")
 	var r := rig(ctx)
 	r.zoom_from = 1.5
 	r.zoom_to = 1.65
@@ -1040,7 +1016,7 @@ func setup_d1b_snipe(ctx: Dictionary) -> Callable:
 			if t == int(at) + 3:
 				finger_up(c, p.global_position)
 
-## 21.2-23.2. B: the tunnel full of bats; one sweep of the hand, then in close
+## 12.8-14.8. B: the tunnel full of bats; one sweep of the hand, then in close
 ## on the runner going through.
 func setup_d2_bats(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1086,7 +1062,7 @@ func setup_d2_bats(ctx: Dictionary) -> Callable:
 			r.zoom_go(1.9, T(0.6))
 		drive(c, 1.0 if t >= t_sweep + 12 else 0.0, false, true)
 
-## 23.2-25.6. C: the cannon fires; the finger pinches the ball out of the air
+## 14.8-17.2. C: the cannon fires; the finger pinches the ball out of the air
 ## -- in close, slowed -- and lets it go: the camera rides it home. BOOM.
 func setup_d3_cannon(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1149,7 +1125,7 @@ func setup_d3_cannon(ctx: Dictionary) -> Callable:
 			r.smooth = 12.0
 			r.zoom_go(1.9, T(0.3))
 
-## 25.6-27.6. D: tight on the boulder coming; pressed still; hopped.
+## 19.6-21.4. D: tight on the boulder coming; pressed still; hopped.
 func setup_d4_boulder(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var td := LevelCastleData.TUNNEL_D
@@ -1191,7 +1167,7 @@ func setup_d4_boulder(ctx: Dictionary) -> Callable:
 		var hop := go and head.x - rn.global_position.x < 95.0 and head.x > rn.global_position.x
 		drive(c, 1.0 if go else 0.0, hop, false)
 
-## 27.6-29.4. F: the dungeon has no light but the finger.
+## 21.4-23.0. F: the dungeon has no light but the finger.
 func setup_d5_dark(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	hound_off(ctx)
@@ -1229,7 +1205,7 @@ func setup_d5_dark(ctx: Dictionary) -> Callable:
 		else:
 			go.tick()
 
-## 29.4-31.4. G: the keep wall. Pulled back, let go -- the rise slowed as the
+## 23.0-25.0. G: the keep wall. Pulled back, let go -- the rise slowed as the
 ## camera climbs with it.
 func setup_d6_sling(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1266,7 +1242,7 @@ func setup_d6_sling(ctx: Dictionary) -> Callable:
 			c["speed"] = 1.0
 		drive(c, 1.0 if t > T(0.95) else 0.0)
 
-## 31.4-35.2. H: the giant at the door, the runner tiny beside it. Pushed in;
+## 25.0-28.6. H: the giant at the door, the runner tiny beside it. Pushed in;
 ## one flick, in slow motion; then close on the runner's fist in the air.
 func setup_d7_golem(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1338,7 +1314,8 @@ func setup_e1_title(ctx: Dictionary) -> Callable:
 	cap.cue("hit")
 	ov().flash(0.0, 0.35, 0.9)
 	ov().voice_call(CALLER, -2.0, -1.0, INF, ["LIRA", CALLER])
-	ov().end_card(0.15, "MELOS GAME", ["AVAILABLE NOW", "GOOGLE PLAY", "APP STORE"])
+	ov().end_card(0.15, "MELOS GAME", ["AVAILABLE NOW", "GOOGLE PLAY", "APP STORE"],
+		"BY INOUE & SASABE")
 	ov().fade(4.9, 5.4, 0.0, 1.0)
 	return func(c: Dictionary) -> void:
 		# Up to the castle door, and a stop in front of it.

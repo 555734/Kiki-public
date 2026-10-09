@@ -97,8 +97,8 @@ func caption(text: String, at: float, until: float, pos := Vector2(640, 150),
 	_captions.append({"text": text, "at": at, "until": until, "pos": pos, "size": size})
 
 ## The closing card: icon, title and the lines under it, over a dimmed game.
-func end_card(at: float, title: String, lines: Array) -> void:
-	_card = {"at": at, "title": title, "lines": lines}
+func end_card(at: float, title: String, lines: Array, credit := "") -> void:
+	_card = {"at": at, "title": title, "lines": lines, "credit": credit}
 
 ## Cinema bars, top and bottom, easing from one height to another.
 func letterbox(from_sec: float, to_sec: float, h0: float, h1: float) -> void:
@@ -313,6 +313,16 @@ func _draw_card() -> void:
 		_rounded(r, 31.0, Color(0.05, 0.06, 0.10, 0.95 * pa_alpha), null)
 		BODY_FONT.draw_string(ci, Vector2(r.position.x + 32.0, r.position.y + 43.0), label,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(WHITE, pa_alpha))
+
+	# Last, who made it: one quiet line under the stores.
+	var credit := String(_card.get("credit", ""))
+	var ca := age - 1.3
+	if credit != "" and ca >= 0.0:
+		var cfa := clampf(ca / 0.3, 0.0, 1.0)
+		var cw := BODY_FONT.get_string_size(credit, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
+		var at := Vector2(640 - cw * 0.5, 640.0)
+		BODY_FONT.draw_string_outline(ci, at, credit, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, 7, Color(INK, cfa))
+		BODY_FONT.draw_string(ci, at, credit, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(WHITE, 0.92 * cfa))
 
 ## A filled rounded rectangle, optionally textured edge to edge.
 func _rounded(r: Rect2, radius: float, color: Color, tex: Texture2D) -> void:
