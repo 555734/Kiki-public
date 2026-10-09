@@ -46,7 +46,16 @@ func _draw() -> void:
 			hound = "castle_hound_6"
 		elif _speed < 15.0:
 			hound = "castle_hound_%d" % (4 + int(p * 2.5) % 2) if _woke else "castle_hound_7"
-		if Art.draw_sprite(self, hound, Vector2(-6, 50.0), 128.0, true, Color.WHITE if is_stunned else tint):
+		# Hit: a white flash of the whole body and a jolt back, then the stars.
+		var white := flash > 0.1
+		var jolt := Vector2(-18.0 * clampf(flash / 0.2, 0.0, 1.0), 0.0)
+		var pop := 1.0 + 0.18 * clampf(flash / 0.2, 0.0, 1.0)
+		# Mirrored here, in the same transform: the art faces left, it chases right.
+		draw_set_transform(jolt + Vector2(-6, 50.0), 0.0, Vector2(-pop, 1.0 / pop))
+		var shown := Art.draw_sprite(self, hound, Vector2.ZERO, 128.0, false,
+			Color(6, 6, 6) if white else Color.WHITE)
+		draw_set_transform(Vector2.ZERO)
+		if shown:
 			return
 	if Art.draw_sprite(self, frame, Vector2(0, 58.0 - bob), 154.0, false, tint):
 		var glow := 0.55 + 0.45 * sin(p * 1.4)

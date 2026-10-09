@@ -130,14 +130,15 @@ func _on_shot_fired(from: Vector2, to: Vector2, hit: bool) -> void:
 		_blast(FxBlast.Kind.SMOKE, to, 0.4, 0.45)
 		kick(2.5)
 		return
-	_blast(FxBlast.Kind.IMPACT, to, 0.18, 1.3)
-	_blast(FxBlast.Kind.SHOCK, to, 0.32, 1.0)
-	var lines := _blast(FxBlast.Kind.STREAKS, to, 0.22, 1.0)
+	# The flash and the force are the hit; the word is only a caption to it.
+	_blast(FxBlast.Kind.IMPACT, to, 0.2, 1.9)
+	_blast(FxBlast.Kind.SHOCK, to, 0.34, 1.35)
+	var lines := _blast(FxBlast.Kind.STREAKS, to, 0.22, 1.2)
 	lines.dir = dir
 	_blast(FxBlast.Kind.SMOKE, to, 0.6, 0.7)
-	var word := _blast(FxBlast.Kind.BANG, to + Vector2(0, -70), 0.55, 0.8)
+	var word := _blast(FxBlast.Kind.BANG, to + Vector2(34, -96), 0.38, 0.42)
 	word.text = "BANG!"
-	_ring(to, Color.WHITE, 4.0, 40.0, 0.14, 9.0)
+	_ring(to, Color.WHITE, 4.0, 46.0, 0.14, 10.0)
 	kick(9.0)
 
 func _on_hologram_spawned(_kind: int, at: Vector2) -> void:
@@ -157,7 +158,8 @@ func _on_runner_died(_cause: String) -> void:
 ## A big one: a fireball, two rings of force, smoke rolling off, debris, and
 ## the lettering. The cannon sent its own ball home.
 func _explosion(at: Vector2, size: float) -> void:
-	_blast(FxBlast.Kind.FIREBALL, at, 0.55, size)
+	_blast(FxBlast.Kind.FIREBALL, at, 0.6, size * 1.2)
+	_blast(FxBlast.Kind.IMPACT, at, 0.2, size * 1.6)
 	_blast(FxBlast.Kind.SHOCK, at, 0.4, size * 1.3)
 	_blast(FxBlast.Kind.SHOCK, at, 0.6, size * 2.0)
 	_blast(FxBlast.Kind.SMOKE, at + Vector2(0, -20), 1.1, size)
@@ -165,7 +167,7 @@ func _explosion(at: Vector2, size: float) -> void:
 	lines.dir = Vector2.UP
 	_burst(at, "poof", 2.4)
 	_burst(at, "spark", 2.0)
-	var word := _blast(FxBlast.Kind.BANG, at + Vector2(0, -40), 0.7, size * 0.8)
+	var word := _blast(FxBlast.Kind.BANG, at + Vector2(40, -120), 0.5, size * 0.42)
 	word.text = "BOOM!"
 	kick(16.0)
 
@@ -205,7 +207,7 @@ func _on_hand_hold_changed(node: Node2D) -> void:
 			if is_instance_valid(self):
 				_blast(FxBlast.Kind.SLAM, foot, 0.5, 1.2)
 				_burst(foot, "dust", 2.6)
-				var word := _blast(FxBlast.Kind.BANG, foot + Vector2(60, -120), 0.6, 0.75)
+				var word := _blast(FxBlast.Kind.BANG, foot + Vector2(70, -150), 0.42, 0.45)
 				word.text = "CLANG!"
 				kick(12.0))
 
@@ -437,7 +439,7 @@ func _on_enemy_flicked(at: Vector2, direction: Vector2) -> void:
 	_blast(FxBlast.Kind.SHOCK, at, 0.35, 1.4)
 	var lines := _blast(FxBlast.Kind.STREAKS, at, 0.25, 1.3)
 	lines.dir = dir
-	var word := _blast(FxBlast.Kind.BANG, at + Vector2(-60, -110), 0.6, 1.0)
+	var word := _blast(FxBlast.Kind.BANG, at + Vector2(-70, -150), 0.42, 0.5)
 	word.text = "POW!"
 	kick(13.0)
 	# The thing itself flies off on its own (Enemy.flick); this is the streak
@@ -483,6 +485,6 @@ func _on_hand_swiped(points: PackedVector2Array) -> void:
 	sweep.a = points[0]
 	sweep.b = points[points.size() - 1]
 	add_child(sweep)
-	var word := _blast(FxBlast.Kind.BANG, points[points.size() / 2] + Vector2(0, -50), 0.5, 0.8)
+	var word := _blast(FxBlast.Kind.BANG, points[points.size() / 2] + Vector2(0, -90), 0.38, 0.42)
 	word.text = "WHOOSH!"
 	kick(6.0)
