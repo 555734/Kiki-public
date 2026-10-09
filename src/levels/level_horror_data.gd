@@ -143,6 +143,11 @@ static func gimmicks() -> Array[Dictionary]:
 			"hold": 6.0, "sigil": 0},
 		{"type": "gate", "pos": Vector2(8070, 265), "span": Vector2(44, 190),
 			"id": "hollow_gate", "wants": 0},
+
+		# A portcullis on the fog road, with the Nightwolf already behind: only
+		# the guardian's hand can hold it up -- and dropping it the moment the
+		# runner is through shuts the wolf out for a while.
+		{"type": "lift_gate", "pos": Vector2(200, 400), "height": 420.0},
 	]
 
 static func checkpoints() -> Array[Vector2]:

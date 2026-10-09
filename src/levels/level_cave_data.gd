@@ -498,6 +498,12 @@ static func _burrower_run(b: SectionBuilder) -> void:
 	b.coins_over(r1, 3, 40)
 	b.coins_over(r3, 3, 40)
 	b.coins_over(x, 2)
+	# The one room with no light in it: the guardian's finger is the lamp,
+	# and the burrowers are only there when it shines on them.
+	var c1 := b.at(-260.0, 640.0)
+	var c2 := b.at(900.0, -60.0)
+	b.gimmick({"type": "darkness", "pos": Vector2(minf(c1.x, c2.x), minf(c1.y, c2.y)),
+		"size": (c1 - c2).abs()})
 	b.finish(x)
 
 ## 15. A junction of arrow pads that turn round on the clock: launched the
