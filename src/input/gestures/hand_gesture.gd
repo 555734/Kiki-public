@@ -31,7 +31,7 @@ func begin(index: int, position: Vector2, _size: Vector2, _id: String) -> void:
 	start_world = hub._screen_to_world(position)
 	_start_screen = position
 	_moved = 0.0
-	_samples = [[Time.get_ticks_msec(), start_world]]
+	_samples = [[InputHub.hand_ms(), start_world]]
 	hub.aim_at_screen(position)
 	hub.hand_state = {"target": target, "start": start_world}
 	hub._hand_events.append({"type": "grab", "target": target, "at": start_world})
@@ -72,7 +72,7 @@ func reset() -> void:
 	hub.hand_state = {}
 
 func _sample(at: Vector2) -> void:
-	var now := Time.get_ticks_msec()
+	var now := InputHub.hand_ms()
 	_samples.append([now, at])
 	while _samples.size() > 2 and now - int(_samples[0][0]) > VELOCITY_WINDOW_MS:
 		_samples.pop_front()

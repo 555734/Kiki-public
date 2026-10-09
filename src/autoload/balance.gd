@@ -317,7 +317,7 @@ const HAND_GRAB_ENEMY: float = 60.0
 ## counts. A full pull straight down throws the runner SLING_HEIGHT up.
 const SLING_MIN_PULL: float = 30.0
 const SLING_MAX_PULL: float = 150.0
-const SLING_HEIGHT: float = 3.0 * RUNNER_JUMP_HEIGHT
+const SLING_HEIGHT: float = 3.8 * RUNNER_JUMP_HEIGHT
 const SLING_SPEED: float = sqrt(2.0 * RUNNER_GRAVITY * SLING_HEIGHT)
 ## A finger leaving a big enemy faster than this has flicked it.
 const FLICK_MIN_SPEED: float = 700.0

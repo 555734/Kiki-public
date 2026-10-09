@@ -233,6 +233,12 @@ var _hand_pending: Dictionary = {}
 ## grab / release / swipe, in the order they happened. Cleared when read.
 var _hand_events: Array = []
 
+## The hand's clock, in milliseconds: physics ticks, not the wall clock. A
+## swipe's speed and a flick's are measured on it, so they mean the same at
+## any frame rate -- and the same under a fixed-step capture as on a phone.
+static func hand_ms() -> int:
+	return int(float(Engine.get_physics_frames()) * 1000.0 / float(Engine.physics_ticks_per_second))
+
 ## Everything the hand did since the last read.
 func take_hand_events() -> Array:
 	var out := _hand_events

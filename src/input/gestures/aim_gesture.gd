@@ -29,7 +29,7 @@ const SWIPE_MIN_LENGTH: float = 150.0
 func begin(index: int, position: Vector2, _size: Vector2, _id: String) -> void:
 	finger = index
 	stroke[index] = PackedVector2Array([hub._screen_to_world(position)])
-	stroke_ms[index] = Time.get_ticks_msec()
+	stroke_ms[index] = InputHub.hand_ms()
 	if hub.trace_mode:
 		trace_finger = index
 		hub.trace_points = PackedVector2Array([hub._screen_to_world(position)])
@@ -110,7 +110,7 @@ func _swipe(index: int) -> void:
 	if not stroke.has(index):
 		return
 	var points: PackedVector2Array = stroke[index]
-	if Time.get_ticks_msec() - int(stroke_ms.get(index, 0)) > SWIPE_MAX_MS:
+	if InputHub.hand_ms() - int(stroke_ms.get(index, 0)) > SWIPE_MAX_MS:
 		return
 	var length := 0.0
 	for i in range(1, points.size()):

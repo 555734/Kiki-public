@@ -27,7 +27,7 @@ func list() -> Array:
 		{"name": "c1_call", "stage": W.HORROR, "until": 12.6, "preroll": 30},
 		{"name": "d1_bridge", "stage": W.DESERT, "until": 15.4, "preroll": 30},
 		{"name": "d2_bats", "stage": W.CAVE, "until": 18.0, "preroll": 30},
-		{"name": "d3_bullet", "stage": W.TOWER, "until": 21.0, "preroll": 30},
+		{"name": "d3_bullet", "stage": W.TOWER, "until": 21.0, "preroll": 100},
 		{"name": "d4_boulder", "stage": W.CAVE, "until": 23.8, "preroll": 30},
 		{"name": "d5_dark", "stage": W.CAVE, "until": 26.6, "preroll": 30},
 		{"name": "d6_sling", "stage": W.TOWER, "until": 29.6, "preroll": 30},
@@ -651,10 +651,23 @@ func finger_up(ctx: Dictionary, world: Vector2) -> void:
 
 ## The guardian is here: their cursor is drawn (a shared screen), awake from
 ## the first frame, with their name riding on it.
-func guardian_on(ctx: Dictionary) -> void:
+func guardian_on(ctx: Dictionary, drawing := false) -> void:
 	var m: Node2D = ctx["main"]
 	m.input_hub.solo_role = ""
 	(m.get_node("GuardianWisp") as Node).set("_awake", true)
+	# The build ghost under the cursor is the tool's, not the hand's: only the
+	# shot that draws with the finger keeps it (it draws the stroke too).
+	(m.get_node("PlacementPreview") as CanvasItem).visible = drawing
+	if not drawing:
+		m.guardian.select_slot(3)
+
+## Take every enemy but the chaser out of a stretch the shot keeps clear.
+func clear_area(ctx: Dictionary, area: Rect2) -> void:
+	var m: Node2D = ctx["main"]
+	for e in m.get_tree().get_nodes_in_group("enemy"):
+		if m.is_ancestor_of(e) and area.has_point((e as Node2D).global_position) \
+				and not e.is_in_group("instant_death"):
+			e.free()
 
 ## Every tick: the name tag follows the fingertip.
 func tag_finger(ctx: Dictionary) -> void:
@@ -686,6 +699,7 @@ func draw_stroke(ctx: Dictionary, t: int, t0: int, length: int, points: PackedVe
 func setup_f1_gate(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	place_runner(ctx, Vector2(-260, 374))
+	clear_area(ctx, Rect2(150, -400, 1200, 1000))
 	var hold: WeakRef = weakref(pursuer_of(ctx))
 	var r := rig(ctx)
 	r.zoom_from = 1.35
@@ -700,10 +714,10 @@ func setup_f1_gate(ctx: Dictionary) -> Callable:
 		var t: int = c["t"]
 		var p: Node2D = hold.get_ref()
 		if t == -20 and p != null:
-			p.global_position = m.runner.global_position + Vector2(-560, -24)
+			p.global_position = m.runner.global_position + Vector2(-470, -24)
 			p.set("_wake_left", 0.0)
 			p.set("_activated", true)
-			p.set("cruise_speed", 330.0)
+			p.set("cruise_speed", 380.0)
 		if t < -12 or m.runner.state == Runner.State.DEAD:
 			drive(c, 0.0)
 			return
@@ -749,6 +763,7 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var hub: InputHub = m.input_hub
 	place_runner(ctx, Vector2(110, 374))
+	clear_area(ctx, Rect2(150, -400, 1600, 1000))
 	m.runner.facing = 1
 	var hold: WeakRef = weakref(pursuer_of(ctx))
 	var gate: LiftGate = null
@@ -828,7 +843,7 @@ func setup_d1_bridge(ctx: Dictionary) -> Callable:
 	var b: Rect2 = step["to"]
 	place_runner(ctx, on_ledge(a, 0.1))
 	clear_enemies(ctx, Rect2(a.position - Vector2(300, 600), Vector2(1700, 1000)))
-	guardian_on(ctx)
+	guardian_on(ctx, true)
 	on_call(ctx)
 	cap.cue("drive_in")
 	var r := rig(ctx)
@@ -854,29 +869,46 @@ func setup_d1_bridge(ctx: Dictionary) -> Callable:
 func setup_d2_bats(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	place_runner(ctx, Vector2(-250, 12834))
+	m.runner.facing = 1
 	guardian_on(ctx)
 	on_call(ctx)
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-60, 12560), 1.15)
-	var sweep := PackedVector2Array()
-	for k in 8:
-		sweep.append(Vector2(50 + sin(float(k) * 0.4) * 30.0, lerpf(12300, 12720, float(k) / 7.0)))
+	r.cut_to(Vector2(-40, 12560), 1.15)
 	var bats: Array = []
 	for n in m.get_tree().get_nodes_in_group("swipeable"):
 		if (n as Node2D).global_position.distance_to(Vector2(50, 12520)) < 260.0:
 			bats.append(n)
+	var state := {"sweep": PackedVector2Array()}
+	var t_sweep := T(0.6)
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
+		var rn: Runner = m.runner
 		tag_finger(c)
-		if t < T(0.55):
-			m.input_hub.aim_at_world(sweep[0].lerp(Vector2(-60, 12200), 1.0 - float(t) / float(T(0.55))))
-		draw_stroke(c, t, T(0.55), 9, sweep)
-		if t == T(0.55) + 9:
-			r.follow = m.runner
-			r.offset = Vector2(120, -120)
+		# The sweep goes through where the bats are when it starts.
+		if t == t_sweep:
+			var live: Array = bats.filter(func(b): return is_instance_valid(b))
+			live.sort_custom(func(x, y): return (x as Node2D).global_position.y < (y as Node2D).global_position.y)
+			var pts := PackedVector2Array()
+			if not live.is_empty():
+				pts.append((live[0] as Node2D).global_position + Vector2(-30, -70))
+				for b in live:
+					pts.append((b as Node2D).global_position)
+				pts.append((live[live.size() - 1] as Node2D).global_position + Vector2(30, 70))
+			state["sweep"] = pts
+		var sweep: PackedVector2Array = state["sweep"]
+		if t < t_sweep and not bats.is_empty() and is_instance_valid(bats[0]):
+			m.input_hub.aim_at_world((bats[0] as Node2D).global_position + Vector2(-30, -80))
+		if not sweep.is_empty():
+			draw_stroke(c, t, t_sweep, 8, sweep)
+		if t == t_sweep + 30:
+			r.follow = rn
+			r.offset = Vector2(60, -140)
 			r.smooth_y = 6.0
-		drive(c, 1.0 if t >= T(0.9) else 0.0)
+		# Into the updraft, with a hop at the edge.
+		var go := t >= T(1.0)
+		drive(c, 1.0 if go and rn.global_position.x < 60.0 else 0.0,
+			go and rn.global_position.x > -150.0 and rn.global_position.x < -90.0)
 
 ## 18.0-21.0. 1-7: the turret fires; the finger pinches a bullet out of the
 ## air and lets it go -- straight home.
@@ -888,29 +920,37 @@ func setup_d3_bullet(ctx: Dictionary) -> Callable:
 	on_call(ctx)
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-100, 6900), 1.35)
-	var state := {"held": null, "t": -1}
+	r.cut_to(Vector2(-90, 6900), 1.35)
+	# Where the finger waits for one, in the line of fire.
+	var spot := Vector2(-90, 6889)
+	var state := {"held": null, "t": -1, "done": false}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		tag_finger(c)
 		drive(c, 0.0)
-		var held: Projectile = state["held"]
-		if held == null and t >= T(0.4):
+		if bool(state["done"]):
+			return
+		var held = state["held"]
+		if held == null:
+			m.input_hub.aim_at_world(spot + Vector2(0, -6))
+			if t < 0:
+				return
 			for n in m.get_tree().get_nodes_in_group("projectile"):
 				var p := n as Projectile
-				if p != null and p.state == Projectile.State.FLYING and p.global_position.x > -150.0:
+				if p != null and p.state == Projectile.State.FLYING \
+						and p.global_position.distance_to(spot) < 24.0:
 					finger_down(c, p.global_position)
 					state["held"] = p
 					state["t"] = t
 					break
-		elif held != null and is_instance_valid(held):
-			var since := t - int(state["t"])
-			if since < T(0.45):
-				finger_move(c, held.global_position + Vector2(-float(since) * 0.6, 0))
-			elif since == T(0.45):
-				finger_up(c, held.global_position + Vector2(-30, 0))
-		if held == null and t < T(0.4):
-			m.input_hub.aim_at_world(Vector2(60, 6820))
+			return
+		var since := t - int(state["t"])
+		if since < T(0.55):
+			# Held up to have a look at it, then let go.
+			finger_move(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
+		elif since == T(0.55):
+			finger_up(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
+			state["done"] = true
 
 ## 21.0-23.8. 1-8: a boulder rolls at the runner; the finger presses it still.
 func setup_d4_boulder(ctx: Dictionary) -> Callable:
@@ -988,7 +1028,7 @@ func setup_d6_sling(ctx: Dictionary) -> Callable:
 	var r := rig(ctx)
 	r.follow = null
 	r.cut_to(Vector2(-40, 6360), 1.05)
-	var pull := Vector2(115, 120)
+	var pull := Vector2(50, 170)
 	var state := {"at": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
