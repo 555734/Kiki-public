@@ -70,6 +70,18 @@ signal hologram_revoked(net_id: int)
 
 # --- world ------------------------------------------------------------------
 signal enemy_killed(enemy: Node2D, by: String)
+## The guardian's hand. Raised on the HOST (or offline) where the hand acted,
+## and re-raised on the other device from the packet, so both draw the same
+## streak, swoosh and twang.
+signal enemy_flicked(world_position: Vector2, direction: Vector2)
+signal hand_swiped(points: PackedVector2Array)
+signal runner_slung(world_position: Vector2, velocity: Vector2)
+## A boulder or a gate was taken hold of or let go. `node` holds a HoldTimeline.
+signal hand_hold_changed(node: Node2D)
+## A bullet was caught or thrown back (Projectile.state says which).
+signal projectile_changed(projectile: Node2D)
+signal projectile_spawned(projectile: Node2D)
+signal projectile_gone(net_id: int)
 
 ## A shield-bearer's soft spot is open until `until_tick`. Raised by the HOST
 ## only: whether the runner has done enough to open it is a judgement about the

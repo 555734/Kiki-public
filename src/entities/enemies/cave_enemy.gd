@@ -28,6 +28,12 @@ func _ready() -> void:
 		collision_mask = 0
 	z_index = 5
 
+func is_flickable() -> bool:
+	return kind == "burrower"
+
+func is_swipeable() -> bool:
+	return kind == "bat" or kind == "beetle"
+
 func _build_body() -> void:
 	match kind:
 		"bat": _add_box(Vector2(48, 32))

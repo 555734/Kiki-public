@@ -38,6 +38,9 @@ func _ready() -> void:
 	add_child(_seen)
 	_seen.screen_entered.connect(queue_redraw)
 
+func is_swipeable() -> bool:
+	return true
+
 func _build_body() -> void:
 	_add_box(SIZE)
 

@@ -17,6 +17,12 @@ func _ready() -> void:
 	if kind == "jelly" or kind == "fin":
 		collision_mask = 0
 
+func is_flickable() -> bool:
+	return kind == "scarab" or kind == "cactus"
+
+func is_swipeable() -> bool:
+	return kind == "jelly"
+
 func _build_body() -> void:
 	match kind:
 		"cactus": _add_box(Vector2(43, 66))

@@ -29,9 +29,46 @@ func _ready() -> void:
 	collision_mask = 1 | 8   # terrain | hologram
 	spawn_position = global_position
 	_build_body()
+	if is_flickable():
+		add_to_group("flickable")
+	if is_swipeable():
+		add_to_group("swipeable")
 
 func _build_body() -> void:
 	pass
+
+# ---------------------------------------------------------------- the hand
+# What the guardian's finger can do to this enemy (GuardianHand). Most enemies
+# are neither: they are the rifle's. Each type that is says so here.
+
+## Big enough to take hold of: a finger that lands on it and leaves fast throws
+## it off the screen.
+func is_flickable() -> bool:
+	return false
+
+## Small and in the air: a quick swipe of the hand sweeps it away.
+func is_swipeable() -> bool:
+	return false
+
+## How far from its middle a finger may land and still have it.
+func hand_radius() -> float:
+	return Balance.HAND_GRAB_ENEMY
+
+## Flicked away by the guardian's finger, `direction` the way the finger went.
+## HOST only, like every other judgement about the world.
+func flick(direction: Vector2) -> void:
+	if hp <= 0 or is_queued_for_deletion():
+		return
+	Events.enemy_flicked.emit(global_position, direction)
+	hp = 0
+	die("flick")
+
+## Swept out of the air by a swipe. HOST only.
+func sweep() -> void:
+	if hp <= 0 or is_queued_for_deletion():
+		return
+	hp = 0
+	die("swipe")
 
 func take_damage(amount: int, by: String = "snipe") -> void:
 	# Already dying. Two hits can land on the same frame -- a shot and a stomp,

@@ -37,6 +37,8 @@ const GIMMICKS := {
 	"gate": ["span", "id", "wants"],
 	"barricade": ["act"],
 	"updraft": ["span"],
+	"lift_gate": ["height"],
+	"darkness": ["size"],
 }
 
 static func errors(enemies: Array, gimmicks: Array) -> Array[String]:

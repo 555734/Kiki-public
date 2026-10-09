@@ -8,6 +8,10 @@ extends Area2D
 @export var phase_offset := 0.0
 
 var _shape: CollisionShape2D
+## The guardian's hand can press it still (GuardianHand). Numbered by the
+## builder in spec order, the same on both devices, so a hold can name it.
+var hand_id: int = -1
+var hold := HoldTimeline.new(Balance.HOLD_MAX_SECONDS)
 
 ## Builds this piece from a stage's gimmick spec ("cave_trap"). The spec is
 ## parsed here, next to the fields it fills, so a default lives in one place.
@@ -22,6 +26,7 @@ static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
 func _ready() -> void:
 	Art.bind_style(self)
 	add_to_group("instant_death")
+	add_to_group("hand_holdable")
 	collision_layer = Hazard.LAYER_HAZARD
 	collision_mask = 0
 	z_index = 5
@@ -36,8 +41,28 @@ func _ready() -> void:
 		_shape.shape = box
 	add_child(_shape)
 
+## Where a finger has to land to press it still.
+func hand_grab_at(world: Vector2) -> bool:
+	var head := global_position + head_at(Clock.tick)
+	return world.distance_to(head) <= (62.0 if kind == "boulder" else 52.0)
+
+func hand_point() -> Vector2:
+	return global_position + head_at(Clock.tick)
+
+## Held still by the hand from `tick` / let go at `tick`. Host-decided; the
+## other device hears it from the packet (Protocol.hold).
+func hold_begin(tick: int) -> void:
+	hold.begin(tick)
+	queue_redraw()
+
+func hold_end(tick: int) -> void:
+	hold.end(tick)
+	queue_redraw()
+
+## Still a pure function of the tick: the shared clock minus whatever time the
+## hand held it, which the host decided and both devices know.
 func head_at(at_tick: int) -> Vector2:
-	var t := Clock.seconds_at(at_tick, phase_offset)
+	var t := Clock.seconds_at(hold.local_tick(at_tick), phase_offset)
 	if kind == "boulder":
 		return Vector2(sin(t * TAU / period) * travel, 0)
 	var beat := fposmod(t / period, 1.0)
@@ -58,8 +83,12 @@ func _physics_process(_delta: float) -> void:
 
 func _draw() -> void:
 	var at := head_at(Clock.tick)
+	if hold.held_at(Clock.tick):
+		# Pressed still: it strains against the finger.
+		at += Vector2(sin(float(Clock.tick) * 1.7) * 1.5, 0)
+		draw_arc(at, 50.0, 0, TAU, 32, Color(Balance.C_HOLO, 0.55), 3.0, true)
 	if kind != "boulder":
-		var beat := fposmod(Clock.seconds_at(Clock.tick, phase_offset) / period, 1.0)
+		var beat := fposmod(Clock.seconds_at(hold.local_tick(Clock.tick), phase_offset) / period, 1.0)
 		# The shared clock warns before the falling stone reaches the lane.
 		if beat >= 0.10 and beat < 0.30:
 			var target := Vector2(0, travel + 40)

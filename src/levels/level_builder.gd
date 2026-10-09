@@ -178,9 +178,15 @@ func rebuild_dynamic() -> void:
 		_dynamic.add_child(key)
 		_veil(key, Veil.PICKUPS)
 
+	# What the guardian's hand can hold is numbered in spec order, the same way
+	# on both devices, so a hold can name its boulder or gate over the wire.
+	var hand_id := 0
 	for g in Stage.gimmicks():
 		var node := _make_gimmick(g)
 		if node != null:
+			if "hand_id" in node:
+				node.hand_id = hand_id
+				hand_id += 1
 			node.global_position = g["pos"]
 			configure_gimmick(node, g)
 			_dynamic.add_child(node)
@@ -449,6 +455,8 @@ const GIMMICKS := {
 	"gate": preload("res://src/entities/gimmicks/gate.gd"),
 	"barricade": preload("res://src/entities/gimmicks/barricade.gd"),
 	"updraft": preload("res://src/entities/gimmicks/updraft.gd"),
+	"lift_gate": preload("res://src/entities/gimmicks/lift_gate.gd"),
+	"darkness": preload("res://src/entities/gimmicks/darkness.gd"),
 }
 
 func _make_gimmick(spec: Dictionary) -> Node2D:

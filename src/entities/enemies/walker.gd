@@ -28,6 +28,9 @@ func _ready() -> void:
 	add_to_group("stompable")
 	_origin_x = global_position.x
 
+func is_flickable() -> bool:
+	return true
+
 func _build_body() -> void:
 	_add_box(Balance.WALKER_SIZE)
 	visual = preload("res://src/entities/enemies/walker_visual.gd").new()

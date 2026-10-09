@@ -217,6 +217,28 @@ const RUNNER_CONTROL_MARGIN: float = 1.35
 ## A finger index no touchscreen will produce, for the mouse to borrow.
 const MOUSE_FINGER: int = 90
 
+## The guardian's hand. A finger that goes down ON something -- the runner, a
+## big enemy, a bullet, a boulder, a gate -- takes hold of it instead of aiming
+## (HandGesture), and a quick stroke across the world is a swipe (AimGesture).
+## Both only report what the finger did; Guardian decides what that means.
+##
+## `hand_probe` answers "what would a finger here take hold of", given a world
+## point: a GuardianHand target dictionary, or {} for nothing. Unset (as in the
+## star battle) means the hand never takes hold of anything.
+var hand_probe: Callable = Callable()
+## What a finger is holding right now: {"target", "start"} while held, {} not.
+var hand_state: Dictionary = {}
+## The target the router found for the finger it is about to give the hand.
+var _hand_pending: Dictionary = {}
+## grab / release / swipe, in the order they happened. Cleared when read.
+var _hand_events: Array = []
+
+## Everything the hand did since the last read.
+func take_hand_events() -> Array:
+	var out := _hand_events
+	_hand_events = []
+	return out
+
 ## Where the current tool has been asked to go. Cleared when read: it is an
 ## instruction, not a state.
 var _place_latched: Vector2 = Vector2(INF, INF)
@@ -451,6 +473,9 @@ func release_everything() -> void:
 	_slot_latched_dragged = false
 	_place_latched = Vector2(INF, INF)
 	_place_path = PackedVector2Array()
+	# A held boulder or gate has just been let go of by a finger the device
+	# lost: that release is in _hand_events and must still reach the guardian.
+	hand_state = {}
 	_ping_latched = 0
 	move_axis = 0.0
 	move_axis_y = 0.0

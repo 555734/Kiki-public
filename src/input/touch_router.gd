@@ -19,6 +19,7 @@ var pan: PanGesture
 var slot: SlotGesture
 var aim: AimGesture
 var zoom: ZoomGesture
+var hand: HandGesture
 
 ## finger index -> the TouchGesture it belongs to.
 var _owners: Dictionary = {}
@@ -39,9 +40,10 @@ func _init(owner_hub: InputHub) -> void:
 	slot = SlotGesture.new(hub, "slot")
 	aim = AimGesture.new(hub, "aim")
 	zoom = ZoomGesture.new(hub, "zoom")
+	hand = HandGesture.new(hub, "hand")
 
 func gestures() -> Array[TouchGesture]:
-	return [stick, jump, scope, undo, ping, pan, slot, aim, zoom]
+	return [stick, jump, scope, undo, ping, pan, slot, aim, zoom, hand]
 
 ## finger index -> role name, for diagnostics and tests.
 func roles() -> Dictionary:
@@ -211,12 +213,22 @@ func _route(position: Vector2, size: Vector2) -> Array:
 	if control != null:
 		return [control, id]
 	if hub.solo_role == "guardian":
-		return [aim, "aim"]
+		return _world_gesture(position)
 	if hub.solo_role != "runner" and (TouchLayout.hit_rect(
 			position, TouchLayout.AIM_ZONE, size, mirrored)
 			or _clear_of_runner_controls(position, size, mirrored)):
-		return [aim, "aim"]
+		return _world_gesture(position)
 	return []
+
+## A guardian's finger on the world: the hand, if it landed on something the
+## hand can take hold of (and the hand is free), otherwise the aim.
+func _world_gesture(position: Vector2) -> Array:
+	if hand.finger < 0 and hub.hand_probe.is_valid():
+		var target: Dictionary = hub.hand_probe.call(hub._screen_to_world(position))
+		if not target.is_empty():
+			hub._hand_pending = target
+			return [hand, "hand"]
+	return [aim, "aim"]
 
 func _gesture_for(id: String) -> TouchGesture:
 	match id:

@@ -20,6 +20,9 @@ func _ready() -> void:
 	# cleared it once could be knocked out of the air the next.
 	_phase = fposmod(float(net_id) * 2.399963, TAU)
 
+func is_swipeable() -> bool:
+	return true
+
 func _build_body() -> void:
 	_add_box(Balance.FLYER_SIZE)
 	visual = preload("res://src/entities/enemies/flyer_visual.gd").new()

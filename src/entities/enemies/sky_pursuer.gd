@@ -4,6 +4,8 @@ extends Enemy
 ## git pull does not depend on Godot having already rebuilt its class-name cache.
 
 var runner: Runner = null
+## Preloaded, like this script itself, rather than named by class.
+const _LIFT_GATE := preload("res://src/entities/gimmicks/lift_gate.gd")
 
 @export var activation_distance: float = 0.0
 var _origin: Vector2 = Vector2.ZERO
@@ -44,6 +46,25 @@ func _on_runner_warped(from: Vector2, to: Vector2) -> void:
 	var gap := clampf((from - global_position).dot(forward), 300.0, 900.0)
 	global_position = to - forward * gap + Vector2(0, -24)
 	_wake_left = maxf(_wake_left, 1.0)
+
+## It cannot die, but it can be thrown: a flick sends it a long way back the
+## way it came and leaves it dazed.
+func is_flickable() -> bool:
+	return true
+
+func hand_radius() -> float:
+	return 74.0
+
+func flick(direction: Vector2) -> void:
+	if not Clock.is_host:
+		return
+	var back := -chase_direction.normalized()
+	if back.length_squared() < 0.5:
+		back = Vector2.LEFT
+	Events.enemy_flicked.emit(global_position, direction)
+	global_position += back * Balance.FLICK_PURSUER_PUSH + Vector2(0, clampf(direction.y, -1.0, 1.0) * 120.0)
+	_stun_left = maxf(_stun_left, Balance.FLICK_PURSUER_STUN)
+	_hit_flash = 0.3
 
 func _build_body() -> void:
 	_add_box(Vector2(106, 92))
@@ -89,7 +110,14 @@ func _physics_process(delta: float) -> void:
 	var to_target := target - global_position
 	if to_target.length_squared() > 0.01:
 		var step := minf(speed * delta, to_target.length())
-		global_position += to_target.normalized() * step
+		var next := global_position + to_target.normalized() * step
+		# It flies through everything except a shut gate: that is the one
+		# thing the guardian can drop in its way.
+		var stop: float = _LIFT_GATE.stop_x(get_tree(), global_position.x, next.x,
+			global_position.y, Clock.tick, 70.0)
+		if stop != INF:
+			next.x = stop
+		global_position = next
 
 	# Explicit overlap test keeps the visible catch and death frame in agreement.
 	var dx := absf(runner.global_position.x - global_position.x)

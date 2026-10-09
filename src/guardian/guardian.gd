@@ -23,6 +23,8 @@ var world_root: Node2D = null
 var command_router: Node = null
 
 var abilities: Dictionary = {}
+## The finger acting on things directly -- see GuardianHand.
+var hand: GuardianHand = null
 var _platforms: Array[Hologram] = []
 var _walls: Array[Hologram] = []
 var _warps: Array[Hologram] = []
@@ -44,6 +46,8 @@ func _ready() -> void:
 		3: SniperAbility.new(),
 		4: WarpAbility.make(),
 	}
+	hand = GuardianHand.new(self)
+	add_to_group("guardian")
 	Events.gauge_changed.emit(gauge, Balance.GAUGE_MAX)
 	Events.ability_selected.emit(active_slot)
 	# The runner's one way of giving something back. Host-only: on the client
@@ -76,6 +80,9 @@ func _process(delta: float) -> void:
 		# the only one that is on screen.
 		input_hub.aim_at_world(runner.global_position)
 	_aim_world = input_hub.aim_world()
+	if not input_hub.hand_probe.is_valid():
+		input_hub.hand_probe = func(world: Vector2) -> Dictionary:
+			return GuardianHand.target_at(self, world)
 
 	# Choose a tool, then tap where it goes.
 	#
@@ -89,6 +96,13 @@ func _process(delta: float) -> void:
 	if chosen > 0:
 		select_slot(chosen)
 	input_hub.take_slot_was_dragged()   # consumed; the drag is a place, not a rule
+
+	# The hand first: a quick stroke that swept fliers away was a swipe, so the
+	# platform the same stroke drew is not placed.
+	var hand_events := input_hub.take_hand_events()
+	if not hand_events.is_empty() and hand.handle(hand_events):
+		input_hub.take_place_at()
+		input_hub.take_place_path()
 
 	# With the platform chosen, a finger dragged over the world draws the
 	# platform instead of scrolling the view.

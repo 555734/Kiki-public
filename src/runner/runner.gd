@@ -1025,7 +1025,10 @@ func die(cause: String) -> void:
 
 ## Thrown by something that is not the runner's own legs. Player jump shaping
 ## is explicitly disabled so held/released input cannot change this trajectory.
-func launch(velocity_out: Vector2) -> void:
+## `announce` false is a throw that is not a launch pad's -- the guardian's
+## slingshot says so itself (Events.runner_slung), and a runner_launched would
+## have the other device spend the launch marker the runner happened to stand by.
+func launch(velocity_out: Vector2, announce: bool = true) -> void:
 	if state == State.DEAD:
 		return
 	_end_player_jump()
@@ -1047,7 +1050,8 @@ func launch(velocity_out: Vector2) -> void:
 	_launched = true
 	_begin_external_takeoff()
 	_set_state(State.JUMP)
-	Events.runner_launched.emit(global_position)
+	if announce:
+		Events.runner_launched.emit(global_position)
 
 static func launch_velocity(face: int) -> Vector2:
 	return Vector2(Balance.LAUNCH_FORWARD * float(signi(face)), -Balance.LAUNCH_UP)

@@ -24,6 +24,12 @@ func _ready() -> void:
 	collision_mask = 0
 	_origin = global_position
 
+func is_flickable() -> bool:
+	return true
+
+func hand_radius() -> float:
+	return 84.0
+
 func _build_body() -> void:
 	var shape := CollisionShape2D.new()
 	_rect = RectangleShape2D.new()

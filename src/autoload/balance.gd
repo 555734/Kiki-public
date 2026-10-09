@@ -302,6 +302,45 @@ const LAUNCH_TRIGGER_LIFT: float = 30.0
 ## How close the runner's feet must be to the deck to count as standing on it.
 const LAUNCH_FOOTING: float = 12.0
 
+# ---------------------------------------------------------------- the hand
+# The guardian's finger acting on things directly (GuardianHand): pulling the
+# runner back like a slingshot, flicking a big enemy away, sweeping fliers out
+# of the air, pinching a bullet and sending it home, pressing a boulder still,
+# holding a gate up. No gauge and no tool to choose: the finger lands on the
+# thing, and the thing is the tool.
+
+## How close to each kind of thing a finger has to land to take hold of it.
+const HAND_GRAB_RUNNER: float = 46.0
+const HAND_GRAB_PROJECTILE: float = 40.0
+const HAND_GRAB_ENEMY: float = 60.0
+## Slingshot: pulled back at least this far to fire, and no further than this
+## counts. A full pull straight down throws the runner SLING_HEIGHT up.
+const SLING_MIN_PULL: float = 30.0
+const SLING_MAX_PULL: float = 220.0
+const SLING_HEIGHT: float = 3.0 * RUNNER_JUMP_HEIGHT
+const SLING_SPEED: float = sqrt(2.0 * RUNNER_GRAVITY * SLING_HEIGHT)
+## A finger leaving a big enemy faster than this has flicked it.
+const FLICK_MIN_SPEED: float = 700.0
+## The pursuer cannot die: a flick throws it back this far and stuns it.
+const FLICK_PURSUER_PUSH: float = 640.0
+const FLICK_PURSUER_STUN: float = 3.0
+## How close to a swipe's path a flier has to be to be swept away.
+const SWIPE_REACH: float = 56.0
+## A boulder held still, a bullet held in the fingers and a gate held open all
+## let go by themselves after this long: a hand is help, not a pause button.
+const HOLD_MAX_SECONDS: float = 2.5
+const CATCH_MAX_SECONDS: float = 3.0
+const LIFT_GATE_MAX_HOLD: float = 4.0
+## A bullet sent home goes faster than it came, and nothing survives it.
+const THROW_SPEED_SCALE: float = 1.8
+const THROWN_DAMAGE: int = 99
+## A held gate rises over this long, and drops much faster than it rose.
+const LIFT_GATE_RISE: float = 0.35
+const LIFT_GATE_DROP: float = 0.12
+## The guardian's finger is the only light in a dark room.
+const DARK_LIGHT_RADIUS: float = 170.0
+const DARK_RUNNER_GLOW: float = 70.0
+
 ## Speed above the normal sprint limit coasts gently until the player asks to
 ## brake it. This preserves run-up and guardian-launch momentum.
 const AIR_MOMENTUM_DRAG: float = 60.0

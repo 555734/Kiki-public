@@ -54,6 +54,7 @@ func _fire() -> void:
 	var shot := preload("res://src/entities/enemies/projectile.gd").new()
 	shot.direction = aim_direction.normalized()
 	shot.global_position = global_position + aim_direction.normalized() * 34.0
+	shot.source = self
 	get_parent().add_child(shot)
 
 func recoil() -> float:
