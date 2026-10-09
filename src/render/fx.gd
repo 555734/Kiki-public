@@ -30,9 +30,14 @@ func _ready() -> void:
 	Events.coin_collected.connect(func(at: Vector2) -> void: _burst(at, "spark", 0.7))
 	Events.enemy_flicked.connect(_on_enemy_flicked)
 	Events.hand_swiped.connect(_on_hand_swiped)
-	Events.runner_slung.connect(func(at: Vector2, _v: Vector2) -> void:
-		_burst(at, "dust", 1.8)
-		_ring(at, Balance.C_HOLO, 14.0, 70.0, 0.3, 5.0))
+	Events.runner_slung.connect(func(at: Vector2, v: Vector2) -> void:
+		_burst(at, "dust", 2.4)
+		_ring(at, Balance.C_HOLO, 14.0, 90.0, 0.32, 7.0)
+		var foot := at + Vector2(0, Balance.RUNNER_SIZE.y * 0.5)
+		_blast(FxBlast.Kind.SLAM, foot, 0.4, 0.9)
+		var lines := _blast(FxBlast.Kind.STREAKS, at, 0.3, 0.9)
+		lines.dir = -v.normalized()
+		kick(6.0))
 	Events.rescue_scored.connect(func(tier: int, at: Vector2) -> void:
 		_burst(at, "materialize", 0.9 + float(tier) * 0.5)
 		_burst(at, "spark", 0.6 + float(tier) * 0.35)
@@ -47,6 +52,14 @@ func _ready() -> void:
 	# needs to know the detour paid; the guardian needs to know what they can
 	# now afford. Same fact, two reasons to want it.
 	Events.pinged.connect(_on_pinged)
+	Events.hand_hold_changed.connect(_on_hand_hold_changed)
+	Events.runner_landed.connect(func(hard: bool) -> void:
+		if hard and _runner != null and is_instance_valid(_runner):
+			_blast(FxBlast.Kind.SLAM, _runner.global_position + Vector2(0, Balance.RUNNER_SIZE.y * 0.5), 0.35, 0.55)
+			kick(3.0))
+	# Every shell leaving a barrel, on whichever device: the host's and the
+	# guest's copies alike, so it is watched for rather than announced.
+	get_tree().node_added.connect(_on_node_added)
 	Events.crystal_taken.connect(func(_id: int, at: Vector2, amount: float) -> void:
 		_burst(at, "spark", 1.5)
 		_float_text(at, "+%d" % int(round(amount)), Color(0.62, 0.95, 1.0)))
@@ -81,9 +94,19 @@ func _process(_delta: float) -> void:
 	_was_airborne = not grounded
 
 func _on_enemy_killed(enemy: Node2D, by: String) -> void:
-	if is_instance_valid(enemy):
-		_burst(enemy.global_position, "poof", 1.2 if by == "snipe" else 1.0)
-		_ring(enemy.global_position, Color(1.0, 0.92, 0.7), 16.0, 78.0, 0.32)
+	if not is_instance_valid(enemy):
+		return
+	var at := enemy.global_position
+	if enemy is Turret:
+		# A gun emplacement does not fall over; it goes up.
+		_explosion(at, 1.6)
+		return
+	_burst(at, "poof", 1.4 if by == "snipe" else 1.1)
+	_burst(at, "spark", 1.2)
+	_ring(at, Color(1.0, 0.92, 0.7), 16.0, 92.0, 0.32, 7.0)
+	_blast(FxBlast.Kind.IMPACT, at, 0.16, 1.0)
+	_blast(FxBlast.Kind.STAR, at, 0.55, 1.0)
+	kick(5.0)
 
 ## Both ends, so the trip reads as a trip. Flashing only the arrival looks like
 ## the runner blinked out of existence and reappeared for no reason.
@@ -91,20 +114,110 @@ func _on_runner_warped(from: Vector2, to: Vector2) -> void:
 	_burst(from, "materialize", 1.0)
 	_burst(to, "materialize", 1.4)
 
-func _on_shot_fired(_from: Vector2, to: Vector2, hit: bool) -> void:
-	_burst(to, "spark" if hit else "puff", 1.0)
-	# A hit lands with a flash and a ring; a miss only puffs. The guardian has
-	# to be able to tell which it was without looking for the enemy.
-	if hit:
-		_ring(to, SPARK, 10.0, 56.0, 0.26)
-		_ring(to, Color.WHITE, 4.0, 30.0, 0.14, 9.0)
+func _on_shot_fired(from: Vector2, to: Vector2, hit: bool) -> void:
+	# BANG: the flash at the barrel, the round's path burned across the
+	# screen for a blink, and at the far end a flash, a ring of force, speed
+	# lines and smoke. A hit gets all of it and the lettering; a miss only
+	# the shot and a puff -- the guardian has to tell which it was at a glance.
+	var dir := (to - from).normalized() if to.distance_squared_to(from) > 1.0 else Vector2.RIGHT
+	var flash := _blast(FxBlast.Kind.MUZZLE, from, 0.09, 1.0)
+	flash.dir = dir
+	var beam := _blast(FxBlast.Kind.BEAM, from, 0.11, 1.0)
+	beam.to = to
+	beam.colour = Color(1.0, 0.8, 0.35)
+	_burst(to, "spark" if hit else "puff", 1.4 if hit else 1.0)
+	if not hit:
+		_blast(FxBlast.Kind.SMOKE, to, 0.4, 0.45)
+		kick(2.5)
+		return
+	_blast(FxBlast.Kind.IMPACT, to, 0.18, 1.3)
+	_blast(FxBlast.Kind.SHOCK, to, 0.32, 1.0)
+	var lines := _blast(FxBlast.Kind.STREAKS, to, 0.22, 1.0)
+	lines.dir = dir
+	_blast(FxBlast.Kind.SMOKE, to, 0.6, 0.7)
+	var word := _blast(FxBlast.Kind.BANG, to + Vector2(0, -70), 0.55, 0.8)
+	word.text = "BANG!"
+	_ring(to, Color.WHITE, 4.0, 40.0, 0.14, 9.0)
+	kick(9.0)
 
 func _on_hologram_spawned(_kind: int, at: Vector2) -> void:
 	_burst(at, "materialize", 1.0)
 
 func _on_runner_died(_cause: String) -> void:
 	if _runner != null and is_instance_valid(_runner):
-		_burst(_runner.global_position, "poof", 1.6)
+		var at := _runner.global_position
+		_burst(at, "poof", 1.8)
+		_burst(at, "spark", 1.4)
+		var hit := _blast(FxBlast.Kind.IMPACT, at, 0.2, 1.2)
+		hit.colour = Color(1.0, 0.5, 0.35)
+		_blast(FxBlast.Kind.SHOCK, at, 0.35, 0.9)
+		_blast(FxBlast.Kind.STAR, at, 0.6, 0.9)
+		kick(11.0)
+
+## A big one: a fireball, two rings of force, smoke rolling off, debris, and
+## the lettering. The cannon sent its own ball home.
+func _explosion(at: Vector2, size: float) -> void:
+	_blast(FxBlast.Kind.FIREBALL, at, 0.55, size)
+	_blast(FxBlast.Kind.SHOCK, at, 0.4, size * 1.3)
+	_blast(FxBlast.Kind.SHOCK, at, 0.6, size * 2.0)
+	_blast(FxBlast.Kind.SMOKE, at + Vector2(0, -20), 1.1, size)
+	var lines := _blast(FxBlast.Kind.STREAKS, at, 0.3, size)
+	lines.dir = Vector2.UP
+	_burst(at, "poof", 2.4)
+	_burst(at, "spark", 2.0)
+	var word := _blast(FxBlast.Kind.BANG, at + Vector2(0, -40), 0.7, size * 0.8)
+	word.text = "BOOM!"
+	kick(16.0)
+
+## A shell leaving a barrel: a flash and a blast of smoke at the muzzle, and
+## the gun's whole frame jolts.
+func _on_node_added(node: Node) -> void:
+	if node is Projectile:
+		_muzzle_blast.call_deferred(node)
+
+func _muzzle_blast(shot: Projectile) -> void:
+	if not is_instance_valid(shot) or shot.state != Projectile.State.FLYING:
+		return
+	var at := shot.global_position
+	var d := shot.direction.normalized() if shot.direction.length_squared() > 0.01 else Vector2.LEFT
+	var flash := _blast(FxBlast.Kind.MUZZLE, at, 0.12, 1.7)
+	flash.dir = d
+	var smoke := _blast(FxBlast.Kind.SMOKE, at + d * 10.0, 0.8, 0.9)
+	smoke.dir = d
+	_blast(FxBlast.Kind.SHOCK, at, 0.25, 0.6)
+	_burst(at, "spark", 0.9)
+	kick(4.0)
+
+## The guardian's hand: a press lands with a pulse; a portcullis let go
+## comes down with a crash a moment later.
+func _on_hand_hold_changed(node: Node2D) -> void:
+	if not is_instance_valid(node) or not node.has_method("hand_point"):
+		return
+	var held: bool = node.hold.held_at(Clock.tick) if "hold" in node else false
+	if held:
+		var pulse := _blast(FxBlast.Kind.SHOCK, node.hand_point(), 0.3, 0.7)
+		pulse.colour = Balance.C_HOLO
+		kick(3.0)
+		return
+	if node is LiftGate:
+		var foot := node.global_position
+		get_tree().create_timer(Balance.LIFT_GATE_DROP).timeout.connect(func() -> void:
+			if is_instance_valid(self):
+				_blast(FxBlast.Kind.SLAM, foot, 0.5, 1.2)
+				_burst(foot, "dust", 2.6)
+				var word := _blast(FxBlast.Kind.BANG, foot + Vector2(60, -120), 0.6, 0.75)
+				word.text = "CLANG!"
+				kick(12.0))
+
+## Spawn a drawn effect here and return it, to be told which way it goes.
+func _blast(k: int, at: Vector2, life: float, size: float) -> FxBlast:
+	var b := FxBlast.make(k, at, life, size)
+	add_child(b)
+	return b
+
+## Shake the view: every device shakes for what it sees.
+func kick(strength: float) -> void:
+	Events.screen_kick.emit(strength)
 
 func _make(amount: int, lifetime: float) -> CPUParticles2D:
 	var p := CPUParticles2D.new()
@@ -319,7 +432,14 @@ class Twinkle extends Node2D:
 func _on_enemy_flicked(at: Vector2, direction: Vector2) -> void:
 	var dir := direction.normalized() if direction.length_squared() > 0.01 else Vector2.UP
 	_ring(at, Color(1, 1, 1, 0.9), 20.0, 110.0, 0.25, 8.0)
-	_burst(at, "spark", 1.6)
+	_burst(at, "spark", 2.0)
+	_blast(FxBlast.Kind.IMPACT, at, 0.18, 1.5)
+	_blast(FxBlast.Kind.SHOCK, at, 0.35, 1.4)
+	var lines := _blast(FxBlast.Kind.STREAKS, at, 0.25, 1.3)
+	lines.dir = dir
+	var word := _blast(FxBlast.Kind.BANG, at + Vector2(-60, -110), 0.6, 1.0)
+	word.text = "POW!"
+	kick(13.0)
 	# The thing itself flies off on its own (Enemy.flick); this is the streak
 	# that goes with it.
 	var flight := Flight.new()
@@ -363,3 +483,6 @@ func _on_hand_swiped(points: PackedVector2Array) -> void:
 	sweep.a = points[0]
 	sweep.b = points[points.size() - 1]
 	add_child(sweep)
+	var word := _blast(FxBlast.Kind.BANG, points[points.size() / 2] + Vector2(0, -50), 0.5, 0.8)
+	word.text = "WHOOSH!"
+	kick(6.0)

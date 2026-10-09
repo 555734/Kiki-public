@@ -58,6 +58,9 @@ signal ability_used(slot: int, world_position: Vector2)
 signal ability_refused(slot: int, reason: String)
 signal scope_state_changed(active: bool, zoom: float)
 signal shot_fired(from: Vector2, to: Vector2, hit: bool)
+## A jolt of the view, in world pixels: a hit, a blast, something heavy landing.
+## Visual only -- the camera's offset, never its position.
+signal screen_kick(strength: float)
 ## The shot landed on something that refused it -- a shield, or a soft spot that
 ## is shut. Its own signal because "refused" and "missed" feel identical
 ## otherwise, and only one of them means "aim at the other side".

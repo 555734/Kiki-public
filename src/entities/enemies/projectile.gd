@@ -144,6 +144,15 @@ func _on_body_entered(body: Node2D) -> void:
 	queue_free()
 
 func _draw() -> void:
+	# A trail of smoke behind the shell, or of light behind one the guardian
+	# sent back: it reads as speed, and as where it came from.
+	if state != State.HELD:
+		var back := -velocity.normalized() if velocity.length_squared() > 1.0 else -direction
+		var tint := Color(Balance.C_HOLO, 0.5) if state == State.THROWN else Color(0.85, 0.82, 0.78, 0.45)
+		for i in 6:
+			var k := float(i + 1) / 6.0
+			draw_circle(back * (10.0 + 13.0 * float(i)), Balance.PROJECTILE_RADIUS * (1.5 - k * 0.8),
+				Color(tint, tint.a * (1.0 - k)))
 	if state == State.THROWN:
 		draw_circle(Vector2.ZERO, Balance.PROJECTILE_RADIUS * 2.6, Color(Balance.C_HOLO, 0.35))
 	if Balance.USE_TEXTURES:

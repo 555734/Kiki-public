@@ -2,7 +2,7 @@
 """Bring the generated PV art (docs/art-prompts-characters.md and
 docs/art-prompts-castle.md) into the game.
 
-    python3 -I tools/import_pv_assets.py <unpacked asset folder>
+    python3 -I tools/import_pv_assets.py <processed pack folder> [<originals folder>]
 
 The folder is the processed pack: characters/<sheet>_NN.png frames in 256px
 cells and castle/*.png singles. Only the frames listed in FRAMES and SINGLES
@@ -198,8 +198,68 @@ def textures(src):
     print("castle_panorama  from panorama.jpg (frame cropped)")
 
 
+# From the untouched generator output, montage 05, whose alpha separates every
+# figure cleanly. Boxes are (x0, y0, x1, y1) in that 1536x1024 image, read off
+# its alpha components; a box may hold two figures, then it is split at a column.
+MONTAGE = "original_05_contact_sheet.png"
+MONTAGE_RUNNER_REF = (574, 38, 654, 156)       # an idle frame, fitted to runner_idle
+MONTAGE_RUNNER = {
+    "runner_jump": [(944, 72, 1022, 156), (1028, 42, 1104, 146), (1116, 32, 1190, 136),
+                    (1200, 18, 1282, 126), (1286, 34, 1356, 140), (1356, 64, 1452, 156)],
+    "runner_hurt": [(4, 210, 94, 324), (104, 224, 190, 324), (204, 216, 298, 316),
+                    (296, 264, 406, 324), (410, 256, 508, 328)],
+    "runner_react": [(540, 224, 610, 330), (614, 226, 700, 332), (702, 214, 776, 332),
+                     (782, 220, 874, 332), (884, 212, 948, 332), (966, 206, 1040, 330)],
+    "runner_launch": [(1070, 212, 1152, 326), (1176, 220, 1252, 314),
+                      (1272, 204, 1386, 324), (1388, 220, 1504, 324)],
+}
+# (key, boxes, output height): a creature's frames share one scale.
+MONTAGE_CREATURES = [
+    ("castle_hound", [(14, 376, 144, 474), (158, 374, 278, 466), (286, 372, 398, 464),
+                      (406, 372, 514, 466), (10, 486, 142, 598), (160, 482, 276, 598),
+                      (282, 494, 386, 600), (398, 526, 510, 602)], 320),
+    ("castle_bat", [(536, 402, 660, 478), (670, 400, 780, 480), (536, 514, 660, 588),
+                    (662, 516, 780, 588)], 160),
+    ("castle_golem", [(1196, 378, 1298, 478), (1308, 378, 1418, 478), (1426, 378, 1522, 478),
+                      (1194, 494, 1296, 610), (1296, 494, 1402, 610), (1402, 530, 1532, 610)], 440),
+]
+
+
+def soft_alpha(im):
+    """The montage's alpha is a soft glow: firm it up to the drawn edge."""
+    a = im.getchannel("A").point(lambda v: max(0, min(255, (v - 130) * 3)))
+    im.putalpha(a)
+    return im
+
+
+def cut(sheet, box, grow=6):
+    x0, y0, x1, y1 = box
+    piece = sheet.crop((x0 - grow, y0 - grow, x1 + grow, y1 + grow))
+    return tight(components(soft_alpha(piece), 6))
+
+
+def montage(orig):
+    sheet = Image.open(orig / MONTAGE).convert("RGBA")
+    old = Image.open(ROOT / "assets" / "characters" / "runner_idle.png").convert("RGBA")
+    box = alpha_mask(old).getbbox()
+    canvas = (old.width * 2, old.height * 2)
+    scale = (box[3] - box[1]) * 2 / cut(sheet, MONTAGE_RUNNER_REF).height
+    for key, boxes in MONTAGE_RUNNER.items():
+        for n, b in enumerate(boxes):
+            out = place(cut(sheet, b), canvas, scale, box[3] * 2, box[0] + box[2])
+            out.save(OUT_CHAR / f"{key}_{n}.png")
+        print(f"{key}_0..{len(boxes) - 1}  from {MONTAGE}")
+    for key, boxes, height in MONTAGE_CREATURES:
+        figs = [cut(sheet, b) for b in boxes]
+        s = height / max(f.height for f in figs)
+        width = round(max(f.width for f in figs) * s) + 8
+        for n, f in enumerate(figs):
+            place(f, (width, height), s, height, width / 2).save(OUT_CASTLE / f"{key}_{n}.png")
+        print(f"{key}_0..{len(figs) - 1}  from {MONTAGE}")
+
+
 def main() -> int:
-    if len(sys.argv) != 2:
+    if len(sys.argv) not in (2, 3):
         print(__doc__)
         return 2
     src = Path(sys.argv[1]).resolve()
@@ -209,6 +269,9 @@ def main() -> int:
     creatures(src)
     singles(src)
     textures(src)
+    if len(sys.argv) == 3:
+        # Last, so the montage's frames replace the processed pack's.
+        montage(Path(sys.argv[2]).resolve())
     return 0
 
 

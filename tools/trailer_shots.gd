@@ -17,10 +17,10 @@ var cap: Node = null
 ##    8.6  a finger appears, with a name on it, and holds the gate up. The
 ##         runner goes under; the finger lets go on the hound.
 ##   12.6  the drop, the road to the castle one screen at a time: draw the
-##         bridge, sweep the bats, send the cannonball home, press the
+##         bridge, shoot the hound off the runner's heels, sweep the bats, send the cannonball home, press the
 ##         boulder, light the dungeon, sling the runner up the keep, flick
 ##         the stone guardian off the castle.
-##   32.6  the title, at the castle door, still on the call.
+##   35.0  the title, at the castle door, still on the call.
 func list() -> Array:
 	return [
 		{"name": "f1_chasm", "stage": W.CASTLE, "until": 2.0, "preroll": 30},
@@ -28,13 +28,14 @@ func list() -> Array:
 		{"name": "f3_hound", "stage": W.CASTLE, "until": 6.0, "preroll": 30},
 		{"name": "c1_call", "stage": W.CASTLE, "until": 12.6, "preroll": 30},
 		{"name": "d1_bridge", "stage": W.CASTLE, "until": 15.2, "preroll": 30},
-		{"name": "d2_bats", "stage": W.CASTLE, "until": 17.6, "preroll": 30},
-		{"name": "d3_cannon", "stage": W.CASTLE, "until": 20.4, "preroll": 30},
-		{"name": "d4_boulder", "stage": W.CASTLE, "until": 23.0, "preroll": 30},
-		{"name": "d5_dark", "stage": W.CASTLE, "until": 25.8, "preroll": 30},
-		{"name": "d6_sling", "stage": W.CASTLE, "until": 28.8, "preroll": 30},
-		{"name": "d7_golem", "stage": W.CASTLE, "until": 32.6, "preroll": 30},
-		{"name": "e1_title", "stage": W.CASTLE, "until": 38.0, "preroll": 30},
+		{"name": "d1b_snipe", "stage": W.CASTLE, "until": 17.6, "preroll": 30},
+		{"name": "d2_bats", "stage": W.CASTLE, "until": 20.0, "preroll": 30},
+		{"name": "d3_cannon", "stage": W.CASTLE, "until": 22.8, "preroll": 30},
+		{"name": "d4_boulder", "stage": W.CASTLE, "until": 25.4, "preroll": 30},
+		{"name": "d5_dark", "stage": W.CASTLE, "until": 28.2, "preroll": 30},
+		{"name": "d6_sling", "stage": W.CASTLE, "until": 31.2, "preroll": 30},
+		{"name": "d7_golem", "stage": W.CASTLE, "until": 35.0, "preroll": 30},
+		{"name": "e1_title", "stage": W.CASTLE, "until": 40.4, "preroll": 30},
 	]
 
 # --------------------------------------------------------------------- helpers
@@ -71,6 +72,9 @@ class Rig extends Node:
 	func _ready() -> void:
 		process_priority = 300
 		_rng.seed = 1234
+		# The game's own jolts (Events.screen_kick) shake the trailer's camera
+		# too: this camera owns the offset while filming.
+		Events.screen_kick.connect(func(s: float) -> void: kick = maxf(kick, s))
 
 	## A hard cut inside the shot: hold `at`, at zoom `z`, from the next frame.
 	func cut_to(at: Vector2, z: float) -> void:
@@ -771,6 +775,9 @@ func setup_f3_hound(ctx: Dictionary) -> Callable:
 			p.set("_wake_left", 0.0)
 			p.set("_activated", true)
 			p.set("cruise_speed", 360.0)
+		if t == T(1.0):
+			# Stopped dead at the bars, and a look back at what is coming.
+			m.runner.visual.react(0, 0.8)
 		if t < -12 or m.runner.state == Runner.State.DEAD:
 			drive(c, 0.0)
 			return
@@ -821,6 +828,8 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 		if t == t_finger:
 			guardian_on(c)
 			hub.aim_at_world(hello)
+			# Somebody is here: the runner looks up at the finger.
+			rn.visual.react(2, 0.9)
 		if t >= t_finger:
 			tag_finger(c)
 		if t == t_wolf and p != null:
@@ -888,7 +897,51 @@ func setup_d1_bridge(ctx: Dictionary) -> Callable:
 		draw_stroke(c, t, T(0.75), T(0.4), lines[1])
 		drive(c, 1.0 if t >= 6 else 0.0, false, true)
 
-## 15.2-17.6. B: the tunnel full of bats; one sweep of the hand.
+## 15.2-17.6. The hound is on the runner's heels down the open road. Two
+## taps on it: BANG, BANG, and it is knocked back seeing stars.
+func setup_d1b_snipe(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(2860, ROAD_Y))
+	m.runner.facing = 1
+	for n in m.get_tree().get_nodes_in_group("enemy"):
+		if n is Turret:
+			n.set_physics_process(false)
+	var hold: WeakRef = weakref(pursuer_of(ctx))
+	guardian_on(ctx)
+	on_call(ctx)
+	var r := rig(ctx)
+	r.zoom_from = 1.1
+	r.zoom_to = 1.18
+	r.zoom_ticks = T(2.4)
+	r.lead = 0.0
+	r.offset = Vector2(-170, -70)
+	var shots := [T(0.75), T(1.35)]
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		var rn: Runner = m.runner
+		var p: Node2D = hold.get_ref()
+		tag_finger(c)
+		if t == -20 and p != null:
+			p.global_position = rn.global_position + Vector2(-330, -40)
+			p.set("_wake_left", 0.0)
+			p.set("_activated", true)
+			p.set("cruise_speed", 330.0)
+			p.set("catchup_speed", 420.0)
+		if t == T(0.25):
+			rn.visual.react(0, 0.45)
+		drive(c, 1.0 if rn.state != Runner.State.DEAD else 0.0)
+		if p == null:
+			return
+		# The finger goes to it, and taps: the rifle is the tool in hand.
+		if t < int(shots[0]):
+			m.input_hub.aim_at_world(p.global_position.lerp(rn.global_position, 0.5) + Vector2(0, -90))
+		for at in shots:
+			if t == int(at):
+				finger_down(c, p.global_position)
+			if t == int(at) + 3:
+				finger_up(c, p.global_position)
+
+## 17.6-20.0. B: the tunnel full of bats; one sweep of the hand.
 func setup_d2_bats(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var tb := LevelCastleData.TUNNEL_B
@@ -934,7 +987,7 @@ func setup_d2_bats(ctx: Dictionary) -> Callable:
 			r.offset = Vector2(160, -80)
 		drive(c, 1.0 if t >= t_sweep + 14 else 0.0, false, true)
 
-## 17.6-20.4. C: the cannon fires down the road; the finger pinches the ball
+## 20.0-22.8. C: the cannon fires down the road; the finger pinches the ball
 ## out of the air and lets it go -- straight home.
 func setup_d3_cannon(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -986,7 +1039,7 @@ func setup_d3_cannon(ctx: Dictionary) -> Callable:
 			finger_up(c, at)
 			state["done"] = t
 
-## 20.4-23.0. D: the boulder comes at the runner; the finger presses it
+## 22.8-25.4. D: the boulder comes at the runner; the finger presses it
 ## still and the runner hops it.
 func setup_d4_boulder(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1031,7 +1084,7 @@ func setup_d4_boulder(ctx: Dictionary) -> Callable:
 		var hop := go and head.x - rn.global_position.x < 95.0 and head.x > rn.global_position.x
 		drive(c, 1.0 if go else 0.0, hop, false)
 
-## 23.0-25.8. F: the dungeon has no light but the finger. It lights each
+## 25.4-28.2. F: the dungeon has no light but the finger. It lights each
 ## stepping stone before the runner jumps to it.
 func setup_d5_dark(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1071,7 +1124,7 @@ func setup_d5_dark(ctx: Dictionary) -> Callable:
 		else:
 			go.tick()
 
-## 25.8-28.8. G: the keep wall, sheer, far past any jump. Pulled back, let
+## 28.2-31.2. G: the keep wall, sheer, far past any jump. Pulled back, let
 ## go: up and over.
 func setup_d6_sling(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
@@ -1106,7 +1159,7 @@ func setup_d6_sling(ctx: Dictionary) -> Callable:
 			r.offset = Vector2(60, -40)
 			r.smooth_y = 4.0
 
-## 28.8-32.6. H: the stone guardian of the castle door. One flick.
+## 31.2-35.0. H: the stone guardian of the castle door. One flick.
 func setup_d7_golem(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	hound_off(ctx)
@@ -1145,6 +1198,8 @@ func setup_d7_golem(ctx: Dictionary) -> Callable:
 		if t == T(0.9) + 9:
 			finger_up(c, at + Vector2(230, -300))
 			cap.cue("slam")
+		if t == T(0.9) + 16:
+			m.runner.visual.react(4, 0.6)
 
 # ----------------------------------------------------------------------- end
 

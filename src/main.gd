@@ -42,6 +42,7 @@ func _ready() -> void:
 	# Runner movement is a physics-tick decision. Follow it after that tick,
 	# rather than moving the camera on an unrelated rendered-frame clock.
 	process_priority = 100
+	Events.screen_kick.connect(_on_screen_kick)
 	link = NetLink.new()
 	link.name = "NetLink"
 	link.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -533,6 +534,17 @@ func _process(delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_camera(delta)
+	# The jolt rides on the offset, so it never feeds back into the follow.
+	_kick = maxf(0.0, _kick * 0.84 - 0.05)
+	if _kick > 0.3:
+		camera.offset = Vector2(_kick_rng.randf_range(-1, 1), _kick_rng.randf_range(-1, 1)) * _kick
+
+## The screen shake a hit asks for (Events.screen_kick), dying away.
+var _kick: float = 0.0
+var _kick_rng := RandomNumberGenerator.new()
+
+func _on_screen_kick(strength: float) -> void:
+	_kick = maxf(_kick, strength)
 
 ## How far the guardian has pushed the view along, in world pixels. Read by the
 ## camera; written by the two "look" buttons.

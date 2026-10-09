@@ -3,8 +3,19 @@ extends Node2D
 ## depend on Godot's generated global class cache immediately after git pull.
 
 var pursuer: Node = null
+## How fast it is going, measured here rather than asked: on the guest's
+## device the host moves it and its own chase state never runs.
+var _speed: float = 0.0
+var _last: Vector2 = Vector2.INF
+## Has been seen running: standing still after that is being held back.
+var _woke := false
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	var at := global_position
+	if _last != Vector2.INF and delta > 0.0:
+		_speed = lerpf(_speed, at.distance_to(_last) / delta, clampf(delta * 10.0, 0.0, 1.0))
+	_last = at
+	_woke = _woke or _speed > 60.0
 	queue_redraw()
 
 func _draw() -> void:
@@ -28,8 +39,14 @@ func _draw() -> void:
 	if Art.late_pack() != "" and Art.draw_sprite_fit(self, frame, Vector2(0, -bob), 130.0, tint):
 		return
 	if Art.pursuer_faces_left():
-		# The hound gallops: its frames carry the bob, and its own red eyes.
-		if Art.draw_sprite(self, frame, Vector2(-6, 50.0), 128.0, true, tint):
+		# The hound: asleep until it wakes, then a gallop; barking at a gate
+		# dropped in its face, seeing stars when knocked back.
+		var hound := "castle_hound_%d" % (int(p * 5.0) % 4)
+		if is_stunned:
+			hound = "castle_hound_6"
+		elif _speed < 15.0:
+			hound = "castle_hound_%d" % (4 + int(p * 2.5) % 2) if _woke else "castle_hound_7"
+		if Art.draw_sprite(self, hound, Vector2(-6, 50.0), 128.0, true, Color.WHITE if is_stunned else tint):
 			return
 	if Art.draw_sprite(self, frame, Vector2(0, 58.0 - bob), 154.0, false, tint):
 		var glow := 0.55 + 0.45 * sin(p * 1.4)

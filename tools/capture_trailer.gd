@@ -97,6 +97,7 @@ var _begin := 0
 var _trace := OS.get_environment("TRAILER_TRACE") != ""
 
 func _ready() -> void:
+	Events.screen_kick.connect(_on_screen_kick)
 	call_deferred("run")
 
 func _args() -> void:
@@ -179,6 +180,15 @@ func run() -> void:
 	print("trailer frames written to ", ProjectSettings.globalize_path(dir))
 	get_tree().quit()
 
+## The shot being filmed, for the hit-stop below.
+var _ctx: Dictionary = {}
+
+## A hard hit holds the world for a few frames (the camera still shakes): the
+## beat that sells it. The game asks for the shake; the film adds the hold.
+func _on_screen_kick(strength: float) -> void:
+	if strength >= 9.0 and _ctx.has("main"):
+		_ctx["freeze"] = maxi(int(_ctx["freeze"]), 4 if strength >= 13.0 else 3)
+
 ## Build the shot's game, let the shot set it up, roll the pre-roll without
 ## rendering it, then film exactly `frames` frames.
 func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
@@ -186,6 +196,7 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 		"film_start": film_start})
 	var ctx: Dictionary = {"t": 0, "frames": frames, "speed": 1.0, "freeze": 0, "shot": shot,
 		"film_start": float(film_start) / FPS}
+	_ctx = ctx
 	_begin = frame
 	if shot.has("stage"):
 		await _open_coop(int(shot["stage"]), bool(shot.get("menu", false)))

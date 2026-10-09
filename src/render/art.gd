@@ -42,8 +42,7 @@ static func _all_assets() -> Dictionary:
 ## The next stage that ships ahead of its art puts its keys back in here.
 ## 1-9 has: its paintings are being made from docs/art-prompts-castle.md.
 const PENDING := [
-	"castle_bat_0", "castle_bat_1", "castle_gate_arch", "castle_gate_bars",
-	"castle_golem_hit", "castle_goal_door",
+	"castle_gate_arch", "castle_gate_bars", "castle_goal_door",
 ]
 
 const FONT_UI := BASE + "fonts/Nunito-ExtraBold.ttf"
@@ -448,7 +447,7 @@ static func pursuer_frame(idle: bool = false, phase: float = 0.0) -> String:
 		Stage.Which.CASTLE:
 			# The castle hound; 1-2's night wolf runs in its place until painted.
 			if tex("castle_hound_0") != null:
-				return "castle_hound_%d" % (0 if idle else int(phase * 5.0) % 4)
+				return "castle_hound_%d" % (6 if idle else int(phase * 5.0) % 4)
 			return "s12_nightwolf_idle" if idle else "s12_nightwolf_chase"
 	return "horror_pursuer"
 

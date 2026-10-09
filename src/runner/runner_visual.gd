@@ -33,6 +33,17 @@ var _run_t: float = 0.0
 var _idle_t: float = 0.0
 ## Breathing, with a blink every few seconds.
 const IDLE_FRAMES := [0, 1, 3, 1, 0, 1, 3, 1, 0, 2]
+## A reaction held over whatever the runner is doing (runner_react_N): staged
+## by the trailer -- a glance back, a look up, a cheer -- and by nothing in
+## play. -1 is none.
+var react_frame: int = -1
+var react_left: float = 0.0
+
+## Hold reaction pose `frame` (0 glance back, 1 skid, 2 look up, 3 point,
+## 4 fist pump, 5 wave) for `seconds`.
+func react(frame: int, seconds: float) -> void:
+	react_frame = frame
+	react_left = seconds
 
 func _ready() -> void:
 	z_index = 10
@@ -50,6 +61,9 @@ func _process(delta: float) -> void:
 		# Eight frames are one full stride, about two strides a second at a walk.
 		_run_t += delta * 15.0 * clampf(speed / Balance.RUNNER_RUN_SPEED, 0.55, 1.7)
 	_idle_t += delta
+	react_left = maxf(0.0, react_left - delta)
+	if react_left <= 0.0:
+		react_frame = -1
 	match runner.state:
 		Runner.State.RUN:
 			_phase += delta * (4.0 + speed / 40.0)
@@ -226,6 +240,10 @@ func _pose_key() -> String:
 ## The pose's frame of animation, where it has frames painted; the pose's
 ## single picture where it has not.
 func _animated(key: String) -> String:
+	if react_frame >= 0 and runner.state != Runner.State.DEAD:
+		var held := "runner_react_%d" % react_frame
+		if Art.tex(held) != null:
+			return held
 	match key:
 		"runner_run":
 			if Art.tex("runner_run_0") != null:
@@ -233,10 +251,27 @@ func _animated(key: String) -> String:
 		"runner_idle":
 			if Art.tex("runner_idle_0") != null:
 				return "runner_idle_%d" % IDLE_FRAMES[int(_idle_t * 3.5) % IDLE_FRAMES.size()]
+		"runner_land":
+			# The crouch before a jump is the crouch after a landing.
+			if Art.tex("runner_jump_0") != null:
+				return "runner_jump_0"
+		"runner_reach":
+			if runner.state == Runner.State.HURT and Art.tex("runner_hurt_0") != null:
+				return "runner_hurt_0"
 		"runner_jump", "runner_fall":
-			# Thrown by the guardian's hand: flying, not jumping.
+			var vy := runner.velocity.y
+			# Thrown by the guardian's hand: flying, not jumping. Arms up on
+			# the way out, then reaching for where it is going.
 			if bool(runner.get("_slung")) and Art.tex("runner_launch_0") != null:
-				return "runner_launch_0"
+				return "runner_launch_0" if vy < -500.0 else "runner_launch_3"
+			if Art.tex("runner_jump_1") != null and not _spin_active:
+				if vy < -420.0:
+					return "runner_jump_1"
+				if vy < -120.0:
+					return "runner_jump_2"
+				if vy < 160.0:
+					return "runner_jump_3"
+				return "runner_jump_4"
 	return key
 
 func _has_frames(key: String) -> bool:
@@ -316,7 +351,7 @@ func _draw_death() -> bool:
 	var alpha := 1.0 - clampf((u - 0.6) / 0.35, 0.0, 1.0)
 	if alpha <= 0.0:
 		return true
-	draw_set_transform(Vector2(0.0, rise), u * 7.5 * facing, _paint_scale(1.08, 1.08))
+	draw_set_transform(Vector2(0.0, rise), u * (2.5 if Art.tex("runner_hurt_2") != null else 7.5) * facing, _paint_scale(1.08, 1.08))
 	var drawn := Art.draw_sprite(self, _death_pose(1), Vector2(0.0, h * 0.5), h, false,
 		Color(1, 1, 1, alpha))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -325,6 +360,9 @@ func _draw_death() -> bool:
 ## The flinch, then knocked into a ball for the tumble -- or the one "arms
 ## out" pose for both, where those two are not painted.
 func _death_pose(step: int) -> String:
+	if step > 0 and Art.tex("runner_hurt_2") != null:
+		# Tumbling: the two upside-down frames in turn.
+		step = 1 + int(maxf(0.0, _dead_t - DEATH_HOLD) * 9.0) % 2
 	var key := "runner_hurt_%d" % step
 	return key if Art.tex(key) != null else "runner_reach"
 

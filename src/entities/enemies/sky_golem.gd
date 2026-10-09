@@ -55,6 +55,10 @@ func _physics_process(_delta: float) -> void:
 	global_position = _origin + Vector2(x, 0)
 	_rect.size = Vector2(SIZE.x * (2.4 if stomping() else 1.0), SIZE.y)
 
+## How far through its walk it is, in steps.
+func _walk_phase() -> float:
+	return Clock.seconds_at(Clock.tick, phase_offset) * 2.0
+
 func stomping() -> bool:
 	var leg := fposmod(Clock.seconds_at(Clock.tick, phase_offset), period * 0.5)
 	return leg > period * 0.5 - STOMP
@@ -82,13 +86,13 @@ func _draw() -> void:
 func _draw_castle() -> void:
 	var hit := hp <= 0
 	var box := Rect2(-SIZE * 0.5, SIZE)
-	# The painted guardian: standing, or with its fist up for the stomp. Its
-	# picture is broader than its box, as a stone giant is; it stands on the
-	# box's floor. Knocked flying, it keeps the standing picture and the flight
-	# tumbles it.
-	var key := "castle_golem_hit" if hit and Art.tex("castle_golem_hit") != null \
-		else ("castle_golem_1" if stomping() and not hit else "castle_golem_0")
-	if Art.draw_sprite(self, key, Vector2(0.0, SIZE.y * 0.5), SIZE.y * 1.05):
+	# The painted guardian. Its picture is broader than its box, as a stone
+	# giant is; it stands on the box's floor.
+	# Walking (0-2), the stomp's wind-up (3), knocked flying (4).
+	var key := "castle_golem_4"
+	if not hit:
+		key = "castle_golem_3" if stomping() else "castle_golem_%d" % (int(_walk_phase() * 3.0) % 3)
+	if Art.draw_sprite(self, key, Vector2(0.0, SIZE.y * 0.5), SIZE.y * 1.05, direction > 0 and not hit):
 		return
 	var line := Color("3b2a1e")
 	var stone := Color("a6a8a3")
