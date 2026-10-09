@@ -1476,8 +1476,11 @@ func _test_the_hand_over_the_wire() -> void:
 			Protocol.hand(GuardianHand.Act.FLICK, walker.net_id, walker.global_position,
 				Vector2(900, -400), 600))
 		await _pump(pair, 4)
-		check(not is_instance_valid(walker) or walker.is_queued_for_deletion(),
+		check(not is_instance_valid(walker) or walker.hp <= 0,
 			"the host flicks the walker the guest named")
+		await _pump(pair, 50)
+		check(not is_instance_valid(walker) or walker.is_queued_for_deletion(),
+			"and it is gone once it has flown off")
 
 	var trap: CaveTrap = CaveTrap.from_spec({"kind": "boulder"}, null)
 	trap.hand_id = 92

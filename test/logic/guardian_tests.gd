@@ -1202,10 +1202,15 @@ func _test_the_hand_flicks_a_walker() -> void:
 		return
 	walker.set_physics_process(false)
 	var at := _finger_on(walker.global_position)
+	var where := walker.global_position
 	await _stroke(at, at + Vector2(260, -160), 2)
-	await _frames(2)
+	check(is_instance_valid(walker) and walker.hp <= 0, "a flicked walker is beaten")
+	await _physics(10)
+	check(not is_instance_valid(walker) or walker.global_position.distance_to(where) > 60.0,
+		"and flies off rather than vanishing")
+	await _physics(50)
 	check(not is_instance_valid(walker) or walker.is_queued_for_deletion(),
-		"a flicked walker is gone")
+		"and then it is gone")
 
 func _test_a_swipe_sweeps_fliers_away() -> void:
 	_current = "hand: swipe"

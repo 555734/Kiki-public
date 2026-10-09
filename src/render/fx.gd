@@ -28,6 +28,11 @@ func _ready() -> void:
 	Events.runner_died.connect(_on_runner_died)
 	Events.runner_warped.connect(_on_runner_warped)
 	Events.coin_collected.connect(func(at: Vector2) -> void: _burst(at, "spark", 0.7))
+	Events.enemy_flicked.connect(_on_enemy_flicked)
+	Events.hand_swiped.connect(_on_hand_swiped)
+	Events.runner_slung.connect(func(at: Vector2, _v: Vector2) -> void:
+		_burst(at, "dust", 1.8)
+		_ring(at, Balance.C_HOLO, 14.0, 70.0, 0.3, 5.0))
 	Events.rescue_scored.connect(func(tier: int, at: Vector2) -> void:
 		_burst(at, "materialize", 0.9 + float(tier) * 0.5)
 		_burst(at, "spark", 0.6 + float(tier) * 0.35)
@@ -266,3 +271,95 @@ func _ring(at: Vector2, colour: Color, r0: float, r1: float, life: float,
 
 func _on_burst_finished() -> void:
 	_live_bursts = maxi(0, _live_bursts - 1)
+
+# ------------------------------------------------------------------ the hand
+
+## The streak behind something the guardian's finger flicked off the screen,
+## ending as a twinkle in the distance.
+class Flight extends Node2D:
+	var velocity := Vector2.ZERO
+	var spin := 0.0
+	var life := 0.9
+	var _t := 0.0
+
+	func _process(delta: float) -> void:
+		_t += delta
+		velocity.y += 900.0 * delta * 0.35
+		position += velocity * delta
+		rotation += spin * delta
+		var k := clampf(_t / life, 0.0, 1.0)
+		scale = Vector2.ONE * lerpf(1.0, 0.35, k)
+		if _t >= life:
+			queue_free()
+		queue_redraw()
+
+	func _draw() -> void:
+		# Speed lines trailing behind, in the frame of the flight.
+		var back := -velocity.normalized().rotated(-rotation) * 60.0
+		for k in 3:
+			var off := back.orthogonal().normalized() * float(k - 1) * 16.0
+			draw_line(off, off + back, Color(1, 1, 1, 0.45 * (1.0 - _t / life)), 4.0, true)
+
+class Twinkle extends Node2D:
+	var _t := 0.0
+	func _process(delta: float) -> void:
+		_t += delta
+		if _t >= 0.5:
+			queue_free()
+		queue_redraw()
+	func _draw() -> void:
+		var k := _t / 0.5
+		var r := 26.0 * sin(k * PI)
+		var c := Color(1, 1, 0.85, 1.0 - k * 0.5)
+		draw_line(Vector2(-r, 0), Vector2(r, 0), c, 4.0, true)
+		draw_line(Vector2(0, -r), Vector2(0, r), c, 4.0, true)
+		draw_line(Vector2(-r, -r) * 0.45, Vector2(r, r) * 0.45, c, 3.0, true)
+		draw_line(Vector2(-r, r) * 0.45, Vector2(r, -r) * 0.45, c, 3.0, true)
+
+func _on_enemy_flicked(at: Vector2, direction: Vector2) -> void:
+	var dir := direction.normalized() if direction.length_squared() > 0.01 else Vector2.UP
+	_ring(at, Color(1, 1, 1, 0.9), 20.0, 110.0, 0.25, 8.0)
+	_burst(at, "spark", 1.6)
+	# The thing itself flies off on its own (Enemy.flick); this is the streak
+	# that goes with it.
+	var flight := Flight.new()
+	flight.global_position = at
+	flight.velocity = dir * 1500.0
+	flight.spin = 0.0
+	add_child(flight)
+	var end := at + dir * 1500.0 * 0.6
+	var star := Twinkle.new()
+	star.global_position = end
+	get_tree().create_timer(0.75).timeout.connect(func() -> void:
+		if is_instance_valid(self):
+			add_child(star)
+		else:
+			star.free())
+
+## A swipe: a sheet of wind along the stroke.
+class Sweep extends Node2D:
+	var a := Vector2.ZERO
+	var b := Vector2.ZERO
+	var _t := 0.0
+	func _process(delta: float) -> void:
+		_t += delta
+		if _t >= 0.4:
+			queue_free()
+		queue_redraw()
+	func _draw() -> void:
+		var k := _t / 0.4
+		var dir := (b - a)
+		var side := dir.orthogonal().normalized()
+		for i in 5:
+			var off := side * float(i - 2) * 14.0
+			var from := a.lerp(b, clampf(k * 1.4 - 0.4 + float(i) * 0.05, 0.0, 1.0))
+			var to := a.lerp(b, clampf(k * 1.4 + float(i) * 0.05, 0.0, 1.0))
+			draw_line(from + off, to + off, Color(0.85, 0.97, 1.0, 0.75 * (1.0 - k)), 6.0 - i * 0.6, true)
+
+func _on_hand_swiped(points: PackedVector2Array) -> void:
+	if points.size() < 2:
+		return
+	var sweep := Sweep.new()
+	sweep.a = points[0]
+	sweep.b = points[points.size() - 1]
+	add_child(sweep)

@@ -60,8 +60,36 @@ func flick(direction: Vector2) -> void:
 	if hp <= 0 or is_queued_for_deletion():
 		return
 	Events.enemy_flicked.emit(global_position, direction)
+	# It is already beaten, but it leaves by flying, not by vanishing: harmless,
+	# spinning off the screen for a moment, and only then gone. The other
+	# device watches it go in the snapshots, like any enemy moving.
 	hp = 0
-	die("flick")
+	collision_layer = 0
+	collision_mask = 0
+	remove_from_group("flickable")
+	remove_from_group("swipeable")
+	set_physics_process(false)
+	var flight := FlickFlight.new()
+	flight.velocity = direction.normalized() * 1500.0
+	add_child(flight)
+
+## Carries a flicked enemy off the screen, then removes it.
+class FlickFlight extends Node:
+	var velocity := Vector2.ZERO
+	var _t := 0.0
+	const LIFE := 0.7
+
+	func _physics_process(delta: float) -> void:
+		var body := get_parent() as Enemy
+		if body == null:
+			return
+		_t += delta
+		velocity.y += 500.0 * delta
+		body.global_position += velocity * delta
+		body.rotation += 14.0 * signf(velocity.x if absf(velocity.x) > 1.0 else 1.0) * delta
+		body.scale = Vector2.ONE * lerpf(1.0, 0.4, clampf(_t / LIFE, 0.0, 1.0))
+		if _t >= LIFE and not body.is_queued_for_deletion():
+			body.die("flick")
 
 ## Swept out of the air by a swipe. HOST only.
 func sweep() -> void:
