@@ -23,6 +23,9 @@ var _wake_left: float = 0.0
 var _stun_left: float = 0.0
 var _phase: float = 0.0
 var _hit_flash: float = 0.0
+## Held at a shut gate on its last step. It does not leap ahead to catch up
+## then: a gate dropped on it is meant to shut it out.
+var _gated := false
 
 func _ready() -> void:
 	hp = 9999
@@ -94,7 +97,7 @@ func _physics_process(delta: float) -> void:
 	if forward.length_squared() < 0.5:
 		forward = Vector2.RIGHT
 	var gap := (runner.global_position - global_position).dot(forward)
-	if gap > 1180.0:
+	if gap > 1180.0 and not _gated:
 		global_position = runner.global_position - forward * 900.0 + Vector2(0.0, -24.0)
 		gap = 900.0
 
@@ -115,7 +118,8 @@ func _physics_process(delta: float) -> void:
 		# thing the guardian can drop in its way.
 		var stop: float = _LIFT_GATE.stop_x(get_tree(), global_position.x, next.x,
 			global_position.y, Clock.tick, 70.0)
-		if stop != INF:
+		_gated = stop != INF
+		if _gated:
 			next.x = stop
 		global_position = next
 

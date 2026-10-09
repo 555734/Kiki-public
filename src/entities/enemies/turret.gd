@@ -6,6 +6,9 @@ extends Enemy
 
 @export var aim_direction: Vector2 = Vector2.LEFT
 @export var burst: int = 3
+## How big this one is. 1-9's castle cannon is drawn and hit at nearly twice
+## the usual size, so it reads from across a screen.
+@export var size_scale: float = 1.0
 
 var _cooldown: float = 1.0
 var _burst_left: int = 0
@@ -22,9 +25,10 @@ func _ready() -> void:
 	_cooldown = lerpf(0.4, Balance.TURRET_FIRE_INTERVAL, fposmod(float(net_id) * 0.618034, 1.0))
 
 func _build_body() -> void:
-	_add_box(Balance.TURRET_SIZE)
+	_add_box(Balance.TURRET_SIZE * size_scale)
 	visual = preload("res://src/entities/enemies/turret_visual.gd").new()
 	visual.turret = self
+	visual.scale = Vector2.ONE * size_scale
 	add_child(visual)
 
 func _physics_process(delta: float) -> void:
@@ -53,7 +57,7 @@ func _fire() -> void:
 	_recoil = 1.0
 	var shot := preload("res://src/entities/enemies/projectile.gd").new()
 	shot.direction = aim_direction.normalized()
-	shot.global_position = global_position + aim_direction.normalized() * 34.0
+	shot.global_position = global_position + aim_direction.normalized() * 34.0 * size_scale
 	shot.source = self
 	get_parent().add_child(shot)
 

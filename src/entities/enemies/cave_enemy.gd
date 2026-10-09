@@ -114,6 +114,13 @@ func _eyes(left: Vector2, right: Vector2) -> void:
 		draw_circle(at + Vector2(float(direction), 1), 2.3, Color("253044"))
 
 func _draw() -> void:
+	# 1-9's tunnel bats: bigger, so a swarm of them reads from across a screen.
+	if Art.style(self) == "castle" and kind == "bat":
+		if Art.draw_sprite(self, "castle_bat_%d" % (int(phase * 7.0) % 2), Vector2(0, 26), 56.0, direction < 0):
+			return
+		if Art.draw_sprite(self, "s18_bat_" + ("idle" if int(phase * 7.0) % 2 == 0 else "attack"),
+				Vector2(0, 26), 56.0, direction < 0):
+			return
 	if (Art.style(self) == "cave"):
 		var pose := "idle"
 		if kind == "bat" or kind == "beetle":

@@ -15,6 +15,7 @@ test/agreement_probe.tscn          gated
 test/arena_motion_probe.tscn       gated
 test/arena_rules_probe.tscn        gated
 test/cave_stage_probe.tscn         gated
+test/castle_stage_probe.tscn       gated
 test/chaser_probe.tscn             gated
 test/climb_probe.tscn              gated
 test/check_scripts.tscn            gated
@@ -75,6 +76,7 @@ tools/versus_perf_probe.tscn       live     frame times of a four-player match, 
 
 test/cave_card_capture.tscn        capture
 test/cave_review_capture.tscn      capture
+test/castle_review_capture.tscn    capture
 test/desert_capture.tscn           capture
 test/desert_card_capture.tscn      capture
 test/swamp_capture.tscn            capture

@@ -147,6 +147,7 @@ func _stage_label(which: int) -> String:
 		Stage.Which.DESERT: return "1-6"
 		Stage.Which.TOWER: return "1-7"
 		Stage.Which.CAVE: return "1-8"
+		Stage.Which.CASTLE: return "1-9"
 	return "?"
 
 func _world(kind: int, a: Vector2, b: Vector2, value: int = 0,

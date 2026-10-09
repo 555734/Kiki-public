@@ -235,6 +235,9 @@ run_checked "$GODOT" --headless --path . --quit-after 300 res://src/arena/arena_
 step "the 1-8 cave"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/cave_stage_probe.tscn
 
+step "the 1-9 castle road"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/castle_stage_probe.tscn
+
 step "the 1-6 desert climb"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_route_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/desert_stage_probe.tscn

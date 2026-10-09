@@ -94,6 +94,10 @@ func _draw() -> void:
 			var target := Vector2(0, travel + 40)
 			draw_line(target - Vector2(28, 0), target + Vector2(28, 0), Color("ffb64d"), 4.0, true)
 			draw_colored_polygon(PackedVector2Array([target + Vector2(-8, -18), target + Vector2(8, -18), target + Vector2(0, -5)]), Color("ffb64d"))
+	if Art.style(self) == "castle" and kind == "boulder":
+		if Art.draw_stretched(self, "castle_boulder", Rect2(at - Vector2(41, 41), Vector2(82, 82))) \
+				or Art.draw_stretched(self, "s18_boulder", Rect2(at - Vector2(39, 39), Vector2(78, 78))):
+			return
 	if (Art.style(self) == "cave"):
 		var key := "s18_boulder" if kind == "boulder" else "s18_terrain_stalactite"
 		var box := Rect2(at - Vector2(39, 39), Vector2(78, 78)) if kind == "boulder" else Rect2(at - Vector2(26, 40), Vector2(52, 80))

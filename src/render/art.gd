@@ -19,6 +19,7 @@ static func _all_assets() -> Dictionary:
 		preload("res://src/render/manifests/stage_1_6.gd"),
 		preload("res://src/render/manifests/stage_1_7.gd"),
 		preload("res://src/render/manifests/stage_1_8.gd"),
+		preload("res://src/render/manifests/stage_1_9.gd"),
 	]:
 		result.merge(manifest.TEXTURES)
 	return result
@@ -39,7 +40,14 @@ static func _all_assets() -> Dictionary:
 ## switch the real audit off for a key that is being shipped.
 ##
 ## The next stage that ships ahead of its art puts its keys back in here.
-const PENDING := []
+## 1-9 has: its paintings are being made from docs/art-prompts-castle.md.
+const PENDING := [
+	"castle_panorama", "castle_ground_tile", "castle_ground_cap", "castle_bridge_end",
+	"castle_bat_0", "castle_bat_1", "castle_cannon_idle", "castle_cannon_fire",
+	"castle_cannonball", "castle_boulder", "castle_gate_arch", "castle_gate_bars",
+	"castle_hound_0", "castle_hound_1", "castle_dungeon_wall", "castle_torch",
+	"castle_keep_wall", "castle_golem_idle", "castle_golem_hit", "castle_goal_door",
+]
 
 const FONT_UI := BASE + "fonts/Nunito-ExtraBold.ttf"
 const FONT_DISPLAY := BASE + "fonts/Baloo2-Bold.ttf"
@@ -78,6 +86,15 @@ static func _prefer(keys: Array) -> String:
 static func _resolved_key(key: String) -> String:
 	# Resolve by stage before legacy skins so other stages retain their art.
 	match Stage.current():
+		Stage.Which.CASTLE:
+			# Each painting as it lands; until then, the art the stage
+			# borrows (the 1-1 panorama has a castle on its hill).
+			match key:
+				"parallax": return _prefer(["castle_panorama", "parallax"])
+				"goal": return _prefer(["castle_goal_door", "goal"])
+				"turret": return _prefer(["castle_cannon_idle", "turret"])
+				"projectile": return _prefer(["castle_cannonball", "projectile"])
+				"keeper_portcullis": return _prefer(["castle_gate_bars", "keeper_portcullis"])
 		Stage.Which.ROYAL_ARENA:
 			match key:
 				"parallax": return "royal_royal_sky_kingdom"
@@ -431,6 +448,11 @@ static func pursuer_frame(idle: bool = false, phase: float = 0.0) -> String:
 		Stage.Which.DESERT: return "s16_mummy_%d" % (0 if idle else int(phase * 4.0) % 6)
 		Stage.Which.TOWER: return "s17_mine_idle" if idle else "s17_mine_alert"
 		Stage.Which.CAVE: return "s18_bat_idle" if idle else "s18_bat_attack"
+		Stage.Which.CASTLE:
+			# The castle hound; 1-2's night wolf runs in its place until painted.
+			if tex("castle_hound_0") != null:
+				return "castle_hound_%d" % (0 if idle else int(phase * 4.0) % 2)
+			return "s12_nightwolf_idle" if idle else "s12_nightwolf_chase"
 	return "horror_pursuer"
 
 static func platform_skin(length: float) -> String:
@@ -447,7 +469,7 @@ static func bind_style(node: Node) -> void:
 		Stage.Which.SKYWARD_RUINS: "skyward_ruins", Stage.Which.SEA: "sea",
 		Stage.Which.SWAMP: "swamp", Stage.Which.DESERT: "desert",
 		Stage.Which.TOWER: "tower", Stage.Which.CAVE: "cave",
-		Stage.Which.ROYAL_ARENA: "royal_arena",
+		Stage.Which.ROYAL_ARENA: "royal_arena", Stage.Which.CASTLE: "castle",
 	}
 	node.set_meta("art_style", styles.get(Stage.current(), "common"))
 

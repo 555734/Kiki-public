@@ -14,8 +14,8 @@ const ENEMIES := {
 	"keeper": ["gate", "home"],
 	"mine": ["bob", "period", "phase", "wander", "dart"],
 	"seedling": ["reach", "period", "phase"],
-	"golem": ["patrol", "period", "phase"],
-	"turret": ["aim", "burst"],
+	"golem": ["patrol", "period", "phase", "scale"],
+	"turret": ["aim", "burst", "scale"],
 }
 const GIMMICKS := {
 	"coastal_hazard": ["kind", "travel", "width", "period", "phase"],

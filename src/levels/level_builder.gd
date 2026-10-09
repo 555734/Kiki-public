@@ -48,6 +48,8 @@ func build() -> void:
 	_veils.take_terrain(_terrain, Stage.ground())
 	_build_ground_bodies()
 
+	if Stage.is_castle():
+		_static_root.add_child(CastleSet.new())
 	_decor = preload("res://src/render/decor.gd").new()
 	_decor.items = Stage.decor()
 	_static_root.add_child(_decor)
@@ -416,11 +418,13 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 			golem.patrol = float(spec.get("patrol", 120.0))
 			golem.period = float(spec.get("period", 6.0))
 			golem.phase_offset = float(spec.get("phase", 0.0))
+			golem.size_scale = maxf(0.25, float(spec.get("scale", 1.0)))
 			return golem
 		"turret":
 			var t := Turret.new()
 			t.aim_direction = spec.get("aim", Vector2.LEFT)
 			t.burst = int(spec.get("burst", 3))
+			t.size_scale = maxf(0.25, float(spec.get("scale", 1.0)))
 			t.runner = runner
 			return t
 	return null

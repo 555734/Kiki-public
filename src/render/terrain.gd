@@ -89,6 +89,9 @@ func _palette() -> Dictionary:
 	}
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
+	if Stage.is_castle():
+		CastleSet.draw_slab(self, rect, seed_index)
+		return
 	if Stage.is_horror() or Stage.is_skyward_ruins() or Stage.is_sea() or Stage.is_swamp() or Stage.is_desert():
 		_draw_split_slab(rect, seed_index)
 		return
