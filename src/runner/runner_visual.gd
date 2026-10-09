@@ -27,6 +27,12 @@ var _trail_left: float = 0.0
 var _dust: Array = []
 ## Seconds since the runner died, or -1 while alive. Drives the death tumble.
 var _dead_t: float = -1.0
+## Frame clocks for the painted animation (runner_run_N, runner_idle_N): the
+## stride follows the runner's speed, the idle its own slow breath.
+var _run_t: float = 0.0
+var _idle_t: float = 0.0
+## Breathing, with a blink every few seconds.
+const IDLE_FRAMES := [0, 1, 3, 1, 0, 1, 3, 1, 0, 2]
 
 func _ready() -> void:
 	z_index = 10
@@ -40,6 +46,10 @@ func _process(delta: float) -> void:
 	_dead_t = (0.0 if _dead_t < 0.0 else _dead_t + delta) \
 		if runner.state == Runner.State.DEAD else -1.0
 	var speed := absf(runner.velocity.x)
+	if runner.state == Runner.State.RUN:
+		# Eight frames are one full stride, about two strides a second at a walk.
+		_run_t += delta * 15.0 * clampf(speed / Balance.RUNNER_RUN_SPEED, 0.55, 1.7)
+	_idle_t += delta
 	match runner.state:
 		Runner.State.RUN:
 			_phase += delta * (4.0 + speed / 40.0)
@@ -213,8 +223,27 @@ func _pose_key() -> String:
 		_:
 			return "runner_idle"
 
+## The pose's frame of animation, where it has frames painted; the pose's
+## single picture where it has not.
+func _animated(key: String) -> String:
+	match key:
+		"runner_run":
+			if Art.tex("runner_run_0") != null:
+				return "runner_run_%d" % (int(_run_t) % 8)
+		"runner_idle":
+			if Art.tex("runner_idle_0") != null:
+				return "runner_idle_%d" % IDLE_FRAMES[int(_idle_t * 3.5) % IDLE_FRAMES.size()]
+		"runner_jump", "runner_fall":
+			# Thrown by the guardian's hand: flying, not jumping.
+			if bool(runner.get("_slung")) and Art.tex("runner_launch_0") != null:
+				return "runner_launch_0"
+	return key
+
+func _has_frames(key: String) -> bool:
+	return Art.tex(key + "_0") != null
+
 func _draw_painted() -> bool:
-	var key := _pose_key()
+	var key := _animated(_pose_key())
 	# The canvas carries headroom above the figure, so it is drawn taller than
 	# the figure is meant to be. See Balance.RUNNER_POSE_HEADROOM.
 	var h := Balance.RUNNER_SPRITE_H * Balance.RUNNER_POSE_HEADROOM
@@ -230,7 +259,7 @@ func _draw_painted() -> bool:
 
 	# A bob while running, so a single painted stride does not read as a slide.
 	var bob := 0.0
-	if runner.state == Runner.State.RUN:
+	if runner.state == Runner.State.RUN and not _has_frames("runner_run"):
 		bob = absf(sin(_phase * TAU)) * -3.0
 	if runner.cleared and runner.on_ground():
 		# Little victory hops.
@@ -279,7 +308,7 @@ func _draw_death() -> bool:
 		draw_arc(Vector2.ZERO, lerpf(18.0, 62.0, k), 0.0, TAU, 32,
 			Color(1.0, 1.0, 1.0, 0.9 * (1.0 - k)), lerpf(6.0, 1.5, k), true)
 		draw_set_transform(Vector2.ZERO, 0.0, _paint_scale(1.18, 1.18))
-		var ok := Art.draw_sprite(self, "runner_reach", Vector2(0.0, h * 0.5), h)
+		var ok := Art.draw_sprite(self, _death_pose(0), Vector2(0.0, h * 0.5), h)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return ok
 	var u := t - DEATH_HOLD
@@ -288,17 +317,23 @@ func _draw_death() -> bool:
 	if alpha <= 0.0:
 		return true
 	draw_set_transform(Vector2(0.0, rise), u * 7.5 * facing, _paint_scale(1.08, 1.08))
-	var drawn := Art.draw_sprite(self, "runner_reach", Vector2(0.0, h * 0.5), h, false,
+	var drawn := Art.draw_sprite(self, _death_pose(1), Vector2(0.0, h * 0.5), h, false,
 		Color(1, 1, 1, alpha))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	return drawn
+
+## The flinch, then knocked into a ball for the tumble -- or the one "arms
+## out" pose for both, where those two are not painted.
+func _death_pose(step: int) -> String:
+	var key := "runner_hurt_%d" % step
+	return key if Art.tex(key) != null else "runner_reach"
 
 ## Faded copies of the current pose where the body just was: dash and wall
 ## kick read as speed instead of as a teleport.
 func _draw_trail() -> void:
 	if _trail.is_empty() or not Balance.USE_TEXTURES:
 		return
-	var key := _pose_key()
+	var key := _animated(_pose_key())
 	var h := Balance.RUNNER_SPRITE_H * Balance.RUNNER_POSE_HEADROOM
 	for i in range(_trail.size() - 1, 0, -1):
 		var at: Vector2 = to_local(_trail[i])

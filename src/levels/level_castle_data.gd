@@ -175,12 +175,9 @@ static func decor() -> Array[Dictionary]:
 	return [
 		{"type": "signpost", "pos": Vector2(-60, GROUND_TOP)},
 		{"type": "flowers", "pos": Vector2(220, GROUND_TOP)},
-		{"type": "fence", "pos": Vector2(1520, GROUND_TOP), "width": 160.0},
-		{"type": "tree", "pos": Vector2(3050, GROUND_TOP)},
 		{"type": "flowers", "pos": Vector2(4820, GROUND_TOP)},
 		{"type": "signpost", "pos": Vector2(6880, GROUND_TOP)},
 		{"type": "flowers", "pos": Vector2(7700, KEEP_TOP)},
-		{"type": "fence", "pos": Vector2(8250, KEEP_TOP), "width": 160.0},
 	]
 
 static func veils() -> Array[Dictionary]:

@@ -42,11 +42,8 @@ static func _all_assets() -> Dictionary:
 ## The next stage that ships ahead of its art puts its keys back in here.
 ## 1-9 has: its paintings are being made from docs/art-prompts-castle.md.
 const PENDING := [
-	"castle_panorama", "castle_ground_tile", "castle_ground_cap", "castle_bridge_end",
-	"castle_bat_0", "castle_bat_1", "castle_cannon_idle", "castle_cannon_fire",
-	"castle_cannonball", "castle_boulder", "castle_gate_arch", "castle_gate_bars",
-	"castle_hound_0", "castle_hound_1", "castle_dungeon_wall", "castle_torch",
-	"castle_keep_wall", "castle_golem_idle", "castle_golem_hit", "castle_goal_door",
+	"castle_bat_0", "castle_bat_1", "castle_gate_arch", "castle_gate_bars",
+	"castle_golem_hit", "castle_goal_door",
 ]
 
 const FONT_UI := BASE + "fonts/Nunito-ExtraBold.ttf"
@@ -451,9 +448,14 @@ static func pursuer_frame(idle: bool = false, phase: float = 0.0) -> String:
 		Stage.Which.CASTLE:
 			# The castle hound; 1-2's night wolf runs in its place until painted.
 			if tex("castle_hound_0") != null:
-				return "castle_hound_%d" % (0 if idle else int(phase * 4.0) % 2)
+				return "castle_hound_%d" % (0 if idle else int(phase * 5.0) % 4)
 			return "s12_nightwolf_idle" if idle else "s12_nightwolf_chase"
 	return "horror_pursuer"
+
+## Whether this stage's chase art is drawn facing left (1-9's hound, painted
+## to face the runner) and so has to be mirrored to chase to the right.
+static func pursuer_faces_left() -> bool:
+	return Stage.current() == Stage.Which.CASTLE and tex("castle_hound_0") != null
 
 static func platform_skin(length: float) -> String:
 	if Stage.current() != Stage.Which.ROYAL_ARENA: return ""

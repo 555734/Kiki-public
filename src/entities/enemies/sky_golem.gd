@@ -82,8 +82,13 @@ func _draw() -> void:
 func _draw_castle() -> void:
 	var hit := hp <= 0
 	var box := Rect2(-SIZE * 0.5, SIZE)
-	var key := "castle_golem_hit" if hit else "castle_golem_idle"
-	if Art.draw_stretched_flipped(self, key, box.grow_individual(SIZE.x * 0.35, SIZE.y * 0.12, SIZE.x * 0.35, 0.0), false):
+	# The painted guardian: standing, or with its fist up for the stomp. Its
+	# picture is broader than its box, as a stone giant is; it stands on the
+	# box's floor. Knocked flying, it keeps the standing picture and the flight
+	# tumbles it.
+	var key := "castle_golem_hit" if hit and Art.tex("castle_golem_hit") != null \
+		else ("castle_golem_1" if stomping() and not hit else "castle_golem_0")
+	if Art.draw_sprite(self, key, Vector2(0.0, SIZE.y * 0.5), SIZE.y * 1.05):
 		return
 	var line := Color("3b2a1e")
 	var stone := Color("a6a8a3")

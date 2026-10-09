@@ -27,6 +27,10 @@ func _draw() -> void:
 	var frame := Art.pursuer_frame(is_stunned, p)
 	if Art.late_pack() != "" and Art.draw_sprite_fit(self, frame, Vector2(0, -bob), 130.0, tint):
 		return
+	if Art.pursuer_faces_left():
+		# The hound gallops: its frames carry the bob, and its own red eyes.
+		if Art.draw_sprite(self, frame, Vector2(-6, 50.0), 128.0, true, tint):
+			return
 	if Art.draw_sprite(self, frame, Vector2(0, 58.0 - bob), 154.0, false, tint):
 		var glow := 0.55 + 0.45 * sin(p * 1.4)
 		draw_circle(Vector2(30, -39 - bob), 5.0 + glow * 2.0,

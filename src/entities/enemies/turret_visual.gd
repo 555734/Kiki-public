@@ -74,12 +74,20 @@ func _draw_painted(dir: Vector2) -> bool:
 	var key := "turret"
 	if (Art.style(self) == "tower"): key = "s17_turret_alert" if charge > 0.70 else "s17_turret_idle"
 	elif (Art.style(self) == "desert"): key = "s16_golem_2" if charge > 0.70 else "s16_golem_0"
+	var height := Balance.TURRET_SPRITE_H
+	var reach := Balance.TURRET_SIZE.x * 0.5 + 18.0
+	if Art.style(self) == "castle" and Art.tex("castle_cannon_idle") != null:
+		# 1-9's cannon is painted pointing left, the other way round.
+		key = "castle_cannon_fire" if recoil > 0.3 else "castle_cannon_idle"
+		flip = not flip
+		height = 60.0
+		reach = 40.0
 	var ok := Art.draw_sprite(self, key, Vector2(0.0, Balance.TURRET_SIZE.y * 0.5),
-		Balance.TURRET_SPRITE_H, flip)
+		height, flip)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if not ok:
 		return false
-	var muzzle := dir * (Balance.TURRET_SIZE.x * 0.5 + 18.0) - dir * 4.0 * recoil
+	var muzzle := dir * reach - dir * 4.0 * recoil
 	var hot := pow(charge, 3.0)
 	if hot > 0.02:
 		draw_circle(muzzle, 6.0 + hot * 7.0, Color(1.0, 0.55, 0.15, 0.28 + hot * 0.5))

@@ -1,26 +1,30 @@
 extends RefCounted
-## 1-9 "The King's Road". Every one of these is still being painted (see
-## docs/art-prompts-castle.md and Art.PENDING); until a file lands, CastleSet
-## and the entities draw their code versions or borrow a neighbour's art.
+## 1-9 "The King's Road". Imported by tools/import_pv_assets.py from the art
+## made to docs/art-prompts-castle.md and docs/art-prompts-characters.md. The
+## keys still in Art.PENDING have not been painted usably yet; until they are,
+## CastleSet and the entities draw their code versions or borrow a neighbour's.
 const TEXTURES := {
-	"castle_panorama": "castle/panorama.jpg",
-	"castle_ground_tile": "castle/ground_tile.png",
-	"castle_ground_cap": "castle/ground_cap.png",
-	"castle_bridge_end": "castle/bridge_end.png",
-	"castle_bat_0": "castle/bat_0.png",
-	"castle_bat_1": "castle/bat_1.png",
-	"castle_cannon_idle": "castle/cannon_idle.png",
-	"castle_cannon_fire": "castle/cannon_fire.png",
-	"castle_cannonball": "castle/cannonball.png",
-	"castle_boulder": "castle/boulder.png",
-	"castle_gate_arch": "castle/gate_arch.png",
-	"castle_gate_bars": "castle/gate_bars.png",
-	"castle_hound_0": "castle/hound_0.png",
-	"castle_hound_1": "castle/hound_1.png",
-	"castle_dungeon_wall": "castle/dungeon_wall.png",
-	"castle_torch": "castle/torch.png",
-	"castle_keep_wall": "castle/keep_wall.png",
-	"castle_golem_idle": "castle/golem_idle.png",
-	"castle_golem_hit": "castle/golem_hit.png",
-	"castle_goal_door": "castle/goal_door.png",
+	"castle_panorama": "castle/castle_panorama.jpg",
+	"castle_ground_tile": "castle/castle_ground_tile.png",
+	"castle_ground_cap": "castle/castle_ground_cap.png",
+	"castle_bridge_end": "castle/castle_bridge_end.png",
+	"castle_bat_0": "castle/castle_bat_0.png",
+	"castle_bat_1": "castle/castle_bat_1.png",
+	"castle_cannon_idle": "castle/castle_cannon_idle.png",
+	"castle_cannon_fire": "castle/castle_cannon_fire.png",
+	"castle_cannonball": "castle/castle_cannonball.png",
+	"castle_boulder": "castle/castle_boulder.png",
+	"castle_gate_arch": "castle/castle_gate_arch.png",
+	"castle_gate_bars": "castle/castle_gate_bars.png",
+	"castle_hound_0": "castle/castle_hound_0.png",
+	"castle_hound_1": "castle/castle_hound_1.png",
+	"castle_hound_2": "castle/castle_hound_2.png",
+	"castle_hound_3": "castle/castle_hound_3.png",
+	"castle_dungeon_wall": "castle/castle_dungeon_wall.png",
+	"castle_torch": "castle/castle_torch.png",
+	"castle_keep_wall": "castle/castle_keep_wall.png",
+	"castle_golem_0": "castle/castle_golem_0.png",
+	"castle_golem_1": "castle/castle_golem_1.png",
+	"castle_golem_hit": "castle/castle_golem_hit.png",
+	"castle_goal_door": "castle/castle_goal_door.png",
 }

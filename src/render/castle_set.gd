@@ -64,7 +64,7 @@ static func draw_slab(ci: CanvasItem, rect: Rect2, seed_index: int) -> void:
 ## cobbles below.
 static func _road(ci: CanvasItem, rect: Rect2, seed_index: int) -> void:
 	var body := Rect2(rect.position + Vector2(0, 30), rect.size - Vector2(0, 30))
-	if not Art.draw_tiled(ci, "castle_ground_tile", body, 256.0):
+	if not Art.draw_tiled(ci, "castle_ground_tile", body, 384.0):
 		ci.draw_rect(body, EARTH)
 		_courses(ci, Rect2(body.position + Vector2(0, 24), body.size - Vector2(0, 24)),
 			Vector2(74, 44), EARTH, EARTH_DARK, seed_index * 97, 0.55)
@@ -91,10 +91,33 @@ static func _road(ci: CanvasItem, rect: Rect2, seed_index: int) -> void:
 			ci.draw_circle(Vector2(x, rect.position.y - 3.0), 7.0, GRASS)
 		ci.draw_rect(Rect2(rect.position.x, rect.position.y + 5.0, rect.size.x, 3.0), GRASS_DARK)
 	_edges(ci, rect)
+	var c := LevelCastleData.CHASM
+	if absf(rect.end.x - c.x) < 1.0:
+		_bridge_end(ci, rect.end.x, rect.position.y, false)
+	elif absf(rect.position.x - c.y) < 1.0:
+		_bridge_end(ci, rect.position.x, rect.position.y, true)
+
+## The snapped-off end of the old bridge, painted over the road where it stops
+## at the ravine: on the near side as painted, on the far side mirrored.
+static func _bridge_end(ci: CanvasItem, edge: float, top: float, far_side: bool) -> void:
+	var t := Art.tex("castle_bridge_end")
+	if t == null:
+		return
+	var h := 190.0
+	var w := h * float(t.get_width()) / float(t.get_height())
+	# The broken face overhangs the drop by a hand's breadth; the deck is level
+	# with the road.
+	var x := edge - w + 26.0 if not far_side else edge - 26.0
+	var r := Rect2(x, top - 6.0, w, h)
+	if far_side:
+		ci.draw_set_transform(Vector2(r.get_center().x * 2.0, 0), 0, Vector2(-1, 1))
+	ci.draw_texture_rect(t, r, false)
+	if far_side:
+		ci.draw_set_transform(Vector2.ZERO)
 
 ## The keep: a sheer wall of pale sandstone, very regular courses.
 static func _keep(ci: CanvasItem, rect: Rect2, seed_index: int) -> void:
-	if not Art.draw_tiled(ci, "castle_keep_wall", rect, 256.0):
+	if not Art.draw_tiled(ci, "castle_keep_wall", rect, 384.0):
 		ci.draw_rect(rect, SANDSTONE)
 		_courses(ci, Rect2(rect.position + Vector2(0, 24), rect.size - Vector2(0, 24)),
 			Vector2(96, 48), SANDSTONE, SANDSTONE_DARK, seed_index * 53, 0.9)
@@ -118,7 +141,7 @@ static func _mass(ci: CanvasItem, rect: Rect2, index: int) -> void:
 	var fill := MASONRY if dungeon else ROCK
 	var dark := MASONRY_DARK if dungeon else ROCK_DARK
 	var key := "castle_dungeon_wall" if dungeon else "castle_ground_tile"
-	if not Art.draw_tiled(ci, key, rect, 256.0, Color(0.92, 0.9, 0.88) if not dungeon else Color.WHITE):
+	if not Art.draw_tiled(ci, key, rect, 384.0, Color(0.92, 0.9, 0.88) if not dungeon else Color.WHITE):
 		ci.draw_rect(rect, fill)
 		if dungeon:
 			_courses(ci, rect, Vector2(84, 52), fill, dark, 401, 1.0)
@@ -220,18 +243,8 @@ func _ravine() -> void:
 		draw_circle(p, 70.0, Color(0.85, 0.9, 1.0, 0.10))
 	for end in [c.x, c.y]:
 		var dir := 1.0 if end == c.x else -1.0
-		var key := "castle_bridge_end"
-		var t := Art.tex(key)
-		if t != null:
-			var size := Vector2(150, 150)
-			var r := Rect2(Vector2(end - (size.x if dir > 0 else 0.0), top - 6.0), size)
-			if dir > 0:
-				draw_texture_rect(t, r, false)
-			else:
-				draw_set_transform(Vector2(r.get_center().x * 2.0, 0), 0, Vector2(-1, 1))
-				draw_texture_rect(t, r, false)
-				draw_set_transform(Vector2.ZERO)
-			continue
+		if Art.tex("castle_bridge_end") != null:
+			continue   # painted on the road itself, see _bridge_end()
 		# The deck's jagged break and a couple of stones about to go.
 		var pts := PackedVector2Array([
 			Vector2(end, top + 30.0), Vector2(end + dir * 22.0, top + 44.0),
@@ -311,7 +324,7 @@ func _dungeon_dressing() -> void:
 func _torch(at: Vector2) -> void:
 	var t := Art.tex("castle_torch")
 	if t != null:
-		draw_texture_rect(t, Rect2(at - Vector2(24, 50), Vector2(48, 96)), false)
+		draw_texture_rect(t, Rect2(at - Vector2(30, 40), Vector2(60, 81)), false)
 		return
 	draw_rect(Rect2(at + Vector2(-14, 18), Vector2(28, 8)), Color("2f2a28"))
 	draw_colored_polygon(PackedVector2Array([at + Vector2(-10, -18), at + Vector2(10, -18),
