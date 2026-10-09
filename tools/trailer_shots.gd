@@ -9,30 +9,32 @@ const W := Stage.Which
 
 var cap: Node = null
 
-## The call. Film seconds:
-##    0.0  alone: the runner is stopped by a gate (the wolf gets them), by lava,
-##         by a boulder -- three tries, three ends, nobody to help.
+## The call, all of it on 1-9 -- the stage built for it. Film seconds:
+##    0.0  alone: the broken bridge (down into the ravine), the boulder in the
+##         tunnel, the shut gate with the hound behind -- three tries, three
+##         ends, nobody to help.
 ##    6.0  back at the gate. A voice call comes in; it is answered.
 ##    8.6  a finger appears, with a name on it, and holds the gate up. The
-##         runner goes under; the finger lets go on the wolf.
-##   12.6  the drop: what the finger can do -- draw the way, sweep the bats,
-##         send a bullet home, hold a boulder, light the dark, sling the
-##         runner over a wall, flick a golem off the screen.
-##   33.0  the title, still on the call.
+##         runner goes under; the finger lets go on the hound.
+##   12.6  the drop, the road to the castle one screen at a time: draw the
+##         bridge, sweep the bats, send the cannonball home, press the
+##         boulder, light the dungeon, sling the runner up the keep, flick
+##         the stone guardian off the castle.
+##   32.6  the title, at the castle door, still on the call.
 func list() -> Array:
 	return [
-		{"name": "f1_gate", "stage": W.HORROR, "until": 2.4, "preroll": 30},
-		{"name": "f2_lava", "stage": W.SWAMP, "until": 4.2, "preroll": 30},
-		{"name": "f3_boulder", "stage": W.CAVE, "until": 6.0, "preroll": 30},
-		{"name": "c1_call", "stage": W.HORROR, "until": 12.6, "preroll": 30},
-		{"name": "d1_bridge", "stage": W.DESERT, "until": 15.4, "preroll": 30},
-		{"name": "d2_bats", "stage": W.CAVE, "until": 18.0, "preroll": 30},
-		{"name": "d3_bullet", "stage": W.TOWER, "until": 21.0, "preroll": 100},
-		{"name": "d4_boulder", "stage": W.CAVE, "until": 23.8, "preroll": 30},
-		{"name": "d5_dark", "stage": W.CAVE, "until": 26.6, "preroll": 30},
-		{"name": "d6_sling", "stage": W.TOWER, "until": 29.6, "preroll": 30},
-		{"name": "d7_golem", "stage": W.SKYWARD_RUINS, "until": 33.0, "preroll": 30},
-		{"name": "e1_title", "stage": W.GREENFIELD, "until": 38.5, "preroll": 30},
+		{"name": "f1_chasm", "stage": W.CASTLE, "until": 2.0, "preroll": 30},
+		{"name": "f2_boulder", "stage": W.CASTLE, "until": 3.8, "preroll": 30},
+		{"name": "f3_hound", "stage": W.CASTLE, "until": 6.0, "preroll": 30},
+		{"name": "c1_call", "stage": W.CASTLE, "until": 12.6, "preroll": 30},
+		{"name": "d1_bridge", "stage": W.CASTLE, "until": 15.2, "preroll": 30},
+		{"name": "d2_bats", "stage": W.CASTLE, "until": 17.6, "preroll": 30},
+		{"name": "d3_cannon", "stage": W.CASTLE, "until": 20.4, "preroll": 30},
+		{"name": "d4_boulder", "stage": W.CASTLE, "until": 23.0, "preroll": 30},
+		{"name": "d5_dark", "stage": W.CASTLE, "until": 25.8, "preroll": 30},
+		{"name": "d6_sling", "stage": W.CASTLE, "until": 28.8, "preroll": 30},
+		{"name": "d7_golem", "stage": W.CASTLE, "until": 32.6, "preroll": 30},
+		{"name": "e1_title", "stage": W.CASTLE, "until": 38.0, "preroll": 30},
 	]
 
 # --------------------------------------------------------------------- helpers
@@ -692,78 +694,97 @@ func draw_stroke(ctx: Dictionary, t: int, t0: int, length: int, points: PackedVe
 	else:
 		finger_move(ctx, at)
 
+# ------------------------------------------------------------------ 1-9 staging
+
+const ROAD_Y := 374.0
+
+## The hound, put to sleep well out of the way: every shot past the gatehouse
+## would otherwise have it running the runner down.
+func hound_off(ctx: Dictionary) -> void:
+	var p := pursuer_of(ctx)
+	if p != null:
+		p.set_physics_process(false)
+		p.global_position = Vector2(-3000, 335)
+
+## The ground slab of 1-9 that holds `x` on the road.
+static func road_at(x: float) -> Rect2:
+	for g in Stage.ground():
+		if g.position.y >= LevelCastleData.GROUND_TOP - 1.0 and g.position.x <= x and g.end.x >= x \
+				and g.size.y > 300.0:
+			return g
+	return Rect2()
+
 # ----------------------------------------------------------------------- alone
 
-## 0.0-2.4. 1-2: the runner comes up to the portcullis on the fog road and
-## cannot get past it; the wolf arrives.
-func setup_f1_gate(ctx: Dictionary) -> Callable:
+## 0.0-2.0. A: the bridge is broken. The runner goes for it anyway.
+func setup_f1_chasm(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(-260, 374))
-	clear_area(ctx, Rect2(150, -400, 1200, 1000))
+	place_runner(ctx, Vector2(330, ROAD_Y))
+	m.runner.facing = 1
+	var r := rig(ctx)
+	r.follow = null
+	r.cut_to(Vector2(860, 360), 1.05)
+	r.zoom_go(1.12, T(2.0))
+	var inner := func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		var rn: Runner = m.runner
+		# Flat out, and the jump at the very edge: the best there is.
+		var at_edge := rn.global_position.x > LevelCastleData.CHASM.x - 40.0 and rn.global_position.x < LevelCastleData.CHASM.x
+		if t < -10 or rn.state == Runner.State.DEAD:
+			drive(c, 0.0)
+		else:
+			drive(c, 1.0, at_edge or (not rn.is_on_floor() and rn.velocity.y < 0.0), true)
+	return dies(ctx, inner)
+
+## 2.0-3.8. D: into the tunnel, and the boulder that sweeps it.
+func setup_f2_boulder(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(LevelCastleData.TUNNEL_D.x - 120.0, ROAD_Y))
+	m.runner.facing = 1
+	var r := rig(ctx)
+	r.follow = null
+	r.cut_to(Vector2(LevelCastleData.TUNNEL_D.x + 170.0, 300), 1.3)
+	r.zoom_go(1.4, T(1.8))
+	var inner := func(c: Dictionary) -> void:
+		drive(c, 1.0 if int(c["t"]) > -6 and m.runner.state != Runner.State.DEAD else 0.0)
+	return dies(ctx, inner)
+
+## 3.8-6.0. E: the gate is shut, and the hound is coming.
+func setup_f3_hound(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(LevelCastleData.GATE_X - 380.0, ROAD_Y))
+	m.runner.facing = 1
 	var hold: WeakRef = weakref(pursuer_of(ctx))
 	var r := rig(ctx)
-	r.zoom_from = 1.35
-	r.zoom_to = 1.45
-	r.zoom_ticks = T(2.4)
+	r.zoom_from = 1.3
+	r.zoom_to = 1.42
+	r.zoom_ticks = T(2.2)
 	r.lead = 0.0
-	r.offset = Vector2(60, -70)
-	r.dead_y = 60.0
+	r.offset = Vector2(40, -90)
 	var run := autorun(ctx)
 	run.sprint = false
-	return func(c: Dictionary) -> void:
+	var inner := func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		var p: Node2D = hold.get_ref()
 		if t == -20 and p != null:
-			p.global_position = m.runner.global_position + Vector2(-470, -24)
+			p.global_position = m.runner.global_position + Vector2(-520, -40)
 			p.set("_wake_left", 0.0)
 			p.set("_activated", true)
-			p.set("cruise_speed", 380.0)
+			p.set("cruise_speed", 360.0)
 		if t < -12 or m.runner.state == Runner.State.DEAD:
 			drive(c, 0.0)
 			return
 		run.tick()
-
-## 2.4-4.2. 1-5: a jump the runner cannot make on their own.
-func setup_f2_lava(ctx: Dictionary) -> Callable:
-	var step: Dictionary = route_steps("cold_rock_rescue")[1]
-	place_runner(ctx, on_ledge(step["from"], 0.25))
-	var r := rig(ctx)
-	r.zoom_from = 1.3
-	r.zoom_to = 1.4
-	r.zoom_ticks = T(1.8)
-	r.offset = Vector2(80, 30)
-	r.dead_y = 60.0
-	r.smooth_y = 5.0
-	var go := pilot(ctx, [{"from": step["from"], "to": step["platforms"][0], "sprint": true}])
-	return func(c: Dictionary) -> void:
-		if int(c["t"]) < -10:
-			drive(c, 0.0)
-		else:
-			go.tick()
-
-## 4.2-6.0. 1-8: a boulder rolling along the ledge the runner is on.
-func setup_f3_boulder(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(-110, 12084))
-	clear_enemies(ctx, Rect2(-600, 11700, 1200, 600))
-	var r := rig(ctx)
-	r.zoom_from = 1.6
-	r.zoom_to = 1.7
-	r.zoom_ticks = T(1.8)
-	r.offset = Vector2(60, -40)
-	r.lead = 0.0
-	r.dead_y = 40.0
-	return func(c: Dictionary) -> void:
-		drive(c, 1.0 if int(c["t"]) > -10 and m.runner.state != Runner.State.DEAD else 0.0)
+	return dies(ctx, inner)
 
 # ------------------------------------------------------------------- the call
 
-## 6.0-12.6. 1-2, at the gate again. The call; the finger; the gate.
+## 6.0-12.6. E, at the gate again. The call; the finger; the gate.
 func setup_c1_call(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var hub: InputHub = m.input_hub
-	place_runner(ctx, Vector2(110, 374))
-	clear_area(ctx, Rect2(150, -400, 1600, 1000))
+	var gx := LevelCastleData.GATE_X
+	place_runner(ctx, Vector2(gx - 90.0, ROAD_Y))
 	m.runner.facing = 1
 	var hold: WeakRef = weakref(pursuer_of(ctx))
 	var gate: LiftGate = null
@@ -771,7 +792,7 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 		gate = n
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(170, 250), 1.25)
+	r.cut_to(Vector2(gx - 30.0, 230), 1.25)
 	r.smooth = 3.0
 	ov().voice_call(CALLER, 0.4, 2.15, INF, ["LIRA", CALLER])
 	ov().tap(2.15, ov().call_answer_point())
@@ -782,13 +803,14 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 	var t_press := film(ctx, 9.25)
 	var t_run := film(ctx, 9.55)
 	var t_drop := film(ctx, 10.35)
+	var hello := Vector2(gx + 130.0, 140)
 	var state := {"pressed": false, "released": false, "lift": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		var rn: Runner = m.runner
 		var p: Node2D = hold.get_ref()
 		if t == -20 and p != null:
-			p.global_position = Vector2(-1500, 350)
+			p.global_position = Vector2(-3000, 335)
 			p.set("_wake_left", 9999.0)
 			p.set("_activated", true)
 		if t == t_ring:
@@ -798,18 +820,18 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 			cap.cue("music_in")
 		if t == t_finger:
 			guardian_on(c)
-			hub.aim_at_world(Vector2(330, 160))
+			hub.aim_at_world(hello)
 		if t >= t_finger:
 			tag_finger(c)
 		if t == t_wolf and p != null:
-			p.global_position = rn.global_position + Vector2(-760, -24)
+			p.global_position = rn.global_position + Vector2(-760, -40)
 			p.set("_wake_left", 0.0)
 			p.set("cruise_speed", 300.0)
 			p.set("catchup_speed", 420.0)
 		# Hello: the finger waves before it gets to work.
-		if t > t_finger and t < t_press - 10:
+		if gate != null and t > t_finger and t < t_press - 10:
 			var k := float(t - t_finger) / 60.0
-			hub.aim_at_world(Vector2(330, 160).lerp(gate.hand_point() + Vector2(0, -40), clampf(k * 0.9, 0.0, 1.0))
+			hub.aim_at_world(hello.lerp(gate.hand_point() + Vector2(0, -40), clampf(k * 0.9, 0.0, 1.0))
 				+ Vector2(sin(k * 9.0) * 22.0, 0.0))
 		var lift_from: Vector2 = state["lift"]
 		if gate != null and t == t_press:
@@ -823,40 +845,41 @@ func setup_c1_call(ctx: Dictionary) -> Callable:
 			finger_up(c, lift_from + Vector2(0, -70))
 			state["released"] = true
 			cap.cue("slam")
-		# The runner: waiting, then through as soon as it is up.
-		if t >= t_run and rn.state != Runner.State.DEAD:
+		# The runner: waiting, then through as soon as it is up -- and no
+		# further than the dungeon's door.
+		if t >= t_run and rn.state != Runner.State.DEAD and rn.global_position.x < gx + 420.0:
 			drive(c, 1.0, false, true)
 		else:
 			drive(c, 0.0)
 		# The camera goes with the runner once they are through.
 		if t == t_drop + 20:
 			r.follow = rn
-			r.offset = Vector2(-160, -90)
+			r.offset = Vector2(-170, -90)
 			r.lead = 40.0
 
 # ------------------------------------------------------------------ the digest
 
-## 12.6-15.4. 1-6: two strokes, a bridge, and the runner never breaks stride.
+## 12.6-15.2. A: two strokes over the ravine, and the runner never breaks stride.
 func setup_d1_bridge(ctx: Dictionary) -> Callable:
-	var step: Dictionary = route_steps("mirage_crossing")[0]
-	var a: Rect2 = step["from"]
-	var b: Rect2 = step["to"]
-	place_runner(ctx, on_ledge(a, 0.1))
-	clear_enemies(ctx, Rect2(a.position - Vector2(300, 600), Vector2(1700, 1000)))
+	var m: Node2D = ctx["main"]
+	var c0 := LevelCastleData.CHASM
+	var top := LevelCastleData.GROUND_TOP
+	place_runner(ctx, Vector2(c0.x - 300.0, ROAD_Y))
+	m.runner.facing = 1
+	hound_off(ctx)
 	guardian_on(ctx, true)
 	on_call(ctx)
 	cap.cue("drive_in")
 	var r := rig(ctx)
 	r.zoom_from = 1.0
-	r.zoom_to = 1.05
-	r.zoom_ticks = T(2.8)
-	r.offset = Vector2(200, -40)
+	r.zoom_to = 1.06
+	r.zoom_ticks = T(2.6)
+	r.offset = Vector2(220, -40)
 	r.dead_y = 80.0
-	var mid := (a.end.x + b.position.x) * 0.5
-	var mid_y := lerpf(a.position.y, b.position.y, 0.5)
+	var mid := (c0.x + c0.y) * 0.5
 	var lines := [
-		arc_line(Vector2(a.end.x + 18, a.position.y + 13), Vector2(mid - 10, mid_y + 13), -14.0),
-		arc_line(Vector2(mid + 14, mid_y + 15), Vector2(b.position.x - 16, b.position.y + 13), -12.0),
+		arc_line(Vector2(c0.x + 18, top + 13), Vector2(mid - 10, top + 13), -14.0),
+		arc_line(Vector2(mid + 14, top + 15), Vector2(c0.y - 16, top + 13), -12.0),
 	]
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
@@ -865,22 +888,25 @@ func setup_d1_bridge(ctx: Dictionary) -> Callable:
 		draw_stroke(c, t, T(0.75), T(0.4), lines[1])
 		drive(c, 1.0 if t >= 6 else 0.0, false, true)
 
-## 15.4-18.0. 1-8: bats in the updraft; one sweep of the hand.
+## 15.2-17.6. B: the tunnel full of bats; one sweep of the hand.
 func setup_d2_bats(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(-250, 12834))
+	var tb := LevelCastleData.TUNNEL_B
+	place_runner(ctx, Vector2(tb.x - 150.0, ROAD_Y))
 	m.runner.facing = 1
+	hound_off(ctx)
 	guardian_on(ctx)
 	on_call(ctx)
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-40, 12560), 1.15)
+	r.cut_to(Vector2((tb.x + tb.y) * 0.5 - 60.0, 270), 1.0)
 	var bats: Array = []
 	for n in m.get_tree().get_nodes_in_group("swipeable"):
-		if (n as Node2D).global_position.distance_to(Vector2(50, 12520)) < 260.0:
+		var x := (n as Node2D).global_position.x
+		if x > tb.x and x < tb.y:
 			bats.append(n)
 	var state := {"sweep": PackedVector2Array()}
-	var t_sweep := T(0.6)
+	var t_sweep := T(0.55)
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		var rn: Runner = m.runner
@@ -888,98 +914,108 @@ func setup_d2_bats(ctx: Dictionary) -> Callable:
 		# The sweep goes through where the bats are when it starts.
 		if t == t_sweep:
 			var live: Array = bats.filter(func(b): return is_instance_valid(b))
-			live.sort_custom(func(x, y): return (x as Node2D).global_position.y < (y as Node2D).global_position.y)
+			# Right to left, from up high: a finger landing at the screen's
+			# bottom left would be the runner's stick, not the hand.
+			live.sort_custom(func(x, y): return (x as Node2D).global_position.x > (y as Node2D).global_position.x)
 			var pts := PackedVector2Array()
 			if not live.is_empty():
-				pts.append((live[0] as Node2D).global_position + Vector2(-30, -70))
+				pts.append((live[0] as Node2D).global_position + Vector2(70, -110))
 				for b in live:
 					pts.append((b as Node2D).global_position)
-				pts.append((live[live.size() - 1] as Node2D).global_position + Vector2(30, 70))
+				pts.append((live[live.size() - 1] as Node2D).global_position + Vector2(-60, 10))
 			state["sweep"] = pts
 		var sweep: PackedVector2Array = state["sweep"]
-		if t < t_sweep and not bats.is_empty() and is_instance_valid(bats[0]):
-			m.input_hub.aim_at_world((bats[0] as Node2D).global_position + Vector2(-30, -80))
+		if t < t_sweep:
+			m.input_hub.aim_at_world(Vector2(tb.y - 60.0, 230.0))
 		if not sweep.is_empty():
-			draw_stroke(c, t, t_sweep, 8, sweep)
-		if t == t_sweep + 30:
+			draw_stroke(c, t, t_sweep, 10, sweep)
+		if t == t_sweep + 24:
 			r.follow = rn
-			r.offset = Vector2(60, -140)
-			r.smooth_y = 6.0
-		# Into the updraft, with a hop at the edge.
-		var go := t >= T(1.0)
-		drive(c, 1.0 if go and rn.global_position.x < 60.0 else 0.0,
-			go and rn.global_position.x > -150.0 and rn.global_position.x < -90.0)
+			r.offset = Vector2(160, -80)
+		drive(c, 1.0 if t >= t_sweep + 14 else 0.0, false, true)
 
-## 18.0-21.0. 1-7: the turret fires; the finger pinches a bullet out of the
-## air and lets it go -- straight home.
-func setup_d3_bullet(ctx: Dictionary) -> Callable:
+## 17.6-20.4. C: the cannon fires down the road; the finger pinches the ball
+## out of the air and lets it go -- straight home.
+func setup_d3_cannon(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(140, 6994))
-	m.runner.facing = -1
+	place_runner(ctx, Vector2(3260, ROAD_Y))
+	m.runner.facing = 1
+	hound_off(ctx)
 	guardian_on(ctx)
 	on_call(ctx)
+	var cannon: Turret = null
+	for n in m.get_tree().get_nodes_in_group("enemy"):
+		if n is Turret:
+			cannon = n
+	if cannon != null:
+		# One ball a volley, for the camera: the catch is the shot.
+		cannon.burst = 1
+		cannon._cooldown = 0.5
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-90, 6900), 1.35)
-	# Where the finger waits for one, in the line of fire.
-	var spot := Vector2(-90, 6889)
-	var state := {"held": null, "t": -1, "done": false}
+	r.cut_to(Vector2(3520, 290), 1.2)
+	var spot := Vector2(3560, cannon.global_position.y if cannon != null else 353.0)
+	var state := {"held": null, "t": -1, "done": -1}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		tag_finger(c)
-		drive(c, 0.0)
-		if bool(state["done"]):
+		var done := int(state["done"])
+		drive(c, 1.0 if done >= 0 and t > done + T(0.5) else 0.0)
+		if done >= 0:
 			return
 		var held = state["held"]
 		if held == null:
-			m.input_hub.aim_at_world(spot + Vector2(0, -6))
+			m.input_hub.aim_at_world(spot + Vector2(10, -40))
 			if t < 0:
 				return
 			for n in m.get_tree().get_nodes_in_group("projectile"):
 				var p := n as Projectile
 				if p != null and p.state == Projectile.State.FLYING \
-						and p.global_position.distance_to(spot) < 24.0:
+						and absf(p.global_position.x - spot.x) < 14.0:
 					finger_down(c, p.global_position)
 					state["held"] = p
 					state["t"] = t
 					break
 			return
 		var since := t - int(state["t"])
+		var at := spot + Vector2(-float(since) * 0.4, -float(since) * 0.9)
 		if since < T(0.55):
 			# Held up to have a look at it, then let go.
-			finger_move(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
+			finger_move(c, at)
 		elif since == T(0.55):
-			finger_up(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
-			state["done"] = true
+			finger_up(c, at)
+			state["done"] = t
 
-## 21.0-23.8. 1-8: a boulder rolls at the runner; the finger presses it still.
+## 20.4-23.0. D: the boulder comes at the runner; the finger presses it
+## still and the runner hops it.
 func setup_d4_boulder(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(-112, 12084))
-	clear_enemies(ctx, Rect2(-600, 11700, 1200, 600))
+	var td := LevelCastleData.TUNNEL_D
+	place_runner(ctx, Vector2(td.x + 30.0, ROAD_Y))
 	m.runner.facing = 1
+	hound_off(ctx)
 	guardian_on(ctx)
 	on_call(ctx)
 	var trap: CaveTrap = null
 	for n in m.get_tree().get_nodes_in_group("hand_holdable"):
-		if n is CaveTrap and (n as CaveTrap).global_position.distance_to(Vector2(0, 12070)) < 10.0:
+		if n is CaveTrap:
 			trap = n
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-90, 12010), 1.55)
-	var go := pilot(ctx, route_steps("boulder_stairs").slice(1, 3))
+	r.cut_to(Vector2(td.x + 260.0, 290), 1.35)
 	var state := {"pressed": -1}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
+		var rn: Runner = m.runner
 		tag_finger(c)
 		if trap == null:
 			drive(c, 0.0)
 			return
 		var head := trap.hand_point()
 		if int(state["pressed"]) < 0:
-			m.input_hub.aim_at_world(head + Vector2(30, -60))
+			m.input_hub.aim_at_world(head + Vector2(30, -70))
 			# Press it as it comes at the runner.
-			if t >= T(0.5) and head.x < m.runner.global_position.x + 120.0 and head.x > m.runner.global_position.x + 60.0:
+			if t >= T(0.3) and head.x < rn.global_position.x + 170.0 and head.x > rn.global_position.x + 110.0:
 				finger_down(c, head)
 				state["pressed"] = t
 			drive(c, 0.0)
@@ -987,56 +1023,74 @@ func setup_d4_boulder(ctx: Dictionary) -> Callable:
 		var since := t - int(state["pressed"])
 		if since == T(1.9):
 			finger_up(c, head)
-		if since > T(0.35):
-			go.tick()
-		else:
-			drive(c, 0.0)
+		if since == T(0.6):
+			r.follow = rn
+			r.offset = Vector2(140, -80)
+		# Up to it, over it, and on.
+		var go := since > T(0.3)
+		var hop := go and head.x - rn.global_position.x < 95.0 and head.x > rn.global_position.x
+		drive(c, 1.0 if go else 0.0, hop, false)
 
-## 23.8-26.6. 1-8: the room with no light. The finger lights the way up.
+## 23.0-25.8. F: the dungeon has no light but the finger. It lights each
+## stepping stone before the runner jumps to it.
 func setup_d5_dark(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	var steps := route_steps("burrower_run")
-	var go := hops(ctx, steps, 0.6)
+	hound_off(ctx)
+	var first := road_at(5800.0)
+	var stones: Array = []
+	for g in Stage.ground():
+		if g.position.y >= LevelCastleData.GROUND_TOP - 1.0 and g.position.x > 6000.0 and g.position.x < 7000.0:
+			stones.append(g)
+	stones.sort_custom(func(a, b): return (a as Rect2).position.x < (b as Rect2).position.x)
+	var steps: Array = []
+	var from := first
+	for s in stones:
+		steps.append({"from": from, "to": s, "sprint": false, "reach": 60.0})
+		from = s
+	place_runner(ctx, Vector2(5820, ROAD_Y))
+	m.runner.facing = 1
+	var go := pilot(ctx, steps)
 	guardian_on(ctx)
 	on_call(ctx)
 	var r := rig(ctx)
 	r.zoom_from = 1.15
-	r.zoom_to = 1.2
+	r.zoom_to = 1.22
 	r.zoom_ticks = T(2.8)
-	r.offset = Vector2(0, -60)
-	r.dead_y = 30.0
+	r.offset = Vector2(140, -60)
+	r.dead_y = 40.0
 	r.lead = 0.0
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		tag_finger(c)
 		# Always a little ahead of the runner: where they are going next.
 		var next: Rect2 = steps[mini(go.i, steps.size() - 1)]["to"]
-		var want := next.get_center() + Vector2(0, -50)
-		m.input_hub.aim_at_world(m.input_hub.aim_world().lerp(want, 0.08) if t > 0 else want)
-		if t < 18:
+		var want := Vector2(next.position.x + minf(90.0, next.size.x * 0.5), next.position.y - 40.0)
+		m.input_hub.aim_at_world(m.input_hub.aim_world().lerp(want, 0.10) if t > 0 else want)
+		if t < 24:
 			drive(c, 0.0)
 		else:
 			go.tick()
 
-## 26.6-29.6. 1-7: a wall no jump can clear. Pulled back, let go: over it.
+## 25.8-28.8. G: the keep wall, sheer, far past any jump. Pulled back, let
+## go: up and over.
 func setup_d6_sling(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(150, 6544))
-	m.runner.facing = -1
+	hound_off(ctx)
+	place_runner(ctx, Vector2(LevelCastleData.KEEP_X - 230.0, ROAD_Y))
+	m.runner.facing = 1
 	guardian_on(ctx)
 	on_call(ctx)
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-40, 6360), 1.05)
-	var pull := Vector2(50, 170)
+	r.cut_to(Vector2(LevelCastleData.KEEP_X - 120.0, 170), 0.95)
+	var pull := Vector2(-50, 170)
 	var state := {"at": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		var rn: Runner = m.runner
 		tag_finger(c)
-		drive(c, 0.0)
 		if t < T(0.5):
-			m.input_hub.aim_at_world(rn.global_position.lerp(Vector2(-60, 6300), 1.0 - float(t) / float(T(0.5))))
+			m.input_hub.aim_at_world(rn.global_position.lerp(Vector2(LevelCastleData.KEEP_X - 60.0, 0), 1.0 - float(t) / float(T(0.5))))
 		if t == T(0.5):
 			state["at"] = rn.global_position
 			finger_down(c, rn.global_position)
@@ -1045,59 +1099,75 @@ func setup_d6_sling(ctx: Dictionary) -> Callable:
 			finger_move(c, at + pull * clampf(float(t - T(0.5)) / float(T(0.6)), 0.0, 1.0))
 		if t == T(1.3):
 			finger_up(c, at + pull)
-		if t > T(1.3):
+		# In the air the runner steers for the top, as anyone would.
+		drive(c, 1.0 if t > T(1.3) else 0.0)
+		if t == T(1.3) + 10:
 			r.follow = rn
-			r.offset = Vector2(0, -60)
+			r.offset = Vector2(60, -40)
+			r.smooth_y = 4.0
 
-## 29.6-33.0. 1-3: a golem in the way. One flick.
+## 28.8-32.6. H: the stone guardian of the castle door. One flick.
 func setup_d7_golem(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(160, 494))
-	m.runner.facing = -1
+	hound_off(ctx)
+	var top := LevelCastleData.KEEP_TOP
+	place_runner(ctx, Vector2(7560, top - 26.0))
+	m.runner.facing = 1
 	guardian_on(ctx)
 	on_call(ctx)
 	var golem: Node2D = null
 	for n in m.get_tree().get_nodes_in_group("flickable"):
-		if (n as Node2D).global_position.distance_to(Vector2(-300, 485)) < 300.0:
+		if n is SkyGolem:
 			golem = n
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-90, 400), 1.25)
+	r.cut_to(Vector2(7840, top - 190.0), 1.0)
 	var state := {"at": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		tag_finger(c)
-		drive(c, 1.0 if t > T(1.6) else 0.0)
+		drive(c, 1.0 if t > T(1.7) and m.runner.global_position.x < 8330.0 else 0.0)
+		if t == T(2.0):
+			r.follow = m.runner
+			r.offset = Vector2(120, -120)
 		if golem == null or not is_instance_valid(golem):
 			return
 		if t < T(0.9):
-			m.input_hub.aim_at_world(golem.global_position + Vector2(40, -30))
+			m.input_hub.aim_at_world(golem.global_position + Vector2(-60, -40))
 		if t == T(0.9):
 			state["at"] = golem.global_position
 			finger_down(c, golem.global_position)
 		var at: Vector2 = state["at"]
 		if t == T(0.9) + 6:
-			finger_move(c, at + Vector2(-60, -90))
+			finger_move(c, at + Vector2(60, -90))
 		if t == T(0.9) + 8:
-			finger_move(c, at + Vector2(-200, -260))
+			finger_move(c, at + Vector2(200, -260))
 		if t == T(0.9) + 9:
-			finger_up(c, at + Vector2(-230, -300))
+			finger_up(c, at + Vector2(230, -300))
+			cap.cue("slam")
 
 # ----------------------------------------------------------------------- end
 
 func setup_e1_title(ctx: Dictionary) -> Callable:
-	place_runner(ctx, Vector2(-200, 374))
+	var m: Node2D = ctx["main"]
+	hound_off(ctx)
+	var top := LevelCastleData.KEEP_TOP
+	place_runner(ctx, Vector2(8100, top - 26.0))
+	m.runner.facing = 1
+	for n in m.get_tree().get_nodes_in_group("flickable"):
+		if n is SkyGolem:
+			n.free()
 	var r := rig(ctx)
-	r.zoom_from = 1.15
-	r.zoom_to = 1.0
-	r.zoom_ticks = T(5.4)
-	r.offset = Vector2(120, -60)
+	r.follow = null
+	r.cut_to(Vector2(8420, top - 300.0), 1.05)
+	r.zoom_go(0.9, T(5.4))
 	r.smooth = 2.0
 	cap.cue("drive_out")
 	cap.cue("hit")
 	ov().flash(0.0, 0.35, 0.9)
 	ov().voice_call(CALLER, -2.0, -1.0, INF, ["LIRA", CALLER])
 	ov().end_card(0.15, "MELOS GAME", ["AVAILABLE NOW", "GOOGLE PLAY", "APP STORE"])
-	ov().fade(5.0, 5.5, 0.0, 1.0)
+	ov().fade(4.9, 5.4, 0.0, 1.0)
 	return func(c: Dictionary) -> void:
-		drive(c, 1.0 if int(c["t"]) > -12 else 0.0)
+		# Up to the castle door, and a stop in front of it.
+		drive(c, 1.0 if int(c["t"]) > -12 and m.runner.global_position.x < 8400.0 else 0.0)
