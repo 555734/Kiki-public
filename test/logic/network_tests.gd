@@ -522,10 +522,11 @@ func _test_host_answers_the_guardian() -> void:
 	# A mismatched build must be told so. The two players will be on different
 	# platforms and will update at different times, and a silent version skew
 	# fails in ways that look like a broken connection.
-	# 0.9.16 used wire 26 with the previous single-tier coast layout. Exercise that exact
-	# older peer, not just +1: equal wire must never construct different stages.
-	check(Protocol.VERSION > 26, "rebuilt coast rejects the previous wire 26")
-	var stale := PackedByteArray([Protocol.Msg.HELLO, 26])
+	# Wire 27 had no hand: its bullets lived on the host only and it cannot
+	# read HAND, HOLD or SHOT_SYNC. Exercise that exact older peer, not just +1:
+	# equal wire must never construct different stages.
+	check(Protocol.VERSION > 27, "the guardian's hand rejects the previous wire 27")
+	var stale := PackedByteArray([Protocol.Msg.HELLO, 27])
 	guardian_side.send(NetTransport.Channel.CONTROL,
 		NetTransport.Reliability.RELIABLE_ORDERED, stale)
 	# 16 frames, not 8. The link is 75ms each way and a frame is 16.7ms, so 8
@@ -1449,3 +1450,110 @@ func _test_a_shared_report_hides_who_it_is() -> void:
 	check(NetDiagnostics.masked(text, {}) == text, "nothing is changed without a reason")
 	check(NetDiagnostics.short_id("abc") == "…", "a short id gives nothing away")
 
+
+## The guardian's hand online: the guest asks, the host does, and what the
+## host did reaches the guest -- a flick, a hold, a bullet.
+func _test_the_hand_over_the_wire() -> void:
+	_current = "hand over the wire (host)"
+	await _boot()
+	var pair := LoopbackTransport.pair(0.0)
+	var host_side: LoopbackTransport = pair[0]
+	var guest_side: LoopbackTransport = pair[1]
+	var host := HostSession.new()
+	host.main = main
+	host.transport = host_side
+	add_child(host)
+	await _frames(2)
+
+	var walker: Enemy = null
+	for n in get_tree().get_nodes_in_group("flickable"):
+		if n is Walker:
+			walker = n
+			break
+	check(walker != null, "1-1 has a walker to flick")
+	if walker != null:
+		guest_side.send(NetTransport.Channel.COMMAND, NetTransport.Reliability.RELIABLE_ORDERED,
+			Protocol.hand(GuardianHand.Act.FLICK, walker.net_id, walker.global_position,
+				Vector2(900, -400), 600))
+		await _pump(pair, 4)
+		check(not is_instance_valid(walker) or walker.is_queued_for_deletion(),
+			"the host flicks the walker the guest named")
+
+	var trap: CaveTrap = CaveTrap.from_spec({"kind": "boulder"}, null)
+	trap.hand_id = 92
+	trap.global_position = Vector2(900, 200)
+	main.add_child(trap)
+	await _frames(1)
+	guest_side.send(NetTransport.Channel.COMMAND, NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.hand(GuardianHand.Act.HOLD, 92, trap.hand_point(), Vector2.ZERO, 601))
+	await _pump(pair, 4)
+	check(trap.hold.open_at(Clock.tick), "the host holds the boulder the guest pressed")
+	# A resend of the same request does nothing a second time.
+	guest_side.send(NetTransport.Channel.COMMAND, NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.hand(GuardianHand.Act.HOLD, 92, trap.hand_point(), Vector2.ZERO, 601))
+	await _pump(pair, 4)
+	check(trap.hold.intervals.size() == 1, "a repeated request holds it once")
+
+	var shot := Projectile.new()
+	shot.global_position = Vector2(1000, 200)
+	main.add_child(shot)
+	await _pump(pair, 4)
+	var kinds := {}
+	for packet in guest_side.poll():
+		var parsed := Protocol.reader(packet["payload"])
+		var kind: int = parsed[0]
+		if kind == Protocol.Msg.WORLD:
+			kinds["world:%d" % (parsed[1] as StreamPeerBuffer).get_u8()] = true
+		else:
+			kinds[kind] = true
+	check(kinds.has("world:%d" % Protocol.World.FLICK), "the guest is told about the flick")
+	check(kinds.has(Protocol.Msg.HOLD), "and about the hold")
+	check(kinds.has(Protocol.Msg.SHOT_SYNC), "and about the bullet")
+	host.queue_free()
+	Clock.is_host = true
+	await _frames(2)
+
+	_current = "hand over the wire (guest)"
+	await _boot()
+	pair = LoopbackTransport.pair(0.0)
+	var client_side: LoopbackTransport = pair[0]
+	var from_host: LoopbackTransport = pair[1]
+	var session := ClientSession.new()
+	session.main = main
+	session.transport = client_side
+	add_child(session)
+	await _frames(2)
+	var guest_trap: CaveTrap = CaveTrap.from_spec({"kind": "boulder"}, null)
+	guest_trap.hand_id = 93
+	guest_trap.global_position = Vector2(900, 200)
+	main.add_child(guest_trap)
+	await _frames(1)
+	var start := Clock.tick - 10
+	from_host.send(NetTransport.Channel.EVENT, NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.hold(93, start, -1))
+	await _pump(pair, 4)
+	check(guest_trap.hold.open_at(Clock.tick), "the guest's boulder is held when the host says")
+	from_host.send(NetTransport.Channel.EVENT, NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.hold(93, start, start + 20))
+	await _pump(pair, 4)
+	check(guest_trap.hold.intervals.size() == 1 and not guest_trap.hold.open_at(Clock.tick),
+		"and let go when the host says, without a second hold")
+
+	from_host.send(NetTransport.Channel.EVENT, NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.shot_sync(7, Projectile.State.FLYING, Clock.tick, Vector2(1000, 200),
+			Vector2(-340, 0)))
+	await _pump(pair, 4)
+	var replica: Projectile = null
+	for n in get_tree().get_nodes_in_group("projectile"):
+		if n is Projectile and (n as Projectile).net_id == 7:
+			replica = n
+	check(replica != null and replica.replica, "the guest sees the host's bullet")
+	check(replica != null and replica.global_position.x < 1000.0, "and it flies")
+	from_host.send(NetTransport.Channel.EVENT, NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.shot_sync(7, Protocol.SHOT_GONE, Clock.tick, Vector2.ZERO, Vector2.ZERO))
+	await _pump(pair, 4)
+	check(replica == null or not is_instance_valid(replica) or replica.is_queued_for_deletion(),
+		"and stops seeing it when it is gone")
+	session.queue_free()
+	Clock.is_host = true
+	await _frames(2)

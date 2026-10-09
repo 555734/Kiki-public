@@ -160,7 +160,7 @@ static func apply(g: Guardian, act: int, id: int, a: Vector2, b: Vector2,
 			var v := sling_velocity(a, b)
 			if v == Vector2.ZERO:
 				return
-			r.launch(v, false)
+			r.sling(v)
 			Events.runner_slung.emit(r.global_position, v)
 		Act.FLICK:
 			var e := enemy_named(tree, id)

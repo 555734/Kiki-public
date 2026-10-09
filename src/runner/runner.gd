@@ -330,6 +330,7 @@ func _tick_timers(delta: float) -> void:
 		# Do not erase launch momentum on the same tick a launch starts upward.
 		if velocity.y >= 0.0:
 			_launched = false
+			_slung = false
 	else:
 		_coyote = 0.0 if _external_takeoff_pending else maxf(0.0, _coyote - delta)
 		_airborne_time += delta
@@ -402,10 +403,16 @@ func is_sprinting() -> bool:
 
 ## Explicit launches still carry their earned excess speed.
 var _launched: bool = false
+## Thrown by the guardian's slingshot: ALL of the throw is kept until the
+## runner lands or steers against it, not only what is over the sprint cap --
+## the sideways half of a sling is the whole point of aiming it.
+var _slung: bool = false
 
 func _coasting(axis: float) -> bool:
-	if is_on_floor():
+	if is_on_floor() and not _external_takeoff_pending:
 		return false
+	if _slung and axis * velocity.x >= 0.0:
+		return true
 	var limit := sprint_cap(gear)
 	if absf(velocity.x) <= limit:
 		return false
@@ -1052,6 +1059,12 @@ func launch(velocity_out: Vector2, announce: bool = true) -> void:
 	_set_state(State.JUMP)
 	if announce:
 		Events.runner_launched.emit(global_position)
+
+## The guardian's slingshot: a launch that keeps its sideways speed.
+func sling(velocity_out: Vector2) -> void:
+	launch(velocity_out, false)
+	if state != State.DEAD:
+		_slung = true
 
 static func launch_velocity(face: int) -> Vector2:
 	return Vector2(Balance.LAUNCH_FORWARD * float(signi(face)), -Balance.LAUNCH_UP)

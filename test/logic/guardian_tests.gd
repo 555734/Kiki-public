@@ -1134,3 +1134,177 @@ func _test_shot_drag_keeps_the_view() -> void:
 		"and the reticle follows the aiming finger (%.0fpx)"
 			% hub.aim_world().distance_to(aimed))
 	hub.solo_role = ""
+
+# ------------------------------------------------------------------ the hand
+
+## Where a finger would have to go to touch `point`, with the camera brought
+## round first if the point is off screen or on the runner's side -- the same
+## rule as _tap_world.
+func _finger_on(point: Vector2) -> Vector2:
+	# Hold the camera still for the whole gesture -- main's follow would move
+	# the world under a finger that is still down -- and put the point high
+	# in the middle of the screen, clear of every control.
+	main.set_physics_process(false)
+	var rect: Rect2 = main.get_viewport().get_visible_rect()
+	var want := Vector2(rect.size.x * 0.58, rect.size.y * 0.36)
+	main.camera.global_position = point - (want - rect.size * 0.5) / main.camera.zoom
+	main.camera.force_update_scroll()
+	return main.get_viewport().get_canvas_transform() * point
+
+## Down at `from`, through `steps` moves to `to` one frame apart, then up.
+func _stroke(from: Vector2, to: Vector2, steps: int, hold_frames: int = 0) -> void:
+	main.input_hub._touch_down(22, from)
+	await _frames(1 + hold_frames)
+	for i in range(1, steps + 1):
+		main.input_hub._touch_move(22, from.lerp(to, float(i) / float(steps)))
+		await _frames(1)
+	main.input_hub._touch_up(22, to)
+	await _frames(3)
+
+func _test_the_hand_slings_the_runner() -> void:
+	_current = "hand: slingshot"
+	await _boot()
+	var r: Runner = main.runner
+	main._respawn_timer = -1.0
+	# Open field with nothing overhead, so the throw is the only thing measured.
+	r.global_position = Vector2(-900, 300)
+	r.velocity = Vector2.ZERO
+	await _physics(30)
+	check(r.is_on_floor(), "the runner is standing")
+	var start_y := r.global_position.y
+	var at := _finger_on(r.global_position)
+	check(not GuardianHand.target_at(main.guardian, r.global_position).is_empty(),
+		"a finger on the standing runner takes hold of them")
+	# Pull back down and to the left, let go: up and to the right.
+	await _stroke(at, at + Vector2(-110, 150), 4)
+	await _physics(2)
+	check(r.velocity.y < -400.0, "letting go throws the runner up (vy %.0f)" % r.velocity.y)
+	check(r.velocity.x > 0.0, "away from the pull (vx %.0f)" % r.velocity.x)
+	var peak := r.global_position.y
+	for i in 40:
+		await _physics(1)
+		peak = minf(peak, r.global_position.y)
+	check(start_y - peak > Balance.RUNNER_JUMP_HEIGHT * 1.3,
+		"higher than the runner can jump (%.0fpx)" % (start_y - peak))
+	check(GuardianHand.sling_velocity(Vector2.ZERO, Vector2(0, 10)) == Vector2.ZERO,
+		"a pull too short to mean anything does nothing")
+
+func _test_the_hand_flicks_a_walker() -> void:
+	_current = "hand: flick"
+	await _boot()
+	var walker: Enemy = null
+	for n in get_tree().get_nodes_in_group("flickable"):
+		if n is Walker:
+			walker = n
+			break
+	check(walker != null, "1-1 has a walker to flick")
+	if walker == null:
+		return
+	walker.set_physics_process(false)
+	var at := _finger_on(walker.global_position)
+	await _stroke(at, at + Vector2(260, -160), 2)
+	await _frames(2)
+	check(not is_instance_valid(walker) or walker.is_queued_for_deletion(),
+		"a flicked walker is gone")
+
+func _test_a_swipe_sweeps_fliers_away() -> void:
+	_current = "hand: swipe"
+	await _boot()
+	var g: Guardian = main.guardian
+	g.clear_constructs()
+	g.select_slot(1)
+	await _frames(2)
+	var flyer := Flyer.new()
+	flyer.global_position = Vector2(900, 150)
+	main.add_child(flyer)
+	await _frames(2)
+	flyer.set_physics_process(false)
+	var at := _finger_on(flyer.global_position)
+	await _stroke(at + Vector2(-140, 20), at + Vector2(140, -20), 4)
+	check(not is_instance_valid(flyer) or flyer.is_queued_for_deletion(),
+		"a quick stroke through a flier sweeps it away")
+	check(g.holograms_of(Hologram.Kind.PLATFORM).is_empty(),
+		"and the swipe is not also a platform")
+
+func _test_a_caught_bullet_goes_home() -> void:
+	_current = "hand: catch"
+	await _boot()
+	var turret := Turret.new()
+	turret.global_position = Vector2(1300, 200)
+	main.add_child(turret)
+	await _frames(2)
+	turret.set_physics_process(false)
+	var shot := Projectile.new()
+	shot.direction = Vector2.LEFT
+	shot.source = turret
+	shot.global_position = Vector2(1000, 200)
+	main.add_child(shot)
+	await _frames(1)
+	check(shot.net_id >= 0, "a bullet has a name to be sent by")
+	var at := _finger_on(shot.global_position)
+	main.input_hub._touch_down(22, at)
+	await _frames(3)
+	check(shot.state == Projectile.State.HELD, "a finger on a bullet pinches it")
+	main.input_hub._touch_move(22, at + Vector2(-30, 0))
+	await _frames(1)
+	main.input_hub._touch_up(22, at + Vector2(-30, 0))
+	await _frames(2)
+	check(is_instance_valid(shot) and shot.state == Projectile.State.THROWN,
+		"letting go sends it back")
+	for i in 90:
+		await _physics(1)
+		if not is_instance_valid(turret) or turret.is_queued_for_deletion():
+			break
+	check(not is_instance_valid(turret) or turret.is_queued_for_deletion(),
+		"and it takes its own turret with it")
+
+func _test_the_hand_holds_a_boulder() -> void:
+	_current = "hand: boulder"
+	await _boot()
+	var trap: CaveTrap = CaveTrap.from_spec({"kind": "boulder", "travel": 145.0, "period": 3.5}, null)
+	trap.hand_id = 90
+	trap.global_position = Vector2(900, 200)
+	main.add_child(trap)
+	await _frames(2)
+	var before_tick := Clock.tick - 5
+	var before := trap.head_at(before_tick)
+	var at := _finger_on(trap.hand_point())
+	main.input_hub._touch_down(22, at)
+	await _physics(3)
+	var held := trap.hand_point()
+	await _physics(20)
+	check(trap.hold.held_at(Clock.tick), "a finger on the boulder holds it")
+	check(trap.hand_point().distance_to(held) < 1.0,
+		"and it does not move while held (%.1fpx)" % trap.hand_point().distance_to(held))
+	main.input_hub._touch_up(22, at)
+	await _physics(30)
+	check(not trap.hold.held_at(Clock.tick), "letting go lets it go")
+	check(trap.hand_point().distance_to(held) > 5.0, "and it rolls on")
+	check(trap.head_at(before_tick) == before,
+		"a hold never changes where it was before the hold (a past tick)")
+	var timeline := HoldTimeline.new(1.0)
+	timeline.begin(100)
+	check(timeline.held_at(100 + Clock.HZ - 1) and not timeline.held_at(100 + Clock.HZ),
+		"a hold nobody lets go of ends by itself")
+	check(timeline.local_tick(500) == 500 - Clock.HZ, "and only costs the time it held")
+
+func _test_a_held_gate_lets_the_runner_under() -> void:
+	_current = "hand: gate"
+	await _boot()
+	var gate: LiftGate = LiftGate.from_spec({"height": 420.0}, null)
+	gate.hand_id = 91
+	gate.global_position = Vector2(900, 400)
+	main.add_child(gate)
+	await _frames(2)
+	check(not gate.passable_at(Clock.tick), "a gate starts shut")
+	check(LiftGate.stop_x(get_tree(), 700.0, 950.0, 330.0, Clock.tick, 70.0) != INF,
+		"and a shut gate stops the pursuer")
+	var at := _finger_on(gate.hand_point())
+	main.input_hub._touch_down(22, at)
+	await _physics(40)
+	check(gate.passable_at(Clock.tick), "held, it goes up far enough to pass under")
+	check(LiftGate.stop_x(get_tree(), 700.0, 950.0, 330.0, Clock.tick, 70.0) == INF,
+		"and lets the pursuer through too")
+	main.input_hub._touch_up(22, at)
+	await _physics(20)
+	check(not gate.passable_at(Clock.tick), "let go, it drops")

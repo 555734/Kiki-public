@@ -15,6 +15,9 @@ enum Msg {
 	PLACE = 11,       ## client -> host: put a construct here, at my view tick
 	FIRE = 12,        ## client -> host: shoot here, at my view tick
 	SLOT = 13,        ## client -> host: selected ability (display only)
+	## client -> host: the guardian's hand did something to a thing -- see
+	## GuardianHand.Act. Like PLACE and FIRE it asks; the host does.
+	HAND = 14,
 	UNDO = 15,        ## client -> host: take back the construct I just placed
 	## Pointing at a place on the map. Named MARK rather than PING because PING
 	## is already the latency probe above, and two different things under one
@@ -50,6 +53,14 @@ enum Msg {
 	## puppets with their physics switched off and this one's whole contribution
 	## is WHICH STATE IT IS IN. See Keeper, and docs/stage-keeper.md section 8.
 	BOSS = 33,
+	## host -> client: a boulder or gate the hand held, as one shared-clock
+	## interval (HoldTimeline). The thing itself is a pure function of the tick
+	## and its intervals, so this is all the other device needs.
+	HOLD = 34,
+	## host -> client: a turret's bullet -- fired, caught, thrown back, gone.
+	## Bullets used to exist on the host only; the guardian has to see one to
+	## catch it, so each is a pure function of the tick from the last of these.
+	SHOT_SYNC = 35,
 	MIGRATION_CHUNK = 40, ## authority -> standby: chunked complete checkpoint
 	RUNNER_INPUT = 41,    ## remote runner -> authority after host migration
 	AUTHORITY_READY = 42, ## new authority -> returning peer
@@ -86,6 +97,9 @@ enum World {
 	WALL_JUMP = 12,   ## the runner kicked off one of the guardian's walls
 	CRYSTAL = 13,     ## value = net_id; a crystal has been collected
 	MARK = 14,        ## value = kind; a = where somebody is pointing
+	SWIPE = 15,       ## a, b = the swipe's ends; fliers along it were swept away
+	FLICK = 16,       ## a = where it was, b = a + direction * 100
+	SLING = 17,       ## a = the runner, b = a + velocity / 10
 }
 
 ## Bumped for the stage in the handshake. Mismatched builds already refuse
@@ -111,7 +125,9 @@ enum World {
 ## 25: two-tier desert route, upper key and lower goal return.
 ## 26: two-tier lava, Clock-based eruptions/meteors and safe chase folds.
 ## 27: two-tier coast, shared-clock surges and falling anchors.
-const VERSION: int = 27
+## 28: the guardian's hand (HAND, HOLD, SHOT_SYNC, World SWIPE/FLICK/SLING),
+##     bullets on both devices, lift gates and dark rooms in the stage data.
+const VERSION: int = 28
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.
@@ -231,6 +247,67 @@ static func place(slot: int, at: Vector2, view_tick: int, seq: int,
 	b.put_u32(view_tick)
 	b.put_u16(seq)
 	put_shape(b, path)
+	return b.data_array
+
+## The guardian's hand. `b` is the release point for a slingshot and a
+## velocity for a flick or a throw (world px/s); a swipe carries its points.
+static func hand(act: int, target_id: int, a: Vector2, b: Vector2, seq: int,
+		points: PackedVector2Array = PackedVector2Array()) -> PackedByteArray:
+	var buf := _buf(Msg.HAND)
+	buf.put_u8(act)
+	buf.put_u16(seq)
+	buf.put_u16(clampi(target_id, 0, 0xFFFF))
+	put_pos(buf, a)
+	if act == GuardianHand.Act.SLING:
+		put_pos(buf, b)
+	else:
+		buf.put_16(clampi(int(round(b.x)), -32768, 32767))
+		buf.put_16(clampi(int(round(b.y)), -32768, 32767))
+	var rel := PackedVector2Array()
+	for p in points:
+		rel.append(p - a)
+	put_shape(buf, rel)
+	return buf.data_array
+
+## Reads what hand() wrote, after the kind byte: [act, seq, id, a, b, points].
+static func read_hand(b: StreamPeerBuffer) -> Array:
+	var act := b.get_u8()
+	var seq := b.get_u16()
+	var id := b.get_u16()
+	var a := get_pos(b)
+	var second := Vector2.ZERO
+	if act == GuardianHand.Act.SLING:
+		second = get_pos(b)
+	else:
+		var x := float(b.get_16())
+		second = Vector2(x, float(b.get_16()))
+	var points := PackedVector2Array()
+	for p in get_shape(b):
+		points.append(a + p)
+	return [act, seq, id, a, second, points]
+
+## An open hold's end on the wire.
+const HOLD_OPEN: int = 0xFFFFFFFF
+
+static func hold(hand_id: int, start_tick: int, end_tick: int) -> PackedByteArray:
+	var b := _buf(Msg.HOLD)
+	b.put_u16(hand_id)
+	b.put_u32(start_tick)
+	b.put_u32(HOLD_OPEN if end_tick < 0 else end_tick)
+	return b.data_array
+
+## A bullet's state: Projectile.State, or SHOT_GONE.
+const SHOT_GONE: int = 255
+
+static func shot_sync(id: int, state: int, tick: int, at: Vector2,
+		velocity: Vector2) -> PackedByteArray:
+	var b := _buf(Msg.SHOT_SYNC)
+	b.put_u16(id)
+	b.put_u8(state)
+	b.put_u32(tick)
+	put_pos(b, at)
+	b.put_16(Snapshot._q_vel(velocity.x))
+	b.put_16(Snapshot._q_vel(velocity.y))
 	return b.data_array
 
 ## No particular enemy -- shoot at the point and let the host find what is there.

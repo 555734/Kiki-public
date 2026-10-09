@@ -98,6 +98,37 @@ func _relay_world_events() -> void:
 		_world(Protocol.World.STAGE_CLEAR, Vector2.ZERO, Vector2.ZERO))
 	Events.hologram_expired.connect(func(kind: int) -> void:
 		_world(Protocol.World.HOLO_EXPIRED, Vector2.ZERO, Vector2.ZERO, kind))
+	# The guardian's hand. What it did to a thing has to be seen on both
+	# screens: the streak of a flicked golem, the sweep, the twang of the sling.
+	Events.enemy_flicked.connect(func(at: Vector2, direction: Vector2) -> void:
+		_world(Protocol.World.FLICK, at, at + direction.normalized() * 100.0))
+	Events.hand_swiped.connect(func(points: PackedVector2Array) -> void:
+		if points.size() >= 2:
+			_world(Protocol.World.SWIPE, points[0], points[points.size() - 1]))
+	Events.runner_slung.connect(func(at: Vector2, velocity: Vector2) -> void:
+		_world(Protocol.World.SLING, at, at + velocity / 10.0))
+	Events.hand_hold_changed.connect(_send_hold)
+	Events.projectile_spawned.connect(_send_shot)
+	Events.projectile_changed.connect(_send_shot)
+	Events.projectile_gone.connect(func(id: int) -> void:
+		_send_event(Protocol.shot_sync(id, Protocol.SHOT_GONE, Clock.tick,
+			Vector2.ZERO, Vector2.ZERO)))
+
+## The newest interval of a held boulder or gate. A resend of the same
+## interval (same start) only fills in its end, so this is safe to repeat.
+func _send_hold(node: Node2D) -> void:
+	var timeline: HoldTimeline = node.get("hold")
+	if timeline == null or timeline.intervals.is_empty():
+		return
+	var last: Array = timeline.intervals[timeline.intervals.size() - 1]
+	_send_event(Protocol.hold(int(node.get("hand_id")), int(last[0]), int(last[1])))
+
+func _send_shot(p: Node2D) -> void:
+	var shot := p as Projectile
+	if shot == null:
+		return
+	_send_event(Protocol.shot_sync(shot.net_id, shot.state, shot.stamp,
+		shot.origin, shot.velocity))
 
 ## A stage number a player can check against their own screen. The refusal has
 ## to name both sides or it is just "no".
@@ -267,6 +298,19 @@ func _resync() -> void:
 		if node.get("active"):
 			_world(Protocol.World.SWITCH, Vector2.ZERO, Vector2.ZERO, 0,
 				String(node.get("switch_id")))
+	# Every hold so far, for every boulder and gate the hand has touched: their
+	# positions are functions of ALL of them, not only the newest.
+	for node in get_tree().get_nodes_in_group("hand_holdable"):
+		var timeline: HoldTimeline = node.get("hold")
+		if timeline == null:
+			continue
+		for iv in timeline.intervals:
+			_send_event(Protocol.hold(int(node.get("hand_id")), int(iv[0]), int(iv[1])))
+	# And the bullets in the air, which are otherwise only ever sent as they
+	# change.
+	for node in get_tree().get_nodes_in_group("projectile"):
+		if node is Projectile and not (node as Projectile).replica:
+			_send_shot(node)
 
 ## The mirror of ClientSession._take_entitlement: the host can be the free
 ## player of the pair just as easily as the guest can, so the pass travels both
@@ -400,6 +444,13 @@ func _handle(packet: Dictionary) -> void:
 			if not _seen_seq.has(undo_seq):
 				_seen_seq[undo_seq] = true
 				main.guardian.undo_last()
+		Protocol.Msg.HAND:
+			var hand := Protocol.read_hand(b)
+			var hand_seq: int = hand[1]
+			if _seen_seq.has(hand_seq):
+				return
+			_seen_seq[hand_seq] = true
+			GuardianHand.apply(main.guardian, hand[0], hand[2], hand[3], hand[4], hand[5])
 		Protocol.Msg.MARK:
 			var at := Protocol.get_pos(b)
 			# Raised locally so the runner sees it, and echoed so the guardian

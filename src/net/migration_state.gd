@@ -50,7 +50,8 @@ static func capture(main: Node2D) -> PackedByteArray:
 					"global_position", "velocity", "net_id", "hp", "state", "facing",
 					"_timer", "_cooldown", "_open_until", "_phase", "active",
 					"reached", "birth_tick", "death_tick", "placed_tick",
-					"wounded_this_stagger", "_shock_spent", "armed", "kind"] ))
+					"wounded_this_stagger", "_shock_spent", "armed", "kind",
+					"origin", "stamp"] ))
 		state["groups"][group] = rows
 	return pack(var_to_bytes(state))
 

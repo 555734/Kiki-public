@@ -440,6 +440,20 @@ func request_undo() -> void:
 	transport.send(NetTransport.Channel.COMMAND,
 		NetTransport.Reliability.RELIABLE_ORDERED, Protocol.undo(seq))
 
+## The guardian's hand, asked of the host like a tool. Nothing is predicted:
+## the outcome (a kill, a hold, a bullet's new course, the runner's flight)
+## comes back the way every other change to the world does.
+func request_hand(act: int, target_id: int, a: Vector2, b: Vector2,
+		points: PackedVector2Array = PackedVector2Array()) -> void:
+	# A let-go is never dropped, even mid-restore: a hold the host never hears
+	# the end of would keep a boulder pinned until it times out.
+	if _restoring and act != GuardianHand.Act.LET_GO and act != GuardianHand.Act.THROW:
+		return
+	var seq := _seq
+	_seq = (_seq + 1) & 0xFFFF
+	transport.send(NetTransport.Channel.COMMAND, NetTransport.Reliability.RELIABLE_ORDERED,
+		Protocol.hand(act, target_id, a, b, seq, points))
+
 func request_mark(at: Vector2, kind: int) -> void:
 	transport.send(NetTransport.Channel.COMMAND,
 		NetTransport.Reliability.RELIABLE_ORDERED, Protocol.mark(at, kind))
@@ -526,6 +540,15 @@ func _handle(packet: Dictionary) -> void:
 				boss.call("set_spent", boss_spent)
 		Protocol.Msg.HOLO_KILL:
 			_kill_hologram(int(b.get_u32()))
+		Protocol.Msg.HOLD:
+			_apply_hold(b.get_u16(), int(b.get_u32()), int(b.get_u32()))
+		Protocol.Msg.SHOT_SYNC:
+			var shot_id := b.get_u16()
+			var shot_state := b.get_u8()
+			var shot_tick := int(b.get_u32())
+			var shot_at := Protocol.get_pos(b)
+			var vx := Snapshot._u_vel(b.get_16())
+			_apply_shot(shot_id, shot_state, shot_tick, shot_at, Vector2(vx, Snapshot._u_vel(b.get_16())))
 		Protocol.Msg.REJECT:
 			var seq := b.get_u16()
 			var reason := b.get_utf8_string()
@@ -624,6 +647,52 @@ func _world(b: StreamPeerBuffer) -> void:
 			Events.stage_cleared.emit(GameState.stats())
 		Protocol.World.HOLO_EXPIRED:
 			Events.hologram_expired.emit(value)
+		Protocol.World.SWIPE:
+			Events.hand_swiped.emit(PackedVector2Array([a, second]))
+		Protocol.World.FLICK:
+			Events.enemy_flicked.emit(a, (second - a).normalized())
+		Protocol.World.SLING:
+			Events.runner_slung.emit(a, (second - a) * 10.0)
+
+## One hold interval from the host, onto the boulder or gate it names. The
+## same interval sent again (same start) only fills in its end.
+func _apply_hold(hand_id: int, start_tick: int, end_tick: int) -> void:
+	var open := end_tick == Protocol.HOLD_OPEN
+	for node in get_tree().get_nodes_in_group("hand_holdable"):
+		if int(node.get("hand_id")) != hand_id:
+			continue
+		var timeline: HoldTimeline = node.get("hold")
+		for iv in timeline.intervals:
+			if int(iv[0]) == start_tick:
+				if not open:
+					iv[1] = end_tick
+				Events.hand_hold_changed.emit(node)
+				return
+		timeline.intervals.append([start_tick, -1 if open else end_tick])
+		timeline.intervals.sort_custom(func(x: Array, y: Array) -> bool: return int(x[0]) < int(y[0]))
+		Events.hand_hold_changed.emit(node)
+		return
+
+## A bullet, as the host last stated it. Made on first hearing, moved on the
+## next, removed when gone.
+func _apply_shot(id: int, state: int, tick: int, at: Vector2, velocity: Vector2) -> void:
+	var shot: Projectile = null
+	for node in get_tree().get_nodes_in_group("projectile"):
+		if node is Projectile and (node as Projectile).replica and (node as Projectile).net_id == id:
+			shot = node
+			break
+	if state == Protocol.SHOT_GONE:
+		if shot != null:
+			shot.queue_free()
+		return
+	if shot == null:
+		shot = Projectile.new()
+		shot.replica = true
+		shot.net_id = id
+		shot.global_position = at
+		main.add_child(shot)
+	shot.restate(state, at, velocity, tick)
+	Events.projectile_changed.emit(shot)
 
 ## A construct the host says is gone -- the guardian took it back. By name, so
 ## a resend removes nothing a second time.

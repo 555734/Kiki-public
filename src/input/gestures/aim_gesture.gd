@@ -44,8 +44,7 @@ func drag(index: int, position: Vector2, _size: Vector2) -> void:
 		+ Vector2(travel, position.y - float(from_y.get(index, position.y))).length()
 	if index == trace_finger:
 		hub.trace_points.append(hub._screen_to_world(position))
-	if stroke.has(index):
-		(stroke[index] as PackedVector2Array).append(hub._screen_to_world(position))
+	_add_to_stroke(index, position)
 	hub.aim_at_screen(position)
 	from[index] = position.x
 	from_y[index] = position.y
@@ -55,8 +54,7 @@ func end(index: int, position: Vector2, cancelled: bool, previous: Variant) -> v
 		if previous != null:
 			moved[index] = float(moved.get(index, 0.0)) + (position - Vector2(previous)).length()
 		hub.aim_at_screen(position)
-		if stroke.has(index):
-			(stroke[index] as PackedVector2Array).append(hub._screen_to_world(position))
+		_add_to_stroke(index, position)
 	if not cancelled:
 		_swipe(index)
 	if cancelled:
@@ -96,6 +94,14 @@ func reset() -> void:
 func _end_trace() -> void:
 	trace_finger = -1
 	hub.trace_points = PackedVector2Array()
+
+## A packed array is a value: it has to be taken out, added to and put back.
+func _add_to_stroke(index: int, position: Vector2) -> void:
+	if not stroke.has(index):
+		return
+	var points: PackedVector2Array = stroke[index]
+	points.append(hub._screen_to_world(position))
+	stroke[index] = points
 
 ## Report a quick, long stroke as a swipe. Whether it hit anything worth
 ## sweeping away -- and so whether it replaces the platform the same stroke
