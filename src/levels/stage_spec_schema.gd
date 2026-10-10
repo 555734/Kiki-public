@@ -26,7 +26,7 @@ const GIMMICKS := {
 	"trick_pad": ["dir", "flip", "phase", "forward", "rise"],
 	"clock_hand": ["length", "period", "phase"],
 	"gear_wheel": ["radius", "speed", "dir", "phase"],
-	"tower_trap": ["kind", "length", "travel", "period", "phase", "facing"],
+	"tower_trap": ["kind", "length", "travel", "period", "phase", "facing", "holdable"],
 	"blink": ["span", "beat", "colour", "phase", "one_way"],
 	"conveyor": ["span", "speed", "flip", "dir", "phase", "one_way"],
 	"warp": ["exit", "size", "mark", "exit_velocity"],
