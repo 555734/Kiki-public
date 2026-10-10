@@ -27,10 +27,10 @@ func capture() -> void:
 	for section in LevelCastleData.sections():
 		var x := float(section["focus"])
 		shots.append([section["name"], Vector2(x, 240.0 if x < LevelCastleData.KEEP_X else -160.0), 1.0])
-	# Each of the three places whole, as a wide still camera holds it.
-	shots.append(["the gorge", Vector2(1500, 230), 0.62])
-	shots.append(["the gatehouse", Vector2(3600, 230), 0.62])
-	shots.append(["the keep", Vector2(5500, 0), 0.55])
+	# The road framed as wide as the trailer's locked shots frame it.
+	shots.append(["stair, block, ball", Vector2(900, 240), 0.72])
+	shots.append(["moat, cannon, gate", Vector2(2300, 240), 0.62])
+	shots.append(["the keep", Vector2(4200, 0), 0.6])
 	var k := 0
 	for shot in shots:
 		main.camera.zoom = Vector2.ONE * float(shot[2])

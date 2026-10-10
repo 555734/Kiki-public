@@ -97,6 +97,8 @@ func _sync(tick: int) -> void:
 
 func _draw() -> void:
 	var raised := raised_at(Clock.tick)
+	if Art.style(self) == "castle" and _draw_castle(raised):
+		return
 	# The stone frame does not move: two posts and a lintel the bars hang from.
 	var post := Color("4a4f57")
 	var post_hi := Color("6b717a")
@@ -117,3 +119,18 @@ func _draw() -> void:
 			draw_rect(Rect2(bars.position.x, y, WIDTH, 10), iron)
 	if hold.held_at(Clock.tick):
 		draw_rect(bars.grow(6.0), Color(Balance.C_HOLO, 0.45), false, 3.0)
+
+## 1-9's portcullis, painted, in the gatehouse CastleSet draws round it: as
+## wide as the archway (wider than the bars' own box, which is all that stops
+## the hound).
+const CASTLE_BARS_W := 128.0
+
+func _draw_castle(raised: float) -> bool:
+	var t := Art.tex("castle_gate_bars")
+	if t == null:
+		return false
+	var bars := Rect2(-CASTLE_BARS_W * 0.5, -height - raised, CASTLE_BARS_W, height)
+	draw_texture_rect(t, bars, false)
+	if hold.held_at(Clock.tick):
+		draw_rect(bars.grow(6.0), Color(Balance.C_HOLO, 0.45), false, 3.0)
+	return true

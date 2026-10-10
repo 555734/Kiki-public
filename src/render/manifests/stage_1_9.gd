@@ -1,8 +1,8 @@
 extends RefCounted
-## 1-9 "The King's Road". Imported by tools/import_pv_assets.py from the art
-## made to docs/art-prompts-castle.md and docs/art-prompts-characters.md. The
-## keys still in Art.PENDING have not been painted usably yet; until they are,
-## CastleSet and the entities draw their code versions or borrow a neighbour's.
+## 1-9 "The King's Road". The set -- ground, keep wall, backdrop, traps, cannon,
+## gatehouse and castle -- is cut by tools/import_castle_art.py from the flat
+## key-art set; the characters by tools/import_pv_assets.py from
+## docs/art-prompts-characters.md.
 const TEXTURES := {
 	"castle_hound_0": "castle/castle_hound_0.png",
 	"castle_hound_1": "castle/castle_hound_1.png",
@@ -36,4 +36,12 @@ const TEXTURES := {
 	"castle_torch": "castle/castle_torch.png",
 	"castle_keep_wall": "castle/castle_keep_wall.png",
 	"castle_goal_door": "castle/castle_goal_door.png",
+	"castle_water": "castle/castle_water.png",
+	"castle_brick": "castle/castle_brick.png",
+	"castle_stone": "castle/castle_stone.png",
+	"castle_bush_0": "castle/castle_bush_0.png",
+	"castle_bush_1": "castle/castle_bush_1.png",
+	"castle_spike_block": "castle/castle_spike_block.png",
+	"castle_spike_ball": "castle/castle_spike_ball.png",
+	"castle_chain": "castle/castle_chain.png",
 }

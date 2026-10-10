@@ -40,10 +40,7 @@ static func _all_assets() -> Dictionary:
 ## switch the real audit off for a key that is being shipped.
 ##
 ## The next stage that ships ahead of its art puts its keys back in here.
-## 1-9 has: its paintings are being made from docs/art-prompts-castle.md.
-const PENDING := [
-	"castle_gate_arch", "castle_gate_bars", "castle_goal_door",
-]
+const PENDING := []
 
 const FONT_UI := BASE + "fonts/Nunito-ExtraBold.ttf"
 const FONT_DISPLAY := BASE + "fonts/Baloo2-Bold.ttf"

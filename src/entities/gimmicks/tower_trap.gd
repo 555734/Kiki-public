@@ -11,11 +11,14 @@ extends Area2D
 @export var facing: int = 1
 
 var _shape: CollisionShape2D = null
+## Time the guardian's hand has held it still. Only a HoldableTowerTrap can be
+## held; on any other it stays empty and the clock runs straight through.
+var hold := HoldTimeline.new(Balance.HOLD_MAX_SECONDS)
 
 ## Builds this piece from a stage's gimmick spec ("tower_trap"). The spec is
 ## parsed here, next to the fields it fills, so a default lives in one place.
 static func from_spec(spec: Dictionary, _runner: Runner) -> Node2D:
-	var trap := TowerTrap.new()
+	var trap: TowerTrap = HoldableTowerTrap.new() if bool(spec.get("holdable", false)) else TowerTrap.new()
 	trap.kind = String(spec.get("kind", "pendulum"))
 	trap.length = float(spec.get("length", 235.0))
 	trap.travel = float(spec.get("travel", 150.0))
@@ -38,11 +41,14 @@ func _ready() -> void:
 	else:
 		var head := RectangleShape2D.new()
 		head.size = Vector2(94, 44) if kind == "piston" else Vector2(75, 90)
+		# 1-9's spike block is painted bigger, its spikes underneath.
+		if kind == "piston" and Art.style(self) == "castle":
+			head.size = Vector2(CASTLE_BLOCK.x - 14.0, CASTLE_BLOCK.y - 10.0)
 		_shape.shape = head
 	add_child(_shape)
 
 func extension_at(at_tick: int) -> float:
-	var phase := fposmod(Clock.seconds_at(at_tick, phase_offset) / period, 1.0)
+	var phase := fposmod(Clock.seconds_at(hold.local_tick(at_tick), phase_offset) / period, 1.0)
 	# Pause at both ends, giving the player a visible safe and dangerous beat.
 	if phase < 0.30:
 		return 0.0
@@ -56,7 +62,7 @@ func extension_at(at_tick: int) -> float:
 
 func head_at(at_tick: int) -> Vector2:
 	if kind == "pendulum":
-		var a := sin(Clock.seconds_at(at_tick, phase_offset) * TAU / period) * 0.72
+		var a := sin(Clock.seconds_at(hold.local_tick(at_tick), phase_offset) * TAU / period) * 0.72
 		return Vector2(sin(a), cos(a)) * length
 	if kind == "piston":
 		return Vector2(0, extension_at(at_tick) * travel)
@@ -73,6 +79,8 @@ func _draw() -> void:
 	if has_meta("model_3d"):
 		return
 	var head := head_at(Clock.tick)
+	if Art.style(self) == "castle" and _draw_castle(head):
+		return
 	if (Art.style(self) == "tower"):
 		if kind == "pendulum":
 			draw_line(Vector2.ZERO, head, Color("a78955"), 6)
@@ -111,3 +119,42 @@ func _draw() -> void:
 						Vector2(root_x, y - 11), Vector2(root_x, y + 11),
 						Vector2(root_x + float(facing) * 33.0, y)]), Color("aeb4b4"))
 				draw_rect(r, Color("665e58"), false, 3.0)
+
+## 1-9's spike block, painted: its stone block with spikes under it.
+const CASTLE_BLOCK := Vector2(118, 96)
+## 1-9's spiked ball, painted, spikes and all.
+const CASTLE_BALL := 92.0
+
+## 1-9's two: the spiked ball on its chain and the spike block hung on one.
+func _draw_castle(head: Vector2) -> bool:
+	var ball := Art.tex("castle_spike_ball")
+	var block := Art.tex("castle_spike_block")
+	if (kind == "pendulum" and ball == null) or (kind == "piston" and block == null):
+		return false
+	var top := Vector2.ZERO if kind == "pendulum" else Vector2(0, -400)
+	var end := head if kind == "pendulum" else head - Vector2(0, CASTLE_BLOCK.y * 0.5)
+	_chain(top, end)
+	if kind == "pendulum":
+		draw_texture_rect(ball, Rect2(head - Vector2.ONE * CASTLE_BALL * 0.5, Vector2.ONE * CASTLE_BALL), false)
+	else:
+		draw_texture_rect(block, Rect2(head - CASTLE_BLOCK * 0.5, CASTLE_BLOCK), false)
+	if hold.held_at(Clock.tick):
+		draw_arc(head, CASTLE_BALL * 0.62, 0, TAU, 36, Color(Balance.C_HOLO, 0.6), 3.0, true)
+	return true
+
+## A run of chain links from `a` to `b`, tiled along it.
+func _chain(a: Vector2, b: Vector2) -> void:
+	var t := Art.tex("castle_chain")
+	var length := a.distance_to(b)
+	if t == null or length < 1.0:
+		return
+	var w := 16.0
+	var link := w * float(t.get_height()) / float(t.get_width())
+	draw_set_transform(a, (b - a).angle() - PI * 0.5, Vector2.ONE)
+	var y := 0.0
+	while y < length:
+		var h := minf(link, length - y)
+		draw_texture_rect_region(t, Rect2(-w * 0.5, y, w, h),
+			Rect2(0, 0, t.get_width(), float(t.get_height()) * h / link))
+		y += link
+	draw_set_transform(Vector2.ZERO)

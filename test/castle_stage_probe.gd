@@ -24,7 +24,7 @@ func run() -> void:
 	check(Stage.stage_number() == "1-9" and Stage.stage_name() == "THE KING'S ROAD" and Stage.is_castle(),
 		"stage identity")
 	check(Stage.current() == Stage.Which.size() - 1, "1-9 was added at the end of the handshake enum")
-	check(Castle.sections().size() == 7, "seven obstacles, in three places")
+	check(Castle.sections().size() == 7, "seven obstacles along one road")
 
 	# What the runner can do alone, at best: a sprinting triple jump.
 	var best_height := Balance.RUNNER_JUMP_HEIGHT * (1.0 + Balance.RUNNER_SPRINT_JUMP_BONUS) \
@@ -34,25 +34,15 @@ func run() -> void:
 	var best_leap := best_speed * 2.0 * sqrt(2.0 * best_height / Balance.RUNNER_GRAVITY)
 	check(Castle.CHASM.y - Castle.CHASM.x > best_leap * 1.3,
 		"A: the chasm is far wider than any leap (%.0f vs %.0f)" % [Castle.CHASM.y - Castle.CHASM.x, best_leap])
-	var masses := Castle.masses()
-	var low := true
-	for m in masses:
-		low = low and Castle.GROUND_TOP - m.end.y < 260.0 and Castle.GROUND_TOP - m.position.y > best_height * 3.0
-	check(masses.size() == 1 and low, "D: the guardhouse passage cannot be gone over")
-	# B: the swarm is a column with no gap a runner fits through, from the road
-	# to above the top of the best jump.
-	var ys: Array = []
-	for spec in Stage.enemies():
-		if String(spec.get("type", "")) == "cave_enemy" and String(spec.get("kind", "")) == "bat":
-			ys.append((spec["pos"] as Vector2).y)
-	ys.sort()
-	var tight := ys.size() >= 6
-	for k in range(1, ys.size()):
-		# A bat's box is 45 tall, the runner 46.
-		tight = tight and float(ys[k]) - float(ys[k - 1]) < 46.0
-	check(tight and float(ys[ys.size() - 1]) + 22.0 > Castle.GROUND_TOP - 46.0
-		and float(ys[0]) - 22.0 < Castle.GROUND_TOP - best_height - 46.0,
-		"B: the swarm closes the road from the ground to past any jump")
+	# B, D: the ball and the block both reach down onto the road: neither can
+	# just be walked under.
+	var ball_low := Castle.BALL_PIVOT.y + Castle.BALL_CHAIN
+	check(ball_low + 31.0 > Castle.GROUND_TOP - 46.0 and ball_low - 31.0 < Castle.GROUND_TOP,
+		"B: the spiked ball swings through the runner's height")
+	# The stair can be climbed: each step lower than a jump.
+	for step in Castle.stair():
+		check(step.size.x == Castle.STEP_W, "the stair's steps are whole bricks")
+	check(Castle.STEP_W < best_height, "the stair can be climbed a step at a time")
 	var keep_height := Castle.GROUND_TOP - Castle.KEEP_TOP
 	check(keep_height > best_height * 1.5 and keep_height < Balance.SLING_HEIGHT,
 		"G: the keep wall is past any jump and within the slingshot (%.0f)" % keep_height)
@@ -76,16 +66,19 @@ func run() -> void:
 	var gate: LiftGate = null
 	var golem: SkyGolem = null
 	var turret: Turret = null
-	var boulder: CaveTrap = null
+	var block: HoldableTowerTrap = null
+	var ball: HoldableTowerTrap = null
 	for node in get_tree().get_nodes_in_group("enemy"):
 		if node.get_script() == SkyPursuerScript: pursuer = node
 		if node is SkyGolem: golem = node
 		if node is Turret: turret = node
 	for node in get_tree().get_nodes_in_group("hand_holdable"):
 		if node is LiftGate: gate = node
-		if node is CaveTrap: boulder = node
-	check(pursuer != null and gate != null and golem != null and turret != null and boulder != null,
-		"every obstacle is built")
+		if node is HoldableTowerTrap:
+			if node.kind == "piston": block = node
+			if node.kind == "pendulum": ball = node
+	check(pursuer != null and gate != null and golem != null and turret != null and block != null
+		and ball != null, "every obstacle is built")
 	if failures.is_empty():
 		# E: the hound is shut out by the dropped gate, however far ahead the
 		# runner gets -- it does not leap past to catch up.
@@ -97,7 +90,7 @@ func run() -> void:
 		await _physics(150)
 		check(pursuer.global_position.x < Castle.GATE_X, "E: a shut gate holds the hound")
 		# Far enough ahead that an ungated hound would jump to catch up.
-		r.global_position = Vector2(Castle.KEEP_X + 400.0, Castle.KEEP_TOP - 23.0)
+		r.global_position = Vector2(Castle.KEEP_END - 200.0, Castle.KEEP_TOP - 23.0)
 		await _physics(90)
 		check(pursuer.global_position.x < Castle.GATE_X and r.state != Runner.State.DEAD,
 			"E: and keeps holding it when the runner is far ahead")
@@ -130,12 +123,19 @@ func run() -> void:
 		GuardianHand.apply(g, GuardianHand.Act.FLICK, golem.net_id, golem.global_position, Vector2(900, -700))
 		await _physics(60)
 		check(not is_instance_valid(golem) or golem.is_queued_for_deletion(), "H: a flick throws the stone guardian off")
-		# D: a pressed boulder stays put.
-		GuardianHand.apply(g, GuardianHand.Act.HOLD, boulder.hand_id, boulder.hand_point(), Vector2.ZERO)
-		var held := boulder.hand_point()
-		await _physics(30)
-		check(boulder.hand_point().distance_to(held) < 1.0, "D: a pressed boulder stays put")
-		GuardianHand.apply(g, GuardianHand.Act.LET_GO, boulder.hand_id, held, Vector2.ZERO)
+		# B, D: held by the finger, the ball and the block stay where they are.
+		for trap in [block, ball]:
+			GuardianHand.apply(g, GuardianHand.Act.HOLD, trap.hand_id, trap.hand_point(), Vector2.ZERO)
+			var held: Vector2 = trap.hand_point()
+			await _physics(30)
+			check(trap.hand_point().distance_to(held) < 1.0, "%s: held, it stays put" % trap.kind)
+			GuardianHand.apply(g, GuardianHand.Act.LET_GO, trap.hand_id, held, Vector2.ZERO)
+			# The block waits at the top of its beat: give it a whole one.
+			var moved := false
+			for _i in int(trap.period * 60.0) + 10:
+				await _physics(1)
+				moved = moved or trap.hand_point().distance_to(held) > 1.0
+			check(moved, "%s: let go, it moves again" % trap.kind)
 	main.queue_free()
 	await get_tree().process_frame
 	Stage.use(Stage.Which.GREENFIELD)

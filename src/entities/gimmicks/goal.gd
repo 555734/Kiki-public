@@ -75,6 +75,14 @@ func _draw_lock() -> void:
 
 func _draw_gate() -> void:
 	var glow := 0.5 + 0.5 * sin(_pulse * 2.0)
+	if Art.style(self) == "castle" and Art.tex("castle_goal_door") != null:
+		# 1-9's goal is the castle itself: its tower, the door at the foot of
+		# it on the keep's walk (the goal stands 95 above the walk).
+		var t := Art.tex("castle_goal_door")
+		var h := 560.0
+		var w := h * float(t.get_width()) / float(t.get_height())
+		draw_texture_rect(t, Rect2(-w * 0.42, 95.0 - h + 4.0, w, h), false)
+		return
 	if (Art.style(self) == "cave"):
 		draw_colored_polygon(_arch_points(50, 58, 95), Color("66564d"))
 		draw_colored_polygon(_arch_points(43, 51, 90), Color("ba9671"))
