@@ -224,7 +224,17 @@ func run() -> void:
 			if main.runner.cleared: break
 	check(main.runner.cleared, "existing launch and movement controls reach real flag")
 	var report := {"checks":checks, "failures":failures}
-	var f := FileAccess.open("res://build/promotion/stage-1-9/playable-v2/probe.json",FileAccess.WRITE)
+	var report_path := "res://build/promotion/stage-1-9/playable-v2/probe.json"
+	var mkdir_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(report_path.get_base_dir()))
+	if mkdir_error != OK:
+		push_error("parade probe cannot create its report directory: " + error_string(mkdir_error))
+		get_tree().quit(1)
+		return
+	var f := FileAccess.open(report_path,FileAccess.WRITE)
+	if f == null:
+		push_error("parade probe cannot save its report: " + error_string(FileAccess.get_open_error()))
+		get_tree().quit(1)
+		return
 	f.store_string(JSON.stringify(report,"\t"))
 	print("parade v2 probe: ",JSON.stringify(report))
 	main.free()
