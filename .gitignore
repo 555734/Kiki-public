@@ -95,3 +95,7 @@ ios/plugins/
 # Python caches
 __pycache__/
 *.py[cod]
+
+# Trailer sound effects that may be used but not redistributed
+# (tools/import_trailer_sfx.py writes them; see tools/trailer_assets/sfx/SOURCES.md).
+tools/trailer_assets/sfx_lab/

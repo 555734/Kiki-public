@@ -16,8 +16,8 @@ Cues (shots.json "cues", each at a film time):
     drive_in / drive_out   the score's drop and its closing sting
     card                   a blueprint card flapping down onto the screen
     grid                   a blueprint's grid switching on: a rising blip
-    ring / answer          a phone ringing / the call picked up
-    slam                   something heavy coming down
+    ring / answer          a phone ringing (recorded) / the call picked up
+    slam                   something heavy coming down -- its foley carries it
 """
 import json
 import sys
@@ -37,9 +37,11 @@ MUSIC_DB = -3.0
 SFX_DB = -6.0
 
 
-# The recorded foley layer (tools/trailer_foley.gd): CC0 recordings cut by
-# tools/import_trailer_sfx.py. Its keys arrive as "foley/<clip>".
+# The recorded foley layer (tools/trailer_foley.gd): recordings cut by
+# tools/import_trailer_sfx.py. Its keys arrive as "foley/<clip>". The clips
+# that may not be redistributed sit in sfx_lab/, outside git (see SOURCES.md).
 FOLEY = Path(__file__).resolve().parent / "trailer_assets" / "sfx"
+FOLEY_LAB = FOLEY.parent / "sfx_lab"
 FOLEY_DB = 2.0
 # The game's own synthesised sounds that the foley plays a recording of
 # instead: kept out, so a shot is a gunshot and not a gunshot over a blip.
@@ -49,7 +51,14 @@ REPLACED = {"shot", "hit", "enemy_die", "die", "hurt", "jump", "land", "gate",
 
 
 def load(name: str) -> np.ndarray:
-    path = FOLEY / f"{name[6:]}.wav" if name.startswith("foley/") else AUDIO / f"{name}.wav"
+    path = AUDIO / f"{name}.wav"
+    if name.startswith("foley/"):
+        path = FOLEY / f"{name[6:]}.wav"
+        if not path.exists():
+            path = FOLEY_LAB / f"{name[6:]}.wav"
+            if not path.exists():
+                sys.exit(f"{path} is missing: download it as {FOLEY / 'SOURCES.md'} says, "
+                         "then run tools/import_trailer_sfx.py")
     with wave.open(str(path)) as w:
         assert w.getsampwidth() == 2, name
         data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
@@ -132,20 +141,8 @@ def blip() -> np.ndarray:
     return np.concatenate(out).astype(np.float32)
 
 
-def ringtone() -> np.ndarray:
-    """A phone ringing: two quick square-wave chirps, twice, in the score's voice."""
-    out = np.zeros(int(1.6 * RATE), dtype=np.float32)
-    for burst in (0.0, 0.8):
-        for k, f in enumerate((1318.5, 1568.0, 1318.5, 1568.0)):
-            a = int((burst + k * 0.09) * RATE)
-            m = int(0.075 * RATE)
-            tt = np.arange(m) / RATE
-            out[a:a + m] += np.sign(np.sin(2 * np.pi * f * tt)) * 0.22 * np.exp(-tt * 6.0)
-    return out
-
-
 # The hits the music ducks under.
-DUCK_ON = {"gun", "explosion", "cannon", "gate_slam", "punch_heavy", "stab"}
+DUCK_ON = {"gun", "explosion", "cannon", "gate_slam", "punch_heavy", "death"}
 
 
 def room(x: np.ndarray) -> np.ndarray:
@@ -282,13 +279,17 @@ def main() -> None:
         design[a:a + len(boom)] += boom[: n - a] * db(-4.0)
 
     for c in cues:
-        x = {"card": whoosh, "grid": blip, "answer": blip, "ring": ringtone,
-             "slam": impact}.get(c["cue"], lambda: None)()
-        if x is None:
-            continue
+        if c["cue"] == "ring":
+            # A real phone's ringtone, not a synthesised one.
+            x = load("foley/ring") * db(-6.0)
+        else:
+            x = {"card": whoosh, "grid": blip, "answer": blip}.get(c["cue"], lambda: None)()
+            if x is None:
+                continue
+            x = x * db(-8.0)
         a = int(float(c["t"]) * RATE)
         if a < n:
-            design[a:a + len(x)] += x[: n - a] * db(-8.0)
+            design[a:a + len(x)] += x[: n - a]
 
     stems = cap / "stems"
     stems.mkdir(exist_ok=True)

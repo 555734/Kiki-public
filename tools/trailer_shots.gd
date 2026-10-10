@@ -777,7 +777,7 @@ func setup_f1_chasm(ctx: Dictionary) -> Callable:
 			state["leapt"] = t
 			c["speed"] = 0.5
 			# The rush of the drop, and far below, the landing.
-			cap.foley.play("whoosh", -2.0, 0.62)
+			cap.foley.play("whoosh", -2.0)
 		if int(state["leapt"]) >= 0 and t - int(state["leapt"]) == T(0.95):
 			cap.foley.play("thud", -8.0, 0.75)
 		var since := t - int(state["leapt"])

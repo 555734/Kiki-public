@@ -4,11 +4,16 @@
     python3 -I tools/import_trailer_sfx.py <downloads folder>
 
 The folder holds the sources as downloaded: fs/<id>.mp3 (Freesound previews,
-see FREESOUND below), impact/ and rpg/ (Kenney packs, unzipped). Each clip is trimmed, faded at
-both ends, made mono 44.1 kHz 16-bit and peak-normalised to -1 dBFS into
-tools/trailer_assets/sfx/, with tools/trailer_assets/sfx/SOURCES.md saying
-where every one came from. Every source is CC0: no attribution is required,
-but it is kept.
+see FREESOUND below), bsb/<number>.mp3 (BigSoundBank, see BIGSOUNDBANK),
+lab/<name>.mp3 (Sound Effect Lab, see LAB), impact/ and rpg/ (Kenney packs,
+unzipped). Each clip is trimmed, faded at both ends, made mono 44.1 kHz 16-bit
+and levelled into tools/trailer_assets/sfx/, with
+tools/trailer_assets/sfx/SOURCES.md saying where every one came from.
+
+Every source but LAB is CC0: no attribution is required, but it is kept. The
+LAB sounds are free to use in the trailer but may not be redistributed, so
+they are written to tools/trailer_assets/sfx_lab/ instead, which git ignores:
+download them by hand from the pages SOURCES.md lists before mixing.
 
 Needs ffmpeg for the .ogg and .mp3 sources.
 """
@@ -21,6 +26,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "tools" / "trailer_assets" / "sfx"
+OUT_LAB = ROOT / "tools" / "trailer_assets" / "sfx_lab"
 RATE = 44100
 
 KENNEY_IMPACT = "Kenney, Impact Sounds (CC0) -- https://kenney.nl/assets/impact-sounds"
@@ -29,66 +35,65 @@ KENNEY_RPG = "Kenney, RPG Audio (CC0) -- https://kenney.nl/assets/rpg-audio"
 # Freesound sounds (all CC0, licence checked on each sound's page), by id:
 # (title, author). Downloaded as the site's high-quality previews into fs/.
 FREESOUND = {
-    "475499": ("Steps_stone_2(running).wav", "o_ciz"),
+    "411148": ("running in grass", "EvanSki"),
     "461522": ("dog_running on stone tiles 2.wav", "15GPanskaBokstefflova_Nicola"),
     "320144": ("Blanket Movement 6", "OwlStorm"),
     "447922": ("Thud / Falling on wooden floor / Snapping", "Breviceps"),
     "504626": ("BODY FALL - V HVY - DIRT", "leonelmail"),
-    "415912": ("Heathers Gunshot Effect2.wav", "okieactor"),
-    "94778": ("Punch_1-2.wav", "taylorsyoung@gmail.com"),
-    "244513": ("Realistic Punch", "JewTwinz"),
     "448002": ("cannon.mp3", "Kneeling"),
-    "235968": ("Explosion_01.wav", "tommccann"),
-    "179222": ("Knife Stab.wav", "Mixedupmoviestuff"),
-    "445109": ("Mud Splat", "Breviceps"),
-    "271666": ("Tomato squish;wet.wav", "HonorHunter"),
-    "332176": ("Dog_Bark_Agressive.wav", "ivolipa"),
-    "386766": ("Dog_Barking.wav", "ken788"),
+    "420449": ("Barking 2.wav", "Mrthenoronha"),
     "481642": ("Monster Growl", "JonCon_Library"),
     "60013": ("Whoosh", "qubodup"),
-    "244983": ("ANI Big Pipe Hit", "ani_music"),
-    "109360": ("stone falls and breaks low pitch.aiff", "SoundCollectah"),
-    "336888": ("Gate-Heavy-OpenClose-WAV.wav", "Omnisis"),
-    "218890": ("Door Smash 1", "qubodup"),
+    "841804": ("Metallic Slam (Anvil)", "OOF9"),
     "370877": ("Chains.wav", "cribbler"),
     "383240": ("Bounce", "Jofae"),
     "450725": ("basketball grab 2versions.flac", "kyles"),
-    "389634": ("Wing Flap 1.wav", "_stubb"),
-    "445958": ("Cartoon - Bat / Mouse Squeak", "Breviceps"),
     "458113": ("Countryside", "brunoboselli"),
+}
+# BigSoundBank sounds by Joseph SARDIN (CC0, licence stated on each sound's
+# page), by number: (title, page). Downloaded as the site's MP3 into bsb/.
+BIGSOUNDBANK = {
+    "0397": ("Shot of Winchester Magnum XTR", "shot-of-winchester-magnum-xtr-s0397.html"),
+    "0128": ("Sword Through the Air", "sword-through-the-air-s0128.html"),
+}
+# Sound Effect Lab (https://soundeffect-lab.info/): free for use in a video,
+# no credit needed, but no redistribution -- so never committed. By file:
+# (title, category page). Downloaded by hand from that page into lab/.
+LAB = {
+    "blow8": ("打撃8", "battle/"),
+    "mobile-phone-ringtone1": ("携帯電話の着信音1", "machine/"),
+    "bomb3": ("爆発3", "battle/"),
+    "punch-heavy1": ("重いパンチ1", "battle/"),
 }
 
 # name: [(source file, start s, end s or None, gain dB[, channel]), ...] --
-# several sources are layered into one clip. Picked by the many people who
-# downloaded and rated them, and cut at the onsets measured in each.
-STEPS = [(6.37, 6.50), (6.96, 7.09), (7.72, 7.86), (7.99, 8.12), (6.78, 6.94), (7.41, 7.55)]
+# several sources are layered into one clip. Each moment's sound was chosen
+# by ear from candidates heard against the trailer's own picture; cut at the
+# onsets measured in each.
+STEPS = [(0.121, 0.261), (0.385, 0.525), (0.648, 0.788), (0.902, 1.042), (1.159, 1.299),
+         (1.349, 1.489), (1.468, 1.608), (1.687, 1.827), (1.887, 2.027)]
 CLIPS = {
-    **{f"step_{i}": [("fs/475499.mp3", a, b, 0.0)] for i, (a, b) in enumerate(STEPS)},
+    **{f"step_{i}": [("fs/411148.mp3", a, b, 0.0)] for i, (a, b) in enumerate(STEPS)},
     "gallop": [("fs/461522.mp3", 0.26, 1.62, 0.0)],
     "jump": [("fs/320144.mp3", 0.30, 0.75, 0.0)],
     "land": [("fs/447922.mp3", 0.0, None, 0.0)],
     "thud": [("fs/504626.mp3", 0.38, 1.40, 0.0)],
-    "gun": [("fs/415912.mp3", 0.0, 1.2, 0.0)],
-    "gun_hit": [("fs/94778.mp3", 0.18, 0.63, 0.0), ("fs/244513.mp3", 0.0, None, -4.0)],
+    "gun": [("bsb/0397.mp3", 1.015, 2.615, 0.0)],
     "cannon": [("fs/448002.mp3", 0.12, 2.0, 0.0)],
-    "explosion": [("fs/235968.mp3", 0.35, 3.5, 0.0)],
-    "stab": [("fs/179222.mp3", 0.12, 1.0, 0.0)],
-    "squish": [("fs/445109.mp3", 0.0, None, 0.0), ("fs/271666.mp3", 0.05, 0.5, -3.0)],
-    "bark_0": [("fs/332176.mp3", 0.15, 0.40, 0.0)],
-    "bark_1": [("fs/332176.mp3", 1.08, 1.35, 0.0)],
-    "bark_2": [("fs/386766.mp3", 0.64, 0.95, 0.0)],
+    "explosion": [("lab/bomb3.mp3", 0.0, 2.6, 0.0)],
+    "death": [("lab/blow8.mp3", 0.005, None, 0.0)],
+    "ring": [("lab/mobile-phone-ringtone1.mp3", 0.052, 2.652, 0.0)],
+    "bark": [("fs/420449.mp3", 0.038, None, 0.0)],
     "growl": [("fs/481642.mp3", 1.20, 2.60, 0.0)],
-    "whoosh": [("fs/60013.mp3", 0.0, None, 0.0)],
+    "whoosh": [("bsb/0128.mp3", 0.099, None, 0.0)],
     "whoosh_short": [("fs/60013.mp3", 0.02, 0.30, 0.0)],
-    "punch_heavy": [("fs/244983.mp3", 0.0, None, 0.0), ("fs/109360.mp3", 0.0, 1.2, -4.0)],
-    "gate_slam": [("fs/218890.mp3", 1.98, 3.2, 0.0), ("fs/336888.mp3", 4.18, 5.4, -3.0)],
+    "punch_heavy": [("lab/punch-heavy1.mp3", 0.053, None, 0.0)],
+    "gate_slam": [("fs/841804.mp3", 0.0, 1.6, 0.0)],
     "latch": [("rpg/Audio/metalLatch.ogg", 0.0, None, 0.0)],
     "creak": [("fs/370877.mp3", 0.0, 1.6, 0.0, "left")],
     "spring": [("fs/383240.mp3", 0.20, 0.65, 0.0)],
     "catch": [("fs/450725.mp3", 0.0, 0.6, 0.0)],
     "soft_hit": [("impact/Audio/impactSoft_medium_000.ogg", 0.0, None, 0.0)],
-    "flap": [("fs/389634.mp3", 0.10, 0.80, 0.0)],
-    "squeak": [("fs/445958.mp3", 0.0, None, 0.0)],
     "ambience": [("fs/458113.mp3", 5.0, 35.0, 0.0)],
 }
 
@@ -109,6 +114,12 @@ def source_of(name: str) -> str:
         sid = name[3:].split(".")[0]
         title, user = FREESOUND[sid]
         return f"{user}, \"{title}\" (CC0) -- https://freesound.org/s/{sid}/"
+    if name.startswith("bsb/"):
+        title, page = BIGSOUNDBANK[name[4:].split(".")[0]]
+        return f"Joseph SARDIN, \"{title}\" (CC0) -- https://bigsoundbank.com/{page}"
+    if name.startswith("lab/"):
+        title, page = LAB[name[4:].split(".")[0]]
+        return f"効果音ラボ「{title}」 (free use, no redistribution) -- https://soundeffect-lab.info/sound/{page}"
     for prefix, text in SOURCE_OF.items():
         if name.startswith(prefix):
             return text
@@ -121,10 +132,17 @@ def main() -> int:
         return 2
     src = Path(sys.argv[1]).resolve()
     OUT.mkdir(parents=True, exist_ok=True)
+    OUT_LAB.mkdir(parents=True, exist_ok=True)
+    # Godot must not import them, and git must not carry them.
+    (OUT_LAB / ".gdignore").write_text("")
     lines = ["# Trailer sound effects", "",
              "Recorded effects for the trailer's foley layer (tools/trailer_foley.gd,",
              "mixed by tools/trailer_mix.py). Cut by tools/import_trailer_sfx.py.",
-             "Every source is CC0 (public domain): no attribution is required.", "",
+             "Every source is CC0 (public domain): no attribution is required --",
+             "except the 効果音ラボ (Sound Effect Lab) clips, which may be used in the",
+             "trailer but not redistributed. Those are not in the repository: download",
+             "each from the page given, into <downloads>/lab/<file>.mp3, and run the",
+             "import; it writes them to tools/trailer_assets/sfx_lab/ (git-ignored).", "",
              "| clip | cut from | source |", "|---|---|---|"]
     for name, parts in CLIPS.items():
         layers = []
@@ -150,7 +168,8 @@ def main() -> int:
         peak = float(np.max(np.abs(mix)))
         if peak > 0.89:
             mix *= 0.89 / peak
-        with wave.open(str(OUT / f"{name}.wav"), "wb") as w:
+        lab = any(part[0].startswith("lab/") for part in parts)
+        with wave.open(str((OUT_LAB if lab else OUT) / f"{name}.wav"), "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
             w.setframerate(RATE)
