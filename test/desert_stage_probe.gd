@@ -66,8 +66,8 @@ func run() -> void:
 	add_child(main)
 	await get_tree().process_frame
 	var panel := main.get_node_or_null("NetPanel")
-	check(panel != null and panel._cards().size() == 8,
-		"selection includes the desert, tower and cave stages")
+	check(panel != null and panel._cards().size() == 9,
+		"nine-stage selection includes the desert, tower, cave and parade stages")
 	if panel != null:
 		await get_tree().process_frame
 		check(panel._stage_1_6 != null, "desert card appears on its own page")

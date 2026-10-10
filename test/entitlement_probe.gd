@@ -71,7 +71,8 @@ func _free_player() -> void:
 	check(Entitlement.can_host(Stage.Which.GREENFIELD)
 		and Entitlement.can_host(Stage.Which.HORROR),
 		"and can make a room on either of them")
-	check(Stage.FREE_STAGES.size() == 5 and Entitlement.can_play(Stage.Which.DESERT) and Entitlement.can_host(Stage.Which.TOWER) and Entitlement.can_play(Stage.Which.CAVE), "public main keeps 1-6 through 1-8 free")
+	check(Stage.FREE_STAGES.size() == 6 and Entitlement.can_play(Stage.Which.DESERT) and Entitlement.can_host(Stage.Which.TOWER) and Entitlement.can_play(Stage.Which.CAVE)
+		and Entitlement.can_play(Stage.Which.PARADE) and Entitlement.can_host(Stage.Which.PARADE), "public main keeps 1-6 through 1-9 free to play and host")
 	var paid := [Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]
 	var blocked := true
 	var unhostable := true
