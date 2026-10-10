@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="460" viewBox="0 0 1720 460" role="img" aria-label="Current stage 1-9 source geometry">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#af3c2e"/></marker></defs>
+<rect width="1720" height="460" rx="14" fill="#fbf2df"/>
+<style>text{font-family:Arial,sans-serif;fill:#453324} .small{font-size:13px} .label{font-size:15px;font-weight:bold}</style>
+<text x="38" y="39" font-size="24" font-weight="bold">1-9 / CURRENT STAGE GEOMETRY</text>
+<text x="38" y="63" class="small">6 TERRAIN PIECES / 9 MACHINES / 72 GREMLINS / SOURCE COORDINATES</text>
+<path d="M108.0 85 V355" stroke="#dac9ad" stroke-dasharray="3 6"/><text x="93.0" y="382" class="small">-1000</text>
+<path d="M348.0 85 V355" stroke="#dac9ad" stroke-dasharray="3 6"/><text x="333.0" y="382" class="small">0</text>
+<path d="M588.0 85 V355" stroke="#dac9ad" stroke-dasharray="3 6"/><text x="573.0" y="382" class="small">1000</text>
+<path d="M828.0 85 V355" stroke="#dac9ad" stroke-dasharray="3 6"/><text x="813.0" y="382" class="small">2000</text>
+<path d="M1068.0 85 V355" stroke="#dac9ad" stroke-dasharray="3 6"/><text x="1053.0" y="382" class="small">3000</text>
+<path d="M1308.0 85 V355" stroke="#dac9ad" stroke-dasharray="3 6"/><text x="1293.0" y="382" class="small">4000</text>
+<path d="M1548.0 85 V355" stroke="#dac9ad" stroke-dasharray="3 6"/><text x="1533.0" y="382" class="small">5000</text>
+<rect x="60.0" y="214.0" width="681.6" height="20.9" fill="#257078" stroke="#c8983f" stroke-width="3"/>
+<rect x="873.6" y="200.8" width="458.4" height="20.9" fill="#257078" stroke="#c8983f" stroke-width="3"/>
+<rect x="1495.2" y="150.2" width="120.0" height="19.8" fill="#257078" stroke="#c8983f" stroke-width="3"/>
+<rect x="520.8" y="171.1" width="67.2" height="10.56" fill="#257078" stroke="#c8983f" stroke-width="3"/>
+<rect x="1089.6" y="153.5" width="64.8" height="10.56" fill="#257078" stroke="#c8983f" stroke-width="3"/>
+<rect x="1262.3999999999999" y="163.4" width="50.4" height="10.56" fill="#257078" stroke="#c8983f" stroke-width="3"/>
+<circle cx="88.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="94.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="100.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="106.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="112.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="118.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="124.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="130.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="136.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="142.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="148.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="154.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="160.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="166.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="172.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="178.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="184.8" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="190.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="196.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="202.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="208.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="214.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="220.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="226.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="232.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="238.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="244.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="250.79999999999998" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="256.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="262.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="268.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="274.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="280.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="286.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="292.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<circle cx="298.79999999999995" cy="208.28" r="2.8" fill="#c34d3a"/>
+<path d="M151.79999999999998 190.28 h90" stroke="#af3c2e" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="154.79999999999998" y="179.28" class="small">WAVE 1: 36</text>
+<circle cx="1080.0" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1086.72" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1093.44" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1100.1599999999999" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1106.8799999999999" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1113.6" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1120.32" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1127.04" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1133.76" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1140.48" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1147.2" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1153.92" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1160.6399999999999" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1167.36" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1174.08" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1180.8" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1187.52" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1194.24" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1200.96" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1207.68" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1214.3999999999999" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1221.12" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1227.84" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1234.56" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1241.28" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1248.0" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1254.72" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1261.44" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1268.1599999999999" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1274.8799999999999" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1281.6" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1288.32" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1295.04" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1301.76" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1308.48" cy="194.64" r="2.8" fill="#c34d3a"/>
+<circle cx="1315.2" cy="194.64" r="2.8" fill="#c34d3a"/>
+<path d="M1245.96 176.64 h-90" stroke="#af3c2e" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1158.96" y="165.64" class="small">WAVE 2: 36</text>
+<rect x="424.8" y="130.4" width="48" height="83.6" rx="16" fill="#c34d3a" stroke="#c8983f" stroke-width="4"/><path d="M431.8 202.0 l8 -9 8 9 8 -9 8 9" fill="none" stroke="#fff4df" stroke-width="4"/>
+<path d="M631.1999999999999 115.0 v93.0" stroke="#b68b37" stroke-width="5"/><circle cx="631.1999999999999" cy="115.0" r="7" fill="#ffd36c" stroke="#c8983f"/><rect x="606.1999999999999" y="199.0" width="50" height="15" rx="3" fill="#c34d3a" stroke="#c8983f" stroke-width="3"/>
+<rect x="741.6" y="206.95999999999998" width="48.0" height="16.28" fill="#d18462" stroke="#bf973d" stroke-width="2"/>
+<rect x="789.6" y="195.95999999999998" width="48.0" height="16.28" fill="#d18462" stroke="#bf973d" stroke-width="2"/>
+<rect x="835.1999999999999" y="191.12" width="43.199999999999996" height="10.56" fill="#64aeb2" stroke="#bf973d" stroke-width="2"/>
+<path d="M856.8 196.4 l0.0 -41.8" stroke="#387b88" stroke-width="2" stroke-dasharray="4 3"/>
+<rect x="1000.8" y="101.80000000000001" width="48" height="99.0" rx="16" fill="#c34d3a" stroke="#c8983f" stroke-width="4"/><path d="M1007.8 188.8 l8 -9 8 9 8 -9 8 9" fill="none" stroke="#fff4df" stroke-width="4"/>
+<path d="M1185.6 101.8 v93.0" stroke="#b68b37" stroke-width="5"/><circle cx="1185.6" cy="101.8" r="7" fill="#ffd36c" stroke="#c8983f"/><rect x="1160.6" y="185.8" width="50" height="15" rx="3" fill="#c34d3a" stroke="#c8983f" stroke-width="3"/>
+<rect x="1342.8" y="188.92" width="55.199999999999996" height="10.56" fill="#64aeb2" stroke="#bf973d" stroke-width="2"/>
+<path d="M1370.3999999999999 194.2 l0.0 -48.4" stroke="#387b88" stroke-width="2" stroke-dasharray="4 3"/>
+<rect x="1426.8" y="150.20000000000002" width="40.8" height="13.2" fill="#d18462" stroke="#bf973d" stroke-width="2"/>
+<text x="448.8" y="120.4" text-anchor="middle" class="small">MOUTH 1</text>
+<text x="631.1999999999999" y="98.0" text-anchor="middle" class="small">HAMMER 1</text>
+<text x="765.6" y="247.1" text-anchor="middle" class="small">CRUMBLE 1</text>
+<text x="813.6" y="236.1" text-anchor="middle" class="small">CRUMBLE 2</text>
+<text x="856.8" y="228.4" text-anchor="middle" class="small">LIFT 1</text>
+<text x="1024.8" y="91.80000000000001" text-anchor="middle" class="small">MOUTH 2</text>
+<text x="1185.6" y="84.8" text-anchor="middle" class="small">HAMMER 2</text>
+<text x="1370.3999999999999" y="226.2" text-anchor="middle" class="small">LIFT 2</text>
+<text x="1447.2" y="188.8" text-anchor="middle" class="small">CRUMBLE 3</text>
+<circle cx="357.59999999999997" cy="207.4" r="6" fill="#236883"/><text x="357.59999999999997" y="192.4" text-anchor="middle" class="label">START</text>
+<circle cx="1557.6" cy="138.1" r="6" fill="#ba392e"/><text x="1557.6" y="123.1" text-anchor="middle" class="label">REAL GOAL</text>
+<path d="M705.6 207.4 v-23 h12 l-4 6 4 6 h-12" fill="#eebf63" stroke="#8d692d"/><text x="710.6" y="232.4" class="small">CP1</text>
+<path d="M919.1999999999999 194.2 v-23 h12 l-4 6 4 6 h-12" fill="#eebf63" stroke="#8d692d"/><text x="924.1999999999999" y="219.2" class="small">CP2</text>
+<path d="M1300.8 156.8 v-23 h12 l-4 6 4 6 h-12" fill="#eebf63" stroke="#8d692d"/><text x="1305.8" y="181.8" class="small">CP3</text>
+<path d="M45 341.6 H1650" stroke="#ba392e" stroke-dasharray="8 7"/><text x="46" y="361.6" class="small">FALL RESET LINE / y=1080</text>
+<text x="38" y="419" class="small">Level positions are read from level_parade_data.gd. Machine symbols are schematic, not collision shapes.</text>
+<text x="38" y="442" class="small">This is the current implementation. The illustrated six-zone map is a separate proposed expansion.</text>
+</svg>

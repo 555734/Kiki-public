@@ -110,6 +110,10 @@ func _ready() -> void:
 	fx = preload("res://src/render/fx.gd").new()
 	fx.name = "Fx"
 	add_child(fx)
+	if Stage.is_parade():
+		var parade_fx := preload("res://src/render/parade_fx.gd").new()
+		parade_fx.name = "ParadeFx"
+		add_child(parade_fx)
 
 	sky = preload("res://src/render/sky.gd").new()
 	sky.name = "Sky"

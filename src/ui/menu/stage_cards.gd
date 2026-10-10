@@ -43,6 +43,10 @@ static func all() -> Array[Dictionary]:
 			"blurb": "地下の仕掛けと敵をくぐり抜ける",
 			"which": Stage.Which.CAVE, "accent": Color("708797"),
 			"art": preload("res://assets/menu/card_1_8.png"), "crop_top": 320.0},
+		{"number": "1-9", "name": "THE TRICKSTER PARADE",
+			"blurb": "Shoot the machines. Find the real flag.",
+			"which": Stage.Which.PARADE, "accent": Color("e7775e"),
+			"art": preload("res://assets/menu/card_1_9.png"), "crop_top": 0.0},
 	]
 
 static func for_which(which: int) -> Dictionary:

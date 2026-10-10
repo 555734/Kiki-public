@@ -122,12 +122,17 @@ grep -q '^plugins/InAppStore=true$' export_presets.cfg \
 section "what the purchase opens"
 free_block=$(sed -n '/^const FREE_STAGES/,/^\]/p' src/levels/stage.gd)
 free_count=$(printf '%s' "$free_block" | grep -o 'Which\.[A-Z_]*' | wc -l | tr -d ' ')
-if [ "$free_count" = "5" ] && printf '%s' "$free_block" | grep -q GREENFIELD \
+if [ "$free_count" = "6" ] && printf '%s' "$free_block" | grep -q GREENFIELD \
 		&& printf '%s' "$free_block" | grep -q HORROR \
 		&& printf '%s' "$free_block" | grep -q DESERT \
 		&& printf '%s' "$free_block" | grep -q TOWER \
-		&& printf '%s' "$free_block" | grep -q CAVE; then
-	ok "FREE_STAGES preserves public main: 1-1, 1-2 and 1-6 to 1-8"
+		&& printf '%s' "$free_block" | grep -q CAVE \
+		&& printf '%s' "$free_block" | grep -q PARADE; then
+	ok "FREE_STAGES preserves public access and adds 1-9: 1-1, 1-2 and 1-6 to 1-9"
+	grep -q '1-6〜1-9' docs/store-listing.md \
+		&& grep -q '1-6 through 1-9' docs/store-listing.md \
+		&& ok "the listing includes the free parade stage" \
+		|| bad "the listing must include free stage 1-9 in both languages"
 	for f in src/ui/purchase_panel.gd docs/store-listing.md docs/support.html; do
 		grep -q '1-3〜1-5\|1-3 to 1-5' "$f" \
 			&& ok "$f says the purchase opens 1-3 to 1-5" \

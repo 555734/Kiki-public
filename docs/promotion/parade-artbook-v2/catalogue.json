@@ -1,0 +1,287 @@
+{
+  "machines": [
+    {
+      "id": "A01",
+      "name": "MASK GATE",
+      "japanese": "仮面門",
+      "behavior": "頬の留め金を撃つと下顎が橋になる。敵も橋を渡るので、開く時刻を選ぶ。"
+    },
+    {
+      "id": "A02",
+      "name": "CURTAIN LIFT",
+      "japanese": "幕と対重",
+      "behavior": "幕と対重が反対に動き、上下の通路を切り替える。相棒が落下先を支える。"
+    },
+    {
+      "id": "A03",
+      "name": "PARADE TURNTABLE",
+      "japanese": "回り舞台",
+      "behavior": "クラッチを撃つと群れの出口が変わる。鼓笛隊長の跳躍で上の通路にも敵が来る。"
+    },
+    {
+      "id": "A04",
+      "name": "ACCORDION BRIDGE",
+      "japanese": "蛇腹橋",
+      "behavior": "敵の重みを貯め、ばねを解放して主人公ごと跳ばす。圧縮量と着地点を選ぶ。"
+    },
+    {
+      "id": "A05",
+      "name": "FOLLOW SPOT",
+      "japanese": "追尾照明",
+      "behavior": "照明の向きを変えると、人形が敵と固い小道具の姿を切り替える。"
+    },
+    {
+      "id": "A06",
+      "name": "SKY WHEEL",
+      "japanese": "空の観覧車",
+      "behavior": "反対側のゴンドラに乗る群れが釣り合いを変える。ブレーキと渡り足場を組み合わせる。"
+    },
+    {
+      "id": "A07",
+      "name": "SCENERY RAILS",
+      "japanese": "舞台レール",
+      "behavior": "背景の壁が横へ動き、窓や足場の位置が変わる。上に乗るか、開いた下の通路へ進む。"
+    },
+    {
+      "id": "A08",
+      "name": "TRAPDOOR ROW",
+      "japanese": "連続開閉床",
+      "behavior": "敵が踏むと隣の床へ開閉が連鎖する。順番を読んで跳び、下の受け足場で救う。"
+    },
+    {
+      "id": "A09",
+      "name": "STUNT CANNON",
+      "japanese": "演目用大砲",
+      "behavior": "射出角を低い通路と高い弧へ切り替える。主人公と敵の射出先を分ける。"
+    },
+    {
+      "id": "A10",
+      "name": "PROP CONVEYOR",
+      "japanese": "小道具搬送ベルト",
+      "behavior": "回転方向を変え、箱と敵を落とし穴または対重の皿へ運ぶ。"
+    },
+    {
+      "id": "A11",
+      "name": "CONFETTI VENT",
+      "japanese": "紙吹雪の送風口",
+      "behavior": "噴流が空中の主人公と敵を押し上げる。描いた壁で風向きを曲げる。"
+    },
+    {
+      "id": "A12",
+      "name": "PENDULUM BELL",
+      "japanese": "振り子の鐘",
+      "behavior": "振り子が群れを別の高さへ押す。留め金を撃って、通過する時刻に位相を合わせる。"
+    },
+    {
+      "id": "A13",
+      "name": "MIRROR SPOT",
+      "japanese": "鏡の照明",
+      "behavior": "スクリーンへ主人公の影を投影し、敵を誘導する。実体の主人公は別の通路を進む。"
+    },
+    {
+      "id": "A14",
+      "name": "PAPER MOON",
+      "japanese": "紙の月",
+      "behavior": "吊られた三日月の小道具を下ろし、曲線の橋として渡る。"
+    },
+    {
+      "id": "A15",
+      "name": "BALANCING BALCONY",
+      "japanese": "釣り合いバルコニー",
+      "behavior": "片端へ群れを乗せると、反対側の主人公が持ち上がる。二つの角度で固定できる。"
+    },
+    {
+      "id": "A16",
+      "name": "MAGNETIC PROP HOIST",
+      "japanese": "磁力の吊り装置",
+      "behavior": "金属の敵を持ち上げ、群れを対重の皿へ放す。主人公は磁力の対象にならない。"
+    },
+    {
+      "id": "A17",
+      "name": "FIREWORK RACK",
+      "japanese": "舞台花火",
+      "behavior": "予告灯と導火線に沿って三段階で作動する。次の花火までに逃げ道を描く。"
+    },
+    {
+      "id": "A18",
+      "name": "BREAKAWAY SCENERY",
+      "japanese": "壊れる書き割り",
+      "behavior": "猟犬を誘導して偽の壁へ突進させると、裏の階段が現れる。"
+    }
+  ],
+  "enemies": [
+    {
+      "id": "E01",
+      "name": "WIND-UP GREMLIN",
+      "japanese": "ぜんまい小鬼",
+      "behavior": "既存の小鬼。拡張案では群れの重さが装置を動かす。"
+    },
+    {
+      "id": "E02",
+      "name": "DRUM MAJOR",
+      "japanese": "鼓笛隊長",
+      "behavior": "ばちの振り上げを予告に、小鬼を一斉に跳ばせる。"
+    },
+    {
+      "id": "E03",
+      "name": "STILT USHER",
+      "japanese": "竹馬の案内役",
+      "behavior": "上の通路を掃く。膝を撃つと長い脚が一時的な斜面になる。"
+    },
+    {
+      "id": "E04",
+      "name": "BALLOON HARLEQUIN",
+      "japanese": "風船道化",
+      "behavior": "風船のひもを撃つと重りが落ちる。群れと橋へ作用する。"
+    },
+    {
+      "id": "E05",
+      "name": "SHADOW MARIONETTE",
+      "japanese": "影の人形",
+      "behavior": "照明の中で動く敵になり、暗いときは固い小道具になる。"
+    },
+    {
+      "id": "E06",
+      "name": "PROP MIMIC",
+      "japanese": "小道具の擬態箱",
+      "behavior": "搬送できる箱に紛れ、出口で蓋を開いて進路を塞ぐ。"
+    },
+    {
+      "id": "E07",
+      "name": "RIGGING SPIDER",
+      "japanese": "吊り索の蜘蛛",
+      "behavior": "舞台の支点間へ索を張り、連続開閉床の留め金を動かす。"
+    },
+    {
+      "id": "E08",
+      "name": "CANNON IMP",
+      "japanese": "砲台小鬼",
+      "behavior": "ぜんまいの溜めを予告に低い弾を放ち、群れを搬送ベルトへ押し出す。"
+    },
+    {
+      "id": "E09",
+      "name": "RIBBON ACROBAT",
+      "japanese": "吊り布の軽業師",
+      "behavior": "二本の布で上下の通路を横断する。結び目を撃つと軌道が逆になる。"
+    },
+    {
+      "id": "E10",
+      "name": "CLOCKWORK HOUND",
+      "japanese": "ぜんまい猟犬",
+      "behavior": "予告して突進し、書き割りを壊す。追跡を新しい通路の発見へ利用する。"
+    },
+    {
+      "id": "E11",
+      "name": "MIRROR TWINS",
+      "japanese": "鏡の双子",
+      "behavior": "鏡で動きが連動する二体一組。鏡を壊すと同期が外れる。種類数では一種類と数える。"
+    },
+    {
+      "id": "E12",
+      "name": "STAGE MANAGER",
+      "japanese": "舞台監督",
+      "behavior": "カチンコを大きく振り上げて予告し、幕・照明・吊り装置の状態を切り替える。"
+    }
+  ],
+  "zones": [
+    {
+      "number": 1,
+      "name": "FALSE ENTRANCE",
+      "japanese": "偽入口",
+      "machines": [
+        1,
+        7,
+        8
+      ],
+      "enemies": [
+        1,
+        6
+      ],
+      "operation": "主人公が口を避け、相棒が橋を開く。動く壁の上を通るか、下の床を順に跳ぶ。",
+      "recovery": "運べる箱が出口で敵に変わる。描いた上の足場へ逃げ、群れを先に流す。"
+    },
+    {
+      "number": 2,
+      "name": "BACKSTAGE",
+      "japanese": "舞台裏",
+      "machines": [
+        2,
+        12,
+        16
+      ],
+      "enemies": [
+        3,
+        7
+      ],
+      "operation": "対重と鐘の動きを合わせ、高い通路へ移る。磁力で群れを別の皿へ運ぶ。",
+      "recovery": "竹馬の敵と吊り索が上下の安全を変える。膝を崩して斜面を作り、下の足場で受ける。"
+    },
+    {
+      "number": 3,
+      "name": "PARADE CROSSING",
+      "japanese": "パレードの交差点",
+      "machines": [
+        3,
+        9,
+        10
+      ],
+      "enemies": [
+        1,
+        2,
+        8
+      ],
+      "operation": "回り舞台で出口を選び、大砲の角度と搬送方向を切り替える。",
+      "recovery": "鼓笛隊長が群れを一斉に跳ばせる。砲台小鬼の予告を見て、射線の外へ足場を描く。"
+    },
+    {
+      "number": 4,
+      "name": "ACCORDION GAP",
+      "japanese": "蛇腹の谷",
+      "machines": [
+        4,
+        11,
+        15
+      ],
+      "enemies": [
+        1,
+        4,
+        9
+      ],
+      "operation": "重さを貯めて射出し、風とバルコニーを使って次の高さへ渡る。",
+      "recovery": "風船の重りと軽業師が飛ぶ軌道を変える。解放前に受け足場を用意する。"
+    },
+    {
+      "number": 5,
+      "name": "SPOTLIGHT GALLERY",
+      "japanese": "照明回廊",
+      "machines": [
+        5,
+        13,
+        18
+      ],
+      "enemies": [
+        5,
+        10,
+        11
+      ],
+      "operation": "照明で敵を止め、鏡の影へ群れを誘導する。猟犬に書き割りを壊させて階段を出す。",
+      "recovery": "足場にした小道具が動き出し、双子が通路を挟む。照明の切り替えと別の足場で逃げる。"
+    },
+    {
+      "number": 6,
+      "name": "SKY WHEEL FINALE",
+      "japanese": "観覧車の終幕",
+      "machines": [
+        6,
+        14,
+        17
+      ],
+      "enemies": [
+        1,
+        12
+      ],
+      "operation": "月の橋で観覧車へ乗り、対岸の群れを重りにする。ブレーキと描画で本物の旗へ渡る。",
+      "recovery": "舞台監督が予告後に装置を切り替える。花火の順番を読み、停車したゴンドラで立て直す。"
+    }
+  ]
+}

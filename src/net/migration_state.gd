@@ -50,7 +50,9 @@ static func capture(main: Node2D) -> PackedByteArray:
 					"global_position", "velocity", "net_id", "hp", "state", "facing",
 					"_timer", "_cooldown", "_open_until", "_phase", "active",
 					"reached", "birth_tick", "death_tick", "placed_tick",
-					"wounded_this_stagger", "_shock_spent", "armed", "kind"] ))
+					"wounded_this_stagger", "_shock_spent", "armed", "kind", "direction",
+					"charge", "_weight", "_last_cue", "_spent", "_cooldowns",
+					"_impulse_until", "_impulse_x"] ))
 		state["groups"][group] = rows
 	return pack(var_to_bytes(state))
 
@@ -157,6 +159,8 @@ static func _apply_node_state(node: Object, values: Dictionary) -> void:
 	for key in values:
 		if key != "name" and properties.has(key):
 			node.set(key, values[key])
+	if node.has_method("refresh_pose"): node.refresh_pose()
+	if node.has_method("pose_at"): node.pose_at(Clock.tick)
 
 static func _apply_group(main: Node2D, group: String, rows: Array) -> void:
 	var nodes := main.get_tree().get_nodes_in_group(group)

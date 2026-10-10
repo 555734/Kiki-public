@@ -12,6 +12,11 @@ func _draw() -> void:
 	var view := size
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
+	if Stage.is_parade():
+		# Overscan preserves full coverage during a slow theatrical pan.
+		var shift := sin(scroll * 0.0003) * view.x * 0.035
+		draw_texture_rect(ParadeArt.painting("background"), Rect2(-view.x * 0.04 + shift, 0, view.x * 1.08, view.y), false)
+		return
 	if Stage.current() == Stage.Which.ROYAL_ARENA:
 		_royal_background(view, scroll)
 		return

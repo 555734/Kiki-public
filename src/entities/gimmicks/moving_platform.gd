@@ -61,6 +61,9 @@ func position_at(at_tick: int) -> Vector2:
 
 func _draw() -> void:
 	var r := Rect2(-span * 0.5, span)
+	if Art.style(self) == "parade":
+		ParadeArt.floor_on(self, r)
+		return
 	if Art.draw_late_platform(self, "lift", r):
 		return
 	if (Art.style(self) == "cave"):

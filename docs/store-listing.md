@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.18
+# ストア提出物 — メロスゲーム 0.9.19
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.18（Android versionCode 45）。提出前の原稿であり、ストア提出済みを意味しません。
+対象ビルド: version 0.9.19（Android versionCode 46）。提出前の原稿であり、ストア提出済みを意味しません。
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -31,11 +31,11 @@ bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 【見守る人】足場を描き、射撃で敵や追跡者を止めて、走る人の道を作ります。地形に当たった足場は、当たる直前までの部分が残ります。
 
-第一章の8ステージを収録。草原、村はずれ、空の遺跡、海岸、溶岩峡谷、砂の遺跡、歯車の塔、地下の森を進みます。6文字の合言葉で離れた友達とつながるか、1台で一緒に遊べます。
+第一章の9ステージを収録。草原、村はずれ、空の遺跡、海岸、溶岩峡谷、砂の遺跡、歯車の塔、地下の森、天空の劇場を進みます。6文字の合言葉で離れた友達とつながるか、1台で一緒に遊べます。
 
 スターを取り合う対戦モードも無料です。ロイヤル・アリーナでは、ジャンプ台や移動足場を使って空中のスターを奪い合えます。
 
-ステージ1-1・1-2・1-6〜1-8は無料で最後まで遊べます。完全版の買い切り購入でステージ1-3、1-4、1-5が開きます。完全版を持つ人の部屋には、買っていない友達も参加できます。
+ステージ1-1・1-2・1-6〜1-9は無料で最後まで遊べます。完全版の買い切り購入でステージ1-3、1-4、1-5が開きます。完全版を持つ人の部屋には、買っていない友達も参加できます。
 
 広告・定期課金はありません。
 ```
@@ -75,11 +75,11 @@ THE RUNNER runs, jumps, wall-kicks, and air-dashes.
 
 THE GUARDIAN draws platforms and shoots enemies and pursuers to make a path for the runner. Platforms that hit terrain keep the valid section before the collision.
 
-Explore eight stages in Chapter One: grassland, village outskirts, sky ruins, seaside, a lava canyon, sand ruins, a clockwork tower, and an underground grove. Connect with a friend using a six-character room code or play together on one device.
+Explore nine stages in Chapter One: grassland, village outskirts, sky ruins, seaside, a lava canyon, sand ruins, a clockwork tower, an underground grove, and a theatre in the sky. Connect with a friend using a six-character room code or play together on one device.
 
 Star Battle is free for everyone. In Royal Arena, use jump pads and moving platforms to compete for stars in the air.
 
-Stages 1-1, 1-2, and 1-6 through 1-8 are free to play all the way through. A single non-consumable purchase unlocks stages 1-3, 1-4, and 1-5. Friends who have not purchased the full version can join a full-version owner's room.
+Stages 1-1, 1-2, and 1-6 through 1-9 are free to play all the way through. A single non-consumable purchase unlocks stages 1-3, 1-4, and 1-5. Friends who have not purchased the full version can join a full-version owner's room.
 
 No ads or subscriptions.
 ```
@@ -362,4 +362,19 @@ Keep running and you now shift into an even faster gear. You can now jump once m
 <!-- release-notes:ja -->
 ```
 スター対戦のステージ選択をロイヤルアリーナだけにしました。ほかの対戦ステージは改修まで非表示になります。協力ステージは大きなカードを1枚ずつ表示し、左右にスワイプして切り替えられます。ステージ選択からタイトルへ戻るボタンと、対戦画面の戻る操作を整えました。
+```
+
+
+**新機能 / リリースノート（0.9.19）**
+
+<!-- release-notes:ja -->
+```
+無料の新ステージ1-9「THE TRICKSTER PARADE」を追加しました。天空の劇場で、射撃によって橋になる門、群れを跳ね上げる足場、磁石、変形する敵、ゴンドラなどの仕掛けを使って進みます。新しい仕掛けの状態を再接続時に復元する処理も追加しました。
+```
+
+**English / リリースノート（0.9.19）**
+
+<!-- release-notes:en -->
+```
+Added free stage 1-9, The Trickster Parade. Cross a theatre in the sky using a gate that becomes a bridge, a crowd-powered spring, a magnetic hoist, transforming enemies and gondolas. Added reconnect state restoration for the new stage machinery.
 ```

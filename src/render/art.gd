@@ -19,6 +19,7 @@ static func _all_assets() -> Dictionary:
 		preload("res://src/render/manifests/stage_1_6.gd"),
 		preload("res://src/render/manifests/stage_1_7.gd"),
 		preload("res://src/render/manifests/stage_1_8.gd"),
+		preload("res://src/render/manifests/stage_1_9.gd"),
 	]:
 		result.merge(manifest.TEXTURES)
 	return result
@@ -448,6 +449,7 @@ static func bind_style(node: Node) -> void:
 		Stage.Which.SWAMP: "swamp", Stage.Which.DESERT: "desert",
 		Stage.Which.TOWER: "tower", Stage.Which.CAVE: "cave",
 		Stage.Which.ROYAL_ARENA: "royal_arena",
+		Stage.Which.PARADE: "parade",
 	}
 	node.set_meta("art_style", styles.get(Stage.current(), "common"))
 

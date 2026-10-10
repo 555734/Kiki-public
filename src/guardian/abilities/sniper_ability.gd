@@ -46,7 +46,7 @@ func execute(guardian: Node, world_pos: Vector2) -> void:
 		# The tracer goes to what was actually hit, not to where the thumb was.
 		# A shot that visibly lands beside a dying enemy reads as a bug even
 		# when the enemy dies, which is worse than missing.
-		at = (target as Node2D).global_position
+		at = aim_point(target as Node2D)
 		target.take_damage(Balance.SNIPE_DAMAGE, "snipe")
 	Events.shot_fired.emit(guardian.tracer_origin(at), at, target != null)
 
@@ -59,6 +59,10 @@ func execute(guardian: Node, world_pos: Vector2) -> void:
 func target_at(guardian: Node, world_pos: Vector2) -> Node:
 	var exact := _nearest(guardian, world_pos, HIT_RADIUS)
 	return exact if exact != null else _nearest(guardian, world_pos, ASSIST_RADIUS)
+
+## Large props can place their visible switch above their origin/footing.
+static func aim_point(target: Node2D) -> Vector2:
+	return target.shot_position() if target.has_method("shot_position") else target.global_position
 
 func _nearest(guardian: Node, world_pos: Vector2, radius: float) -> Node:
 	var space: PhysicsDirectSpaceState2D = guardian.get_world_2d().direct_space_state
@@ -89,7 +93,7 @@ func _nearest(guardian: Node, world_pos: Vector2, radius: float) -> Node:
 		# at all rather than candidates that fail afterwards.
 		if collider.has_method("is_shootable_now") and not collider.is_shootable_now():
 			continue
-		var d: float = (collider as Node2D).global_position.distance_to(world_pos)
+		var d: float = aim_point(collider as Node2D).distance_to(world_pos)
 		if d < best:
 			best = d
 			target = collider
@@ -107,7 +111,7 @@ func preview(guardian: Node, world_pos: Vector2) -> Dictionary:
 		"valid": check(guardian, world_pos) == "",
 	}
 	if target != null and is_instance_valid(target):
-		out["lock"] = (target as Node2D).global_position
+		out["lock"] = aim_point(target as Node2D)
 	return out
 
 ## Shots the current gauge affords, capped for the HUD. Mockup 3 shows a "3/3"

@@ -51,6 +51,9 @@ func _ready() -> void:
 	Stage.use(Stage.Which.CAVE)
 	check(Stage.stage_number() == "1-8", "the cave is selectable as 1-8")
 	check(Stage.stage_name() == "THE UNDERGROVE", "and it is the one it says it is")
+	Stage.use(Stage.Which.PARADE)
+	check(Stage.stage_number() == "1-9", "the parade is selectable as 1-9")
+	check(Stage.stage_name() == "THE TRICKSTER PARADE", "and it is the one it says it is")
 	Stage.use(Stage.Which.GREENFIELD)
 	check(Stage.stage_number() == "1-1", "1-1 remains selectable after the others")
 
@@ -86,20 +89,21 @@ func _ready() -> void:
 				var card: Button = panel._select_view.cards[int(info["which"])]
 				check(_card_unlocked(card) == Entitlement.can_play(int(info["which"])), "locks preserved for " + String(info["number"]))
 			await _capture("coop-stage-card")
+			var last_page := StageCards.all().size() - 1
 			# A different finger must not steal the swipe; vertical movement must
 			# not turn a page. At the catalogue edge a swipe must not tap a card.
 			var centre: Vector2 = panel._stage_view.get_global_rect().get_center()
 			_touch(panel, centre, true, 0)
 			_touch(panel, centre, true, 1)
 			_drag(panel, centre + Vector2(180, 0), 1)
-			check(panel._stage_page == 7, "second finger cannot steal stage gesture")
+			check(panel._stage_page == last_page, "second finger cannot steal stage gesture")
 			_drag(panel, centre + Vector2(0, 160), 0)
-			check(panel._stage_page == 7, "vertical drag does not turn the page")
-			panel._stage_1_8.pressed.emit()
+			check(panel._stage_page == last_page, "vertical drag does not turn the page")
+			panel._stage_1_9.pressed.emit()
 			check(panel._code == null, "vertical drag release is not a stage tap")
 			_drag(panel, centre - Vector2(180, 0), 0)
-			check(panel._stage_page == 7 and panel._select_view._swipe.consumed, "edge swipe stays on last stage and consumes card tap")
-			panel._stage_1_8.pressed.emit()
+			check(panel._stage_page == last_page and panel._select_view._swipe.consumed, "edge swipe stays on last stage and consumes card tap")
+			panel._stage_1_9.pressed.emit()
 			check(panel._code == null, "edge swipe release cannot open the play screen")
 			_touch(panel, centre, false, 0)
 			_touch(panel, centre, false, 1)
@@ -107,13 +111,13 @@ func _ready() -> void:
 			_drag(panel, centre + Vector2(180, 0), 0)
 			_touch(panel, centre + Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == 6 and _visible_stages(panel).has("1-7"), "right swipe selects previous stage")
+			check(panel._stage_page == last_page - 1 and _visible_stages(panel).has("1-8"), "right swipe selects previous stage")
 			centre = panel._stage_view.get_global_rect().get_center()
 			_touch(panel, centre, true, 0)
 			_drag(panel, centre - Vector2(180, 0), 0)
 			_touch(panel, centre - Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == 7 and _visible_stages(panel).has("1-8"), "left swipe selects next stage")
+			check(panel._stage_page == last_page and _visible_stages(panel).has("1-9"), "left swipe selects next stage")
 			# The mouse has the same browsing gesture on desktop.
 			var mouse := InputEventMouseButton.new()
 			mouse.button_index = MOUSE_BUTTON_LEFT; mouse.pressed = true; mouse.position = centre
@@ -122,7 +126,7 @@ func _ready() -> void:
 			motion.position = centre + Vector2(180, 0)
 			panel._input(motion)
 			await get_tree().process_frame
-			check(panel._stage_page == 6, "mouse drag selects the previous stage")
+			check(panel._stage_page == last_page - 1, "mouse drag selects the previous stage")
 			# Versus keeps the five postponed layouts, but offers only Royal.
 			check(VersusStageData.THEMES.size() == 6 and VersusStageData.SELECTABLE_THEMES == [Stage.Which.ROYAL_ARENA], "postponed arenas are retained but not offered")
 			panel._on_versus()
@@ -143,14 +147,14 @@ func _ready() -> void:
 			_touch(versus, centre, false, 0)
 			_touch(panel, centre, true, 0)
 			_drag(panel, centre + Vector2(180, 0), 0)
-			check(panel._stage_page == 6, "versus gestures cannot move the co-op menu behind it")
+			check(panel._stage_page == last_page - 1, "versus gestures cannot move the co-op menu behind it")
 			check(versus._stage_id == Stage.Which.ROYAL_ARENA and versus._code.text == "123456", "single-stage swipe keeps Royal and typed room code")
 			versus._back.pressed.emit()
 			await get_tree().process_frame
 			check(versus._step == 1, "room back returns to versus mode selection")
 			versus._back.pressed.emit()
 			await get_tree().process_frame
-			check(not is_instance_valid(versus) and panel._stage_page == 6, "mode back closes versus and preserves co-op browsing position")
+			check(not is_instance_valid(versus) and panel._stage_page == last_page - 1, "mode back closes versus and preserves co-op browsing position")
 
 			# Difficulty belongs to the stage that has been chosen, so it is
 			# not offered before one has been.

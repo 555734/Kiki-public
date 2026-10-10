@@ -9,7 +9,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-${1:-godot}}"
 fail=0
-for stage in 1-1 1-2 1-3 1-4 1-5 1-6 1-7 1-8; do
+for stage in 1-1 1-2 1-3 1-4 1-5 1-6 1-7 1-8 1-9; do
 	out=$("$GODOT" --path . --rendering-method gl_compatibility --rendering-driver opengl3 \
 		--resolution 1280x720 tools/perf_probe.tscn -- --ci-skip-eos --stage "$stage" --budget 2>&1)
 	status=$?

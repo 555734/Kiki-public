@@ -28,6 +28,7 @@ var _cave_traps: Array[CaveTrap] = []
 var _cave_wake_timer: Timer = null
 
 func build() -> void:
+	if Stage.is_parade(): ParadeArt.warm()
 	_static_root = Node2D.new()
 	_static_root.name = "Static"
 	add_child(_static_root)
@@ -299,6 +300,7 @@ func veil_field() -> VeilField:
 const ENEMY_TYPES: Array[String] = [
 	"cave_enemy", "desert_enemy", "chaser", "sky_pursuer", "thornmite", "walker",
 	"flyer", "shieldbearer", "keeper", "mine", "seedling", "golem", "turret",
+	"parade_gremlin", "parade_actor",
 ]
 
 ## Spec types the builder does not know, as "enemy:<type>" / "gimmick:<type>".
@@ -321,6 +323,17 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 		push_error("Stage %s: unknown enemy type '%s' at %s" % [Stage.stage_number(), type, spec.get("pos")])
 		return null
 	match type:
+		"parade_actor": return ParadeActor.from_spec(spec, runner)
+		"parade_gremlin":
+			var gremlin := ParadeGremlin.new()
+			gremlin.runner = runner
+			gremlin.speed = float(spec.get("speed", 245.0))
+			gremlin.direction = int(spec.get("dir", 1))
+			gremlin.wake_x = float(spec.get("wake", 200.0))
+			gremlin.bounds = spec.get("bounds", Vector2(-1200, 1550))
+			gremlin.large = bool(spec.get("large", false))
+			gremlin.kill_y = Stage.kill_y()
+			return gremlin
 		"cave_enemy":
 			var cave := CaveEnemy.new()
 			cave.kind = String(spec.get("kind", "burrower"))
@@ -430,6 +443,8 @@ static func configure_gimmick(node: Node2D, spec: Dictionary) -> void:
 ## Every gimmick type a stage spec can name. Each script parses its own spec
 ## in from_spec(); adding a type is a line here and a from_spec there.
 const GIMMICKS := {
+	"parade_device": preload("res://src/entities/gimmicks/parade_device.gd"),
+	"parade_machine": preload("res://src/entities/gimmicks/parade_machine.gd"),
 	"coastal_hazard": preload("res://src/entities/gimmicks/coastal_hazard.gd"),
 	"volcanic_hazard": preload("res://src/entities/gimmicks/volcanic_hazard.gd"),
 	"moving_platform": preload("res://src/entities/gimmicks/moving_platform.gd"),

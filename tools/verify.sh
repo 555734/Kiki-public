@@ -133,6 +133,9 @@ run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/skyward_ruins
 step "can two people cross the Sunlit Coast"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/sea_stage_probe.tscn
 
+step "the trickster parade: crowds, crushers, collapse and the real flag"
+run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/parade_stage_probe.tscn
+
 step "can two people cross the poison marsh"
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/swamp_stage_probe.tscn
 run_checked "$GODOT" --headless --path . --fixed-fps 60 res://test/radical_route_probe.tscn

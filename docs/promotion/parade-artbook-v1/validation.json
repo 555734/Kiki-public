@@ -1,0 +1,40 @@
+{
+  "paintings": [
+    {
+      "file": "01-world-imageboard.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "cdf02eccbba5b282ed91f1fb772d226a434ef484f6e14922b4a922236d4f5df3"
+    },
+    {
+      "file": "02-gimmick-settings.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "db2bd58d74bc9c2556a73fa97a97963d541c48f089ae70f04e7f3ab69bfebc7a"
+    },
+    {
+      "file": "03-enemy-modelsheet.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "fc5585ca972bb2befb73c5ef5eeb6cf235936beabd7f35eb9be12e8a3fdbdff3"
+    },
+    {
+      "file": "04-expanded-stage-map.png",
+      "width": 1942,
+      "height": 809,
+      "sha256": "dfe693f67069c99aa7dfbd3b94a2a9c1ed1d06d5ca53d69727ebe44a1ccaf163"
+    }
+  ],
+  "png_originals_preserved": true,
+  "local_references": 14,
+  "current_geometry": {
+    "ground": 6,
+    "gimmicks": 9,
+    "enemies": 72
+  },
+  "browser": {
+    "images_loaded": 6,
+    "zone_switches_verified": 6
+  },
+  "gameplay_changes": false
+}

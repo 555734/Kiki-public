@@ -52,6 +52,7 @@ func _ready() -> void:
 				"1-6": which = Stage.Which.DESERT
 				"1-7": which = Stage.Which.TOWER
 				"1-8": which = Stage.Which.CAVE
+				"1-9": which = Stage.Which.PARADE
 				_: which = Stage.Which.GREENFIELD
 		if args[i] == "--at" and i + 1 < args.size():
 			at_x = float(args[i + 1])
@@ -88,7 +89,9 @@ func _process(delta: float) -> void:
 	# Keep the runner moving, so the measurement covers scrolling scenery
 	# rather than one static screen.
 	if _main != null and is_instance_valid(_main) and _main.runner != null:
-		_main.runner.global_position.x += 220.0 * delta
+		# The horizontal theatre is 6.5k units long; cover all six acts in
+		# the same measurement window instead of testing only its entrance.
+		_main.runner.global_position.x += (800.0 if _stage_key == "1-9" else 220.0) * delta
 
 ## Prints the measurement; false when --budget is set and it is over.
 func _report() -> bool:

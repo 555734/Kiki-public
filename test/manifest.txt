@@ -12,6 +12,9 @@
 #   tool       a build or asset tool, not a test
 
 test/agreement_probe.tscn          gated
+test/parade_stage_probe.tscn       gated
+test/parade_v2_probe.tscn          tool
+tools/play_parade_v2.tscn          live
 test/arena_motion_probe.tscn       gated
 test/arena_rules_probe.tscn        gated
 test/cave_stage_probe.tscn         gated

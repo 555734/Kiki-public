@@ -116,6 +116,7 @@ func _stage_label(which: int) -> String:
 		Stage.Which.DESERT: return "1-6"
 		Stage.Which.TOWER: return "1-7"
 		Stage.Which.CAVE: return "1-8"
+		Stage.Which.PARADE: return "1-9"
 	return "?"
 
 func _world(kind: int, a: Vector2, b: Vector2, value: int = 0,
@@ -264,7 +265,9 @@ func _resync() -> void:
 	# A client that missed the switch being shot sees a wall it cannot pass and
 	# a partner insisting it is open.
 	for node in get_tree().get_nodes_in_group("switch"):
-		if node.get("active"):
+		if node.has_method("replay_id"):
+			_world(Protocol.World.SWITCH, Vector2.ZERO, Vector2.ZERO, 0, node.replay_id())
+		elif node.get("active"):
 			_world(Protocol.World.SWITCH, Vector2.ZERO, Vector2.ZERO, 0,
 				String(node.get("switch_id")))
 

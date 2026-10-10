@@ -95,6 +95,10 @@ func _draw() -> void:
 		sin(Time.get_ticks_msec() * 0.05) * _shake * 2.5,
 		cos(Time.get_ticks_msec() * 0.07) * _shake * 1.5)
 	var r := Rect2(-span * 0.5 + jitter, span)
+	if Art.style(self) == "parade":
+		ParadeArt.floor_on(self, r)
+		_draw_cracks(r)
+		return
 	if has_meta("model_3d"):
 		_draw_cracks(r)
 		return

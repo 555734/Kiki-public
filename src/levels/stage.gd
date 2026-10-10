@@ -15,7 +15,7 @@ extends RefCounted
 
 
 ## New stages go on the END: the value is what travels in the handshake.
-enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE, ROYAL_ARENA }
+enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE, ROYAL_ARENA, PARADE }
 
 ## A fresh launch starts at 1-1. The start panel can switch to 1-2 before play.
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
@@ -48,6 +48,7 @@ const _DATA_FILES := {
 	Which.TOWER: "level_tower_data",
 	Which.CAVE: "level_cave_data",
 	Which.ROYAL_ARENA: "level_royal_arena_data",
+	Which.PARADE: "level_parade_data",
 }
 
 ## The current stage's data script.
@@ -133,6 +134,9 @@ static func is_tower() -> bool:
 static func is_cave() -> bool:
 	return _which == Which.CAVE
 
+static func is_parade() -> bool:
+	return _which == Which.PARADE
+
 ## The sea's surface on a stage that has one (1-4), or INF.
 static func water_y() -> float:
 	return float(_rule("water_y_value", INF))
@@ -186,10 +190,10 @@ static func stage_name() -> String:
 ## suite down with it. Locking happens where a player starts a game -- the menu
 ## and the room-creation path -- not where the data is read.
 ##
-## Keep public main access: 1-1, 1-2 and 1-6 through 1-8 are free.
+## Keep public main access; the promotion's new 1-9 is freely selectable too.
 ## tools/release-check.sh compares this with the store listing's paid range.
 const FREE_STAGES: Array[int] = [
-	Which.GREENFIELD, Which.HORROR, Which.DESERT, Which.TOWER, Which.CAVE,
+	Which.GREENFIELD, Which.HORROR, Which.DESERT, Which.TOWER, Which.CAVE, Which.PARADE,
 ]
 
 static func is_free(which: int = -1) -> bool:

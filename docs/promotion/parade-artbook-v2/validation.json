@@ -1,0 +1,64 @@
+{
+  "illustrated_sheets": 8,
+  "updated_or_new_sheets": 7,
+  "reused_sheet": 1,
+  "png_originals_preserved": true,
+  "canonical_sprite_originals": 8,
+  "canonical_portraits": 2,
+  "machines": 18,
+  "enemy_types": 12,
+  "zones": 6,
+  "browser": {
+    "images_loaded": 19,
+    "zone_switches_passed": 6,
+    "client_width": 345,
+    "scroll_width": 345,
+    "horizontal_body_overflow": false
+  },
+  "local_references": 32,
+  "gameplay_changes": false,
+  "paintings": [
+    {
+      "file": "01-world-imageboard.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "4c84778973714f2fa7ac47674a96a7e030d510ccc7a737c148f4f348cdaaa81c"
+    },
+    {
+      "file": "02-machines-core.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "f137384c38516974971a4f2dc9a70d75d27f137c9667f258247d67df5be5f6a9"
+    },
+    {
+      "file": "03-machines-backstage.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "d1e03bd33a6370e107910a7ac905640b515557d6e6d5a6fe2d509bb027d58dbb"
+    },
+    {
+      "file": "04-machines-illusions.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "c669d41dfd77fe6618519fe9305d0f70addd2d13bc2918ed342045c126b9d734"
+    },
+    {
+      "file": "06-cast-backstage.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "0904dab5613d35a6aa99816d5dcedc9a562b274400c395c672ecb6f58ebbf2c3"
+    },
+    {
+      "file": "07-cast-elites.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "db0f6ecae10cd36b219d43773ff6343e0c2e892a896b0d428171b27dd5e568f1"
+    },
+    {
+      "file": "08-expanded-stage-map.png",
+      "width": 2172,
+      "height": 724,
+      "sha256": "5f44a3499f5671897b2b27978bcc541641635b5593fef9b8baf454d86faae815"
+    }
+  ]
+}

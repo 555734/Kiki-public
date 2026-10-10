@@ -1,0 +1,52 @@
+[
+  {
+    "source": "assets/characters/runner_idle.png",
+    "copy": "references/runner_idle.png",
+    "sha256": "77f5464c685deed831debff4c25f1603b28bf6ddc77212d277e9c942e47310e0"
+  },
+  {
+    "source": "assets/characters/runner_run.png",
+    "copy": "references/runner_run.png",
+    "sha256": "c2dc206cae36ff27243c650a1b581603cbff0ba789f1f7bff0e57d24ca09c414"
+  },
+  {
+    "source": "assets/characters/runner_jump.png",
+    "copy": "references/runner_jump.png",
+    "sha256": "5f8848f5636d6fc11af1ce249370d79906d91fbb3cd500fe74e86afc397f6a43"
+  },
+  {
+    "source": "assets/characters/runner_fall.png",
+    "copy": "references/runner_fall.png",
+    "sha256": "0013501276f0dff51a12a7c912b93ed09229eb543bdc78d603e1a6f3bfcba72b"
+  },
+  {
+    "source": "assets/characters/runner_land.png",
+    "copy": "references/runner_land.png",
+    "sha256": "f939eb357069485e00ca2591ae346c8035fd50e5812719ecc232bbf287ebe47c"
+  },
+  {
+    "source": "assets/characters/runner_dash.png",
+    "copy": "references/runner_dash.png",
+    "sha256": "28f11f698be63c6dc4758baf3a20f8e853213c0c26d52895d3859e91d139cdf6"
+  },
+  {
+    "source": "assets/characters/runner_reach.png",
+    "copy": "references/runner_reach.png",
+    "sha256": "1e866f73e71a26c14e981f7998880b93bb32505cd7a67e5718d0c74b95eecd52"
+  },
+  {
+    "source": "assets/characters/runner_cheer.png",
+    "copy": "references/runner_cheer.png",
+    "sha256": "6abeac4340b8ab0bd5693299614c56559935028f7693b45a58aa8f814bf903b2"
+  },
+  {
+    "source": "assets/ui/portrait_lira.png",
+    "copy": "references/portrait_lira.png",
+    "sha256": "0fb80cd08945b54591e27cc92a8871e24ca4ae27d150107c02f3fb6ede943ba0"
+  },
+  {
+    "source": "assets/ui/portrait_orion.png",
+    "copy": "references/portrait_orion.png",
+    "sha256": "aae35d77936affa44b857f0d53ffca9870bab5ab72ab94a7e5447b021c1f42e9"
+  }
+]

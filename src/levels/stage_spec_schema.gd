@@ -3,6 +3,8 @@ extends RefCounted
 ## Accepted data keys mirror the builder and gimmick from_spec readers.
 ## Keep defaults optional; position/type are required for placed entities.
 const ENEMIES := {
+	"parade_actor": ["kind", "bounds", "dir"],
+	"parade_gremlin": ["speed", "dir", "wake", "bounds", "large"],
 	"cave_enemy": ["kind", "patrol", "wander", "dart"],
 	"desert_enemy": ["kind", "patrol"],
 	"chaser": ["speed", "activation", "spawn_distance"],
@@ -18,6 +20,8 @@ const ENEMIES := {
 	"turret": ["aim", "burst"],
 }
 const GIMMICKS := {
+	"parade_device": ["kind", "id", "span", "target"],
+	"parade_machine": ["kind", "id", "period", "phase", "height"],
 	"coastal_hazard": ["kind", "travel", "width", "period", "phase"],
 	"volcanic_hazard": ["kind", "travel", "width", "period", "phase"],
 	"moving_platform": ["span", "travel", "speed", "phase", "style", "one_way"],
@@ -63,18 +67,38 @@ static func _validate(specs: Array, schema: Dictionary, category: String, out: A
 		for key in spec:
 			if key != "type" and key != "pos" and not schema[kind].has(key):
 				out.append(label + ": unknown property " + String(key))
-			elif key in ["pos", "span", "size", "exit", "exit_velocity"] or (kind in ["moving_platform", "volcanic_hazard", "coastal_hazard"] and key == "travel"):
+			elif key in ["pos", "span", "size", "exit", "exit_velocity", "bounds", "target"] or (kind in ["moving_platform", "volcanic_hazard", "coastal_hazard"] and key == "travel"):
 				var vector: Variant = spec[key]
 				if not vector is Vector2 or not vector.is_finite():
 					out.append(label + ": " + String(key) + " must be a finite Vector2")
 				elif key in ["span", "size"] and (vector.x <= 0 or vector.y <= 0):
 					out.append(label + ": " + String(key) + " must have positive dimensions")
-			elif key in ["period", "beat", "phase"] or (kind == "moving_platform" and key == "speed") or (kind in ["volcanic_hazard", "coastal_hazard"] and key == "width"):
+			elif key in ["period", "beat", "phase"] or (kind in ["moving_platform", "parade_gremlin"] and key == "speed") or (kind == "parade_machine" and key == "height") or (kind in ["volcanic_hazard", "coastal_hazard"] and key == "width"):
 				var number: Variant = spec[key]
 				if not (number is int or number is float) or not is_finite(float(number)):
 					out.append(label + ": " + String(key) + " must be finite numeric data")
 				elif key != "phase" and float(number) <= 0:
 					out.append(label + ": " + String(key) + " must be positive")
+		if kind == "parade_machine":
+			if spec.get("kind", "mouth") not in ["mouth", "hammer"]:
+				out.append(label + ": unknown machine kind")
+			if not spec.get("id", "") is String or String(spec.get("id", "")).is_empty():
+				out.append(label + ": a named switch id is required")
+		if kind == "parade_device":
+			if spec.get("kind", "") not in ParadeDevice.KINDS: out.append(label + ": unknown parade device")
+			if not spec.get("id", "") is String or String(spec.get("id", "")).is_empty(): out.append(label + ": a named switch id is required")
+			if not spec.get("target", Vector2.ZERO) is Vector2: out.append(label + ": target must be Vector2")
+		if kind == "parade_actor":
+			if spec.get("kind", "") not in ParadeActor.KINDS: out.append(label + ": unknown parade actor")
+			if spec.get("dir", 1) not in [-1, 1]: out.append(label + ": dir must be -1 or 1")
+			var limits: Variant = spec.get("bounds", Vector2.ZERO)
+			if limits is Vector2 and limits.x >= limits.y: out.append(label + ": bounds must be increasing")
+		if kind == "parade_gremlin":
+			if spec.get("dir", 1) not in [-1, 1]: out.append(label + ": dir must be -1 or 1")
+			var bounds: Variant = spec.get("bounds", Vector2(-1200, 1550))
+			if bounds is Vector2 and bounds.x >= bounds.y: out.append(label + ": bounds must be increasing")
+			var wake: Variant = spec.get("wake", 200.0)
+			if not (wake is int or wake is float) or not is_finite(float(wake)): out.append(label + ": wake must be finite")
 		if kind in ["volcanic_hazard", "coastal_hazard"]:
 			var kinds := ["surge", "anchor"] if kind == "coastal_hazard" else ["geyser", "meteor"]
 			var motion: Variant = spec.get("kind", kinds[0])
