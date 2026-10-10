@@ -762,6 +762,19 @@ func castle_trap(ctx: Dictionary, kind: String) -> HoldableTowerTrap:
 			return n
 	return null
 
+## Take a 1-9 trap out of a shot that is not about it.
+func trap_off(ctx: Dictionary, kind: String) -> void:
+	var trap := castle_trap(ctx, kind)
+	if trap != null:
+		trap.process_mode = Node.PROCESS_MODE_DISABLED
+		trap.visible = false
+
+## The cannon, out of a shot that is not about it.
+func cannon_off(ctx: Dictionary) -> void:
+	for n in (ctx["main"] as Node).get_tree().get_nodes_in_group("enemy"):
+		if n is Turret:
+			n.free()
+
 ## The ground slab of 1-9 that holds `x` on the road.
 static func road_at(x: float) -> Rect2:
 	for g in Stage.ground():
@@ -772,22 +785,18 @@ static func road_at(x: float) -> Rect2:
 
 # ----------------------------------------------------------------------- alone
 
-## 0.0-2.4. Locked on the stair and the spike block: the runner hops up the
-## stair and down, stops right under the block -- looks up -- and it drops.
-## The frame holds on it.
+## 0.0-2.4. Locked on the stair and the spike block: the runner comes off the
+## stair, stops right under the block -- looks up -- and it drops. The frame
+## holds on it.
 func setup_a1_crush(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	hound_off(ctx)
-	place_runner(ctx, Vector2(LevelCastleData.STAIR_X - 230.0, ROAD_Y))
+	place_runner(ctx, Vector2(LevelCastleData.STAIR_X + LevelCastleData.STEP_W * 3.0 + 40.0, ROAD_Y))
 	m.runner.facing = 1
 	ov().fade(0.0, 0.2, 1.0, 0.0)
 	var r := rig(ctx)
 	r.cut_to(Vector2(LevelCastleData.SPIKE_X - 160.0, 250), 1.2)
 	var block := castle_trap(ctx, "piston")
-	var go := pilot(ctx, [
-		{"from": road_at(LevelCastleData.STAIR_X - 230.0), "to": LevelCastleData.stair()[2], "reach": 70.0,
-			"double": true},
-		{"from": LevelCastleData.stair()[2], "to": road_at(LevelCastleData.SPIKE_X)}])
 	var state := {"under": -1}
 	var inner := func(c: Dictionary) -> void:
 		var t: int = c["t"]
@@ -804,10 +813,10 @@ func setup_a1_crush(ctx: Dictionary) -> Callable:
 				block.phase_offset = 0.30 * block.period - Clock.seconds_at(Clock.tick)
 		if int(state["under"]) >= 0:
 			drive(c, 0.0)
-		elif t > -10:
-			go.tick()
-		else:
+		elif t <= T(0.2):
 			drive(c, 0.0)
+		else:
+			drive(c, 1.0)
 	return dies(ctx, inner)
 
 ## 2.4-9.6. One take at the gatehouse, the camera still between its moves.
@@ -827,6 +836,7 @@ func setup_a2_gate(ctx: Dictionary) -> Callable:
 	var gate: LiftGate = null
 	for n in m.get_tree().get_nodes_in_group("lift_gate"):
 		gate = n
+	cannon_off(ctx)
 	var r := rig(ctx)
 	r.cut_to(Vector2(gx - 300.0, 280), 1.0)
 	var t_hound := T(0.9)
@@ -929,9 +939,11 @@ func setup_d1_bridge(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var c0 := LevelCastleData.CHASM
 	var top := LevelCastleData.GROUND_TOP
-	place_runner(ctx, Vector2(c0.x - 300.0, ROAD_Y))
+	place_runner(ctx, Vector2(c0.x - 200.0, ROAD_Y))
 	m.runner.facing = 1
 	hound_off(ctx)
+	trap_off(ctx, "pendulum")
+	trap_off(ctx, "piston")
 	guardian_on(ctx, true)
 	on_call(ctx)
 	var r := rig(ctx)
