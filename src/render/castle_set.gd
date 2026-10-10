@@ -5,11 +5,12 @@ extends Node2D
 ## midday colours.
 ##
 ## Two halves. The static functions paint the stage's own ground for
-## terrain.gd (the road, the keep wall, and the rock and masonry the tunnels
-## and the dungeon are cut through). This node, built by LevelBuilder for 1-9
-## only, paints what stands BEHIND the action: the tunnels' inner walls, the
-## ravine under the broken bridge, the gatehouse towers, the dungeon's walls,
-## the keep's parapet and the castle front round the goal.
+## terrain.gd (the road, the keep wall, and the guardhouse over its passage).
+## This node, built by LevelBuilder for 1-9 only, paints what stands BEHIND
+## the action: the gorge's cliffs, the cannon's tower, the guardhouse's inner
+## wall, the gatehouse towers, the keep's parapet and the castle round the
+## goal. The gorge is open: the valley shows through it, so a frame over the
+## bridge is all sky and distance, not a black hole.
 ##
 ## Every surface first asks Art for its painting (the castle_* keys, see
 ## docs/art-prompts-castle.md) and draws the code version only while that has
@@ -22,8 +23,6 @@ const GRASS := Color("74c84e")
 const GRASS_DARK := Color("3f9437")
 const EARTH := Color("c9a57a")
 const EARTH_DARK := Color("a7845d")
-const ROCK := Color("a99c88")
-const ROCK_DARK := Color("847763")
 const MASONRY := Color("b8b3a6")
 const MASONRY_DARK := Color("8f8a7e")
 const SANDSTONE := Color("e8d3a2")
@@ -42,7 +41,6 @@ func _draw() -> void:
 		_inside(mass)
 	_bastion()
 	_gatehouse()
-	_dungeon_dressing()
 	_keep_dressing()
 	_castle_front()
 
@@ -90,6 +88,7 @@ static func _road(ci: CanvasItem, rect: Rect2, seed_index: int) -> void:
 			var x := rect.position.x + (float(k) + 0.5) * rect.size.x / float(tufts)
 			ci.draw_circle(Vector2(x, rect.position.y - 3.0), 7.0, GRASS)
 		ci.draw_rect(Rect2(rect.position.x, rect.position.y + 5.0, rect.size.x, 3.0), GRASS_DARK)
+	_depth(ci, Rect2(body.position + Vector2(0, 40), body.size - Vector2(0, 40)))
 	_edges(ci, rect)
 	var c := LevelCastleData.CHASM
 	if absf(rect.end.x - c.x) < 1.0:
@@ -132,39 +131,47 @@ static func _keep(ci: CanvasItem, rect: Rect2, seed_index: int) -> void:
 		for j in 6:
 			var y := rect.position.y + 40.0 + 46.0 * float(j) + 12.0 * float(k)
 			ci.draw_circle(Vector2(x + sin(float(j) * 1.7 + k) * 10.0, y), 9.0 - float(j), GRASS_DARK)
+	_depth(ci, Rect2(rect.position + Vector2(0, 60), rect.size - Vector2(0, 60)))
 	_edges(ci, rect)
 
-## The rock (tunnels) or the masonry (dungeon) above a covered stretch. Its
-## bottom edge is a ceiling, finished with a row of arch stones.
-static func _mass(ci: CanvasItem, rect: Rect2, index: int) -> void:
-	var dungeon := index == 2
-	var fill := MASONRY if dungeon else ROCK
-	var dark := MASONRY_DARK if dungeon else ROCK_DARK
-	var key := "castle_dungeon_wall" if dungeon else "castle_ground_tile"
-	if not Art.draw_tiled(ci, key, rect, 384.0, Color(0.92, 0.9, 0.88) if not dungeon else Color.WHITE):
-		ci.draw_rect(rect, fill)
-		if dungeon:
-			_courses(ci, rect, Vector2(84, 52), fill, dark, 401, 1.0)
-		else:
-			_rubble(ci, Rect2(rect.position, rect.size - Vector2(0, 34)), fill, dark, 211 + index * 31)
-	# The arch stones along the ceiling: what says "you go under this".
+## The guardhouse: a stone building the road runs through. Only its lower
+## storeys are drawn -- the solid mass goes on up, past anyone's reach, but
+## above its roof it is sky. Its bottom edge is the passage's ceiling, finished
+## with a row of arch stones.
+static func _mass(ci: CanvasItem, rect: Rect2, _index: int) -> void:
 	var base := rect.end.y
+	var house := Rect2(rect.position.x, base - 300.0, rect.size.x, 300.0)
+	ci.draw_rect(house, MASONRY)
+	_courses(ci, house, Vector2(84, 52), MASONRY, MASONRY_DARK, 401, 1.0)
+	ci.draw_rect(house, OUTLINE, false, 5.0)
+	# Its windows: somebody is on watch.
+	var n_win := maxi(2, int(rect.size.x / 140.0))
+	for k in n_win:
+		var x := rect.position.x + (float(k) + 0.5) * rect.size.x / float(n_win)
+		var win := Rect2(x - 16.0, base - 220.0, 32.0, 56.0)
+		ci.draw_rect(win, INSIDE_DARK)
+		ci.draw_rect(win, OUTLINE, false, 4.0)
+	_battlements(ci, rect.position.x - 10.0, rect.end.x + 10.0, house.position.y, MASONRY, MASONRY_DARK)
+	# The arch stones along the ceiling: what says "you go under this".
 	var n := maxi(2, int(rect.size.x / 64.0))
 	var w := rect.size.x / float(n)
 	for k in n:
 		var block := Rect2(rect.position.x + w * float(k), base - 34.0, w, 34.0)
-		ci.draw_rect(block, MASONRY_DARK if dungeon else ROCK_DARK)
+		ci.draw_rect(block, MASONRY_DARK)
 		ci.draw_rect(block, OUTLINE, false, 3.0)
 	ci.draw_line(Vector2(rect.position.x, base), Vector2(rect.end.x, base), OUTLINE, 5.0)
-	# The two faces the road goes in and out through.
 	for x in [rect.position.x, rect.end.x]:
-		var side := 1.0 if x == rect.position.x else -1.0
-		ci.draw_rect(Rect2(x if side > 0 else x - 26.0, rect.position.y, 26.0, rect.size.y),
-			Color(1, 1, 1, 0.10))
-		ci.draw_line(Vector2(x, rect.position.y), Vector2(x, base), OUTLINE, 5.0)
-	if dungeon:
-		# Battlements: this is the castle's own outer wall.
-		_battlements(ci, rect.position.x, rect.end.x, rect.position.y, MASONRY, MASONRY_DARK)
+		ci.draw_line(Vector2(x, house.position.y), Vector2(x, base), OUTLINE, 5.0)
+
+## The body of the ground falls away into shade below the road, so it reads as
+## the ground under the action and never competes with it for the eye.
+static func _depth(ci: CanvasItem, rect: Rect2) -> void:
+	var steps := 8
+	for k in steps:
+		var y := rect.position.y + 22.0 * float(k)
+		if y >= rect.end.y:
+			break
+		ci.draw_rect(Rect2(rect.position.x, y, rect.size.x, rect.end.y - y), Color(0.12, 0.08, 0.06, 0.09))
 
 static func _edges(ci: CanvasItem, rect: Rect2) -> void:
 	ci.draw_line(rect.position, Vector2(rect.position.x, rect.end.y), OUTLINE, 5.0)
@@ -189,28 +196,6 @@ static func _courses(ci: CanvasItem, rect: Rect2, block: Vector2, fill: Color,
 			x += block.x
 			c += 1
 
-## Rough stone of every size, packed in uneven courses: the hill the road
-## tunnels through, a cliff rather than a wall.
-static func _rubble(ci: CanvasItem, rect: Rect2, fill: Color, dark: Color, seed: int) -> void:
-	var y := rect.position.y
-	var r := 0
-	while y < rect.end.y:
-		var h := minf(46.0 + 30.0 * DrawUtil.hash01(seed + r * 17), rect.end.y - y)
-		var x := rect.position.x
-		var c := 0
-		while x < rect.end.x:
-			var w := minf(60.0 + 80.0 * DrawUtil.hash01(seed + r * 131 + c * 7), rect.end.x - x)
-			var shade := DrawUtil.hash01(seed + r * 71 + c * 3)
-			var block := Rect2(x + 3.0, y + 3.0, w - 6.0, h - 6.0)
-			DrawUtil.rounded_rect(ci, block.grow(2.0), 12.0, Color(OUTLINE, 0.65))
-			DrawUtil.rounded_rect(ci, block, 11.0, fill.lerp(dark, 0.1 + shade * 0.55))
-			ci.draw_rect(Rect2(block.position + Vector2(8, 5), Vector2(maxf(0.0, block.size.x - 16.0), 5.0)),
-				Color(1, 1, 1, 0.13))
-			x += w
-			c += 1
-		y += h
-		r += 1
-
 static func _battlements(ci: CanvasItem, x0: float, x1: float, top: float, fill: Color, dark: Color) -> void:
 	var w := 56.0
 	var x := x0
@@ -224,23 +209,12 @@ static func _battlements(ci: CanvasItem, x0: float, x1: float, top: float, fill:
 
 # ------------------------------------------------------------- the back layer
 
-## Under the broken bridge: the ravine's far wall, darker as it goes down, and
-## the snapped-off ends of the bridge.
+## Under the broken bridge: open air. The valley shows through the gorge, so
+## the drop reads as height and not as a hole; only the snapped-off ends of
+## the bridge hang over it.
 func _ravine() -> void:
 	var c := LevelCastleData.CHASM
 	var top := LevelCastleData.GROUND_TOP
-	# The far side of the ravine, falling away into shadow: dark from the very
-	# lip, so it reads as a drop and never as a floor a little lower down.
-	var wall := Rect2(c.x, top + 8.0, c.y - c.x, LevelCastleData.KILL_Y - top)
-	draw_rect(wall, INSIDE_DARK)
-	_rubble(self, wall, INSIDE, INSIDE_DARK, 733)
-	for k in 12:
-		var y := top + 8.0 + float(k) * 45.0
-		draw_rect(Rect2(c.x, y, c.y - c.x, LevelCastleData.KILL_Y - y), Color(0.03, 0.03, 0.06, 0.16))
-	# Mist hanging in it.
-	for k in 5:
-		var p := Vector2(c.x + 90.0 + 150.0 * float(k), top + 210.0 + 30.0 * sin(float(k) * 2.1))
-		draw_circle(p, 70.0, Color(0.85, 0.9, 1.0, 0.10))
 	for end in [c.x, c.y]:
 		var dir := 1.0 if end == c.x else -1.0
 		if Art.tex("castle_bridge_end") != null:
@@ -267,7 +241,7 @@ func _inside(mass: Rect2) -> void:
 
 ## The round tower the cannon fires from, and its pile of shot.
 func _bastion() -> void:
-	var x := 3780.0
+	var x := LevelCastleData.CANNON_X
 	var ground := LevelCastleData.GROUND_TOP
 	var tower := Rect2(x - 40.0, ground - 330.0, 150.0, 330.0)
 	draw_rect(tower, MASONRY)
@@ -311,32 +285,13 @@ func _pennant(base: Vector2, side: float) -> void:
 	DrawUtil.poly_outlined(self, PackedVector2Array([base + Vector2(0, -90),
 		base + Vector2(side * 56.0, -74), base + Vector2(0, -58)]), PENNANT, OUTLINE, 3.0)
 
-## Iron rings and dead torches on the dungeon's wall: only the finger's light
-## ever shows them.
-func _dungeon_dressing() -> void:
-	var d := LevelCastleData.DUNGEON
-	var x := d.x + 120.0
-	while x < d.y - 60.0:
-		_torch(Vector2(x, 260.0))
-		draw_arc(Vector2(x + 110.0, 330.0), 14.0, 0.0, TAU, 16, Color("5d5a60"), 5.0)
-		x += 260.0
-
-func _torch(at: Vector2) -> void:
-	var t := Art.tex("castle_torch")
-	if t != null:
-		draw_texture_rect(t, Rect2(at - Vector2(30, 40), Vector2(60, 81)), false)
-		return
-	draw_rect(Rect2(at + Vector2(-14, 18), Vector2(28, 8)), Color("2f2a28"))
-	draw_colored_polygon(PackedVector2Array([at + Vector2(-10, -18), at + Vector2(10, -18),
-		at + Vector2(5, 24), at + Vector2(-5, 24)]), Color("5a3b26"))
-	draw_circle(at + Vector2(0, -20), 11.0, Color("1d1a1a"))
-
 ## A parapet behind the walk along the top of the keep, and banners down its face.
 func _keep_dressing() -> void:
 	var top := LevelCastleData.KEEP_TOP
 	var x0 := LevelCastleData.KEEP_X
-	draw_rect(Rect2(x0, top - 54.0, 9300.0 - x0, 54.0), SANDSTONE_DARK)
-	_battlements(self, x0, 9300.0, top - 54.0, SANDSTONE, SANDSTONE_DARK)
+	var x1 := LevelCastleData.KEEP_END
+	draw_rect(Rect2(x0, top - 54.0, x1 - x0, 54.0), SANDSTONE_DARK)
+	_battlements(self, x0, x1, top - 54.0, SANDSTONE, SANDSTONE_DARK)
 	for x in [x0 + 300.0, x0 + 560.0]:
 		var banner := Rect2(x - 34.0, top + 60.0, 68.0, 170.0)
 		draw_rect(banner, PENNANT)

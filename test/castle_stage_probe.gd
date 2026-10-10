@@ -24,7 +24,7 @@ func run() -> void:
 	check(Stage.stage_number() == "1-9" and Stage.stage_name() == "THE KING'S ROAD" and Stage.is_castle(),
 		"stage identity")
 	check(Stage.current() == Stage.Which.size() - 1, "1-9 was added at the end of the handshake enum")
-	check(Castle.sections().size() == 8, "eight obstacles, one to a screen")
+	check(Castle.sections().size() == 7, "seven obstacles, in three places")
 
 	# What the runner can do alone, at best: a sprinting triple jump.
 	var best_height := Balance.RUNNER_JUMP_HEIGHT * (1.0 + Balance.RUNNER_SPRINT_JUMP_BONUS) \
@@ -38,18 +38,21 @@ func run() -> void:
 	var low := true
 	for m in masses:
 		low = low and Castle.GROUND_TOP - m.end.y < 260.0 and Castle.GROUND_TOP - m.position.y > best_height * 3.0
-	check(masses.size() == 3 and low, "B, D, F: covered stretches cannot be gone over")
-	var bats := 0
-	var at_head := true
+	check(masses.size() == 1 and low, "D: the guardhouse passage cannot be gone over")
+	# B: the swarm is a column with no gap a runner fits through, from the road
+	# to above the top of the best jump.
+	var ys: Array = []
 	for spec in Stage.enemies():
 		if String(spec.get("type", "")) == "cave_enemy" and String(spec.get("kind", "")) == "bat":
-			bats += 1
-			var y: float = (spec["pos"] as Vector2).y
-			var wander: Vector2 = spec.get("wander", Vector2.ZERO)
-			# A bat's box is 45 tall, the runner 46 standing on the road.
-			at_head = at_head and y - wander.y + 22.0 > Castle.GROUND_TOP - 46.0 \
-				and spec["pos"].x > Castle.TUNNEL_B.x and spec["pos"].x < Castle.TUNNEL_B.y
-	check(bats >= 6 and at_head, "B: the tunnel's bats are always at the runner's height")
+			ys.append((spec["pos"] as Vector2).y)
+	ys.sort()
+	var tight := ys.size() >= 6
+	for k in range(1, ys.size()):
+		# A bat's box is 45 tall, the runner 46.
+		tight = tight and float(ys[k]) - float(ys[k - 1]) < 46.0
+	check(tight and float(ys[ys.size() - 1]) + 22.0 > Castle.GROUND_TOP - 46.0
+		and float(ys[0]) - 22.0 < Castle.GROUND_TOP - best_height - 46.0,
+		"B: the swarm closes the road from the ground to past any jump")
 	var keep_height := Castle.GROUND_TOP - Castle.KEEP_TOP
 	check(keep_height > best_height * 1.5 and keep_height < Balance.SLING_HEIGHT,
 		"G: the keep wall is past any jump and within the slingshot (%.0f)" % keep_height)
@@ -74,7 +77,6 @@ func run() -> void:
 	var golem: SkyGolem = null
 	var turret: Turret = null
 	var boulder: CaveTrap = null
-	var dark := false
 	for node in get_tree().get_nodes_in_group("enemy"):
 		if node.get_script() == SkyPursuerScript: pursuer = node
 		if node is SkyGolem: golem = node
@@ -82,8 +84,7 @@ func run() -> void:
 	for node in get_tree().get_nodes_in_group("hand_holdable"):
 		if node is LiftGate: gate = node
 		if node is CaveTrap: boulder = node
-	dark = get_tree().get_first_node_in_group("darkness") != null
-	check(pursuer != null and gate != null and golem != null and turret != null and boulder != null and dark,
+	check(pursuer != null and gate != null and golem != null and turret != null and boulder != null,
 		"every obstacle is built")
 	if failures.is_empty():
 		# E: the hound is shut out by the dropped gate, however far ahead the
@@ -95,7 +96,8 @@ func run() -> void:
 		pursuer._wake_left = 0.0
 		await _physics(150)
 		check(pursuer.global_position.x < Castle.GATE_X, "E: a shut gate holds the hound")
-		r.global_position = Vector2(7000.0, Castle.GROUND_TOP - 23.0)
+		# Far enough ahead that an ungated hound would jump to catch up.
+		r.global_position = Vector2(Castle.KEEP_X + 400.0, Castle.KEEP_TOP - 23.0)
 		await _physics(90)
 		check(pursuer.global_position.x < Castle.GATE_X and r.state != Runner.State.DEAD,
 			"E: and keeps holding it when the runner is far ahead")
