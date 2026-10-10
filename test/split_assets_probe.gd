@@ -14,7 +14,7 @@ func _ready() -> void:
 		if String(key).begins_with("s1"):
 			count += 1
 			check(Art.tex(key) != null, "imported: " + String(key))
-	check(count == 240, "236 supplied assets and four generated coastal/volcanic sprites are registered")
+	check(count == 245, "236 supplied assets, four coastal/volcanic sprites and five parade sprites are registered")
 	for stage in [Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS,
 			Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
 		Stage.use(stage)
