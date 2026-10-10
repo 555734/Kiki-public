@@ -759,8 +759,8 @@ static func road_at(x: float) -> Rect2:
 # ----------------------------------------------------------------------- alone
 
 ## 0.0-2.4. Locked on the boulder tunnel, the boulder already in it: the
-## runner sprints in from the edge of the frame and is crushed. Only then the
-## camera goes in, fast, on what is left -- and holds.
+## runner sprints in from the edge of the frame and is crushed -- and the
+## frame holds on it.
 func setup_a1_boulder(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
 	var td := LevelCastleData.TUNNEL_D
@@ -769,17 +769,10 @@ func setup_a1_boulder(ctx: Dictionary) -> Callable:
 	m.runner.facing = 1
 	ov().fade(0.0, 0.2, 1.0, 0.0)
 	var r := rig(ctx)
-	r.cut_to(Vector2(td.x + 220.0, 300), 1.15)
-	var state := {"dead": -1}
+	r.cut_to(Vector2(td.x + 200.0, 305), 1.15)
 	var inner := func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		var rn: Runner = m.runner
-		var dead := rn.state == Runner.State.DEAD
-		if dead and int(state["dead"]) < 0:
-			state["dead"] = t
-		if int(state["dead"]) >= 0 and t == int(state["dead"]) + T(0.35):
-			r.move(rn.global_position + Vector2(0, -50), 2.0, T(0.3))
-		drive(c, 1.0 if t > -6 and not dead else 0.0)
+		var dead: bool = m.runner.state == Runner.State.DEAD
+		drive(c, 1.0 if int(c["t"]) > -6 and not dead else 0.0)
 	return dies(ctx, inner)
 
 # ------------------------------------------------------------------- the call
@@ -803,18 +796,19 @@ func setup_a2_gate(ctx: Dictionary) -> Callable:
 		gate = n
 	var r := rig(ctx)
 	r.cut_to(Vector2(gx - 300.0, 280), 1.0)
-	var t_hound := T(1.0)
+	var t_hound := T(0.9)
 	var hound_stop := gx - 560.0
-	var t_ring := T(2.0)
-	var t_answer := T(3.2)
-	var t_finger := T(3.5)
-	var t_tag := T(4.0)
-	var t_press := T(4.95)
-	var t_run := T(5.2)
-	var t_charge := T(5.3)
-	var t_drop := T(6.05)
-	ov().voice_call(CALLER, 2.0, 3.2, INF, ["LIRA", CALLER])
-	ov().tap(3.2, ov().call_answer_point())
+	var t_ring := T(1.8)
+	var t_answer := T(2.9)
+	var t_finger := T(3.2)
+	var t_tag := T(3.7)
+	var t_press := T(4.55)
+	var t_run := T(4.8)
+	var t_drop := T(5.6)
+	# Late enough that the bars are down before it gets there.
+	var t_charge := T(5.45)
+	ov().voice_call(CALLER, 1.8, 2.9, INF, ["LIRA", CALLER])
+	ov().tap(2.9, ov().call_answer_point())
 	var hello := Vector2(gx + 40.0, 250)
 	var state := {"stopped": -1, "pressed": false, "released": false, "lift": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
@@ -854,7 +848,7 @@ func setup_a2_gate(ctx: Dictionary) -> Callable:
 			guardian_on(c)
 			hub.aim_at_world(hello)
 			rn.visual.react(2, 1.4)
-			r.move(Vector2(gx - 190.0, 262), 1.25, T(0.45))
+			r.move(Vector2(gx - 215.0, 262), 1.15, T(0.45))
 		if t >= t_finger:
 			tag_finger(c)
 		if t == t_tag:
