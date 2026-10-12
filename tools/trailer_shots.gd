@@ -9,38 +9,37 @@ const W := Stage.Which
 
 var cap: Node = null
 
-## The call, all of it on 1-9 -- the stage built for it. Shot the way the
-## reference is: the camera holds still on a frame that has the whole of a
-## moment in it -- the setup, the act, the result -- and moves only between
-## moments, fast: in on a face, or in on a death the instant it happens, held.
+## The call on 1-9, the stage built for it, and what follows across the whole
+## game -- other stages, and the star battle. Shot the way the reference is:
+## the camera holds still on a frame that has the whole of a moment in it --
+## the setup, the act, the result -- and moves only between moments, fast: in
+## on a face, or in on a death the instant it happens, held.
 ## Film seconds:
-##    0.0  alone, three times over, each in one locked frame: crushed under the
-##         spike block, smashed by the spiked ball, blown up by the cannon --
-##         and each time the camera snaps in on it and holds.
-##    5.4  one take at the gatehouse. The gate is shut; the hound comes and
+##    0.0  alone, three times over, on three stages: crushed under 1-9's
+##         spike block, into 1-3's spikes, run down by 1-8's boulder -- each time the camera snaps in on it and holds.
+##    5.6  one take at 1-9's gatehouse. The gate is shut; the hound comes and
 ##         waits. The phone rings -- in close on the face -- the finger comes
 ##         -- THIS IS YOU -- and holds the gate up; the hound gets the bars.
-##   12.6  the drop: each trick in one locked frame, start to finish -- the
-##         hound shot off their heels, the spiked ball held still, the
-##         cannonball sent home, the bridge drawn over the moat -- and the
-##         spike block let go of a beat too soon, on the runner's head -- the
-##         slingshot, the giant flicked away.
-##   31.2  in close at the castle door, slowly back to the whole castle and
-##         the title.
+##   12.8  the drop, one trick a shot across the game, the star battle
+##         between: 1-6's bridge, the brawl in close, 1-7's bullet sent home, 1-9's
+##         spike block let go of a beat too soon, eight of them in a brawl,
+##         1-8's bats swept away, 1-3's golem flicked, the brawl in close.
+##   33.8  in close at 1-9's castle door, slowly back to the title.
 func list() -> Array:
 	return [
 		{"name": "a1_crush", "stage": W.CASTLE, "until": 2.0, "preroll": 30},
-		{"name": "a1b_ball", "stage": W.CASTLE, "until": 3.6, "preroll": 30},
-		{"name": "a1d_cannon", "stage": W.CASTLE, "until": 5.4, "preroll": 30},
-		{"name": "a2_gate", "stage": W.CASTLE, "until": 12.6, "preroll": 30},
-		{"name": "d1b_snipe", "stage": W.CASTLE, "until": 15.0, "preroll": 30},
-		{"name": "d2_ball", "stage": W.CASTLE, "until": 17.4, "preroll": 30},
-		{"name": "d3_cannon", "stage": W.CASTLE, "until": 20.2, "preroll": 30},
-		{"name": "d1_bridge", "stage": W.CASTLE, "until": 22.6, "preroll": 30},
-		{"name": "d4_block", "stage": W.CASTLE, "until": 25.2, "preroll": 30},
-		{"name": "d6_sling", "stage": W.CASTLE, "until": 27.6, "preroll": 30},
-		{"name": "d7_golem", "stage": W.CASTLE, "until": 31.2, "preroll": 30},
-		{"name": "e1_title", "stage": W.CASTLE, "until": 36.6, "preroll": 30},
+		{"name": "f2_spikes", "stage": W.SKYWARD_RUINS, "until": 3.8, "preroll": 30},
+		{"name": "f3_boulder", "stage": W.CAVE, "until": 5.6, "preroll": 30},
+		{"name": "a2_gate", "stage": W.CASTLE, "until": 12.8, "preroll": 30},
+		{"name": "x_bridge", "stage": W.DESERT, "until": 15.4, "preroll": 30},
+		{"name": "vs_duel", "ffa": true, "until": 17.6, "preroll": 90 + 180 + 60},
+		{"name": "x_bullet", "stage": W.TOWER, "until": 20.6, "preroll": 100},
+		{"name": "d4_block", "stage": W.CASTLE, "until": 23.2, "preroll": 30},
+		{"name": "vs_brawl", "ffa": true, "until": 25.4, "preroll": 90 + 180 + 300},
+		{"name": "x_bats", "stage": W.CAVE, "until": 28.0, "preroll": 30},
+		{"name": "x_golem", "stage": W.SKYWARD_RUINS, "until": 31.6, "preroll": 30},
+		{"name": "vs_close", "ffa": true, "until": 33.8, "preroll": 90 + 180 + 420},
+		{"name": "e1_title", "stage": W.CASTLE, "until": 39.2, "preroll": 30},
 	]
 
 # --------------------------------------------------------------------- helpers
@@ -690,7 +689,8 @@ func place_wall(ctx: Dictionary, at: Vector2) -> void:
 
 # ------------------------------------------------------------------ the hand
 
-const CALLER := "ORION"
+## The finger's name on the call and on the finger itself: it is the viewer's.
+const CALLER := "YOU"
 
 ## The guardian's finger on the screen, at a world point -- through the real
 ## touch path, so the hand, the cursor and the act are the game's own.
@@ -872,7 +872,7 @@ func setup_a1d_cannon(ctx: Dictionary) -> Callable:
 		var t: int = c["t"]
 		drive(c, 1.0 if t > T(0.1) and m.runner.state != Runner.State.DEAD else 0.0))
 
-## 5.4-12.6. One take at the gatehouse, the camera still between its moves.
+## 5.6-12.8. One take at the gatehouse, the camera still between its moves.
 ## Wide: the runner comes up against the shut gate and looks back; the hound
 ## comes over the moat behind them and stops there, barking.
 ## The phone rings: fast in on the face, held through the call. The finger
@@ -1159,7 +1159,7 @@ func setup_d3_cannon(ctx: Dictionary) -> Callable:
 			finger_up(c, at)
 			state["done"] = t
 
-## 22.6-25.2. Locked on the spike block over the road: the finger takes it
+## 20.6-23.2. Locked on the spike block over the road: the finger takes it
 ## at the top and holds it; the runner goes under, stops there and looks up --
 ## and the finger lets go. Crushed; the camera snaps in on it.
 func setup_d4_block(ctx: Dictionary) -> Callable:
@@ -1289,6 +1289,206 @@ func setup_d7_golem(ctx: Dictionary) -> Callable:
 			finger_up(c, at + Vector2(230, -300))
 			cap.cue("slam")
 			c["speed"] = 0.5
+
+# ------------------------------------------------------------ other stages
+#
+# The call is on 1-9; what the finger can do is shown across the game.
+
+## 2.0-3.8. 1-3: flat out along the first island, on the last heart, and
+## straight into the spikes.
+func setup_f2_spikes(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	var island := Rect2(-520, 6380, 760, 150)
+	place_runner(ctx, on_ledge(island, 0.05))
+	m.runner.hp = 1
+	var r := rig(ctx)
+	r.zoom_from = 1.7
+	r.zoom_to = 1.8
+	r.zoom_ticks = T(1.2)
+	r.offset = Vector2(40, -20)
+	r.dead_y = 40.0
+	return dies(ctx, func(c: Dictionary) -> void:
+		drive(c, 1.0 if int(c["t"]) > -20 and m.runner.state != Runner.State.DEAD else 0.0, false, true))
+
+## 3.8-5.6. 1-8: a boulder rolling along the ledge the runner is on -- and over them.
+func setup_f3_boulder(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(-110, 12084))
+	clear_enemies(ctx, Rect2(-600, 11700, 1200, 600))
+	var r := rig(ctx)
+	r.zoom_from = 1.6
+	r.zoom_to = 1.7
+	r.zoom_ticks = T(1.8)
+	r.offset = Vector2(60, -40)
+	r.lead = 0.0
+	r.dead_y = 40.0
+	return dies(ctx, func(c: Dictionary) -> void:
+		drive(c, 1.0 if int(c["t"]) > -10 and m.runner.state != Runner.State.DEAD else 0.0))
+
+## 12.8-15.4. 1-6: two strokes, a bridge, and the runner never breaks stride.
+func setup_x_bridge(ctx: Dictionary) -> Callable:
+	var step: Dictionary = route_steps("mirage_crossing")[0]
+	var a: Rect2 = step["from"]
+	var b: Rect2 = step["to"]
+	place_runner(ctx, on_ledge(a, 0.1))
+	clear_enemies(ctx, Rect2(a.position - Vector2(300, 600), Vector2(1700, 1000)))
+	guardian_on(ctx, true)
+	on_call(ctx)
+	cap.cue("drive_in")
+	var r := rig(ctx)
+	r.zoom_from = 1.0
+	r.zoom_to = 1.05
+	r.zoom_ticks = T(2.8)
+	r.offset = Vector2(200, -40)
+	r.dead_y = 80.0
+	var mid := (a.end.x + b.position.x) * 0.5
+	var mid_y := lerpf(a.position.y, b.position.y, 0.5)
+	var lines := [
+		arc_line(Vector2(a.end.x + 18, a.position.y + 13), Vector2(mid - 10, mid_y + 13), -14.0),
+		arc_line(Vector2(mid + 14, mid_y + 15), Vector2(b.position.x - 16, b.position.y + 13), -12.0),
+	]
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		tag_finger(c)
+		draw_stroke(c, t, T(0.05), T(0.4), lines[0])
+		draw_stroke(c, t, T(0.75), T(0.4), lines[1])
+		drive(c, 1.0 if t >= 6 else 0.0, false, true)
+
+## 17.6-20.6. 1-7: the turret fires; the finger pinches a bullet out of the
+## air and lets it go -- straight home.
+func setup_x_bullet(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(140, 6994))
+	m.runner.facing = -1
+	guardian_on(ctx)
+	on_call(ctx)
+	var r := rig(ctx)
+	r.follow = null
+	r.cut_to(Vector2(-90, 6900), 1.35)
+	# Where the finger waits for one, in the line of fire.
+	var spot := Vector2(-90, 6889)
+	var state := {"held": null, "t": -1, "done": false}
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		tag_finger(c)
+		drive(c, 0.0)
+		if bool(state["done"]):
+			return
+		var held = state["held"]
+		if held == null:
+			m.input_hub.aim_at_world(spot + Vector2(0, -6))
+			if t < 0:
+				return
+			for n in m.get_tree().get_nodes_in_group("projectile"):
+				var p := n as Projectile
+				if p != null and p.state == Projectile.State.FLYING \
+						and p.global_position.distance_to(spot) < 24.0:
+					finger_down(c, p.global_position)
+					state["held"] = p
+					state["t"] = t
+					break
+			return
+		var since := t - int(state["t"])
+		if since < T(0.55):
+			# Held up to have a look at it, then let go.
+			finger_move(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
+		elif since == T(0.55):
+			finger_up(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
+			state["done"] = true
+
+## 25.4-28.0. 1-8: bats in the updraft; one sweep of the hand.
+func setup_x_bats(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(-250, 12834))
+	m.runner.facing = 1
+	guardian_on(ctx)
+	on_call(ctx)
+	var r := rig(ctx)
+	r.follow = null
+	r.cut_to(Vector2(-40, 12560), 1.15)
+	var bats: Array = []
+	for n in m.get_tree().get_nodes_in_group("swipeable"):
+		if (n as Node2D).global_position.distance_to(Vector2(50, 12520)) < 260.0:
+			bats.append(n)
+	var state := {"sweep": PackedVector2Array()}
+	var t_sweep := T(0.6)
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		var rn: Runner = m.runner
+		tag_finger(c)
+		# The sweep goes through where the bats are when it starts.
+		if t == t_sweep:
+			var live: Array = bats.filter(func(b): return is_instance_valid(b))
+			live.sort_custom(func(x, y): return (x as Node2D).global_position.y < (y as Node2D).global_position.y)
+			var pts := PackedVector2Array()
+			if not live.is_empty():
+				pts.append((live[0] as Node2D).global_position + Vector2(-30, -70))
+				for b in live:
+					pts.append((b as Node2D).global_position)
+				pts.append((live[live.size() - 1] as Node2D).global_position + Vector2(30, 70))
+			state["sweep"] = pts
+		var sweep: PackedVector2Array = state["sweep"]
+		if t < t_sweep and not bats.is_empty() and is_instance_valid(bats[0]):
+			m.input_hub.aim_at_world((bats[0] as Node2D).global_position + Vector2(-30, -80))
+		if not sweep.is_empty():
+			draw_stroke(c, t, t_sweep, 8, sweep)
+		if t == t_sweep + 30:
+			r.follow = rn
+			r.offset = Vector2(60, -140)
+			r.smooth_y = 6.0
+		# Into the updraft, with a hop at the edge.
+		var go := t >= T(1.0)
+		drive(c, 1.0 if go and rn.global_position.x < 60.0 else 0.0,
+			go and rn.global_position.x > -150.0 and rn.global_position.x < -90.0)
+
+## 28.0-31.6. 1-3: a golem in the way. One flick.
+func setup_x_golem(ctx: Dictionary) -> Callable:
+	var m: Node2D = ctx["main"]
+	place_runner(ctx, Vector2(160, 494))
+	m.runner.facing = -1
+	guardian_on(ctx)
+	on_call(ctx)
+	var golem: Node2D = null
+	for n in m.get_tree().get_nodes_in_group("flickable"):
+		if (n as Node2D).global_position.distance_to(Vector2(-300, 485)) < 300.0:
+			golem = n
+	var r := rig(ctx)
+	r.follow = null
+	r.cut_to(Vector2(-90, 400), 1.25)
+	var state := {"at": Vector2.ZERO}
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		tag_finger(c)
+		drive(c, 1.0 if t > T(1.6) else 0.0)
+		if golem == null or not is_instance_valid(golem):
+			return
+		if t < T(0.9):
+			m.input_hub.aim_at_world(golem.global_position + Vector2(40, -30))
+		if t == T(0.9):
+			state["at"] = golem.global_position
+			finger_down(c, golem.global_position)
+		var at: Vector2 = state["at"]
+		if t == T(0.9) + 6:
+			finger_move(c, at + Vector2(-60, -90))
+		if t == T(0.9) + 8:
+			finger_move(c, at + Vector2(-200, -260))
+		if t == T(0.9) + 9:
+			finger_up(c, at + Vector2(-230, -300))
+
+# ------------------------------------------------------------------ versus
+
+## 15.4-17.6. みんなで スターたいせん: in tight on one of the eight, and back
+## to hold the brawl.
+func setup_vs_duel(ctx: Dictionary) -> Callable:
+	return ffa_play(ctx, 1.15, true, 2.6)
+
+## 23.2-25.4. みんなで スターたいせん: eight of them in one brawl, framed to hold them.
+func setup_vs_brawl(ctx: Dictionary) -> Callable:
+	return ffa_play(ctx, 1.0, true)
+
+## 31.6-33.8. みんなで スターたいせん again, in close on one of them.
+func setup_vs_close(ctx: Dictionary) -> Callable:
+	return ffa_play(ctx, 1.7, false)
 
 # ----------------------------------------------------------------------- end
 
