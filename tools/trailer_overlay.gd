@@ -54,6 +54,10 @@ var finger_name := ""
 var finger_at := Vector2(INF, INF)
 ## A finger tapping the screen itself (the call's answer button): [at_sec, pos].
 var _taps: Array = []
+## The star battle's score, drawn clean in place of the game's busy HUD:
+## {"a": held, "b": held, "ca": colour, "cb": colour, "win": "" or "A"/"B"}.
+## Set from the shot every tick; empty is nothing.
+var score := {}
 
 func _ready() -> void:
 	layer = 90
@@ -142,6 +146,8 @@ func _draw_all() -> void:
 		_draw_call()
 	for tap in _taps:
 		_draw_tap(tap)
+	if not score.is_empty():
+		_draw_score()
 	if not _note.is_empty():
 		_draw_note()
 	if not _card.is_empty():
@@ -811,3 +817,39 @@ func _draw_finger_tag() -> void:
 	_rounded(r, 15.0, Color(0.21, 0.84, 1.0, 0.95), null)
 	BODY_FONT.draw_string(ci, r.position + Vector2(11, 22), finger_name,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.03, 0.10, 0.16))
+
+## Two rows of seven stars racing out from the middle, the rule under them,
+## and the winner's name when somebody gets there.
+func _draw_score() -> void:
+	var ci := _canvas.get_canvas_item()
+	var panel := Rect2(640 - 300, 22, 600, 92)
+	_rounded(panel, 18.0, Color(0.05, 0.07, 0.16, 0.78), null)
+	for team in 2:
+		var held := int(score["a" if team == 0 else "b"])
+		var col: Color = score["ca" if team == 0 else "cb"]
+		var side := -1.0 if team == 0 else 1.0
+		TAG_FONT.draw_string(ci, Vector2(640 + side * 262 - 16, 78), "A" if team == 0 else "B",
+			HORIZONTAL_ALIGNMENT_CENTER, 32, 48, col.lightened(0.25))
+		for k in 7:
+			var at := Vector2(640 + side * (52 + k * 29), 60)
+			_star_shape(at, 12.5, Color(1.0, 0.83, 0.25) if k < held else Color(1, 1, 1, 0.14))
+	TAG_FONT.draw_string(ci, Vector2(640 - 24, 72), "VS", HORIZONTAL_ALIGNMENT_CENTER, 48, 30, Color(1, 1, 1, 0.75))
+	TAG_FONT.draw_string(ci, Vector2(340, 106), "FIRST TO 7 STARS WINS", HORIZONTAL_ALIGNMENT_CENTER, 600, 24,
+		Color(1, 1, 1, 0.8))
+	var win := String(score.get("win", ""))
+	if win != "":
+		var text := win + " WINS!"
+		var size := 150
+		var w := TAG_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var pos := Vector2(640 - w * 0.5, 300)
+		var col: Color = score["ca" if win == "A" else "cb"]
+		TAG_FONT.draw_string(ci, pos + Vector2(0, 7), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, 0.35))
+		TAG_FONT.draw_string_outline(ci, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 14, INK)
+		TAG_FONT.draw_string(ci, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col.lightened(0.45))
+
+func _star_shape(at: Vector2, r: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 10:
+		var ang := -PI * 0.5 + float(i) * PI / 5.0
+		pts.append(at + Vector2(cos(ang), sin(ang)) * (r if i % 2 == 0 else r * 0.45))
+	_canvas.draw_colored_polygon(pts, col)

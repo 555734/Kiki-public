@@ -32,13 +32,11 @@ func list() -> Array:
 		{"name": "f3_boulder", "stage": W.CAVE, "until": 5.6, "preroll": 30},
 		{"name": "a2_gate", "stage": W.CASTLE, "until": 12.8, "preroll": 30},
 		{"name": "x_bridge", "stage": W.DESERT, "until": 15.4, "preroll": 30},
-		{"name": "vs_steal", "arena": true, "until": 18.6, "preroll": 300},
-		{"name": "x_boulder", "stage": W.CAVE, "until": 21.4, "preroll": 30},
-		{"name": "d4_block", "stage": W.CASTLE, "until": 24.0, "preroll": 30},
-		{"name": "vs_brawl", "ffa": true, "until": 26.4, "preroll": 90 + 180 + 480},
-		{"name": "x_golem", "stage": W.SKYWARD_RUINS, "until": 29.2, "preroll": 30},
-		{"name": "vs_close", "ffa": true, "until": 31.6, "preroll": 90 + 180 + 720},
-		{"name": "e1_title", "stage": W.CASTLE, "until": 37.0, "preroll": 30},
+		{"name": "x_boulder", "stage": W.CAVE, "until": 18.2, "preroll": 30},
+		{"name": "d4_block", "stage": W.CASTLE, "until": 20.8, "preroll": 30},
+		{"name": "x_golem", "stage": W.SKYWARD_RUINS, "until": 23.6, "preroll": 30},
+		{"name": "vs_win", "arena": true, "until": 26.0, "preroll": 900},
+		{"name": "e1_title", "stage": W.CASTLE, "until": 31.4, "preroll": 30},
 	]
 
 # --------------------------------------------------------------------- helpers
@@ -1414,7 +1412,8 @@ func setup_x_golem(ctx: Dictionary) -> Callable:
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
 		tag_finger(c)
-		drive(c, 1.0 if t > T(1.6) else 0.0)
+		# The way is clear: on through where it stood.
+		drive(c, -1.0 if t > T(1.15) else 0.0)
 		if golem == null or not is_instance_valid(golem):
 			return
 		if t < T(0.9):
@@ -1432,61 +1431,21 @@ func setup_x_golem(ctx: Dictionary) -> Callable:
 
 # ------------------------------------------------------------------ versus
 
-## みんなで スターたいせん, in close on the scrum: the runners bunched nearest
-## the middle of the pack, and the loose star when it is near them, so the
-## grab and the stomp that knocks one loose fill the frame. Wider only as far
-## as it takes to hold them.
-func star_cam(ctx: Dictionary, zoom: float) -> Callable:
-	var inner := ffa_play(ctx, zoom, false)
-	var host: Node = ctx["arena"]
-	var state := {"z": zoom}
-	return func(c: Dictionary) -> void:
-		inner.call(c)
-		var cam: Camera2D = host.view.camera
-		var p0: Vector2 = host.runners[0].global_position
-		var pts: Array = []
-		for r in host.runners:
-			if r.visible:
-				pts.append(VersusStageData.nearest_image(r.global_position, p0))
-		if pts.is_empty():
-			return
-		var xs: Array = pts.map(func(v: Vector2) -> float: return v.x)
-		var ys: Array = pts.map(func(v: Vector2) -> float: return v.y)
-		xs.sort()
-		ys.sort()
-		var mid := Vector2(xs[xs.size() / 2], ys[ys.size() / 2])
-		var box := Rect2(mid, Vector2.ZERO)
-		for v in pts:
-			if v.distance_to(mid) < 260.0:
-				box = box.expand(v)
-		for coin in host.coins():
-			if int(coin["state"]) == ArenaCoin.State.WORLD:
-				var star: Vector2 = VersusStageData.nearest_image(coin["position"], mid)
-				if star.distance_to(box.get_center()) < 340.0:
-					box = box.expand(star)
-		var view := Vector2(1280, 720) / VersusRules.CAMERA_ZOOM
-		var want_z := clampf(minf(view.x / (box.size.x + 260.0), view.y / (box.size.y + 220.0)), 1.25, zoom)
-		var first := int(c["t"]) <= 0
-		state["z"] = want_z if first else lerpf(float(state["z"]), want_z, 0.06)
-		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * float(state["z"])
-		var to := box.get_center() + Vector2(0, -30) - cam.global_position
-		cam.offset = to if first else cam.offset.lerp(to, 0.10)
-
-## スターたいせん, staged with the match's own rules on the one-device match
-## (both seats steered here): one runner has taken three stars (they ride over
-## the head); the other runs at them, jumps and lands on their head -- a stomp
-## -- a star pops loose, and the stomper takes it. In close, held still, on
-## the flat middle of the arena, clear of the shell enemies on the low floors.
-func setup_vs_steal(ctx: Dictionary) -> Callable:
+## スターたいせん, the whole game in one shot, on the one-device match (both
+## seats steered here): one star, two runners going for it from either side;
+## A gets there first -- its seventh -- and the match is A's. The game's own
+## HUD is busy at this size, so the score is drawn clean over it, with the
+## rule under it. Both are moving from the first frame; the camera holds the
+## star, in close, and stays.
+func setup_vs_win(ctx: Dictionary) -> Callable:
 	var a: Node = ctx["arena"]
+	# The flat middle of the arena (two steps at one height), clear of the
+	# shell enemies that walk the low floors at either end.
 	var floor_y := 280.0 - 26.0
-	var holder_x := 1700.0
-	var thief_x := 1470.0
-	# Set off this far short of the holder, the jump held this many ticks: a
-	# hop that comes down on the head (found by trying it).
-	var jump_d := 110.0
-	var hold := 10
-	var state := {"set": false, "jumped": -1}
+	var mid := 1600.0
+	# Where the star waits: a hop above head height, so it is jumped for.
+	var spot := Vector2(mid, floor_y - 92.0)
+	var state := {"set": false, "won": -1}
 	var put := func(i: int, at: Vector2) -> void:
 		var r: Runner = a.runners[i]
 		r.global_position = at
@@ -1498,58 +1457,51 @@ func setup_vs_steal(ctx: Dictionary) -> Callable:
 		for i in 2:
 			a.input.hubs[i].drive_runner(0.0, 0.0, false, false)
 		var cam: Camera2D = a.view.camera
-		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * 2.3
-		cam.offset = Vector2(1650.0, floor_y - 45.0) - cam.global_position
-		# Before the shot: the holder goes round the stars and takes three.
-		if t < -40:
-			put.call(1, Vector2(thief_x, floor_y))
-			# Three at least, and the next one to appear somewhere off this frame.
-			for coin in a.coins():
-				if int(coin["state"]) == ArenaCoin.State.WORLD and (a.held_by(0) < 3 \
-						or absf(float(coin["position"].x) - 1590.0) < 450.0):
-					put.call(0, coin["position"])
+		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * 1.9
+		cam.offset = Vector2(mid, floor_y - 75.0) - cam.global_position
+		var loose: ArenaCoin.Record = null
+		for r in a.match_rules.ledger.coins:
+			if r.state == ArenaCoin.State.WORLD:
+				loose = r
+		# Before the shot: A takes six stars, B four.
+		if t < -12:
+			ov().score = {}
+			# Each to the star for a tick, and straight back to the safe middle:
+			# a fall from where a star floats would cost every star held.
+			put.call(0, Vector2(mid - 150.0, floor_y))
+			put.call(1, Vector2(mid + 150.0, floor_y))
+			if loose != null:
+				if a.held_by(0) < 6:
+					put.call(0, loose.position)
+				elif a.held_by(1) < 4:
+					put.call(1, loose.position)
 			return
+		# The seventh, put where the shot wants it until somebody takes it.
+		if loose != null and int(state["won"]) < 0 and a.held_by(0) < 7:
+			loose.position = spot
+			loose.velocity = Vector2.ZERO
 		if not state["set"]:
 			state["set"] = true
-			put.call(0, Vector2(holder_x, floor_y))
-			put.call(1, Vector2(thief_x, floor_y))
-			(a.runners[0] as Runner).facing = -1
-			(a.runners[1] as Runner).facing = 1
-		if t < T(0.4):
+			put.call(0, Vector2(mid - 172.0, floor_y))
+			put.call(1, Vector2(mid + 172.0, floor_y))
+		var ra: Runner = a.runners[0]
+		var rb: Runner = a.runners[1]
+		var won: bool = a.held_by(0) >= 7
+		if won and int(state["won"]) < 0:
+			state["won"] = t
+			ra.visual.react(4, 1.6)
+			rb.visual.react(1, 1.0)
+		ov().score = {"a": a.held_by(0), "b": a.held_by(1), "ca": a.colour_of(0), "cb": a.colour_of(1),
+			"win": "A" if won else ""}
+		if won:
+			# B pulls up short; A runs on a step, arms up.
+			a.input.hubs[0].drive_runner(1.0 if t - int(state["won"]) < 12 else 0.0, 0.0, false, false)
 			return
-		var thief: Runner = a.runners[1]
-		var holder: Runner = a.runners[0]
-		var hub: InputHub = a.input.hubs[1]
-		# On one device the two bodies are solid to each other, so the thief
-		# would come to rest on the head before the match ever saw the fall;
-		# across devices (as the game is played) they are not.
-		thief.collision_mask &= ~Runner.LAYER_RUNNER
-		if int(state["jumped"]) < 0:
-			var jump := holder.global_position.x - thief.global_position.x < jump_d
-			if jump:
-				state["jumped"] = t
-			hub.drive_runner(1.0, 0.0, jump, false)
-			return
-		var since := t - int(state["jumped"])
-		if since < hold:
-			hub.drive_runner(1.0, 0.0, true, false)
-			return
-		# After it: go for the loose star.
-		var star := Vector2.INF
-		for coin in a.coins():
-			if int(coin["state"]) == ArenaCoin.State.WORLD and absf(float(coin["position"].x) - thief.global_position.x) < 400.0:
-				star = coin["position"]
-		if star != Vector2.INF:
-			var dx := star.x - thief.global_position.x
-			hub.drive_runner(0.0 if absf(dx) < 8.0 else signf(dx), 0.0, star.y < thief.global_position.y - 60.0, false)
-
-## 24.0-26.4. Eight of them over it, a little wider.
-func setup_vs_brawl(ctx: Dictionary) -> Callable:
-	return star_cam(ctx, 1.4)
-
-## 29.2-31.6. In close again.
-func setup_vs_close(ctx: Dictionary) -> Callable:
-	return star_cam(ctx, 1.9)
+		var dxa: float = spot.x - ra.global_position.x
+		var dxb: float = spot.x - rb.global_position.x
+		a.input.hubs[0].drive_runner(signf(dxa), 0.0, absf(dxa) < 70.0, false)
+		# B a touch slower off the mark: a race, and A's.
+		a.input.hubs[1].drive_runner(signf(dxb) if t > 8 else 0.0, 0.0, absf(dxb) < 55.0, false)
 
 # ----------------------------------------------------------------------- end
 
