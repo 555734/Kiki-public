@@ -32,14 +32,13 @@ func list() -> Array:
 		{"name": "f3_boulder", "stage": W.CAVE, "until": 5.6, "preroll": 30},
 		{"name": "a2_gate", "stage": W.CASTLE, "until": 12.8, "preroll": 30},
 		{"name": "x_bridge", "stage": W.DESERT, "until": 15.4, "preroll": 30},
-		{"name": "vs_duel", "ffa": true, "until": 17.6, "preroll": 90 + 180 + 60},
-		{"name": "x_bullet", "stage": W.TOWER, "until": 20.6, "preroll": 100},
-		{"name": "d4_block", "stage": W.CASTLE, "until": 23.2, "preroll": 30},
-		{"name": "vs_brawl", "ffa": true, "until": 25.4, "preroll": 90 + 180 + 300},
-		{"name": "x_bats", "stage": W.CAVE, "until": 28.0, "preroll": 30},
-		{"name": "x_golem", "stage": W.SKYWARD_RUINS, "until": 31.6, "preroll": 30},
-		{"name": "vs_close", "ffa": true, "until": 33.8, "preroll": 90 + 180 + 420},
-		{"name": "e1_title", "stage": W.CASTLE, "until": 39.2, "preroll": 30},
+		{"name": "vs_steal", "arena": true, "until": 18.6, "preroll": 300},
+		{"name": "x_boulder", "stage": W.CAVE, "until": 21.4, "preroll": 30},
+		{"name": "d4_block", "stage": W.CASTLE, "until": 24.0, "preroll": 30},
+		{"name": "vs_brawl", "ffa": true, "until": 26.4, "preroll": 90 + 180 + 480},
+		{"name": "x_golem", "stage": W.SKYWARD_RUINS, "until": 29.2, "preroll": 30},
+		{"name": "vs_close", "ffa": true, "until": 31.6, "preroll": 90 + 180 + 720},
+		{"name": "e1_title", "stage": W.CASTLE, "until": 37.0, "preroll": 30},
 	]
 
 # --------------------------------------------------------------------- helpers
@@ -1159,7 +1158,7 @@ func setup_d3_cannon(ctx: Dictionary) -> Callable:
 			finger_up(c, at)
 			state["done"] = t
 
-## 20.6-23.2. Locked on the spike block over the road: the finger takes it
+## 21.4-24.0. Locked on the spike block over the road: the finger takes it
 ## at the top and holds it; the runner goes under, stops there and looks up --
 ## and the finger lets go. Crushed; the camera snaps in on it.
 func setup_d4_block(ctx: Dictionary) -> Callable:
@@ -1336,10 +1335,10 @@ func setup_x_bridge(ctx: Dictionary) -> Callable:
 	on_call(ctx)
 	cap.cue("drive_in")
 	var r := rig(ctx)
-	r.zoom_from = 1.0
-	r.zoom_to = 1.05
+	r.zoom_from = 1.3
+	r.zoom_to = 1.35
 	r.zoom_ticks = T(2.8)
-	r.offset = Vector2(200, -40)
+	r.offset = Vector2(150, -30)
 	r.dead_y = 80.0
 	var mid := (a.end.x + b.position.x) * 0.5
 	var mid_y := lerpf(a.position.y, b.position.y, 0.5)
@@ -1354,97 +1353,51 @@ func setup_x_bridge(ctx: Dictionary) -> Callable:
 		draw_stroke(c, t, T(0.75), T(0.4), lines[1])
 		drive(c, 1.0 if t >= 6 else 0.0, false, true)
 
-## 17.6-20.6. 1-7: the turret fires; the finger pinches a bullet out of the
-## air and lets it go -- straight home.
-func setup_x_bullet(ctx: Dictionary) -> Callable:
+## 18.6-21.4. 1-8: the boulder that ran the runner down, again -- and the
+## finger presses it still; the runner goes up past it.
+func setup_x_boulder(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(140, 6994))
-	m.runner.facing = -1
-	guardian_on(ctx)
-	on_call(ctx)
-	var r := rig(ctx)
-	r.follow = null
-	r.cut_to(Vector2(-90, 6900), 1.35)
-	# Where the finger waits for one, in the line of fire.
-	var spot := Vector2(-90, 6889)
-	var state := {"held": null, "t": -1, "done": false}
-	return func(c: Dictionary) -> void:
-		var t: int = c["t"]
-		tag_finger(c)
-		drive(c, 0.0)
-		if bool(state["done"]):
-			return
-		var held = state["held"]
-		if held == null:
-			m.input_hub.aim_at_world(spot + Vector2(0, -6))
-			if t < 0:
-				return
-			for n in m.get_tree().get_nodes_in_group("projectile"):
-				var p := n as Projectile
-				if p != null and p.state == Projectile.State.FLYING \
-						and p.global_position.distance_to(spot) < 24.0:
-					finger_down(c, p.global_position)
-					state["held"] = p
-					state["t"] = t
-					break
-			return
-		var since := t - int(state["t"])
-		if since < T(0.55):
-			# Held up to have a look at it, then let go.
-			finger_move(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
-		elif since == T(0.55):
-			finger_up(c, spot + Vector2(-float(since) * 0.5, -float(since) * 0.4))
-			state["done"] = true
-
-## 25.4-28.0. 1-8: bats in the updraft; one sweep of the hand.
-func setup_x_bats(ctx: Dictionary) -> Callable:
-	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(-250, 12834))
+	place_runner(ctx, Vector2(-112, 12084))
+	clear_enemies(ctx, Rect2(-600, 11700, 1200, 600))
 	m.runner.facing = 1
 	guardian_on(ctx)
 	on_call(ctx)
+	var trap: CaveTrap = null
+	for n in m.get_tree().get_nodes_in_group("hand_holdable"):
+		if n is CaveTrap and (n as CaveTrap).global_position.distance_to(Vector2(0, 12070)) < 10.0:
+			trap = n
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-40, 12560), 1.15)
-	var bats: Array = []
-	for n in m.get_tree().get_nodes_in_group("swipeable"):
-		if (n as Node2D).global_position.distance_to(Vector2(50, 12520)) < 260.0:
-			bats.append(n)
-	var state := {"sweep": PackedVector2Array()}
-	var t_sweep := T(0.6)
+	r.cut_to(Vector2(-70, 12030), 1.8)
+	var go := pilot(ctx, route_steps("boulder_stairs").slice(1, 3))
+	var state := {"pressed": -1}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
-		var rn: Runner = m.runner
 		tag_finger(c)
-		# The sweep goes through where the bats are when it starts.
-		if t == t_sweep:
-			var live: Array = bats.filter(func(b): return is_instance_valid(b))
-			live.sort_custom(func(x, y): return (x as Node2D).global_position.y < (y as Node2D).global_position.y)
-			var pts := PackedVector2Array()
-			if not live.is_empty():
-				pts.append((live[0] as Node2D).global_position + Vector2(-30, -70))
-				for b in live:
-					pts.append((b as Node2D).global_position)
-				pts.append((live[live.size() - 1] as Node2D).global_position + Vector2(30, 70))
-			state["sweep"] = pts
-		var sweep: PackedVector2Array = state["sweep"]
-		if t < t_sweep and not bats.is_empty() and is_instance_valid(bats[0]):
-			m.input_hub.aim_at_world((bats[0] as Node2D).global_position + Vector2(-30, -80))
-		if not sweep.is_empty():
-			draw_stroke(c, t, t_sweep, 8, sweep)
-		if t == t_sweep + 30:
-			r.follow = rn
-			r.offset = Vector2(60, -140)
-			r.smooth_y = 6.0
-		# Into the updraft, with a hop at the edge.
-		var go := t >= T(1.0)
-		drive(c, 1.0 if go and rn.global_position.x < 60.0 else 0.0,
-			go and rn.global_position.x > -150.0 and rn.global_position.x < -90.0)
+		if trap == null:
+			drive(c, 0.0)
+			return
+		var head := trap.hand_point()
+		if int(state["pressed"]) < 0:
+			m.input_hub.aim_at_world(head + Vector2(30, -60))
+			# Press it as it comes at the runner.
+			if t >= T(0.5) and head.x < m.runner.global_position.x + 120.0 and head.x > m.runner.global_position.x + 60.0:
+				finger_down(c, head)
+				state["pressed"] = t
+			drive(c, 0.0)
+			return
+		var since := t - int(state["pressed"])
+		if since == T(1.9):
+			finger_up(c, head)
+		if since > T(0.35):
+			go.tick()
+		else:
+			drive(c, 0.0)
 
-## 28.0-31.6. 1-3: a golem in the way. One flick.
+## 26.4-29.2. 1-3: a golem in the way. One flick.
 func setup_x_golem(ctx: Dictionary) -> Callable:
 	var m: Node2D = ctx["main"]
-	place_runner(ctx, Vector2(160, 494))
+	place_runner(ctx, Vector2(-10, 494))
 	m.runner.facing = -1
 	guardian_on(ctx)
 	on_call(ctx)
@@ -1454,7 +1407,9 @@ func setup_x_golem(ctx: Dictionary) -> Callable:
 			golem = n
 	var r := rig(ctx)
 	r.follow = null
-	r.cut_to(Vector2(-90, 400), 1.25)
+	# The golem right of the middle: a finger low on the left would be the
+	# runner's thumb on the shared screen.
+	r.cut_to(Vector2(-200, 450), 1.55)
 	var state := {"at": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
@@ -1477,18 +1432,124 @@ func setup_x_golem(ctx: Dictionary) -> Callable:
 
 # ------------------------------------------------------------------ versus
 
-## 15.4-17.6. みんなで スターたいせん: in tight on one of the eight, and back
-## to hold the brawl.
-func setup_vs_duel(ctx: Dictionary) -> Callable:
-	return ffa_play(ctx, 1.15, true, 2.6)
+## みんなで スターたいせん, in close on the scrum: the runners bunched nearest
+## the middle of the pack, and the loose star when it is near them, so the
+## grab and the stomp that knocks one loose fill the frame. Wider only as far
+## as it takes to hold them.
+func star_cam(ctx: Dictionary, zoom: float) -> Callable:
+	var inner := ffa_play(ctx, zoom, false)
+	var host: Node = ctx["arena"]
+	var state := {"z": zoom}
+	return func(c: Dictionary) -> void:
+		inner.call(c)
+		var cam: Camera2D = host.view.camera
+		var p0: Vector2 = host.runners[0].global_position
+		var pts: Array = []
+		for r in host.runners:
+			if r.visible:
+				pts.append(VersusStageData.nearest_image(r.global_position, p0))
+		if pts.is_empty():
+			return
+		var xs: Array = pts.map(func(v: Vector2) -> float: return v.x)
+		var ys: Array = pts.map(func(v: Vector2) -> float: return v.y)
+		xs.sort()
+		ys.sort()
+		var mid := Vector2(xs[xs.size() / 2], ys[ys.size() / 2])
+		var box := Rect2(mid, Vector2.ZERO)
+		for v in pts:
+			if v.distance_to(mid) < 260.0:
+				box = box.expand(v)
+		for coin in host.coins():
+			if int(coin["state"]) == ArenaCoin.State.WORLD:
+				var star: Vector2 = VersusStageData.nearest_image(coin["position"], mid)
+				if star.distance_to(box.get_center()) < 340.0:
+					box = box.expand(star)
+		var view := Vector2(1280, 720) / VersusRules.CAMERA_ZOOM
+		var want_z := clampf(minf(view.x / (box.size.x + 260.0), view.y / (box.size.y + 220.0)), 1.25, zoom)
+		var first := int(c["t"]) <= 0
+		state["z"] = want_z if first else lerpf(float(state["z"]), want_z, 0.06)
+		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * float(state["z"])
+		var to := box.get_center() + Vector2(0, -30) - cam.global_position
+		cam.offset = to if first else cam.offset.lerp(to, 0.10)
 
-## 23.2-25.4. みんなで スターたいせん: eight of them in one brawl, framed to hold them.
+## スターたいせん, staged with the match's own rules on the one-device match
+## (both seats steered here): one runner has taken three stars (they ride over
+## the head); the other runs at them, jumps and lands on their head -- a stomp
+## -- a star pops loose, and the stomper takes it. In close, held still, on
+## the flat middle of the arena, clear of the shell enemies on the low floors.
+func setup_vs_steal(ctx: Dictionary) -> Callable:
+	var a: Node = ctx["arena"]
+	var floor_y := 280.0 - 26.0
+	var holder_x := 1700.0
+	var thief_x := 1470.0
+	# Set off this far short of the holder, the jump held this many ticks: a
+	# hop that comes down on the head (found by trying it).
+	var jump_d := 110.0
+	var hold := 10
+	var state := {"set": false, "jumped": -1}
+	var put := func(i: int, at: Vector2) -> void:
+		var r: Runner = a.runners[i]
+		r.global_position = at
+		r.velocity = Vector2.ZERO
+	return func(c: Dictionary) -> void:
+		var t: int = c["t"]
+		a.menu.visible = false
+		a._layer.visible = false
+		for i in 2:
+			a.input.hubs[i].drive_runner(0.0, 0.0, false, false)
+		var cam: Camera2D = a.view.camera
+		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * 2.3
+		cam.offset = Vector2(1650.0, floor_y - 45.0) - cam.global_position
+		# Before the shot: the holder goes round the stars and takes three.
+		if t < -40:
+			put.call(1, Vector2(thief_x, floor_y))
+			# Three at least, and the next one to appear somewhere off this frame.
+			for coin in a.coins():
+				if int(coin["state"]) == ArenaCoin.State.WORLD and (a.held_by(0) < 3 \
+						or absf(float(coin["position"].x) - 1590.0) < 450.0):
+					put.call(0, coin["position"])
+			return
+		if not state["set"]:
+			state["set"] = true
+			put.call(0, Vector2(holder_x, floor_y))
+			put.call(1, Vector2(thief_x, floor_y))
+			(a.runners[0] as Runner).facing = -1
+			(a.runners[1] as Runner).facing = 1
+		if t < T(0.4):
+			return
+		var thief: Runner = a.runners[1]
+		var holder: Runner = a.runners[0]
+		var hub: InputHub = a.input.hubs[1]
+		# On one device the two bodies are solid to each other, so the thief
+		# would come to rest on the head before the match ever saw the fall;
+		# across devices (as the game is played) they are not.
+		thief.collision_mask &= ~Runner.LAYER_RUNNER
+		if int(state["jumped"]) < 0:
+			var jump := holder.global_position.x - thief.global_position.x < jump_d
+			if jump:
+				state["jumped"] = t
+			hub.drive_runner(1.0, 0.0, jump, false)
+			return
+		var since := t - int(state["jumped"])
+		if since < hold:
+			hub.drive_runner(1.0, 0.0, true, false)
+			return
+		# After it: go for the loose star.
+		var star := Vector2.INF
+		for coin in a.coins():
+			if int(coin["state"]) == ArenaCoin.State.WORLD and absf(float(coin["position"].x) - thief.global_position.x) < 400.0:
+				star = coin["position"]
+		if star != Vector2.INF:
+			var dx := star.x - thief.global_position.x
+			hub.drive_runner(0.0 if absf(dx) < 8.0 else signf(dx), 0.0, star.y < thief.global_position.y - 60.0, false)
+
+## 24.0-26.4. Eight of them over it, a little wider.
 func setup_vs_brawl(ctx: Dictionary) -> Callable:
-	return ffa_play(ctx, 1.0, true)
+	return star_cam(ctx, 1.4)
 
-## 31.6-33.8. みんなで スターたいせん again, in close on one of them.
+## 29.2-31.6. In close again.
 func setup_vs_close(ctx: Dictionary) -> Callable:
-	return ffa_play(ctx, 1.7, false)
+	return star_cam(ctx, 1.9)
 
 # ----------------------------------------------------------------------- end
 
