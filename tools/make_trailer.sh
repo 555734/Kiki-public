@@ -12,6 +12,8 @@
 #
 # Extra capture args after `--`, e.g. a quick low-resolution check:
 #   tools/make_trailer.sh godot build/trailer/preview.mp4 -- --size 960x540
+# A native 9:16 frame with its own cameras and phone layout:
+#   tools/make_trailer.sh godot build/trailer/shorts.mp4 -- --portrait
 set -euo pipefail
 godot="${1:?usage: make_trailer.sh /path/to/godot [out.mp4] [-- capture args]}"
 out="${2:-build/trailer/melos_trailer.mp4}"
@@ -31,10 +33,26 @@ fi
 
 cap="$("$godot" --headless --path . --quit-after 1 \
 	-s tools/print_user_dir.gd 2>/dev/null | grep "^/" | tail -1)/trailer"
+# Match capture_trailer.gd's optional output directory.
+capture_args=("$@")
+for ((i=0; i<${#capture_args[@]}; i++)); do
+	if [ "${capture_args[i]}" = "--out" ]; then
+		cap="${capture_args[i+1]}"
+	fi
+done
 mkdir -p "$(dirname "$out")"
-python3 tools/trailer_mix.py "$cap" "$cap/soundtrack.wav"
-ffmpeg -v error -y -framerate 30 -i "$cap/frames/%05d.png" -i "$cap/soundtrack.wav" \
+# Use the exact soundtrack of an existing cut when only reframing it. This
+# also preserves effects that were added after the original auto-mix.
+if [ -n "${TRAILER_AUDIO_SOURCE:-}" ]; then
+	audio="$TRAILER_AUDIO_SOURCE"
+	audio_codec=(-c:a copy)
+else
+	python3 tools/trailer_mix.py "$cap" "$cap/soundtrack.wav"
+	audio="$cap/soundtrack.wav"
+	audio_codec=(-c:a aac -b:a 192k)
+fi
+ffmpeg -v error -y -framerate 30 -i "$cap/frames/%05d.png" -i "$audio" \
 	-c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -r 30 \
-	-c:a aac -b:a 192k -shortest -movflags +faststart "$out"
+	-map 0:v:0 -map 1:a:0 "${audio_codec[@]}" -shortest -movflags +faststart "$out"
 python3 tools/trailer_export.py "$cap" "$(dirname "$out")/editor"
 echo "trailer: $out"

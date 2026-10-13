@@ -28,6 +28,8 @@ const WHITE := Color(1, 1, 1)
 const ACCENT := Color(0.36, 0.86, 1.0)
 
 var t := 0.0
+var layout_size := Vector2(1280, 720)
+var portrait := false
 var _captions: Array = []
 var _card: Dictionary = {}
 var _fade: Array = []        # [from_sec, to_sec, from_alpha, to_alpha]
@@ -123,8 +125,8 @@ func _draw_all() -> void:
 		k = k * k * (3.0 - 2.0 * k)
 		var h := lerpf(_bars[2], _bars[3], k)
 		if h > 0.5:
-			_canvas.draw_rect(Rect2(0, 0, 1280, h), Color.BLACK)
-			_canvas.draw_rect(Rect2(0, 720 - h, 1280, h), Color.BLACK)
+			_canvas.draw_rect(Rect2(0, 0, layout_size.x, h), Color.BLACK)
+			_canvas.draw_rect(Rect2(0, layout_size.y - h, layout_size.x, h), Color.BLACK)
 	for c in _captions:
 		_draw_caption(c)
 	for c in _cards:
@@ -150,12 +152,12 @@ func _draw_all() -> void:
 		var age := t - float(f[0])
 		if age >= 0.0 and age < float(f[1]):
 			var a := float(f[2]) * pow(1.0 - age / float(f[1]), 2.0)
-			_canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(1280, 720)), Color(1, 1, 1, a))
+			_canvas.draw_rect(Rect2(Vector2.ZERO, layout_size), Color(1, 1, 1, a))
 	if not _fade.is_empty():
 		var k := clampf(inverse_lerp(_fade[0], _fade[1], t), 0.0, 1.0)
 		var a := lerpf(_fade[2], _fade[3], k)
 		if a > 0.0:
-			_canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(1280, 720)), Color(0, 0, 0, a))
+			_canvas.draw_rect(Rect2(Vector2.ZERO, layout_size), Color(0, 0, 0, a))
 
 static func _ease_out_back(x: float) -> float:
 	var c1 := 1.9
@@ -233,6 +235,9 @@ func _draw_note() -> void:
 		_canvas.draw_line(to, to - dir * 22.0 - side * 13.0, col, w, true)
 
 func _draw_card() -> void:
+	if portrait:
+		_draw_portrait_card()
+		return
 	var age := t - float(_card["at"])
 	if age < 0.0:
 		return
@@ -324,9 +329,58 @@ func _draw_card() -> void:
 		BODY_FONT.draw_string_outline(ci, at, credit, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, 7, Color(INK, cfa))
 		BODY_FONT.draw_string(ci, at, credit, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(WHITE, 0.92 * cfa))
 
+## The same end card laid out for a phone: fit the title to the available
+## width and stack the store links, above the platform's bottom controls.
+func _draw_portrait_card() -> void:
+	var age := t - float(_card["at"])
+	if age < 0.0:
+		return
+	var ci := _canvas.get_canvas_item()
+	var cx := layout_size.x * 0.5
+	var dim := clampf(age / 0.4, 0.0, 1.0)
+	_canvas.draw_rect(Rect2(Vector2.ZERO, layout_size), Color(INK, 0.62 * dim))
+	var k := clampf(age / 0.35, 0.0, 1.0)
+	var s := 180.0 * lerpf(0.5, 1.0, _ease_out_back(k))
+	var c := Vector2(cx, 430.0 - (1.0 - k) * 40.0)
+	var a := clampf(age / 0.1, 0.0, 1.0)
+	_rounded(Rect2(c - Vector2.ONE * s * 0.5, Vector2.ONE * s).grow(6), s * 0.24,
+		Color(1, 1, 1, a), null)
+	_rounded(Rect2(c - Vector2.ONE * s * 0.5, Vector2.ONE * s), s * 0.22,
+		Color(1, 1, 1, a), ICON)
+	var ta := clampf((age - 0.25) / 0.15, 0.0, 1.0)
+	var text := String(_card["title"])
+	var size := 86
+	var w := TITLE_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	size = mini(size, int(float(size) * (layout_size.x - 88.0) / w))
+	w = TITLE_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var at := Vector2(cx - w * 0.5, 660.0)
+	TITLE_FONT.draw_string_outline(ci, at + Vector2(0, 6), text, HORIZONTAL_ALIGNMENT_LEFT,
+		-1, size, 10, Color(INK, ta))
+	TITLE_FONT.draw_string(ci, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(WHITE, ta))
+	var lines: Array = _card["lines"]
+	for i in lines.size():
+		var la := clampf((age - 0.75 - 0.12 * i) / 0.25, 0.0, 1.0)
+		var label := String(lines[i])
+		var fs := 28 if i == 0 else 34
+		var tw := BODY_FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var y := 755.0 if i == 0 else 838.0 + float(i - 1) * 94.0
+		if i > 0:
+			var r := Rect2(cx - (tw + 72.0) * 0.5, y - 44.0, tw + 72.0, 66.0)
+			_rounded(r.grow(2), 34.0, Color(1, 1, 1, 0.9 * la), null)
+			_rounded(r, 32.0, Color(0.05, 0.06, 0.10, 0.95 * la), null)
+		BODY_FONT.draw_string(ci, Vector2(cx - tw * 0.5, y), label,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(ACCENT if i == 0 else WHITE, la))
+	var credit := String(_card.get("credit", ""))
+	var ca := clampf((age - 1.3) / 0.3, 0.0, 1.0)
+	var cw := BODY_FONT.get_string_size(credit, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+	BODY_FONT.draw_string(ci, Vector2(cx - cw * 0.5, 1045), credit,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(WHITE, 0.9 * ca))
+
 ## A filled rounded rectangle, optionally textured edge to edge.
 func _rounded(r: Rect2, radius: float, color: Color, tex: Texture2D) -> void:
-	radius = minf(radius, minf(r.size.x, r.size.y) * 0.5)
+	# A capsule with radius exactly half its height duplicates the adjoining
+	# arc vertices; GLES triangulation can reject that polygon.
+	radius = minf(radius, minf(r.size.x, r.size.y) * 0.5 - 0.01)
 	var pts := PackedVector2Array()
 	var corners := [Vector2(r.end.x - radius, r.position.y + radius),
 		Vector2(r.end.x - radius, r.end.y - radius),
@@ -395,6 +449,11 @@ func _draw_tag(g: Dictionary) -> void:
 	var a := clampf(left / 0.12, 0.0, 1.0)
 	var size := int(g["size"])
 	var pos: Vector2 = g["pos"]
+	if portrait:
+		size = mini(size, 48)
+		var tw := TAG_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		pos.x = clampf(pos.x, 32.0, layout_size.x - tw - 70.0)
+		pos.y = clampf(pos.y, 180.0, layout_size.y - 180.0)
 	var ci := _canvas.get_canvas_item()
 	TAG_FONT.draw_string(ci, pos + Vector2(0, 3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
 		Color(0, 0, 0, 0.22 * a))
@@ -739,7 +798,7 @@ func _draw_call() -> void:
 		var h := 120.0
 		var ring := sin(age * TAU * 2.0)
 		var shake := ring * 3.0 if fmod(age, 1.2) < 0.6 else 0.0
-		var r := Rect2(640.0 - w * 0.5 + shake, lerpf(-h - 10.0, 26.0, k), w, h)
+		var r := Rect2(layout_size.x * 0.5 - w * 0.5 + shake, lerpf(-h - 10.0, 72.0 if portrait else 26.0, k), w, h)
 		_rounded(r.grow(2), 26.0, CALL_LINE, null)
 		_rounded(r, 24.0, CALL_BG, null)
 		var who := String(_call["caller"])
@@ -761,7 +820,8 @@ func _draw_call() -> void:
 	var k2 := clampf(since / 0.3, 0.0, 1.0)
 	var people: Array = _call["people"]
 	var w2 := 214.0 + 58.0 * people.size()
-	var bar := Rect2(lerpf(640.0 - w2 * 0.5, 22.0, _smooth(k2)), lerpf(26.0, 20.0, k2), w2, 64)
+	var bar := Rect2(lerpf(layout_size.x * 0.5 - w2 * 0.5, 22.0, _smooth(k2)),
+		lerpf(72.0 if portrait else 26.0, 66.0 if portrait else 20.0, k2), w2, 64)
 	_rounded(bar.grow(2), 34.0, CALL_LINE, null)
 	_rounded(bar, 32.0, CALL_BG, null)
 	_canvas.draw_circle(bar.position + Vector2(30, 32), 8.0, CALL_GREEN)
@@ -801,13 +861,17 @@ func _draw_tap(tap: Array) -> void:
 
 ## Where on the screen the answer button sits, for the tap that presses it.
 func call_answer_point() -> Vector2:
-	return Vector2(640.0 - 280.0 + 560.0 - 150.0 + 76.0, 26.0 + 60.0)
+	return Vector2(layout_size.x * 0.5 - 280.0 + 560.0 - 150.0 + 76.0,
+		(72.0 if portrait else 26.0) + 60.0)
 
 func _draw_finger_tag() -> void:
 	var ci := _canvas.get_canvas_item()
 	var size := 20
 	var w := BODY_FONT.get_string_size(finger_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 22.0
 	var r := Rect2(finger_at + Vector2(30, 34), Vector2(w, 30))
+	if portrait:
+		r.position.x = clampf(r.position.x, 22.0, layout_size.x - w - 22.0)
+		r.position.y = clampf(r.position.y, 160.0, layout_size.y - 160.0)
 	_rounded(r, 15.0, Color(0.21, 0.84, 1.0, 0.95), null)
 	BODY_FONT.draw_string(ci, r.position + Vector2(11, 22), finger_name,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.03, 0.10, 0.16))

@@ -80,6 +80,8 @@ const BPM := 110.0
 const BEAT := 60.0 / BPM
 
 var size := Vector2i(1920, 1080)
+var portrait := false
+var design_size := DESIGN
 var only: PackedStringArray = []
 var dir := "user://trailer"
 
@@ -106,14 +108,22 @@ func _ready() -> void:
 
 func _args() -> void:
 	var args := OS.get_cmdline_user_args()
+	var explicit_size := false
 	for i in args.size():
 		if args[i] == "--size" and i + 1 < args.size():
+			explicit_size = true
 			var p := String(args[i + 1]).split("x")
 			size = Vector2i(int(p[0]), int(p[1]))
+		elif args[i] == "--portrait":
+			portrait = true
 		elif args[i] == "--only" and i + 1 < args.size():
 			only = String(args[i + 1]).split(",")
 		elif args[i] == "--out" and i + 1 < args.size():
 			dir = String(args[i + 1])
+	if portrait:
+		design_size = Vector2i(720, 1280)
+		if not explicit_size:
+			size = Vector2i(1080, 1920)
 
 ## Film frame at which a beat of the music falls, counted from its entry.
 ## Rounded once from the beat count, so lengths never accumulate drift.
@@ -136,7 +146,7 @@ func run() -> void:
 	_args()
 	view = SubViewport.new()
 	view.size = size
-	view.size_2d_override = DESIGN
+	view.size_2d_override = design_size
 	view.size_2d_override_stretch = true
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	view.transparent_bg = false
@@ -146,6 +156,8 @@ func run() -> void:
 	foley.cap = self
 	add_child(foley)
 	overlay = Overlay.new()
+	overlay.layout_size = Vector2(design_size)
+	overlay.portrait = portrait
 	view.add_child(overlay)
 
 	var frames_dir := dir + "/frames"
@@ -184,7 +196,8 @@ func run() -> void:
 	var f := FileAccess.open(dir + "/sfx.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(sfx, "  "))
 	f = FileAccess.open(dir + "/shots.json", FileAccess.WRITE)
-	f.store_string(JSON.stringify({"fps": FPS, "frames": frame, "shots": shots_log,
+	f.store_string(JSON.stringify({"fps": FPS, "frames": frame, "size": [size.x, size.y],
+		"portrait": portrait, "shots": shots_log,
 		"cues": cues}, "  "))
 	print("trailer frames written to ", ProjectSettings.globalize_path(dir))
 	get_tree().quit()

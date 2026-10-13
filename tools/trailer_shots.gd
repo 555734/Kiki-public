@@ -70,6 +70,7 @@ class Rig extends Node:
 	var tick := 0
 	var factor := 1.0
 	var _snapped := false
+	var portrait_shot := ""
 	var _rng := RandomNumberGenerator.new()
 	## A camera move between two held points (dolly_to), eased in and out --
 	## or, for the slow pull back, fast away and settling (ease_out).
@@ -134,7 +135,12 @@ class Rig extends Node:
 		var cam: Camera2D = main.camera
 		var k := clampf(float(tick) / float(maxi(zoom_ticks, 1)), 0.0, 1.0)
 		factor = lerpf(zoom_from, zoom_to, _ease(k))
-		cam.zoom = Vector2.ONE * Balance.CAMERA_ZOOM * factor * scale
+		var framing := scale
+		if portrait_shot == "a2_gate":
+			# The wide gate action needs the hound, bars and runner together;
+			# the incoming call still gets the original close-up on the face.
+			framing = lerpf(0.48, 0.92, clampf(inverse_lerp(1.15, 2.4, factor), 0.0, 1.0))
+		cam.zoom = Vector2.ONE * Balance.CAMERA_ZOOM * factor * framing
 		if _dolly_ticks > 0 and follow == null:
 			_dolly_t = mini(_dolly_t + 1, _dolly_ticks)
 			var u := float(_dolly_t) / float(_dolly_ticks)
@@ -142,6 +148,14 @@ class Rig extends Node:
 		kick *= 0.82
 		cam.offset = Vector2(_rng.randf_range(-1, 1), _rng.randf_range(-1, 1)) * (shake + kick)
 		var target := point
+		if portrait_shot == "a1_crush":
+			target.x += 95.0 if factor < 2.2 else 0.0
+		elif portrait_shot == "d4_block":
+			target.x -= 60.0 if factor < 2.2 else 0.0
+		elif portrait_shot == "x_golem":
+			target.x += 60.0
+			# Once the golem has been flicked away, hold the runner in frame.
+			target.x = maxf(target.x, main.runner.global_position.x - 80.0)
 		if follow != null and is_instance_valid(follow):
 			var y := follow.global_position.y
 			if not _snapped:
@@ -337,6 +351,11 @@ func rig(ctx: Dictionary) -> Rig:
 	r.follow = r.main.runner
 	r.main.add_child(r)
 	r.scale = float((ctx["shot"] as Dictionary).get("zoom", 1.0))
+	if cap.portrait:
+		r.portrait_shot = String(ctx["shot"]["name"])
+		r.scale *= float({"a1_crush": 0.88, "f2_spikes": 0.9, "x_bridge": 0.75,
+			"x_boulder": 0.9, "d4_block": 0.78, "x_golem": 0.8}.get(r.portrait_shot, 1.0))
+		r.lead = 35.0
 	ctx["rig"] = r
 	return r
 
@@ -536,7 +555,7 @@ func ffa_play(ctx: Dictionary, zoom: float, fit: bool, open_zoom := 0.0) -> Call
 				if v.distance_to(mid) < 520.0:
 					box = box.expand(v)
 			centre = box.get_center()
-			var view := Vector2(1280, 720) / Balance.CAMERA_ZOOM
+			var view := Vector2(cap.design_size) / Balance.CAMERA_ZOOM
 			want_zoom = clampf(minf(view.x / (box.size.x + 300.0), view.y / (box.size.y + 260.0)), 0.95, zoom)
 		state["zoom"] = lerpf(float(state["zoom"]), want_zoom, 0.08)
 		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * float(state["zoom"])
@@ -1464,13 +1483,20 @@ func star_cam(ctx: Dictionary, zoom: float) -> Callable:
 				var star: Vector2 = VersusStageData.nearest_image(coin["position"], mid)
 				if star.distance_to(box.get_center()) < 340.0:
 					box = box.expand(star)
-		var view := Vector2(1280, 720) / VersusRules.CAMERA_ZOOM
-		var want_z := clampf(minf(view.x / (box.size.x + 260.0), view.y / (box.size.y + 220.0)), 1.25, zoom)
+		var view := Vector2(cap.design_size) / VersusRules.CAMERA_ZOOM
+		var want_z := clampf(minf(view.x / (box.size.x + 260.0), view.y / (box.size.y + 220.0)),
+			0.75 if cap.portrait else 1.25, zoom)
 		var first := int(c["t"]) <= 0
 		state["z"] = want_z if first else lerpf(float(state["z"]), want_z, 0.06)
 		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * float(state["z"])
 		var to := box.get_center() + Vector2(0, -30) - cam.global_position
 		cam.offset = to if first else cam.offset.lerp(to, 0.10)
+		if cap.portrait:
+			# Arena sprites choose their looped copy from the camera position.
+			# An offset across the wrap would leave them a whole lap outside
+			# the view; move the camera itself to the filmed group instead.
+			cam.global_position = box.get_center() + Vector2(0, -30)
+			cam.offset = Vector2.ZERO
 
 ## スターたいせん, staged with the match's own rules on the one-device match
 ## (both seats steered here): one runner has taken three stars (they ride over
@@ -1498,8 +1524,23 @@ func setup_vs_steal(ctx: Dictionary) -> Callable:
 		for i in 2:
 			a.input.hubs[i].drive_runner(0.0, 0.0, false, false)
 		var cam: Camera2D = a.view.camera
-		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * 2.3
-		cam.offset = Vector2(1650.0, floor_y - 45.0) - cam.global_position
+		cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * (1.7 if cap.portrait else 2.3)
+		cam.offset = Vector2(1585.0 if cap.portrait else 1650.0, floor_y - 45.0) - cam.global_position
+		if cap.portrait and t >= -40:
+			# The stolen star can send both players out to the right: keep the
+			# complete exchange in the phone frame, including the loose star.
+			var p0: Vector2 = a.runners[0].global_position
+			var p1: Vector2 = VersusStageData.nearest_image(a.runners[1].global_position, p0)
+			var box := Rect2(p0, Vector2.ZERO).expand(p1)
+			for coin in a.coins():
+				if int(coin["state"]) == ArenaCoin.State.WORLD:
+					var at: Vector2 = VersusStageData.nearest_image(coin["position"], p0)
+					if at.distance_to(box.get_center()) < 300.0:
+						box = box.expand(at)
+			var z := minf(1.7, float(cap.design_size.x) / (box.size.x + 180.0) / VersusRules.CAMERA_ZOOM)
+			cam.zoom = Vector2.ONE * VersusRules.CAMERA_ZOOM * z
+			cam.global_position = box.get_center() + Vector2(0, -65)
+			cam.offset = Vector2.ZERO
 		# Before the shot: the holder goes round the stars and takes three.
 		if t < -40:
 			put.call(1, Vector2(thief_x, floor_y))
