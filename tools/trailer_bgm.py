@@ -12,6 +12,8 @@ import sys
 import wave
 from pathlib import Path
 
+import numpy as np
+
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
@@ -46,6 +48,9 @@ def main() -> None:
     expected_bytes = round(duration * 44100) * 4
     if len(mixed) != expected_bytes:
         raise RuntimeError(f'Incomplete mix: {len(mixed)} bytes, expected {expected_bytes}')
+    # AAC reconstruction can overshoot a sharp gate slam. Reserve another
+    # decibel after the limiter while keeping the music/effects balance.
+    mixed = np.rint(np.frombuffer(mixed, dtype='<i2').astype(np.float32) * 0.9).astype('<i2').tobytes()
     temporary = a.output.with_name(a.output.stem + '-writing.wav')
     with wave.open(str(temporary), 'wb') as w:
         w.setnchannels(2)
@@ -56,6 +61,7 @@ def main() -> None:
     (a.capture / 'bgm-edit.json').write_text(json.dumps({
         'source': a.bgm.name, 'offset': a.offset, 'loudness_lufs': a.loudness,
         'duration': duration, 'generated_score_disabled': True,
+        'output_gain': 0.9,
     }, indent=2))
     print(a.output)
 
