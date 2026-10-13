@@ -36,20 +36,39 @@ TRAILER_AUDIO_SOURCE=/absolute/path/6027.mp4 \
 岩の上への移動では縦の追従を追加し、敵を弾く前には敵も収める。
 画面外の指の「YOU」は表示せず、敵を弾いた後の指は退出させる。
 
-公式配布元から取得した しゃろう「2:23 AM」を使用する。
-配布元: https://opentracks.com/bgm/detail/13494
-ライセンス: https://opentracks.com/help/articles/license/
-作曲者条件: https://opentracks.com/creator/detail/101
-原音ファイルをリポジトリへ再配布せず、取得したファイルを指定する。
+音源はユーザーが指定した参考PV `U-jm_ggrsE0r-pCz.mp4` に変更した。
+参考PVの12.45〜49.45秒を使用し、音程・テンポを変えずに37秒に収める。
+参考PVには音楽と効果音が混在するため、`trailer_reference_bgm.py` の
+類似フレーム中央値とステレオ共通マスクで単発の効果音を抑える。
+完全なBGM単独音源ではなく、参考PVの効果音が一部残る可能性がある。
+参考PVと抽出音源はリポジトリへ再配布しない。
 
 ```bash
-TRAILER_BGM=/absolute/path/Sharou_223_AM.mp3 \
+OPENBLAS_NUM_THREADS=2 python3 tools/trailer_reference_bgm.py \
+  /absolute/path/U-jm_ggrsE0r-pCz.mp4 /absolute/path/reference-music.wav
+TRAILER_BGM=/absolute/path/reference-music.wav TRAILER_BGM_LUFS=-16.5 \
   tools/make_trailer.sh /path/to/godot build/trailer/melos_shorts.mp4 -- --portrait
 ```
 
 `trailer_bgm.py` が効果音を撮影イベントから再構成し、旧生成スコアを
 外してから新BGMを合成する。BGMはステレオを保持し、効果音が強い
 瞬間には少し下げ、最後にフェードする。標準音量は -21 LUFS。
+参考PVの抽出は NumPy / SciPy / FFmpeg が必要。
+
+映像が完成済みの音声修正では、`--events-only` を使って効果音イベントを
+再出力できる。PNGを書き出さず、出力先の既存フレームも削除しない。
+生成スコアと前の選曲を使わずに効果音を構成し、新BGMを加えた音声を
+完成映像へ多重化する。映像ストリームはコピーする。
+
+```bash
+godot --headless --path . --audio-driver Dummy tools/capture_trailer.tscn \
+  --fixed-fps 60 -- --ci-skip-eos --portrait --events-only --out /absolute/path/capture
+python3 tools/trailer_bgm.py /absolute/path/capture /absolute/path/reference-music.wav \
+  /absolute/path/soundtrack.wav --loudness -16.5
+ffmpeg -i /absolute/path/portrait.mp4 -i /absolute/path/soundtrack.wav \
+  -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -t 37 \
+  -movflags +faststart /absolute/path/shorts-reference-bgm.mp4
+```
 
 特定カットの撮り直しには `tools/trailer_retake.py` を使う。
 同じカット名・フレーム数の素材を入れ替え、効果音と通話音の時刻も

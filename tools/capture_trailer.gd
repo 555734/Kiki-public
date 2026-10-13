@@ -6,6 +6,8 @@ extends Node
 ##       tools/capture_trailer.tscn --fixed-fps 60 -- --ci-skip-eos
 ##
 ## Optional user args:  --size 960x540   --only 01_caught,02_drawn
+## --events-only logs the same film's effects without exporting PNG frames.
+## It can run with --headless for a soundtrack revision.
 ##
 ## tools/make_trailer.sh runs this and then tools/trailer_mix.py and ffmpeg.
 ##
@@ -88,6 +90,7 @@ const BEAT := 60.0 / BPM
 
 var size := Vector2i(1920, 1080)
 var portrait := false
+var events_only := false
 var design_size := DESIGN
 var only: PackedStringArray = []
 var dir := "user://trailer"
@@ -124,6 +127,8 @@ func _args() -> void:
 			size = Vector2i(int(p[0]), int(p[1]))
 		elif args[i] == "--portrait":
 			portrait = true
+		elif args[i] == "--events-only":
+			events_only = true
 		elif args[i] == "--only" and i + 1 < args.size():
 			only = String(args[i + 1]).split(",")
 		elif args[i] == "--out" and i + 1 < args.size():
@@ -168,10 +173,12 @@ func run() -> void:
 	overlay.portrait = portrait
 	view.add_child(overlay)
 
-	var frames_dir := dir + "/frames"
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(frames_dir))
-	for f in DirAccess.get_files_at(frames_dir):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(frames_dir + "/" + f))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	if not events_only:
+		var frames_dir := dir + "/frames"
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(frames_dir))
+		for f in DirAccess.get_files_at(frames_dir):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(frames_dir + "/" + f))
 
 	var shots: Node = ShotsScript.new()
 	shots.cap = self
@@ -278,7 +285,7 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 			# Tick at 60 Hz as before; only render ticks kept by the 30 fps film.
 			var next_owed := owed + float(FPS) / TICK_HZ / maxf(float(ctx["speed"]), 0.05)
 			view.render_target_update_mode = SubViewport.UPDATE_ONCE if t >= 0 and next_owed >= 1.0 else SubViewport.UPDATE_DISABLED
-		await RenderingServer.frame_post_draw
+		await _frame_boundary()
 		_log_sounds(now(), t >= 0)
 		if t >= 0:
 			# Half a film frame per tick at normal speed; more when slowed.
@@ -391,7 +398,7 @@ func _freeze(ctx: Dictionary, frames: int) -> int:
 		overlay.set_time(shot_time(), frame)
 		if portrait:
 			view.render_target_update_mode = SubViewport.UPDATE_ONCE
-		await RenderingServer.frame_post_draw
+		await _frame_boundary()
 		_save()
 	main.resume_from_home(false)
 	for n in keep:
@@ -408,9 +415,16 @@ func _save() -> void:
 		framing_log.append({"frame": frame, "shot": _ctx["shot"]["name"],
 			"runner_screen": [at.x, at.y], "runner_world": [rn.global_position.x, rn.global_position.y],
 			"alive": rn.state != Runner.State.DEAD, "hand_kind": target.get("kind", "")})
-	var image := view.get_texture().get_image()
-	image.save_png("%s/frames/%05d.png" % [dir, frame])
+	if not events_only:
+		var image := view.get_texture().get_image()
+		image.save_png("%s/frames/%05d.png" % [dir, frame])
 	frame += 1
+
+func _frame_boundary() -> void:
+	if events_only:
+		await get_tree().process_frame
+	else:
+		await RenderingServer.frame_post_draw
 
 ## Audio has a fixed ring of voices and advances `_next` once per sound, so
 ## every voice between the last cursor and now has just been started.
