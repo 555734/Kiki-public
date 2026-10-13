@@ -27,3 +27,30 @@ TRAILER_AUDIO_SOURCE=/absolute/path/6027.mp4 \
 カット割りとカメラ: `tools/trailer_shots.gd`
 
 通話・指・最後のタイトル: `tools/trailer_overlay.gd`
+
+## 2026-10-13 修正版
+
+非表示の操作ボタンが縦画面中央の指を拾ってしまうため、撮影時の指は
+本番のワールド用ジェスチャーに渡す。門の持ち上げ、岩の停止が実際に
+成立し、主人公が生存して通過することを確認する。
+岩の上への移動では縦の追従を追加し、敵を弾く前には敵も収める。
+画面外の指の「YOU」は表示せず、敵を弾いた後の指は退出させる。
+
+公式配布元から取得した しゃろう「2:23 AM」を使用する。
+配布元: https://opentracks.com/bgm/detail/13494
+ライセンス: https://opentracks.com/help/articles/license/
+作曲者条件: https://opentracks.com/creator/detail/101
+原音ファイルをリポジトリへ再配布せず、取得したファイルを指定する。
+
+```bash
+TRAILER_BGM=/absolute/path/Sharou_223_AM.mp3 \
+  tools/make_trailer.sh /path/to/godot build/trailer/melos_shorts.mp4 -- --portrait
+```
+
+`trailer_bgm.py` が効果音を撮影イベントから再構成し、旧生成スコアを
+外してから新BGMを合成する。BGMはステレオを保持し、効果音が強い
+瞬間には少し下げ、最後にフェードする。標準音量は -21 LUFS。
+
+特定カットの撮り直しには `tools/trailer_retake.py` を使う。
+同じカット名・フレーム数の素材を入れ替え、効果音と通話音の時刻も
+元の37秒の時間軸へ戻す。

@@ -43,7 +43,12 @@ done
 mkdir -p "$(dirname "$out")"
 # Use the exact soundtrack of an existing cut when only reframing it. This
 # also preserves effects that were added after the original auto-mix.
-if [ -n "${TRAILER_AUDIO_SOURCE:-}" ]; then
+if [ -n "${TRAILER_BGM:-}" ]; then
+	python3 tools/trailer_bgm.py "$cap" "$TRAILER_BGM" "$cap/soundtrack.wav" \
+		--offset "${TRAILER_BGM_OFFSET:-0}" --loudness "${TRAILER_BGM_LUFS:--21}"
+	audio="$cap/soundtrack.wav"
+	audio_codec=(-c:a aac -b:a 192k)
+elif [ -n "${TRAILER_AUDIO_SOURCE:-}" ]; then
 	audio="$TRAILER_AUDIO_SOURCE"
 	audio_codec=(-c:a copy)
 else

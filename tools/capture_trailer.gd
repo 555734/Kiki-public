@@ -73,6 +73,13 @@ class LinkPump extends Node:
 			l.advance(delta)
 const Overlay := preload("res://tools/trailer_overlay.gd")
 
+## The film hides the HUD. Its scripted finger therefore touches the world,
+## through the production hand/aim gestures; invisible buttons must not claim
+## a press merely because the phone's tall layout overlaps the filmed action.
+class WorldTouchRouter extends TouchRouter:
+	func _route(position: Vector2, _size: Vector2) -> Array:
+		return _world_gesture(position)
+
 const DESIGN := Vector2i(1280, 720)
 const FPS := 30
 const TICK_HZ := 60
@@ -98,6 +105,7 @@ var foley: Node = null
 var recording := false
 var cues: Array = []     # {"t", "cue"}
 var shots_log: Array = []
+var framing_log: Array = []
 var _voice_cursor := 0
 var _begin := 0
 var _trace := OS.get_environment("TRAILER_TRACE") != ""
@@ -199,6 +207,8 @@ func run() -> void:
 	f.store_string(JSON.stringify({"fps": FPS, "frames": frame, "size": [size.x, size.y],
 		"portrait": portrait, "shots": shots_log,
 		"cues": cues}, "  "))
+	f = FileAccess.open(dir + "/framing.json", FileAccess.WRITE)
+	f.store_string(JSON.stringify(framing_log))
 	print("trailer frames written to ", ProjectSettings.globalize_path(dir))
 	get_tree().quit()
 
@@ -264,6 +274,10 @@ func _shot(shots: Node, shot: Dictionary, frames: int, film_start: int) -> void:
 			written += await _freeze(ctx, mini(hold, frames - written))
 			if written >= frames:
 				break
+		if portrait:
+			# Tick at 60 Hz as before; only render ticks kept by the 30 fps film.
+			var next_owed := owed + float(FPS) / TICK_HZ / maxf(float(ctx["speed"]), 0.05)
+			view.render_target_update_mode = SubViewport.UPDATE_ONCE if t >= 0 and next_owed >= 1.0 else SubViewport.UPDATE_DISABLED
 		await RenderingServer.frame_post_draw
 		_log_sounds(now(), t >= 0)
 		if t >= 0:
@@ -301,6 +315,8 @@ func _open_coop(which: int, menu := false) -> void:
 		layer.visible = false
 		layer.process_mode = Node.PROCESS_MODE_DISABLED
 	main.input_hub.scripted = true
+	if portrait:
+		main.input_hub.touch = WorldTouchRouter.new(main.input_hub)
 	# PlacementPreview stays for the shot tracers, but the build ghost that
 	# follows an unheld cursor is the runner-seat view's: not drawn there.
 	main.input_hub.solo_role = "runner"
@@ -373,6 +389,8 @@ func _freeze(ctx: Dictionary, frames: int) -> int:
 		if ctx.has("on_freeze"):
 			(ctx["on_freeze"] as Callable).call(ctx, k)
 		overlay.set_time(shot_time(), frame)
+		if portrait:
+			view.render_target_update_mode = SubViewport.UPDATE_ONCE
 		await RenderingServer.frame_post_draw
 		_save()
 	main.resume_from_home(false)
@@ -382,6 +400,14 @@ func _freeze(ctx: Dictionary, frames: int) -> int:
 	return frames
 
 func _save() -> void:
+	if portrait and _ctx.has("main"):
+		var m: Node2D = _ctx["main"]
+		var rn: Runner = m.runner
+		var at: Vector2 = view.get_canvas_transform() * rn.global_position
+		var target: Dictionary = m.input_hub.hand_state.get("target", {})
+		framing_log.append({"frame": frame, "shot": _ctx["shot"]["name"],
+			"runner_screen": [at.x, at.y], "runner_world": [rn.global_position.x, rn.global_position.y],
+			"alive": rn.state != Runner.State.DEAD, "hand_kind": target.get("kind", "")})
 	var image := view.get_texture().get_image()
 	image.save_png("%s/frames/%05d.png" % [dir, frame])
 	frame += 1

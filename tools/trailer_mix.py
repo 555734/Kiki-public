@@ -19,6 +19,7 @@ Cues (shots.json "cues", each at a film time):
     ring / answer          a phone ringing (recorded) / the call picked up
     slam                   something heavy coming down -- its foley carries it
 """
+import argparse
 import json
 import sys
 import wave
@@ -186,8 +187,13 @@ def write_wav(path: Path, x: np.ndarray, channels: int) -> None:
 
 
 def main() -> None:
-    cap = Path(sys.argv[1])
-    out = Path(sys.argv[2])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('capture', type=Path)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('--no-music', action='store_true')
+    args = parser.parse_args()
+    cap = args.capture
+    out = args.output
     shots = json.loads((cap / "shots.json").read_text())
     sfx = json.loads((cap / "sfx.json").read_text())
     cues = shots.get("cues", [])
@@ -203,10 +209,11 @@ def main() -> None:
 
     # The score, composed to this cut's cues.
     music_in, drop, title, _ = trailer_music.cue_times(cap)
-    score = trailer_music.compose(music_in, drop, title, duration)
-    score /= max(1e-6, float(np.max(np.abs(score))))
     music = np.zeros(n, dtype=np.float32)
-    music[: min(n, len(score))] = score[:n]
+    if not args.no_music:
+        score = trailer_music.compose(music_in, drop, title, duration)
+        score /= max(1e-6, float(np.max(np.abs(score))))
+        music[: min(n, len(score))] = score[:n]
     music *= ramp(t, duration - 1.2, 1.2, False)
     music *= db(MUSIC_DB)
 

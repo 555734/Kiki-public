@@ -865,6 +865,8 @@ func call_answer_point() -> Vector2:
 		(72.0 if portrait else 26.0) + 60.0)
 
 func _draw_finger_tag() -> void:
+	if portrait and not Rect2(Vector2(20, 150), layout_size - Vector2(40, 300)).has_point(finger_at):
+		return
 	var ci := _canvas.get_canvas_item()
 	var size := 20
 	var w := BODY_FONT.get_string_size(finger_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 22.0

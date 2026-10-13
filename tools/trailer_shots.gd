@@ -71,6 +71,7 @@ class Rig extends Node:
 	var factor := 1.0
 	var _snapped := false
 	var portrait_shot := ""
+	var portrait_track_runner := false
 	var _rng := RandomNumberGenerator.new()
 	## A camera move between two held points (dolly_to), eased in and out --
 	## or, for the slow pull back, fast away and settling (ease_out).
@@ -139,7 +140,7 @@ class Rig extends Node:
 		if portrait_shot == "a2_gate":
 			# The wide gate action needs the hound, bars and runner together;
 			# the incoming call still gets the original close-up on the face.
-			framing = lerpf(0.48, 0.92, clampf(inverse_lerp(1.15, 2.4, factor), 0.0, 1.0))
+			framing = lerpf(0.84, 0.92, clampf(inverse_lerp(1.15, 2.4, factor), 0.0, 1.0))
 		cam.zoom = Vector2.ONE * Balance.CAMERA_ZOOM * factor * framing
 		if _dolly_ticks > 0 and follow == null:
 			_dolly_t = mini(_dolly_t + 1, _dolly_ticks)
@@ -153,9 +154,9 @@ class Rig extends Node:
 		elif portrait_shot == "d4_block":
 			target.x -= 60.0 if factor < 2.2 else 0.0
 		elif portrait_shot == "x_golem":
-			target.x += 60.0
 			# Once the golem has been flicked away, hold the runner in frame.
-			target.x = maxf(target.x, main.runner.global_position.x - 80.0)
+			if portrait_track_runner:
+				target.x = maxf(target.x, main.runner.global_position.x - 80.0)
 		if follow != null and is_instance_valid(follow):
 			var y := follow.global_position.y
 			if not _snapped:
@@ -174,6 +175,14 @@ class Rig extends Node:
 			var p := cam.global_position
 			p.x = lerpf(p.x, target.x, clampf(delta * smooth, 0.0, 1.0))
 			p.y = lerpf(p.y, target.y, clampf(delta * smooth_y, 0.0, 1.0))
+			cam.global_position = p
+		if portrait_shot in ["a2_gate", "x_boulder", "e1_title"]:
+			# Keep the entire ascent, rather than holding on an empty lower
+			# ledge while the runner jumps beyond the top of the phone frame.
+			var rn: Vector2 = main.runner.global_position
+			var p := cam.global_position
+			p.y = clampf(p.y, rn.y - 350.0 / cam.zoom.y, rn.y + 350.0 / cam.zoom.y)
+			p.x = clampf(p.x, rn.x - 250.0 / cam.zoom.x, rn.x + 250.0 / cam.zoom.x)
 			cam.global_position = p
 
 ## Ledge to ledge along a stage's route, steered the way test/climb_route.gd
@@ -354,7 +363,7 @@ func rig(ctx: Dictionary) -> Rig:
 	if cap.portrait:
 		r.portrait_shot = String(ctx["shot"]["name"])
 		r.scale *= float({"a1_crush": 0.88, "f2_spikes": 0.9, "x_bridge": 0.75,
-			"x_boulder": 0.9, "d4_block": 0.78, "x_golem": 0.8}.get(r.portrait_shot, 1.0))
+			"x_boulder": 0.9, "d4_block": 0.78, "x_golem": 0.57}.get(r.portrait_shot, 1.0))
 		r.lead = 35.0
 	ctx["rig"] = r
 	return r
@@ -909,10 +918,10 @@ func setup_a2_gate(ctx: Dictionary) -> Callable:
 		gate = n
 	cannon_off(ctx)
 	var r := rig(ctx)
-	r.cut_to(Vector2(gx - 300.0, 280), 1.0)
+	r.cut_to(Vector2(gx - (150.0 if cap.portrait else 300.0), 280), 1.0)
 	var t_hound := T(0.9)
 	# Up the road from the moat, and it waits there.
-	var hound_stop := gx - 560.0
+	var hound_stop := gx - (285.0 if cap.portrait else 560.0)
 	var t_ring := T(1.8)
 	var t_answer := T(2.9)
 	var t_finger := T(3.2)
@@ -943,7 +952,7 @@ func setup_a2_gate(ctx: Dictionary) -> Callable:
 			rn.visual.react(0, 1.2)
 		# The hound: in from the left, and it waits there, barking.
 		if t == t_hound and p != null:
-			p.global_position = Vector2(gx - 960.0, ROAD_Y - 40.0)
+			p.global_position = Vector2(gx - (780.0 if cap.portrait else 960.0), ROAD_Y - 40.0)
 			p.set("_wake_left", 0.0)
 			p.set("cruise_speed", 520.0)
 			p.set("catchup_speed", 520.0)
@@ -965,7 +974,7 @@ func setup_a2_gate(ctx: Dictionary) -> Callable:
 			guardian_on(c)
 			hub.aim_at_world(hello)
 			rn.visual.react(2, 1.4)
-			r.move(Vector2(gx - 215.0, 262), 1.15, T(0.45))
+			r.move(Vector2(gx - (105.0 if cap.portrait else 215.0), 262), 1.15, T(0.45))
 		if t >= t_finger:
 			tag_finger(c)
 		if t == t_tag:
@@ -1432,7 +1441,12 @@ func setup_x_golem(ctx: Dictionary) -> Callable:
 	var state := {"at": Vector2.ZERO}
 	return func(c: Dictionary) -> void:
 		var t: int = c["t"]
-		tag_finger(c)
+		if not cap.portrait or t < T(1.3):
+			tag_finger(c)
+		else:
+			(m.get_node("GuardianWisp") as CanvasItem).visible = false
+			ov().finger_name = ""
+		r.portrait_track_runner = t > T(1.6)
 		drive(c, 1.0 if t > T(1.6) else 0.0)
 		if golem == null or not is_instance_valid(golem):
 			return
