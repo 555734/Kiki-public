@@ -210,7 +210,7 @@ func _bolt(a: Vector2, b: Vector2, seed: int, jag: float = 60.0, width: float = 
 	draw_polyline(pts, colour, width, true)
 
 func _debris(origin: Vector2, w: float, age: float, seed: int) -> void:
-	for k in 12:
+	for k in 8:
 		var vx := (DrawUtil.hash01(seed * 7 + k) - 0.5) * 520.0
 		var vy := -320.0 - DrawUtil.hash01(seed * 11 + k) * 420.0
 		var p := origin + Vector2(w * (0.15 + 0.7 * DrawUtil.hash01(seed + k * 5)), 10) \

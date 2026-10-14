@@ -6651,7 +6651,7 @@
    "last_frame": 403,
    "name": "INCOMING CALL",
    "no_hero": false,
-   "phenomenon": "Mid-fall hold. The Discord call card is composited in the edit over the right of frame.",
+   "phenomenon": "Mid-fall, near-frozen. The incoming-call card (Discord mark, decline and accept, no text) rings on the right of frame.",
    "runner_end": [
     2029.68981933594,
     1151.65771484375
@@ -6965,7 +6965,7 @@
    "last_frame": 523,
    "name": "BRIDGE, ON DEMAND",
    "no_hero": false,
-   "phenomenon": "YOU taps a slab under the fall, then draws a rising stroke toward the lip: luminous steps in open air.",
+   "phenomenon": "YOU traces one stroke under the fall and up toward the lip: a staircase of glowing blocks in open air.",
    "runner_end": [
     2051.99682617188,
     1173.99047851562

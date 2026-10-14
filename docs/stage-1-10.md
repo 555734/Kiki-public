@@ -174,7 +174,7 @@ and uploads the MP4, report, audio check and contact sheet.
   sand jet, jaws, mace, honey jump cut); all eight enemy kinds act and die to
   shots; death → checkpoint respawn with the area rebuilt; restart. 152 checks.
 * `tools/perf_probe.tscn -- --stage 1-10 --budget` walks the course through
-  every checkpoint: 137–142 peak draw calls, ~3,170 objects (budget 160 /
+  every checkpoint: 146 peak draw calls, ~3,190 objects (budget 160 /
   3,500 in `tools/perf_budgets.cfg`).
 
 ## Known limits

@@ -169,11 +169,13 @@ func _draw() -> void:
 
 func _arm(from: Vector2, to: Vector2, width: float) -> void:
 	var n := maxi(2, int(from.distance_to(to) / (width * 0.8)))
+	# Two passes (all rims, then all stones) so the rims batch together.
 	for i in n + 1:
-		var p := from.lerp(to, float(i) / float(n))
 		var size := width * (1.15 if i == n else 0.95)
-		draw_circle(p, size * 0.56, Color(0.13, 0.12, 0.18, 0.9))
-		FinaleArt.centred(self, "stone", p, size, float(i) * 0.4, Color(0.66, 0.69, 0.78))
+		draw_circle(from.lerp(to, float(i) / float(n)), size * 0.56, Color(0.13, 0.12, 0.18, 0.9))
+	for i in n + 1:
+		var size := width * (1.15 if i == n else 0.95)
+		FinaleArt.centred(self, "stone", from.lerp(to, float(i) / float(n)), size, float(i) * 0.4, Color(0.66, 0.69, 0.78))
 
 ## The giant's body, behind the terrain.
 class Back extends Node2D:
@@ -206,8 +208,13 @@ class Back extends Node2D:
 				blocks.append([Vector2((col - 1) * 100.0, -950.0 - row * 90.0 + lift), 112.0])
 		for b in blocks:
 			draw_rect(Rect2(b[0] - Vector2.ONE * float(b[1]) * 0.56, Vector2.ONE * float(b[1]) * 1.12), rim)
-		for b in blocks:
-			FinaleArt.centred(self, "stone", b[0], b[1], 0.0, stone)
+		# Upright blocks need no transform, so they batch into one draw.
+		var t := FinaleArt.tex("stone")
+		if t != null:
+			var aspect := float(t.get_height()) / float(t.get_width())
+			for b in blocks:
+				var w := float(b[1])
+				draw_texture_rect(t, Rect2(b[0] - Vector2(w, w * aspect) * 0.5, Vector2(w, w * aspect)), false, stone)
 		# Moss on the shoulders and the crown.
 		draw_rect(Rect2(-240, -880 + lift, 480, 22), Color("4f9a34"))
 		draw_rect(Rect2(-150, -1088 + lift, 300, 18), Color("5fa83a"))

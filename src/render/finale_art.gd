@@ -48,6 +48,8 @@ const SPRITES := {
 	"pillar": "res://assets/stage_1_3/sprites/pillar_broken.png",
 	"plank": "res://assets/stage_1_3/sprites/plank.png",
 	"cloud_a": "res://assets/bg/cloud_a.png",
+	"cloud_soft_a": "res://assets/stage_1_10/cloud_soft_a.png",
+	"cloud_soft_b": "res://assets/stage_1_10/cloud_soft_b.png",
 	"cloud_b": "res://assets/bg/cloud_b.png",
 	"meadow": "res://assets/bg/parallax.png",
 	"sand_sky": "res://assets/split/1-6/background/background.png",
@@ -298,28 +300,20 @@ static func _layer(ci: CanvasItem, key: String, view: Vector2, cam: Vector2, rat
 		var x := float(i) * width - fposmod(offset, width)
 		ci.draw_texture_rect(t, Rect2(x, top, width + 0.5, height), false, Color(tint, alpha))
 
-## A few drifting clouds, spaced out (never a repeated strip). Drawn as soft
-## clusters of circles rather than the mockup crops, whose edges were cut.
+## A few drifting clouds, spaced out (never a repeated strip). Soft painted
+## clouds (tools/promotion/make_soft_clouds.py) instead of the mockup crops,
+## whose edges were cut straight.
 static func _clouds(ci: CanvasItem, view: Vector2, offset: float, alpha: float) -> void:
 	var span := view.x * 1.6
 	for i in 4:
-		var w := view.x * (0.15 + 0.05 * float(i % 3))
+		var t := tex("cloud_soft_a" if i % 2 == 0 else "cloud_soft_b")
+		if t == null:
+			continue
+		var w := view.x * (0.15 + 0.05 * float(i % 3)) * 1.15
+		var h := w * 0.5
 		var x := fposmod(float(i) * span / 4.0 - offset * (0.6 + 0.15 * float(i)), span) - view.x * 0.3
-		var y := view.y * (0.06 + 0.07 * float((i * 3) % 4)) + w * 0.25
-		_cloud(ci, Vector2(x + w * 0.5, y), w, alpha * 0.92, i)
-
-static func _cloud(ci: CanvasItem, base: Vector2, w: float, alpha: float, seed: int) -> void:
-	var shade := Color(0.80, 0.88, 0.98, alpha)
-	var white := Color(1, 1, 1, alpha)
-	var puffs := [[-0.36, 0.0, 0.17], [-0.16, -0.12, 0.23], [0.08, -0.17, 0.27], [0.3, -0.06, 0.2], [0.42, 0.02, 0.13]]
-	for p in puffs:
-		var wob := 0.03 * float((seed * 7 + int(p[0] * 10.0)) % 3)
-		ci.draw_circle(base + Vector2(float(p[0]), float(p[1]) + 0.05) * w, (float(p[2]) + wob) * w, shade)
-	ci.draw_rect(Rect2(base + Vector2(-0.36, -0.02) * w, Vector2(0.78, 0.09) * w), shade)
-	for p in puffs:
-		var wob2 := 0.03 * float((seed * 7 + int(p[0] * 10.0)) % 3)
-		ci.draw_circle(base + Vector2(float(p[0]), float(p[1])) * w, (float(p[2]) + wob2) * w * 0.93, white)
-	ci.draw_rect(Rect2(base + Vector2(-0.36, -0.06) * w, Vector2(0.78, 0.08) * w), white)
+		var y := view.y * (0.06 + 0.07 * float((i * 3) % 4)) - h * 0.2
+		ci.draw_texture_rect(t, Rect2(x, y, w, h), false, Color(1, 1, 1, alpha * 0.92))
 
 ## One backdrop per area, cross-faded over 500px at each border.
 static func background(ci: CanvasItem, view: Vector2, cam: Vector2, time: float, flash: float) -> void:
