@@ -102,6 +102,7 @@ func _draw() -> void:
 	var sq := squash()
 	var scale := Vector2(1.0 + 0.35 * sq, 1.0 - 0.4 * sq)
 	var centre := Vector2(0, -RADIUS * scale.y)
-	draw_set_transform(centre, 0.0, scale)
-	FinaleArt.centred(self, "honey_bubble", Vector2.ZERO, RADIUS * 2.2)
-	draw_set_transform(Vector2.ZERO)
+	var bubble := FinaleArt.tex("honey_bubble")
+	if bubble != null:
+		var size := Vector2(RADIUS * 2.2, RADIUS * 2.2) * scale
+		draw_texture_rect(bubble, Rect2(centre - size * 0.5, size), false)

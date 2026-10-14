@@ -195,7 +195,8 @@ static func coins() -> Array[Vector2]:
 			Vector2(16000, 1060), Vector2(16900, 800), Vector2(16900, 500),
 			Vector2(18200, 240), Vector2(19200, 240), Vector2(19960, 150), Vector2(20750, 100),
 			Vector2(22235, 0), Vector2(23200, -30), Vector2(25000, 380),
-			Vector2(26900, 360), Vector2(27000, 360), Vector2(27100, 360), Vector2(28300, 360)]:
+			Vector2(26900, 360), Vector2(27000, 360), Vector2(27100, 360), Vector2(27760, 420),
+			Vector2(27840, 420), Vector2(27920, 420), Vector2(28000, 420), Vector2(28300, 360)]:
 		out.append(p)
 	return out
 
@@ -227,6 +228,8 @@ static func enemies() -> Array[Dictionary]:
 		{"type": "finale_enemy", "kind": "skull_drone", "pos": Vector2(20950, 140), "data": {"amp": Vector2(100, 40)}},
 		{"type": "finale_enemy", "kind": "skull_drone", "pos": Vector2(19960, 70), "data": {"amp": Vector2(70, 40)}},
 		{"type": "finale_enemy", "kind": "skull_drone", "pos": Vector2(21230, 60), "data": {"amp": Vector2(50, 70)}},
+		{"type": "finale_enemy", "kind": "skull_drone", "pos": Vector2(20650, -20), "data": {"amp": Vector2(80, 30)}},
+		{"type": "finale_enemy", "kind": "skull_drone", "pos": Vector2(20880, 40), "data": {"amp": Vector2(40, 60)}},
 		# Title run: brass drones in pursuit, a cannon, one walker.
 		{"type": "finale_enemy", "kind": "brass_drone", "pos": Vector2(25100, 300), "data": {"amp": Vector2(60, 40), "chase": true}},
 		{"type": "finale_enemy", "kind": "brass_drone", "pos": Vector2(26250, 330), "data": {"amp": Vector2(50, 50), "chase": true}},
@@ -275,7 +278,7 @@ static func gimmicks() -> Array[Dictionary]:
 			"travel": Vector2(0, -float(row[2])), "width": 70.0, "period": 4.0, "phase": float(row[3])})
 	# ---- IRON RAIL: two trains on one schedule, two cranes, a low bridge.
 	out.append({"type": "finale_machine", "kind": "rail_line", "id": "rail", "pos": Vector2(11520, 1720),
-		"data": {"portal_in": 11500.0, "portal_out": 15600.0, "cranes": [12900.0, 13900.0], "period": 25.0,
+		"data": {"portal_in": 11500.0, "portal_out": 15600.0, "cranes": [[12900.0, 0, 2], [13900.0, 1, 1]], "period": 25.0,
 			"low_bridge": 15060.0}})
 	# ---- HONEYCOMB HIVE
 	for row in [[15760, 140], [16080, 160], [16600, 180]]:
@@ -286,7 +289,7 @@ static func gimmicks() -> Array[Dictionary]:
 	out.append({"type": "finale_machine", "kind": "honey_shaft", "id": "hive_shaft", "pos": Vector2(16900, 1300),
 		"data": {"top": 230.0, "left": 16830.0, "right": 16970.0}})
 	# ---- STONE GIANT
-	out.append({"type": "finale_machine", "kind": "stone_giant", "id": "giant", "pos": Vector2(18760, 1050),
+	out.append({"type": "finale_machine", "kind": "stone_giant", "id": "giant", "pos": Vector2(18760, 760),
 		"data": {"trigger": 18150.0, "slab": Rect2(18500, -100, 60, 400), "pivot": Vector2(18760, -420),
 			"length": 597.0, "amp": 1.0, "period": 3.4}})
 	# ---- DRAGON BONE CANYON
@@ -296,9 +299,9 @@ static func gimmicks() -> Array[Dictionary]:
 	for row in [[22650, 320, 120], [22850, 260, 110], [23050, 330, 110], [23250, 240, 110], [23450, 300, 120], [23650, 270, 120]]:
 		out.append({"type": "finale_machine", "kind": "bone_pillar", "id": "pillar_%d" % row[0], "pos": Vector2(row[0], row[1]),
 			"data": {"width": float(row[2])}})
-	for row in [[22050, 1800, 4.0, 0.0], [23170, 1800, 3.6, 1.2], [23560, 1800, 3.6, 2.4]]:
+	for row in [[22050, 1800, 4.0, 0.0], [23205, 1800, 3.6, 1.2], [23610, 1800, 3.6, 2.4]]:
 		out.append({"type": "finale_machine", "kind": "sand_geyser", "id": "sandjet_%d" % row[0], "pos": Vector2(row[0], row[1]),
-			"data": {"top": -60.0, "period": float(row[2]), "phase": float(row[3]), "width": 90.0}})
+			"data": {"top": -60.0, "period": float(row[2]), "phase": float(row[3]), "width": 80.0}})
 	out.append({"type": "finale_machine", "kind": "canyon_floor", "id": "canyon_floor", "pos": Vector2(19660, 1750),
 		"data": {"width": 4900.0}})
 	# ---- TITLE RUN
@@ -306,8 +309,8 @@ static func gimmicks() -> Array[Dictionary]:
 		"data": {"radius": 46.0, "travel": Vector2(300, 0), "period": 3.2}})
 	out.append({"type": "finale_machine", "kind": "saw", "id": "saw_b", "pos": Vector2(26480, 540),
 		"data": {"radius": 52.0, "travel": Vector2(0, 0), "period": 1.0}})
-	out.append({"type": "finale_machine", "kind": "saw", "id": "saw_c", "pos": Vector2(27150, 330),
-		"data": {"radius": 40.0, "travel": Vector2(0, 80), "period": 2.6}})
+	out.append({"type": "finale_machine", "kind": "saw", "id": "saw_c", "pos": Vector2(27150, 300),
+		"data": {"radius": 40.0, "travel": Vector2(0, 100), "period": 2.6}})
 	out.append({"type": "moving_platform", "pos": Vector2(27460, 520), "span": Vector2(140, 26),
 		"travel": Vector2(0, -150), "speed": 90.0})
 	return out

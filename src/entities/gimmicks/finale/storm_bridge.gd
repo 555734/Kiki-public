@@ -130,11 +130,12 @@ func _draw() -> void:
 	var gone := broken_at(tick)
 	var last := latest()
 	var t := seconds()
+	var live: Array = []
 	for i in _spans.size():
-		var r := Rect2(w * float(i), 0, w, DECK_THICK)
-		if gone.has(i):
-			continue
-		FinaleArt.slab_on(self, r, "storm")
+		if not gone.has(i):
+			live.append(Rect2(w * float(i), 0, w, DECK_THICK))
+	FinaleArt.slabs_on(self, live, "storm")
+	for r in live:
 		# Balustrade posts.
 		draw_rect(Rect2(r.position.x + 12, -34, 10, 34), Color("54627f"))
 		draw_rect(Rect2(r.position.x + 8, -40, 18, 8), Color("8291b2"))

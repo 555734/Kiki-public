@@ -25,9 +25,17 @@ func _draw() -> void:
 		_chain(Vector2.ZERO, end)
 	FinaleArt.centred(self, "lava_platform", p + Vector2(0, 14), w + 30.0)
 
+## Links as two dashed strokes (one draw call each).
 func _chain(a: Vector2, b: Vector2) -> void:
-	var n := int(a.distance_to(b) / 18.0)
+	var n := maxi(2, int(a.distance_to(b) / 18.0))
+	var dark := PackedVector2Array()
+	var light := PackedVector2Array()
 	for i in n:
-		var c := a.lerp(b, (float(i) + 0.5) / float(n))
-		draw_circle(c, 6.0, Color("2b2326"))
-		draw_circle(c, 3.5, Color("8a7a70"))
+		var p0 := a.lerp(b, (float(i) + 0.1) / float(n))
+		var p1 := a.lerp(b, (float(i) + 0.9) / float(n))
+		dark.append(p0)
+		dark.append(p1)
+		light.append(p0.lerp(p1, 0.25))
+		light.append(p0.lerp(p1, 0.75))
+	draw_multiline(dark, Color("2b2326"), 10.0)
+	draw_multiline(light, Color("8a7a70"), 4.0)

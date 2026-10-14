@@ -185,11 +185,14 @@ func _pursue(delta: float) -> void:
 	if absf(dx) > 700.0 and _lunge_t < 0.0:
 		global_position = global_position.lerp(_home + Vector2(sin(t) * amp.x, sin(t * 1.7) * amp.y), minf(1.0, delta * 2.0))
 		return
+	# Shadow from behind and above; every 3.2s, a fast dive through the runner.
 	var swoop := fposmod(t, 3.2)
 	var target := runner.global_position + Vector2(-170.0, -150.0 + sin(t * 2.0) * 20.0)
-	if swoop > 2.4 and swoop < 2.9:
-		target = runner.global_position + Vector2(-20.0, -20.0)
-	global_position += (target - global_position).limit_length(340.0 * delta)
+	var speed := 340.0
+	if swoop > 2.3 and swoop < 2.95:
+		target = runner.global_position + Vector2(10.0, -8.0)
+		speed = 640.0
+	global_position += (target - global_position).limit_length(speed * delta)
 
 func _draw() -> void:
 	var t := Clock.seconds_at(Clock.tick)
@@ -213,9 +216,7 @@ func _draw() -> void:
 			draw_set_transform(Vector2.ZERO)
 		"fire_bat":
 			var flap := 1.0 + 0.25 * sin(t * 14.0)
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2(face * flap, 1.0))
-			FinaleArt.centred(self, "fire_bat", Vector2.ZERO, 96.0)
-			draw_set_transform(Vector2.ZERO)
+			FinaleArt.centred(self, "fire_bat", Vector2.ZERO, 96.0 * flap, 0.0, Color.WHITE, face < 0)
 		"rail_gunner":
 			FinaleArt.sprite(self, "turret_fire" if _flash > 0.0 else "turret_idle", Vector2(0, 30), 70.0, true)
 		"wax_wisp":

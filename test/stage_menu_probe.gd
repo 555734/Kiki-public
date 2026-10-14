@@ -54,6 +54,8 @@ func _ready() -> void:
 	Stage.use(Stage.Which.PARADE)
 	check(Stage.stage_number() == "1-9", "the parade is selectable as 1-9")
 	check(Stage.stage_name() == "THE TRICKSTER PARADE", "and it is the one it says it is")
+	Stage.use(Stage.Which.FINALE)
+	check(Stage.stage_number() == "1-10" and Stage.stage_name() == "THE LAST RUN", "the final stage is selectable as 1-10")
 	Stage.use(Stage.Which.GREENFIELD)
 	check(Stage.stage_number() == "1-1", "1-1 remains selectable after the others")
 
@@ -99,11 +101,11 @@ func _ready() -> void:
 			check(panel._stage_page == last_page, "second finger cannot steal stage gesture")
 			_drag(panel, centre + Vector2(0, 160), 0)
 			check(panel._stage_page == last_page, "vertical drag does not turn the page")
-			panel._stage_1_9.pressed.emit()
+			panel._stage_1_10.pressed.emit()
 			check(panel._code == null, "vertical drag release is not a stage tap")
 			_drag(panel, centre - Vector2(180, 0), 0)
 			check(panel._stage_page == last_page and panel._select_view._swipe.consumed, "edge swipe stays on last stage and consumes card tap")
-			panel._stage_1_9.pressed.emit()
+			panel._stage_1_10.pressed.emit()
 			check(panel._code == null, "edge swipe release cannot open the play screen")
 			_touch(panel, centre, false, 0)
 			_touch(panel, centre, false, 1)
@@ -111,13 +113,13 @@ func _ready() -> void:
 			_drag(panel, centre + Vector2(180, 0), 0)
 			_touch(panel, centre + Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == last_page - 1 and _visible_stages(panel).has("1-8"), "right swipe selects previous stage")
+			check(panel._stage_page == last_page - 1 and _visible_stages(panel).has("1-9"), "right swipe selects previous stage")
 			centre = panel._stage_view.get_global_rect().get_center()
 			_touch(panel, centre, true, 0)
 			_drag(panel, centre - Vector2(180, 0), 0)
 			_touch(panel, centre - Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == last_page and _visible_stages(panel).has("1-9"), "left swipe selects next stage")
+			check(panel._stage_page == last_page and _visible_stages(panel).has("1-10"), "left swipe selects next stage")
 			# The mouse has the same browsing gesture on desktop.
 			var mouse := InputEventMouseButton.new()
 			mouse.button_index = MOUSE_BUTTON_LEFT; mouse.pressed = true; mouse.position = centre

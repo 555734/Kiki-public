@@ -49,9 +49,10 @@ func _build() -> void:
 			row.append(make_body(Vector2(float(car[1]), float(car[2]) - 26.0)))
 		_roofs.append(row)
 	_cargo = make_body(Vector2(84, 80))
+	# Each crane: [x, train, car] -- the car it drops its crate onto.
 	for c in data.get("cranes", []):
 		_crates.append(make_body(CRATE))
-		_drops.append(_plan_drop(float(c), _crates.size() - 1))
+		_drops.append(_plan_drop(float(c[0]), int(c[1]), int(c[2])))
 	_top = Top.new()
 	_top.line = self
 	_top.z_index = 8
@@ -111,27 +112,31 @@ func car_visible(train: int, car: int, b: float) -> bool:
 	var w := float(CARS[train][car][1])
 	return x + w > portal_in + 8.0 and x < portal_out - 8.0
 
+## Solid only once wholly out of the tunnels: a half-emerged car's hidden
+## end must not reach under the station deck and scoop up a waiting runner.
+func car_solid(train: int, car: int, b: float) -> bool:
+	var x := car_x(train, car, b)
+	return x >= portal_in and x + float(CARS[train][car][1]) <= portal_out
+
 ## For enemies riding a roof: world point on the roof centre, or INF.
 func roof_point(train: int, car: int) -> Vector2:
 	var b := beat()
-	if train >= CARS.size() or car >= CARS[train].size() or not car_visible(train, car, b):
+	if train >= CARS.size() or car >= CARS[train].size() or not car_solid(train, car, b):
 		return Vector2(INF, INF)
 	return Vector2(car_x(train, car, b) + float(CARS[train][car][1]) * 0.5, roof_y(train, car))
 
-## Crane drops are planned once: release when the target car will be under
-## the hook as the crate lands. Target: the car of train 0 under the crane
-## when it first passes it after departure.
-func _plan_drop(crane_x: float, index: int) -> Dictionary:
-	var target_car := 2 if index == 0 else 0
-	var fall := sqrt(2.0 * (-HOOK_Y - float(CARS[0][target_car][2]) - CRATE.y * 0.5 + 20.0) / GRAVITY)
+## Crane drops are planned once: release so the crate lands on the middle of
+## the target car as it passes under the hook after departure.
+func _plan_drop(crane_x: float, train: int, car: int) -> Dictionary:
+	var fall := sqrt(2.0 * (-HOOK_Y - float(CARS[train][car][2]) - CRATE.y * 0.5 + 20.0) / GRAVITY)
 	var b := ARRIVE + PARKED
 	while b < period:
-		var centre := car_x(0, target_car, b + fall) + float(CARS[0][target_car][1]) * 0.5
+		var centre := car_x(train, car, b + fall) + float(CARS[train][car][1]) * 0.5
 		if centre >= crane_x:
-			var offset := crane_x - car_x(0, target_car, b + fall)
-			return {"crane": crane_x, "t": b, "land": b + fall, "car": target_car, "offset": offset}
+			var offset := crane_x - car_x(train, car, b + fall)
+			return {"crane": crane_x, "t": b, "land": b + fall, "train": train, "car": car, "offset": offset}
 		b += 1.0 / 60.0
-	return {"crane": crane_x, "t": INF, "land": INF, "car": target_car, "offset": 0.0}
+	return {"crane": crane_x, "t": INF, "land": INF, "train": train, "car": car, "offset": 0.0}
 
 ## Crate centre (world) and phase: 0 hanging, 1 falling, 2 riding, 3 gone.
 func crate_at(i: int, b: float) -> Array:
@@ -142,11 +147,12 @@ func crate_at(i: int, b: float) -> Array:
 	if b < float(d["land"]):
 		var t := b - float(d["t"])
 		return [hook + Vector2(0, CRATE.y * 0.5 + 20.0 + 0.5 * GRAVITY * t * t), 1]
+	var train := int(d["train"])
 	var car := int(d["car"])
-	if not car_visible(0, car, b):
+	if not car_solid(train, car, b):
 		return [Vector2(INF, INF), 3]
-	var x := car_x(0, car, b) + float(d["offset"])
-	return [Vector2(x, roof_y(0, car) - CRATE.y * 0.5), 2]
+	var x := car_x(train, car, b) + float(d["offset"])
+	return [Vector2(x, roof_y(train, car) - CRATE.y * 0.5), 2]
 
 func _pose(tick: int) -> void:
 	var b := beat(tick)
@@ -156,9 +162,9 @@ func _pose(tick: int) -> void:
 			var w := float(CARS[train][car][1])
 			var h := float(CARS[train][car][2]) - 26.0
 			body.global_position = Vector2(car_x(train, car, b) + w * 0.5, roof_y(train, car) + h * 0.5)
-			set_solid(body, car_visible(train, car, b))
+			set_solid(body, car_solid(train, car, b))
 	_cargo.global_position = Vector2(car_x(0, 1, b) + 150.0, roof_y(0, 1) - 40.0)
-	set_solid(_cargo, car_visible(0, 1, b))
+	set_solid(_cargo, car_solid(0, 1, b))
 	for i in _crates.size():
 		var at: Array = crate_at(i, b)
 		if at[1] == 3:
@@ -226,7 +232,7 @@ func _draw() -> void:
 			var warn := float(_drops[i]["t"]) - b
 			if warn < 0.8:
 				c.x += sin(b * 40.0) * 3.0
-				var shadow_y := roof_y(0, int(_drops[i]["car"])) - global_position.y
+				var shadow_y := roof_y(int(_drops[i]["train"]), int(_drops[i]["car"])) - global_position.y
 				draw_rect(Rect2(c.x - 40, shadow_y - 6, 80, 8), Color(0, 0, 0, 0.35))
 		FinaleArt.centred(self, "crate", c, CRATE.x + 8.0)
 

@@ -1,7 +1,8 @@
 extends Node
 ## Whole-world captures of the production LevelBuilder, without gameplay UI.
 const STAGES := [Stage.Which.GREENFIELD, Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS,
-	Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]
+	Stage.Which.SEA, Stage.Which.SWAMP, Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE,
+	Stage.Which.FINALE]
 const MAX_EDGE := 12288
 const MAX_PIXELS := 32_000_000
 var output := "res://build/stage-maps"
@@ -47,12 +48,12 @@ func run() -> void:
 			else: scale_factor = value.to_float()
 		elif arg == "--no-background": background = false
 		elif arg == "--help":
-			print("export_stage_maps: --stage=all|1-1..1-8 --output=PATH --scale=0.5 --no-background")
+			print("export_stage_maps: --stage=all|1-1..1-10 --output=PATH --scale=0.5 --no-background")
 			get_tree().quit(0)
 			return
 		elif arg != "--ci-skip-eos": failed = true
 	if failed or not is_finite(scale_factor) or scale_factor <= 0 \
-		or (selection != "all" and selection not in ["1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8"]):
+		or (selection != "all" and selection not in ["1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-10"]):
 		push_error("Invalid map options; use --help.")
 		get_tree().quit(1)
 		return

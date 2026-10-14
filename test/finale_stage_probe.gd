@@ -171,18 +171,22 @@ func _physics_process(_delta: float) -> void:
 		if not (e is Node2D) or e.is_queued_for_deletion():
 			continue
 		var d: Vector2 = (e as Node2D).global_position - r.global_position
-		if d.length() < 330.0 and (e as Node2D).visible:
+		var reach := 900.0 if e.get("kind") == "rail_gunner" else (700.0 if e is Turret else 330.0)
+		if d.length() < reach and (e as Node2D).visible:
 			shoot((e as Node2D).global_position)
 			return
 
 ## Respawn at a checkpoint (index from 1) as a real checkpoint restart.
 func from_checkpoint(index: int) -> void:
 	release()
+	main._respawn_timer = -1.0
 	main.guardian.clear_constructs()
-	GameState.checkpoint_index = 0
 	var cp: Vector2 = Stage.checkpoints()[index - 1]
+	# As if the flag had just been touched (flags already passed stay lit).
+	GameState.checkpoint_index = index
+	GameState.checkpoint_position = cp + Vector2(0, 26)
 	main.runner.respawn(cp + Vector2(0, 26))
-	await frames(8)
+	await frames(2)
 	main._do_respawn()
 	await frames(4)
 
@@ -201,7 +205,10 @@ func run() -> void:
 	var only: Array = []
 	if OS.get_environment("FINALE_ONLY") != "":
 		only = OS.get_environment("FINALE_ONLY").split(",")
-	var areas := ["grass", "storm", "sand", "lava", "geyser", "rail", "hive", "giant", "bone", "title"]
+	# The goal run goes last: reaching the goal clears the run for good
+	# (invulnerable runner, frozen enemies), as it does in the game.
+	var areas := ["grass", "storm", "sand", "lava", "geyser", "rail", "hive", "giant", "bone",
+		"solo", "mechanics", "enemies", "title"]
 	for name in areas:
 		if not only.is_empty() and not only.has(name):
 			continue
@@ -591,14 +598,17 @@ func area_title() -> bool:
 			await run_until(x_past(step[2]), 1.0, false, 200)
 	var saw_c := machine("saw_c")
 	hold(0.0)
-	await wait_until(func() -> bool: return saw_c.centre().y < 8.0, 200)
+	await wait_until(func() -> bool: return saw_c.centre().y > 95.0, 200)
+	await wait_until(func() -> bool: return saw_c.centre().y < 45.0, 200)
 	await run_until(x_past(27260), 1.0, true, 100)
 	at("past saw c")
 	var lift: MovingPlatform = null
 	for node in get_tree().get_nodes_in_group("finale_machine"):
 		pass
-	for node in main.level.find_children("*", "MovingPlatform", true, false):
-		lift = node
+	for node in main.level.find_children("*", "", true, false):
+		if node is MovingPlatform:
+			lift = node
+	release()
 	await wait_until(func() -> bool: return lift.global_position.y > 500.0, 300)
 	var on_lift := await hop_to(func() -> Vector2: return lift.global_position + Vector2(0, -13))
 	at("lift %s" % on_lift)
@@ -610,5 +620,194 @@ func area_title() -> bool:
 	check(r.cleared, "the goal is reached")
 	return r.cleared
 
+## Put the runner somewhere and let it settle, without a respawn rebuild.
+func place_runner(at: Vector2) -> void:
+	release()
+	main._respawn_timer = -1.0
+	r.respawn(at)
+	await frames(3)
+
+## No guardian at all: a runner who falls into the opening chasm climbs the
+## chimney behind the far bank. Nothing is a dead end alone.
+func area_solo() -> bool:
+	release()
+	main.guardian.clear_constructs()
+	await place_runner(Vector2(1800, 2070))
+	await wait_until(grounded(), 60)
+	await run_until(x_past(2440), 1.0, false, 300)
+	at("chimney foot")
+	var ledges := [Vector2(2565, 1980), Vector2(2435, 1860), Vector2(2565, 1740), Vector2(2435, 1620),
+		Vector2(2565, 1500), Vector2(2435, 1380), Vector2(2565, 1260), Vector2(2435, 1140), Vector2(2500, 1040)]
+	for feet in ledges:
+		if not await hop_to(feet):
+			at("chimney missed %s" % feet)
+			return false
+	at("out of the chimney")
+	check(r.global_position.y < 1030.0, "climbed out of the chasm alone via the chimney")
+	return true
+
+func area_mechanics() -> bool:
+	_cover = false
+	# Standing under the swinging block is a hit; crouching was not (above).
+	var pend := machine("ruin_pendulum")
+	await from_checkpoint(2)
+	await place_runner(Vector2(6780, 1137))
+	var hp := r.hp
+	await wait_until(func() -> bool: return r.hp < hp, 300)
+	check(r.hp < hp, "the swinging block hits a runner who stands in its path")
+	# Electrified spans hurt when live.
+	await from_checkpoint(1)
+	await place_runner(Vector2(4385, 777))
+	hp = r.hp
+	await wait_until(func() -> bool: return r.hp < hp, 240)
+	check(r.hp < hp, "an electrified span hurts while it is live")
+	# The guardian's wall stops the magma sphere; it rolls on once the wall fades.
+	await from_checkpoint(4)
+	var ball := machine("magma")
+	await place_runner(Vector2(9480, 2397))
+	ball.set_state(1, 0.0)
+	await frames(1)
+	main.guardian.select_slot(2)
+	main.guardian.use_active(Vector2(9180, 2380))
+	await wait_until(func() -> bool: return ball.state == 2, 200)
+	check(ball.state == 2, "a guardian wall holds the magma sphere")
+	var held: float = ball.distance_at(Clock.tick)
+	await frames(60)
+	check(absf(ball.distance_at(Clock.tick) - held) < 0.1, "...and it stays held while the wall stands")
+	await wait_until(func() -> bool: return ball.state == 1, 400)
+	check(ball.state == 1 and ball.distance_at(Clock.tick) >= held, "it rolls on when the wall expires")
+	# The sphere is lethal.
+	await from_checkpoint(4)
+	ball = machine("magma")
+	await place_runner(Vector2(9100, 2470))
+	ball.set_state(1, 0.0)
+	await wait_until(func() -> bool: return r.state == Runner.State.DEAD, 240)
+	check(r.state == Runner.State.DEAD, "the magma sphere kills a runner in its path")
+	await frames(100)
+	at("after death")
+	check(r.state != Runner.State.DEAD and r.global_position.distance_to(Stage.checkpoints()[3]) < 60.0,
+		"respawned at the checkpoint before the chase")
+	ball = machine("magma")
+	check(ball.state == 0 and ball._crust.collision_layer == 1, "the chase is rebuilt for the retry (sphere parked, crust whole)")
+	# Trains: crates land on cars and ride them; the low bridge sweeps the roof.
+	await from_checkpoint(6)
+	var line := machine("rail")
+	var crate_ok := false
+	for b in range(0, int(line.period * 10.0)):
+		var at: Array = line.crate_at(0, float(b) / 10.0)
+		if at[1] == 2:
+			crate_ok = absf(at[0].y - (line.roof_y(int(line._drops[0]["train"]), int(line._drops[0]["car"])) - line.CRATE.y * 0.5)) < 1.0
+			break
+	check(crate_ok, "the crane's crate lands on a car roof and rides it")
+	check(line._drops[0]["t"] < line.period and line._drops[1]["t"] < line.period, "both cranes drop once per timetable")
+	await place_runner(Vector2(15000, 1500))
+	r.global_position = Vector2(15030, 1520)
+	await frames(2)
+	r.global_position = Vector2(15075, 1520)
+	await frames(3)
+	check(r.state == Runner.State.DEAD, "the low bridge sweeps a runner still on the roof")
+	await frames(100)
+	# Sand geyser lifts.
+	await from_checkpoint(10)
+	var jet := machine("sandjet_23205")
+	await wait_until(func() -> bool: return not jet.active(), 400)
+	await wait_until(func() -> bool: return jet.active(), 400)
+	await place_runner(Vector2(23205, 700))
+	r.global_position = Vector2(23205, 700)
+	var y0 := r.global_position.y
+	for i in 6:
+		await frames(5)
+		at("jet %d active=%s" % [i, jet.active()])
+	check(r.global_position.y < y0 - 150.0, "a sand geyser throws the runner upward")
+	# The jaws kill a runner who stops.
+	await from_checkpoint(10)
+	var beast := machine("beast")
+	await place_runner(Vector2(22710, 297))
+	await frames(3)
+	check(beast.state == 2, "the chase starts past the bridge")
+	r.global_position = Vector2(22540, 277)
+	for i in 12:
+		await frames(20)
+		at("jaws %d front=%d" % [i, int(beast.jaw_front())])
+		if r.state == Runner.State.DEAD:
+			break
+	check(r.state == Runner.State.DEAD, "the jaws catch a runner who stands still")
+	await frames(100)
+	# Giant's mace hits.
+	await from_checkpoint(9)
+	var giant := machine("giant")
+	giant.set_state(1)
+	await wait_until(func() -> bool: return giant.since() > 4.0, 400)
+	await place_runner(Vector2(18760, 217))
+	hp = r.hp
+	await wait_until(func() -> bool: return r.hp < hp, 300)
+	check(r.hp < hp, "the mace hits a runner standing on the bridge")
+	# Honey cuts a jump.
+	await from_checkpoint(7)
+	await place_runner(Vector2(16690, 1277))
+	await frames(10)
+	var floor_y := r.global_position.y
+	var top := floor_y
+	_jump = true
+	for i in 40:
+		await frames(1)
+		top = minf(top, r.global_position.y)
+	_jump = false
+	check(floor_y - top < Balance.RUNNER_JUMP_HEIGHT * 0.75, "honey cuts the jump (%d px of %d)" % [int(floor_y - top), int(Balance.RUNNER_JUMP_HEIGHT)])
+	await frames(30)
+	# Awkward guardian blocks on the title run still work as ground.
+	await from_checkpoint(12)
+	await place_runner(Vector2(26300, 537))
+	place_platform(Vector2(26360, 470), PackedVector2Array([Vector2(-60, 20), Vector2(60, -20)]))
+	await frames(24)
+	check(main.guardian.holograms_of(Hologram.Kind.PLATFORM).size() == 1, "a slanted drawn block can be placed on the title run")
+	_cover = true
+	return true
+
+func area_enemies() -> bool:
+	_cover = false
+	var kinds := {}
+	for e in get_tree().get_nodes_in_group("finale_enemy"):
+		kinds[e.kind] = true
+	check(kinds.size() == FinaleEnemy.KINDS.size(), "all %d enemy kinds are in the course (%s)" % [FinaleEnemy.KINDS.size(), kinds.keys()])
+	# Each acts near the runner, and each dies to a guardian shot.
+	for kind in FinaleEnemy.KINDS:
+		var enemy: FinaleEnemy = null
+		for e in get_tree().get_nodes_in_group("finale_enemy"):
+			if e.kind == kind and not e.is_queued_for_deletion():
+				enemy = e
+				break
+		if enemy == null:
+			check(false, "an enemy of kind %s exists" % kind)
+			continue
+		if kind == "rail_gunner":
+			var line := machine("rail")
+			await place_runner(Vector2(11250, 1477))
+			await wait_until(func() -> bool: return line.beat() > 6.0 and line.beat() < 7.0, 1600)
+		else:
+			await place_runner(enemy.global_position + Vector2(-240, -40))
+		var from := enemy.global_position
+		var moved := 0.0
+		for i in 150:
+			await frames(1)
+			moved = maxf(moved, enemy.global_position.distance_to(from))
+		check(moved > 4.0 or kind == "rail_gunner", "%s moves on its own (%d px)" % [kind, int(moved)])
+		shoot(enemy.global_position)
+		await frames(3)
+		check(not is_instance_valid(enemy) or enemy.is_queued_for_deletion() or enemy.hp < 2, "%s is hit by the guardian's shot" % kind)
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+			shoot(enemy.global_position)
+			await frames(3)
+		check(not is_instance_valid(enemy) or enemy.is_queued_for_deletion(), "%s is defeated" % kind)
+	_cover = true
+	return true
+
 func _restart_checks() -> void:
-	pass
+	# Pressing restart returns the whole run to the start.
+	await from_checkpoint(8)
+	main._restart()
+	await frames(5)
+	check(r.global_position.distance_to(Stage.start()) < 4.0 and GameState.checkpoint_index == 0, "restart returns to the start of 1-10")
+	var panel := main.get_node_or_null("NetPanel")
+	if panel != null:
+		panel.queue_free()

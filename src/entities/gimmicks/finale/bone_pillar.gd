@@ -5,13 +5,16 @@ extends FinaleMachine
 const HOLD := 0.35
 var _top: AnimatableBody2D
 var _width := 120.0
+var _height := 1400.0
 
 func _build() -> void:
 	z_index = 3
 	reach = Vector2(1400, 1500)
 	_width = float(data.get("width", 120.0))
-	_top = make_body(Vector2(_width, 40.0))
-	_top.position = Vector2(_width * 0.5, 20.0)
+	# The whole column is solid down to the canyon floor.
+	_height = maxf(60.0, 1750.0 - global_position.y)
+	_top = make_body(Vector2(_width, _height))
+	_top.position = Vector2(_width * 0.5, _height * 0.5)
 
 func drop(tick: int = Clock.tick) -> float:
 	if state == 0:
@@ -21,7 +24,7 @@ func drop(tick: int = Clock.tick) -> float:
 
 func _pose(tick: int) -> void:
 	var d := drop(tick)
-	_top.position = Vector2(_width * 0.5, 20.0 + d)
+	_top.position = Vector2(_width * 0.5, _height * 0.5 + d)
 	set_solid(_top, d < 60.0)
 
 func _on_state() -> void:

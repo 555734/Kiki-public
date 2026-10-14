@@ -34,7 +34,7 @@ func draw_item(ci: CanvasItem, item: Array) -> void:
 	var flip := bool(item[4])
 	match key:
 		"waterfall":
-			_tiled_column(ci, "waterfall", at, h, 150.0, Color(1, 1, 1, 0.92))
+			_waterfall(ci, at, h, 150.0)
 		"chain":
 			_tiled_column(ci, "chain", Vector2(at.x, at.y + h), h, 34.0)
 		"lavafall":
@@ -75,6 +75,20 @@ func _tiled_column(ci: CanvasItem, key: String, bottom: Vector2, height: float, 
 		ci.draw_texture_rect_region(t, Rect2(bottom.x - width * 0.5, y, width, h),
 			Rect2(0, 0, t.get_width(), t.get_height() * h / tile_h), tint)
 		y += h
+
+## The 1-3 waterfall painting: its sheet of water stretched to the height,
+## its foam drawn once where it lands.
+func _waterfall(ci: CanvasItem, bottom: Vector2, height: float, width: float) -> void:
+	var t := FinaleArt.tex("waterfall")
+	if t == null:
+		return
+	var tw := float(t.get_width())
+	var th := float(t.get_height())
+	var foam := width * th / tw * 0.42
+	ci.draw_texture_rect_region(t, Rect2(bottom.x - width * 0.5, bottom.y - height, width, height - foam),
+		Rect2(0, th * 0.08, tw, th * 0.40), Color(1, 1, 1, 0.92))
+	ci.draw_texture_rect_region(t, Rect2(bottom.x - width * 0.5, bottom.y - foam, width, foam),
+		Rect2(0, th * 0.58, tw, th * 0.42), Color(1, 1, 1, 0.95))
 
 ## A colossal fossil rib: a textured curved band from the canyon floor.
 func _rib(ci: CanvasItem, base: Vector2, height: float, flip: bool) -> void:

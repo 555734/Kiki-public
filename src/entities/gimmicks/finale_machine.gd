@@ -64,6 +64,7 @@ static func from_spec(spec: Dictionary, who: Runner) -> Node2D:
 	return m
 
 func _ready() -> void:
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	add_to_group("switch")
 	add_to_group("finale_machine")
 	Events.switch_activated.connect(_receive)

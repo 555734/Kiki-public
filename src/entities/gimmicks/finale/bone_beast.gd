@@ -111,11 +111,11 @@ func _host_step(_delta: float) -> void:
 
 func _draw() -> void:
 	var gone := broken()
+	var live: Array = []
 	for i in _segments.size():
-		if gone and in_gap(i):
-			continue
-		var r := Rect2(SEG * float(i), 0, SEG, DECK)
-		_vertebra(r)
+		if not (gone and in_gap(i)):
+			live.append(Rect2(SEG * float(i), 0, SEG, DECK))
+	_vertebrae(live)
 	if state == 1:
 		var t := since()
 		if t >= BREAK and t < BREAK + 2.0:
@@ -137,23 +137,36 @@ func _draw() -> void:
 			draw_circle(p, 50.0 - k * 4.0, Color("e8dcc0"))
 		_skull(head, 1.0, jaws_open(), 0.0)
 
-func _vertebra(r: Rect2) -> void:
+## The deck's vertebrae, pass by pass so each pass batches.
+func _vertebrae(rects: Array) -> void:
 	var t := FinaleArt.tex("bone_tile")
-	var poly := PackedVector2Array([r.position + Vector2(4, 0), Vector2(r.end.x - 4, r.position.y),
-		Vector2(r.end.x, r.position.y + 14), Vector2(r.end.x - 10, r.end.y), Vector2(r.position.x + 10, r.end.y),
-		r.position + Vector2(0, 14)])
-	var uvs := PackedVector2Array()
-	for p in poly:
-		uvs.append(p / 160.0)
-	var cols := PackedColorArray()
-	cols.resize(poly.size())
-	cols.fill(Color.WHITE)
-	draw_polygon(poly, cols, uvs, t)
-	var line := PackedVector2Array(poly)
-	line.append(poly[0])
-	draw_polyline(line, Color("6b5642"), 3.0, true)
-	draw_line(r.position + Vector2(8, 3), Vector2(r.end.x - 8, r.position.y + 3), Color("fff7e4"), 3.0)
-	draw_rect(Rect2(r.get_center().x - 14, r.end.y - 4, 28, 26), Color("cdbf9f"))
+	var polys: Array = []
+	for r in rects:
+		polys.append(PackedVector2Array([r.position + Vector2(4, 0), Vector2(r.end.x - 4, r.position.y),
+			Vector2(r.end.x, r.position.y + 14), Vector2(r.end.x - 10, r.end.y), Vector2(r.position.x + 10, r.end.y),
+			r.position + Vector2(0, 14)]))
+	for r in rects:
+		draw_rect(Rect2(r.get_center().x - 14, r.end.y - 4, 28, 26), Color("cdbf9f"))
+	for poly in polys:
+		var uvs := PackedVector2Array()
+		for p in poly:
+			uvs.append(p / 160.0)
+		var cols := PackedColorArray()
+		cols.resize(poly.size())
+		cols.fill(Color.WHITE)
+		draw_polygon(poly, cols, uvs, t)
+	var outlines := PackedVector2Array()
+	var shine := PackedVector2Array()
+	for i in polys.size():
+		var poly: PackedVector2Array = polys[i]
+		for k in poly.size():
+			outlines.append(poly[k])
+			outlines.append(poly[(k + 1) % poly.size()])
+		var r: Rect2 = rects[i]
+		shine.append(r.position + Vector2(8, 3))
+		shine.append(Vector2(r.end.x - 8, r.position.y + 3))
+	draw_multiline(outlines, Color("6b5642"), 3.0)
+	draw_multiline(shine, Color("fff7e4"), 3.0)
 
 ## A fossil skull facing right, centre at `c`. `open` 0..1 drops the jaw.
 func _skull(c: Vector2, s: float, open: float, angle: float) -> void:

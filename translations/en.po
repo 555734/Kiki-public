@@ -58,6 +58,9 @@ msgstr "Build a path to the sky"
 msgid "岩と桟橋をつないで海の旗へ"
 msgstr "Cross the rocks and piers"
 
+msgid "九つの世界を駆け抜ける最終ステージ"
+msgstr "Nine lands in one final run"
+
 msgid "溶岩と崩れる岩を越えて火山の門へ"
 msgstr "Cross the poisoned marsh"
 

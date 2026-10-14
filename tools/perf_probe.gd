@@ -31,6 +31,7 @@ var _stage_key := "1-1"
 var _budget := false
 var _peak_draw_calls := 0
 var _peak_objects := 0
+var _peak_at := Vector2.ZERO
 
 func _ready() -> void:
 	# Vsync pins every frame to 16.67ms and hides how much room is left.
@@ -53,6 +54,7 @@ func _ready() -> void:
 				"1-7": which = Stage.Which.TOWER
 				"1-8": which = Stage.Which.CAVE
 				"1-9": which = Stage.Which.PARADE
+				"1-10": which = Stage.Which.FINALE
 				_: which = Stage.Which.GREENFIELD
 		if args[i] == "--at" and i + 1 < args.size():
 			at_x = float(args[i + 1])
@@ -83,15 +85,41 @@ func _process(delta: float) -> void:
 		get_tree().quit(0 if within else 1)
 		return
 	_samples.append(delta * 1000.0)
-	_peak_draw_calls = maxi(_peak_draw_calls,
-		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
+	var draws := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	if draws > _peak_draw_calls and _main != null and is_instance_valid(_main):
+		_peak_at = _main.runner.global_position
+	_peak_draw_calls = maxi(_peak_draw_calls, draws)
+	if OS.get_cmdline_user_args().has("--trace"):
+		print("trace x=%d y=%d draws=%d" % [_main.runner.global_position.x, _main.runner.global_position.y, draws])
 	_peak_objects = maxi(_peak_objects, int(Performance.get_monitor(Performance.OBJECT_COUNT)))
 	# Keep the runner moving, so the measurement covers scrolling scenery
 	# rather than one static screen.
 	if _main != null and is_instance_valid(_main) and _main.runner != null:
+		if _stage_key == "1-10":
+			# 1-10 climbs and drops thousands of pixels: follow the course
+			# through every checkpoint so all nine areas are measured.
+			_main.runner.global_position = _course_point((_t - WARMUP) / MEASURE)
+			return
 		# The horizontal theatre is 6.5k units long; cover all six acts in
 		# the same measurement window instead of testing only its entrance.
 		_main.runner.global_position.x += (800.0 if _stage_key == "1-9" else 220.0) * delta
+
+## A point `k` (0..1) of the way along start -> checkpoints -> goal.
+func _course_point(k: float) -> Vector2:
+	var pts: Array[Vector2] = [Stage.start()]
+	for cp in Stage.checkpoints():
+		pts.append(cp + Vector2(0, 20))
+	pts.append(Stage.goal())
+	var total := 0.0
+	for i in range(pts.size() - 1):
+		total += pts[i].distance_to(pts[i + 1])
+	var left := clampf(k, 0.0, 1.0) * total
+	for i in range(pts.size() - 1):
+		var d := pts[i].distance_to(pts[i + 1])
+		if left <= d:
+			return pts[i].lerp(pts[i + 1], left / maxf(d, 0.001))
+		left -= d
+	return pts[-1]
 
 ## Prints the measurement; false when --budget is set and it is over.
 func _report() -> bool:
@@ -110,7 +138,7 @@ func _report() -> bool:
 		% [Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
 			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0])
-	print("peak_draw_calls=%d  peak_objects=%d" % [_peak_draw_calls, _peak_objects])
+	print("peak_draw_calls=%d  peak_objects=%d  (peak draws at %s)" % [_peak_draw_calls, _peak_objects, _peak_at.round()])
 	if not _budget:
 		return true
 	var budgets := ConfigFile.new()

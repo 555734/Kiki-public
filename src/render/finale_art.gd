@@ -134,7 +134,7 @@ const SKINS := {
 	"rail": {"body": "res://assets/props/masonry.png", "tint": Color(0.86, 0.82, 0.78), "tile": 96.0,
 		"cap": "res://assets/stage_1_3/sprites/plate_grey.png", "rows": Vector2(0, 51), "cap_h": 24.0, "lift": 2.0,
 		"fill": Color("6f6a66")},
-	"hive": {"body": "res://assets/stage_1_10/wax_tile.png", "tint": Color(1, 1, 1), "tile": 200.0,
+	"hive": {"body": "res://assets/stage_1_10/wax_tile.png", "tint": Color(1.0, 0.78, 0.45), "tile": 150.0,
 		"cap": "res://assets/stage_1_10/honey_cap.png", "rows": Vector2(0, 64), "cap_h": 34.0, "lift": 8.0,
 		"fill": Color("d98a1a")},
 	"cliff": {"body": "res://assets/split/1-6/background/stone.png", "tint": Color(0.82, 0.64, 0.52), "tile": 100.0,
@@ -154,16 +154,44 @@ static func _load(path: String) -> Texture2D:
 static func skin_for(rect: Rect2) -> String:
 	return String(Stage.data().skin_for(rect))
 
+## A tiled texture over a rect, through UVs rather than a draw transform, so
+## whatever transform the caller set (a rotating slab, a swinging block)
+## still applies. Needs texture_repeat on the CanvasItem.
+static func tiled_rect(ci: CanvasItem, tex: Texture2D, rect: Rect2, tile: float, tint: Color) -> void:
+	var tile_h := tile * float(tex.get_height()) / float(tex.get_width())
+	var pts := PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)])
+	var uvs := PackedVector2Array()
+	for p in pts:
+		uvs.append(Vector2(p.x / tile, p.y / tile_h))
+	ci.draw_polygon(pts, PackedColorArray([tint, tint, tint, tint]), uvs, tex)
+
+## Several slabs of one skin, drawn pass by pass (all bodies, then all
+## shading, then all caps) so the renderer batches each pass into one call
+## instead of three per slab.
+static func slabs_on(ci: CanvasItem, rects: Array, skin: String) -> void:
+	var s: Dictionary = SKINS.get(skin, SKINS["grass"])
+	var body := _load(s["body"])
+	for rect in rects:
+		ci.draw_rect(rect, s["fill"])
+	if body != null:
+		for rect in rects:
+			tiled_rect(ci, body, rect, float(s["tile"]), s["tint"])
+	for rect in rects:
+		ci.draw_rect(Rect2(rect.position.x, rect.position.y + 40.0, rect.size.x, maxf(0.0, rect.size.y - 40.0)), Color(0.08, 0.03, 0.06, 0.16))
+		ci.draw_rect(Rect2(rect.position.x, rect.position.y, 7.0, rect.size.y), Color(0, 0, 0, 0.14))
+		ci.draw_rect(Rect2(rect.end.x - 7.0, rect.position.y, 7.0, rect.size.y), Color(0, 0, 0, 0.14))
+	if skin == "bone":
+		return
+	for rect in rects:
+		_cap_strip(ci, s, [rect.position, Vector2(rect.end.x, rect.position.y)])
+
 ## A rectangular slab. The cap's solid band sits on the collision top.
 static func slab_on(ci: CanvasItem, rect: Rect2, skin: String) -> void:
 	var s: Dictionary = SKINS.get(skin, SKINS["grass"])
 	var body := _load(s["body"])
 	ci.draw_rect(rect, s["fill"])
 	if body != null:
-		var scale: float = float(s["tile"]) / float(body.get_width())
-		ci.draw_set_transform(rect.position, 0.0, Vector2(scale, scale))
-		ci.draw_texture_rect(body, Rect2(Vector2.ZERO, rect.size / scale), true, s["tint"])
-		ci.draw_set_transform(Vector2.ZERO)
+		tiled_rect(ci, body, rect, float(s["tile"]), s["tint"])
 	# Depth shading and soft side edges, as on the painted 1-1 banks.
 	var shade := minf(rect.size.y, 600.0)
 	for i in 4:
@@ -270,6 +298,20 @@ static func _layer(ci: CanvasItem, key: String, view: Vector2, cam: Vector2, rat
 		var x := float(i) * width - fposmod(offset, width)
 		ci.draw_texture_rect(t, Rect2(x, top, width + 0.5, height), false, Color(tint, alpha))
 
+## A few drifting clouds, spaced out (never a repeated strip).
+static func _clouds(ci: CanvasItem, view: Vector2, offset: float, alpha: float) -> void:
+	var span := view.x * 1.6
+	for i in 4:
+		var key := "cloud_a" if i % 2 == 0 else "cloud_b"
+		var t := tex(key)
+		if t == null:
+			continue
+		var w := view.x * (0.16 + 0.05 * float(i % 3))
+		var h := w * float(t.get_height()) / float(t.get_width())
+		var x := fposmod(float(i) * span / 4.0 - offset * (0.6 + 0.15 * float(i)), span) - view.x * 0.3
+		var y := view.y * (0.05 + 0.07 * float((i * 3) % 4))
+		ci.draw_texture_rect(t, Rect2(x, y, w, h), false, Color(1, 1, 1, alpha * 0.85))
+
 ## One backdrop per area, cross-faded over 500px at each border.
 static func background(ci: CanvasItem, view: Vector2, cam: Vector2, time: float, flash: float) -> void:
 	var zones: Array[Dictionary] = Stage.data().zones()
@@ -289,16 +331,19 @@ static func _sky(ci: CanvasItem, sky: String, view: Vector2, cam: Vector2, time:
 	match sky:
 		"meadow":
 			_cover(ci, "meadow", view, cam, 0.10, alpha, 0.03, 0.86)
-			_layer(ci, "cloud_a", view, cam + Vector2(time * 18.0, 0), 0.04, view.y * 0.06, view.y * 0.16, alpha * 0.9)
+			_clouds(ci, view, cam.x * 0.05 + time * 14.0, alpha)
 		"storm":
 			_cover(ci, "storm_sky", view, cam, 0.08, alpha, 0.03)
 			# Rain, slanted, three depths. Cheap lines over the whole view.
 			var rain := Color(0.75, 0.85, 1.0, 0.30 * alpha)
+			var drops := PackedVector2Array()
 			for i in 70:
 				var seed := float(i) * 37.13
 				var x := fposmod(seed * 13.7 - time * 520.0 - cam.x * 0.3, view.x + 120.0) - 60.0
 				var y := fposmod(seed * 7.9 + time * 1500.0, view.y + 80.0) - 40.0
-				ci.draw_line(Vector2(x, y), Vector2(x - 9, y + 26), rain, 1.5)
+				drops.append(Vector2(x, y))
+				drops.append(Vector2(x - 9, y + 26))
+			ci.draw_multiline(drops, rain, 1.5)
 			if flash > 0.0:
 				ci.draw_rect(Rect2(Vector2.ZERO, view), Color(0.85, 0.92, 1.0, flash * 0.55 * alpha))
 		"sand":
@@ -315,7 +360,7 @@ static func _sky(ci: CanvasItem, sky: String, view: Vector2, cam: Vector2, time:
 			_cover(ci, "hive_sky", view, cam, 0.14, alpha, 0.10)
 		"cliff":
 			_cover(ci, "cliff_sky", view, cam, 0.08, alpha, 0.03, 0.9, Color(1.0, 0.94, 0.9))
-			_layer(ci, "cloud_b", view, cam + Vector2(time * 40.0, 0), 0.06, view.y * 0.12, view.y * 0.20, alpha * 0.85)
+			_clouds(ci, view, cam.x * 0.06 + time * 30.0, alpha)
 		"canyon":
 			_cover(ci, "canyon_sky", view, cam, 0.08, alpha, 0.03)
 			_layer(ci, "rib_layer", view, cam, 0.22, view.y * 0.10, view.y * 0.95, alpha * 0.85)
