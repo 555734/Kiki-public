@@ -112,7 +112,12 @@ func _test_every_stage_keeps_the_contract() -> void:
 		if not LevelBuilder.GIMMICKS.has(type):
 			continue
 		var node: Node2D = LevelBuilder.GIMMICKS[type].from_spec(types[type], null)
-		check(node != null and node.get_script() == LevelBuilder.GIMMICKS[type],
+		# A type may build a specialisation of its script (1-10's machine
+		# kinds are subclasses of FinaleMachine), never something else.
+		var built: Script = node.get_script() if node != null else null
+		while built != null and built != LevelBuilder.GIMMICKS[type]:
+			built = built.get_base_script()
+		check(node != null and built == LevelBuilder.GIMMICKS[type],
 			"and '%s' builds the piece it names" % type)
 		if node != null:
 			node.free()

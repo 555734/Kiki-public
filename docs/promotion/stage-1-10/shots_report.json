@@ -1,0 +1,2869 @@
+{
+ "checkpoints": [
+  [
+   2700.0,
+   990.0
+  ],
+  [
+   5450.0,
+   990.0
+  ],
+  [
+   7700.0,
+   2650.0
+  ],
+  [
+   8780.0,
+   2470.0
+  ],
+  [
+   10820.0,
+   2370.0
+  ],
+  [
+   11250.0,
+   1450.0
+  ],
+  [
+   15400.0,
+   1240.0
+  ],
+  [
+   17150.0,
+   150.0
+  ],
+  [
+   18100.0,
+   250.0
+  ],
+  [
+   21250.0,
+   230.0
+  ],
+  [
+   24200.0,
+   250.0
+  ],
+  [
+   26300.0,
+   510.0
+  ],
+  [
+   27850.0,
+   430.0
+  ]
+ ],
+ "goal": [
+  28600.0,
+  365.0
+ ],
+ "passed": 49,
+ "rendered": false,
+ "shots": [
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     560.0,
+     940.0
+    ],
+    "mode": "fixed",
+    "pan_to": [
+     760.0,
+     990.0
+    ],
+    "zoom": [
+     1.25,
+     1.25
+    ]
+   },
+   "camera_world": [
+    650.014831542969,
+    962.503723144531,
+    1.25
+   ],
+   "check": "running_downhill",
+   "frames": 113,
+   "key_frame": 36,
+   "means": "runner moving right on the slope, burrbug moving left, both in frame",
+   "move": "Locked wide; ease pan right",
+   "name": "DOWNHILL START",
+   "overlay": {},
+   "phenomenon": "Runner sprints down the curved grass slope; the one enemy walks up the flat to meet them.",
+   "runner_end": [
+    887.2685546875,
+    1123.66906738281
+   ],
+   "runner_screen": [
+    206.034484863281,
+    273.057861328125
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    302.842407226562,
+    892.950012207031
+   ],
+   "setup": "burrbug at (1460,1135) walking left; no guardian constructs",
+   "shot": 1,
+   "slow_motion": false,
+   "start_frame": 8,
+   "still": "shot_01.png",
+   "success": true,
+   "t": [
+    0,
+    1
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     80.0,
+     -60.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.45,
+     1.35
+    ]
+   },
+   "camera_world": [
+    1499.40649414062,
+    992.857971191406,
+    1.35000002384186
+   ],
+   "check": "cleared_enemy",
+   "frames": 72,
+   "key_frame": 193,
+   "means": "runner passes over the burrbug with no hit taken",
+   "move": "Side follow + short tilt up",
+   "name": "ONE ENEMY, ONE LEAP",
+   "overlay": {},
+   "phenomenon": "Runner jumps clean over the burrbug, which skids and turns; the chasm opens ahead.",
+   "runner_end": [
+    1474.126953125,
+    1136.92529296875
+   ],
+   "runner_screen": [
+    605.872619628906,
+    554.490905761719
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1474.126953125,
+    1136.92529296875
+   ],
+   "setup": "continues shot 1",
+   "shot": 2,
+   "slow_motion": false,
+   "start_frame": 121,
+   "still": "shot_02.png",
+   "success": true,
+   "t": [
+    1,
+    2
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     1800.0,
+     1180.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.2,
+     0.85
+    ]
+   },
+   "camera_world": [
+    1800.0,
+    1180.0,
+    1.13163006305695
+   ],
+   "check": "leapt_cliff",
+   "frames": 71,
+   "key_frame": 210,
+   "means": "runner airborne past x=1540 over the 940px-deep chasm",
+   "move": "Pull back to expose deep chasm",
+   "name": "THE CLIFF",
+   "overlay": {},
+   "phenomenon": "Sprint jump + air jump off the lip toward the high far bank.",
+   "runner_end": [
+    1806.63037109375,
+    1102.39916992188
+   ],
+   "runner_screen": [
+    368.846954345703,
+    206.973693847656
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1560.38720703125,
+    1044.77355957031
+   ],
+   "setup": "continues; far bank 120px higher, 700px away",
+   "shot": 3,
+   "slow_motion": false,
+   "start_frame": 193,
+   "still": "shot_03.png",
+   "success": true,
+   "t": [
+    2,
+    3
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     60.0,
+     -10.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.6,
+     2.4
+    ]
+   },
+   "camera_world": [
+    1815.63037109375,
+    1100.89916992188,
+    1.60000002384186
+   ],
+   "check": "falling_short",
+   "frames": 18,
+   "key_frame": 264,
+   "means": "runner below the far bank top (y>1100), x<2240, falling",
+   "move": "Push into airborne close-up",
+   "name": "NOT QUITE!",
+   "overlay": {},
+   "phenomenon": "The jump comes up short: the runner drops below the far lip, reaching for it.",
+   "runner_end": [
+    1820.88037109375,
+    1168.3984375
+   ],
+   "runner_screen": [
+    625.599975585938,
+    362.399993896484
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1806.63037109375,
+    1102.39916992188
+   ],
+   "setup": "continues",
+   "shot": 4,
+   "slow_motion": true,
+   "start_frame": 264,
+   "still": "shot_04.png",
+   "success": true,
+   "t": [
+    3,
+    4
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     60.0,
+     -10.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     2.4,
+     2.4
+    ]
+   },
+   "camera_world": [
+    1822.68041992188,
+    1168.09838867188,
+    2.40000009536743
+   ],
+   "check": "falling_short",
+   "frames": 18,
+   "key_frame": 282,
+   "means": "runner still airborne inside the left 55% of frame",
+   "move": "Hold angle; foreground overlay",
+   "name": "INCOMING CALL",
+   "overlay": {
+    "discord_call": [
+     0.560000002384186,
+     0.119999997317791,
+     0.379999995231628,
+     0.699999988079071
+    ]
+   },
+   "phenomenon": "Mid-fall hold. The Discord call card is composited in the edit over the right of frame.",
+   "runner_end": [
+    1831.02648925781,
+    1234.39770507812
+   ],
+   "runner_screen": [
+    635.679870605469,
+    360.720123291016
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1820.88037109375,
+    1168.3984375
+   ],
+   "setup": "continues",
+   "shot": 5,
+   "slow_motion": true,
+   "start_frame": 282,
+   "still": "shot_05.png",
+   "success": true,
+   "t": [
+    4,
+    5
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     70.0,
+     10.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     2.2,
+     2.0
+    ]
+   },
+   "camera_world": [
+    1837.17846679688,
+    1235.59777832031,
+    2.19934821128845
+   ],
+   "check": "pointer_near_runner",
+   "frames": 18,
+   "key_frame": 302,
+   "means": "guardian aim within 200px of the runner",
+   "move": "Hero and blue cursor in frame",
+   "name": "YOUR PARTNER ARRIVES",
+   "overlay": {},
+   "phenomenon": "The guardian's blue YOU pointer slides in beside the falling runner (no second avatar).",
+   "runner_end": [
+    1837.06848144531,
+    1300.39697265625
+   ],
+   "runner_screen": [
+    628.391967773438,
+    373.488983154297
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1831.90051269531,
+    1241.73095703125
+   ],
+   "setup": "continues",
+   "shot": 6,
+   "slow_motion": true,
+   "start_frame": 300,
+   "still": "shot_06.png",
+   "success": true,
+   "t": [
+    5,
+    6
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     2060.0,
+     1120.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.35,
+     1.3
+    ]
+   },
+   "camera_world": [
+    2060.0,
+    1120.0,
+    1.34218752384186
+   ],
+   "check": "built_steps",
+   "frames": 16,
+   "key_frame": 334,
+   "means": "two guardian platforms exist in the chasm",
+   "move": "Reveal vertical gap; slight pan",
+   "name": "BRIDGE, ON DEMAND",
+   "overlay": {},
+   "phenomenon": "YOU taps a slab under the fall, then draws a rising stroke toward the lip: luminous steps in open air.",
+   "runner_end": [
+    1838.98107910156,
+    1354.32275390625
+   ],
+   "runner_screen": [
+    343.351165771484,
+    674.505065917969
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1838.98107910156,
+    1354.32275390625
+   ],
+   "setup": "continues; guardian slot 1 (platform)",
+   "shot": 7,
+   "slow_motion": true,
+   "start_frame": 318,
+   "still": "shot_07.png",
+   "success": true,
+   "t": [
+    6,
+    7
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     60.0,
+     -30.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.5,
+     1.5
+    ]
+   },
+   "camera_world": [
+    1840.78112792969,
+    1353.42272949219,
+    1.5
+   ],
+   "check": "landed_on_hologram",
+   "frames": 16,
+   "key_frame": 334,
+   "means": "Events.runner_landed_on_hologram fired",
+   "move": "Follow hero descending onto bridge",
+   "name": "JUST IN TIME",
+   "overlay": {},
+   "phenomenon": "The runner lands on the guardian's slab and regains balance.",
+   "runner_end": [
+    1838.98107910156,
+    1354.32275390625
+   ],
+   "runner_screen": [
+    637.299926757812,
+    361.350036621094
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1838.98107910156,
+    1354.32275390625
+   ],
+   "setup": "continues",
+   "shot": 8,
+   "slow_motion": false,
+   "start_frame": 334,
+   "still": "shot_08.png",
+   "success": true,
+   "t": [
+    7,
+    8
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     90.0,
+     1080.0
+    ],
+    "mode": "track_x",
+    "zoom": [
+     1.4,
+     1.4
+    ]
+   },
+   "camera_world": [
+    2014.03454589844,
+    1081.779296875,
+    1.39999997615814
+   ],
+   "check": "on_hologram_rising",
+   "frames": 92,
+   "key_frame": 380,
+   "means": "runner on a guardian platform, higher than the first catch",
+   "move": "Side tracking; stable camera",
+   "name": "KEEP MOVING",
+   "overlay": {},
+   "phenomenon": "Runner climbs the temporary steps toward the lip.",
+   "runner_end": [
+    2078.85693359375,
+    1166.24755859375
+   ],
+   "runner_screen": [
+    550.158874511719,
+    608.559997558594
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    1949.8623046875,
+    1259.32214355469
+   ],
+   "setup": "continues",
+   "shot": 9,
+   "slow_motion": false,
+   "start_frame": 350,
+   "still": "shot_09.png",
+   "success": true,
+   "t": [
+    8,
+    9
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "GRASSLAND CLIFFS",
+   "camera": {
+    "at": [
+     2420.0,
+     960.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.45,
+     1.15
+    ]
+   },
+   "camera_world": [
+    2420.0,
+    960.0,
+    1.18120002746582
+   ],
+   "check": "on_far_bank",
+   "frames": 107,
+   "key_frame": 490,
+   "means": "runner standing on the far bank (x>2240, feet 1040)",
+   "move": "Widen to reveal the landing",
+   "name": "SAFE SIDE!",
+   "overlay": {},
+   "phenomenon": "Last hop off the steps onto solid grass, signpost ahead.",
+   "runner_end": [
+    2496.89111328125,
+    1016.92523193359
+   ],
+   "runner_screen": [
+    517.662475585938,
+    427.240234375
+   ],
+   "runner_start": [
+    160.0,
+    877.0
+   ],
+   "runner_world": [
+    2316.42944335938,
+    1016.92535400391
+   ],
+   "setup": "continues",
+   "shot": 10,
+   "slow_motion": false,
+   "start_frame": 442,
+   "still": "shot_10.png",
+   "success": true,
+   "t": [
+    9,
+    10
+   ],
+   "take": "opening"
+  },
+  {
+   "area": "THUNDER BRIDGE",
+   "camera": {
+    "at": [
+     3560.0,
+     880.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     0.95,
+     0.9
+    ]
+   },
+   "camera_world": [
+    3560.0,
+    880.0,
+    0.905200004577637
+   ],
+   "check": "strike_called",
+   "frames": 76,
+   "key_frame": 601,
+   "means": "storm strike 1 telegraphing",
+   "move": "Wide reveal; cold blue grade",
+   "name": "ELECTRIC BRIDGE",
+   "overlay": {},
+   "phenomenon": "Rain and storm backdrop; the runner steps onto the deck and the first strike is called (spans glow).",
+   "runner_end": [
+    3421.14013671875,
+    1016.92523193359
+   ],
+   "runner_screen": [
+    340.944091796875,
+    483.944702148438
+   ],
+   "runner_start": [
+    2900.0,
+    1017.0
+   ],
+   "runner_world": [
+    3229.62451171875,
+    1016.92523193359
+   ],
+   "setup": "checkpoint 1; storm machine idle; rod uncharged",
+   "shot": 11,
+   "slow_motion": false,
+   "start_frame": 553,
+   "still": "shot_11.png",
+   "success": true,
+   "t": [
+    10,
+    11
+   ],
+   "take": "storm"
+  },
+  {
+   "area": "THUNDER BRIDGE",
+   "camera": {
+    "at": [
+     3700.0,
+     960.0
+    ],
+    "mode": "fixed",
+    "shake": 10.0,
+    "zoom": [
+     1.3,
+     1.7
+    ]
+   },
+   "camera_world": [
+    3700.0,
+    960.0,
+    1.37813699245453
+   ],
+   "check": "span_broken",
+   "frames": 184,
+   "key_frame": 646,
+   "means": "deck span 3 non-solid and debris falling",
+   "move": "Short shake; rapid push-in",
+   "name": "A STRIKE!",
+   "overlay": {},
+   "phenomenon": "The bolt lands: flash, shake, span 3 bursts into falling stones in front of the runner.",
+   "runner_end": [
+    3872.05834960938,
+    1016.92523193359
+   ],
+   "runner_screen": [
+    415.939025878906,
+    438.449157714844
+   ],
+   "runner_start": [
+    2900.0,
+    1017.0
+   ],
+   "runner_world": [
+    3537.41748046875,
+    1016.92407226562
+   ],
+   "setup": "continues",
+   "shot": 12,
+   "slow_motion": false,
+   "start_frame": 629,
+   "still": "shot_12.png",
+   "success": true,
+   "t": [
+    11,
+    12
+   ],
+   "take": "storm"
+  },
+  {
+   "area": "THUNDER BRIDGE",
+   "camera": {
+    "at": [
+     60.0,
+     -60.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.3,
+     1.2
+    ]
+   },
+   "camera_world": [
+    4239.8349609375,
+    811.427795410156,
+    1.20000004768372
+   ],
+   "check": "on_high_span",
+   "frames": 213,
+   "key_frame": 886,
+   "means": "runner standing on a broken high span while spans 7-8 are gone",
+   "move": "Follow diagonal leap",
+   "name": "ESCAPE THE GAP",
+   "overlay": {},
+   "phenomenon": "Runner vaults up the broken spans above the double gap; two of them crackle with electricity.",
+   "runner_end": [
+    4386.19482421875,
+    776.989379882812
+   ],
+   "runner_screen": [
+    563.993347167969,
+    462.596923828125
+   ],
+   "runner_start": [
+    2900.0,
+    1017.0
+   ],
+   "runner_world": [
+    4176.49609375,
+    896.925231933594
+   ],
+   "setup": "continues; second strike opens a double gap",
+   "shot": 13,
+   "slow_motion": false,
+   "start_frame": 813,
+   "still": "shot_13.png",
+   "success": true,
+   "t": [
+    12,
+    13
+   ],
+   "take": "storm"
+  },
+  {
+   "area": "SHIFTING SAND RUINS",
+   "camera": {
+    "at": [
+     6420.0,
+     920.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.35,
+     0.85
+    ]
+   },
+   "camera_world": [
+    6420.0,
+    920.0,
+    0.850000023841858
+   ],
+   "check": "ruins_revealed",
+   "frames": 100,
+   "key_frame": 1127,
+   "means": "runner in the hall; sandfall and pendulum in frame",
+   "move": "Long lens; pull out",
+   "name": "SHIFTING RUINS",
+   "overlay": {},
+   "phenomenon": "Multi-level ruin: terrace, hall, high ledges, a sand waterfall and the swinging block.",
+   "runner_end": [
+    6486.12353515625,
+    1136.92517089844
+   ],
+   "runner_screen": [
+    684.577270507812,
+    515.119689941406
+   ],
+   "runner_start": [
+    5500.0,
+    1017.0
+   ],
+   "runner_world": [
+    6472.44384765625,
+    1102.49377441406
+   ],
+   "setup": "checkpoint 2",
+   "shot": 14,
+   "slow_motion": false,
+   "start_frame": 1030,
+   "still": "shot_14.png",
+   "success": true,
+   "t": [
+    13,
+    14
+   ],
+   "take": "sand"
+  },
+  {
+   "area": "SHIFTING SAND RUINS",
+   "camera": {
+    "at": [
+     6800.0,
+     1000.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.45,
+     1.6
+    ]
+   },
+   "camera_world": [
+    6800.0,
+    1000.0,
+    1.45728886127472
+   ],
+   "check": "ducked_block",
+   "frames": 413,
+   "key_frame": 1138,
+   "means": "block passes within 60px horizontally above the crouching runner, no hit",
+   "move": "Side-step camera; slight push",
+   "name": "SWINGING MASS",
+   "overlay": {},
+   "phenomenon": "The chained stone block sweeps past just over the crouching runner.",
+   "runner_end": [
+    7020.51220703125,
+    1136.92529296875
+   ],
+   "runner_screen": [
+    222.463958740234,
+    559.539672851562
+   ],
+   "runner_start": [
+    5500.0,
+    1017.0
+   ],
+   "runner_world": [
+    6513.484375,
+    1136.92529296875
+   ],
+   "setup": "continues",
+   "shot": 15,
+   "slow_motion": false,
+   "start_frame": 1130,
+   "still": "shot_15.png",
+   "success": true,
+   "t": [
+    14,
+    15
+   ],
+   "take": "sand"
+  },
+  {
+   "area": "SHIFTING SAND RUINS",
+   "camera": {
+    "at": [
+     0.0,
+     80.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.3,
+     1.2
+    ]
+   },
+   "camera_world": [
+    7298.92333984375,
+    1485.27917480469,
+    1.20000004768372
+   ],
+   "check": "shaft_fall",
+   "frames": 119,
+   "key_frame": 1624,
+   "means": "collapse state 1 and runner falling below y=1500",
+   "move": "Tilt down rapidly",
+   "name": "VERTICAL COLLAPSE",
+   "overlay": {},
+   "phenomenon": "The floor caves in tile by tile; the runner falls down the shaft past sand and falling stones.",
+   "runner_end": [
+    7311.51025390625,
+    2200.1943359375
+   ],
+   "runner_screen": [
+    654.420532226562,
+    381.897521972656
+   ],
+   "runner_start": [
+    5500.0,
+    1017.0
+   ],
+   "runner_world": [
+    7310.9404296875,
+    1503.52709960938
+   ],
+   "setup": "continues",
+   "shot": 16,
+   "slow_motion": false,
+   "start_frame": 1543,
+   "still": "shot_16.png",
+   "success": true,
+   "t": [
+    15,
+    16
+   ],
+   "take": "sand"
+  },
+  {
+   "area": "VOLCANO CORE",
+   "camera": {
+    "at": [
+     8350.0,
+     2460.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     0.95,
+     0.9
+    ]
+   },
+   "camera_world": [
+    8350.0,
+    2460.0,
+    0.899999976158142
+   ],
+   "check": "on_lava_platform",
+   "frames": 231,
+   "key_frame": 1733,
+   "means": "runner standing on a basalt pillar over the lake",
+   "move": "Wide reveal; warm contrast",
+   "name": "VOLCANO CORE",
+   "overlay": {},
+   "phenomenon": "Staggered basalt pillars over the lava lake, hanging chains, a magma slime hopping.",
+   "runner_end": [
+    8752.427734375,
+    2496.92504882812
+   ],
+   "runner_screen": [
+    456.921203613281,
+    519.232543945312
+   ],
+   "runner_start": [
+    7700.0,
+    2677.0
+   ],
+   "runner_world": [
+    8146.5791015625,
+    2636.92504882812
+   ],
+   "setup": "checkpoint 3; magma sphere parked",
+   "shot": 17,
+   "slow_motion": false,
+   "start_frame": 1666,
+   "still": "shot_17.png",
+   "success": true,
+   "t": [
+    16,
+    17
+   ],
+   "take": "volcano"
+  },
+  {
+   "area": "VOLCANO CORE",
+   "camera": {
+    "mode": "between",
+    "shake": 3.0,
+    "target": "magma",
+    "zoom": [
+     1.15,
+     1.15
+    ]
+   },
+   "camera_world": [
+    8981.9462890625,
+    2464.07885742188,
+    1.14999997615814
+   ],
+   "check": "ball_chasing",
+   "frames": 251,
+   "key_frame": 1939,
+   "means": "sphere rolling within 450px behind the runner",
+   "move": "Push sideways, slight shake",
+   "name": "HOT PURSUIT",
+   "overlay": {},
+   "phenomenon": "The magma sphere bursts from its tube and rolls down the cracked slope after the runner.",
+   "runner_end": [
+    9481.3271484375,
+    2396.99047851562
+   ],
+   "runner_screen": [
+    696.217468261719,
+    418.739562988281
+   ],
+   "runner_start": [
+    7700.0,
+    2677.0
+   ],
+   "runner_world": [
+    9030.8310546875,
+    2515.15673828125
+   ],
+   "setup": "continues",
+   "shot": 18,
+   "slow_motion": false,
+   "start_frame": 1897,
+   "still": "shot_18.png",
+   "success": true,
+   "t": [
+    17,
+    18
+   ],
+   "take": "volcano"
+  },
+  {
+   "area": "VOLCANO CORE",
+   "camera": {
+    "at": [
+     0.0,
+     -40.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.35,
+     1.35
+    ]
+   },
+   "camera_world": [
+    9595.17578125,
+    2260.1640625,
+    1.35000002384186
+   ],
+   "check": "on_swing",
+   "frames": 196,
+   "key_frame": 2299,
+   "means": "runner standing on a swing deck",
+   "move": "Track arc of moving platform",
+   "name": "SWING OVER LAVA",
+   "overlay": {},
+   "phenomenon": "Runner leaps onto a chain-hung platform swinging over the lava.",
+   "runner_end": [
+    10820.0,
+    2397.0
+   ],
+   "runner_screen": [
+    676.809936523438,
+    476.965179443359
+   ],
+   "runner_start": [
+    7700.0,
+    2677.0
+   ],
+   "runner_world": [
+    9622.4423828125,
+    2346.80493164062
+   ],
+   "setup": "continues; sphere has smashed the crust",
+   "shot": 19,
+   "slow_motion": false,
+   "start_frame": 2148,
+   "still": "shot_19.png",
+   "success": true,
+   "t": [
+    18,
+    19
+   ],
+   "take": "volcano"
+  },
+  {
+   "area": "VOLCANO CORE",
+   "camera": {
+    "at": [
+     11160.0,
+     -60.0
+    ],
+    "mode": "track_y",
+    "zoom": [
+     1.05,
+     1.0
+    ]
+   },
+   "camera_world": [
+    11159.9970703125,
+    2338.08544921875,
+    1.0
+   ],
+   "check": "riding_lift",
+   "frames": 193,
+   "key_frame": 2455,
+   "means": "runner on a rising geyser lift with a lethal jet active nearby",
+   "move": "Rapid upward tilt",
+   "name": "BETWEEN THE GEYSERS",
+   "overlay": {},
+   "phenomenon": "An eruption throws the runner's slab up between staggered lava jets.",
+   "runner_end": [
+    11138.513671875,
+    2076.92504882812
+   ],
+   "runner_screen": [
+    456.98046875,
+    438.83837890625
+   ],
+   "runner_start": [
+    10820.0,
+    2397.0
+   ],
+   "runner_world": [
+    10976.9775390625,
+    2416.923828125
+   ],
+   "setup": "checkpoint 5",
+   "shot": 20,
+   "slow_motion": false,
+   "start_frame": 2344,
+   "still": "shot_20.png",
+   "success": true,
+   "t": [
+    19,
+    20
+   ],
+   "take": "volcano"
+  },
+  {
+   "area": "IRON RAIL",
+   "camera": {
+    "at": [
+     120.0,
+     -40.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.3,
+     1.3
+    ]
+   },
+   "camera_world": [
+    12460.349609375,
+    1537.95983886719,
+    1.29999995231628
+   ],
+   "check": "running_on_train",
+   "frames": 223,
+   "key_frame": 3659,
+   "means": "runner on a roof while the train moves >200px/s",
+   "move": "Fast lateral tracking",
+   "name": "ROOFTOP TRAIN RUN",
+   "overlay": {},
+   "phenomenon": "Runner runs the roofs of the moving train over the viaduct; mismatched roof heights and cargo.",
+   "runner_end": [
+    13610.6328125,
+    1514.92529296875
+   ],
+   "runner_screen": [
+    565.00244140625,
+    475.743804931641
+   ],
+   "runner_start": [
+    11250.0,
+    1477.0
+   ],
+   "runner_world": [
+    12402.6591796875,
+    1626.99353027344
+   ],
+   "setup": "checkpoint 6; timetable beat ~4.3 (train parked)",
+   "shot": 21,
+   "slow_motion": false,
+   "start_frame": 3559,
+   "still": "shot_21.png",
+   "success": true,
+   "t": [
+    20,
+    21
+   ],
+   "take": "rail"
+  },
+  {
+   "area": "IRON RAIL",
+   "camera": {
+    "at": [
+     160.0,
+     -60.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.0,
+     1.0
+    ]
+   },
+   "camera_world": [
+    14563.9033203125,
+    1357.41198730469,
+    1.0
+   ],
+   "check": "train_leap",
+   "frames": 58,
+   "key_frame": 3840,
+   "means": "runner airborne between trains, then lands on the lead train",
+   "move": "Show both car roofs; follow jump",
+   "name": "TRAIN-TO-TRAIN",
+   "overlay": {},
+   "phenomenon": "Huge leap across the 300-390px gap between the two moving trains.",
+   "runner_end": [
+    14482.685546875,
+    1500.92529296875
+   ],
+   "runner_screen": [
+    558.7822265625,
+    503.513305664062
+   ],
+   "runner_start": [
+    11250.0,
+    1477.0
+   ],
+   "runner_world": [
+    14482.685546875,
+    1500.92529296875
+   ],
+   "setup": "continues",
+   "shot": 22,
+   "slow_motion": false,
+   "start_frame": 3782,
+   "still": "shot_22.png",
+   "success": true,
+   "t": [
+    21,
+    22
+   ],
+   "take": "rail"
+  },
+  {
+   "area": "IRON RAIL",
+   "camera": {
+    "at": [
+     60.0,
+     -180.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.05,
+     1.05
+    ]
+   },
+   "camera_world": [
+    14491.685546875,
+    1473.92529296875,
+    1.04999995231628
+   ],
+   "check": "crate_dropped",
+   "frames": 20,
+   "key_frame": 3840,
+   "means": "crate landed on the lead train within 300px of the unhurt runner",
+   "move": "High angle to reveal hazard",
+   "name": "CRANE DROPS",
+   "overlay": {},
+   "phenomenon": "The crane's hook flashes red and drops a crate onto the roof; the runner side-steps and uses it as a step.",
+   "runner_end": [
+    14576.83984375,
+    1500.92529296875
+   ],
+   "runner_screen": [
+    630.549987792969,
+    388.350006103516
+   ],
+   "runner_start": [
+    11250.0,
+    1477.0
+   ],
+   "runner_world": [
+    14482.685546875,
+    1500.92529296875
+   ],
+   "setup": "continues; crane 2 targets the lead train's middle car",
+   "shot": 23,
+   "slow_motion": false,
+   "start_frame": 3840,
+   "still": "shot_23.png",
+   "success": true,
+   "t": [
+    22,
+    23
+   ],
+   "take": "rail"
+  },
+  {
+   "area": "IRON RAIL",
+   "camera": {
+    "at": [
+     140.0,
+     70.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.4,
+     1.4
+    ]
+   },
+   "camera_world": [
+    14661.37890625,
+    1539.86596679688,
+    1.39999997615814
+   ],
+   "check": "running_on_train",
+   "frames": 468,
+   "key_frame": 3864,
+   "means": "runner on the lead train, train moving",
+   "move": "Low follow, strong parallax",
+   "name": "FULL-SPEED ROOFTOPS",
+   "overlay": {},
+   "phenomenon": "Sprint along the lead train's roofs; aqueduct and meadow rush past.",
+   "runner_end": [
+    16284.92578125,
+    1276.9716796875
+   ],
+   "runner_screen": [
+    551.655090332031,
+    305.483062744141
+   ],
+   "runner_start": [
+    11250.0,
+    1477.0
+   ],
+   "runner_world": [
+    14598.275390625,
+    1500.92529296875
+   ],
+   "setup": "continues",
+   "shot": 24,
+   "slow_motion": false,
+   "start_frame": 3860,
+   "still": "shot_24.png",
+   "success": true,
+   "t": [
+    23,
+    24
+   ],
+   "take": "rail"
+  },
+  {
+   "area": "HONEYCOMB HIVE",
+   "camera": {
+    "at": [
+     16120.0,
+     1020.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     0.8,
+     0.8
+    ]
+   },
+   "camera_world": [
+    16120.0,
+    1020.0,
+    0.800000011920929
+   ],
+   "check": "in_hive",
+   "frames": 60,
+   "key_frame": 4392,
+   "means": "runner inside the hive hall",
+   "move": "Tall establishing composition",
+   "name": "INSIDE THE HIVE",
+   "overlay": {},
+   "phenomenon": "Honeycomb hall: tiered ledges, dripping honey, the paddle wheel and swarm.",
+   "runner_end": [
+    15703.697265625,
+    1266.92529296875
+   ],
+   "runner_screen": [
+    306.957794189453,
+    557.540222167969
+   ],
+   "runner_start": [
+    15400.0,
+    1267.0
+   ],
+   "runner_world": [
+    15703.697265625,
+    1266.92529296875
+   ],
+   "setup": "checkpoint 7",
+   "shot": 25,
+   "slow_motion": false,
+   "start_frame": 4332,
+   "still": "shot_25.png",
+   "success": true,
+   "t": [
+    24,
+    25
+   ],
+   "take": "hive"
+  },
+  {
+   "area": "HONEYCOMB HIVE",
+   "camera": {
+    "at": [
+     0.0,
+     -20.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     2.2,
+     2.4
+    ]
+   },
+   "camera_world": [
+    15744.7041015625,
+    1256.76574707031,
+    2.23125004768372
+   ],
+   "check": "stuck_in_honey",
+   "frames": 74,
+   "key_frame": 4407,
+   "means": "runner in a honey pool, |vx| <= 130",
+   "move": "Sudden close-up / hold",
+   "name": "STUCK!",
+   "overlay": {},
+   "phenomenon": "Boots sink into thick honey; the run stalls to a crawl.",
+   "runner_end": [
+    15881.9072265625,
+    1276.92529296875
+   ],
+   "runner_screen": [
+    675.904846191406,
+    404.980987548828
+   ],
+   "runner_start": [
+    15400.0,
+    1267.0
+   ],
+   "runner_world": [
+    15760.7958984375,
+    1276.92529296875
+   ],
+   "setup": "continues",
+   "shot": 26,
+   "slow_motion": false,
+   "start_frame": 4392,
+   "still": "shot_26.png",
+   "success": true,
+   "t": [
+    25,
+    26
+   ],
+   "take": "hive"
+  },
+  {
+   "area": "HONEYCOMB HIVE",
+   "camera": {
+    "at": [
+     40.0,
+     -60.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.15,
+     1.15
+    ]
+   },
+   "camera_world": [
+    16074.1474609375,
+    989.649169921875,
+    1.14999997615814
+   ],
+   "check": "swarm_close",
+   "frames": 258,
+   "key_frame": 4552,
+   "means": "two or more wax wisps within 320px of the climbing runner",
+   "move": "Vertical + horizontal follow",
+   "name": "SWARM AND PADDLES",
+   "overlay": {},
+   "phenomenon": "Climbing the tiers beside the honey wheel while wax wisps close in.",
+   "runner_end": [
+    16680.52734375,
+    1276.92492675781
+   ],
+   "runner_screen": [
+    600.212707519531,
+    389.828979492188
+   ],
+   "runner_start": [
+    15400.0,
+    1267.0
+   ],
+   "runner_world": [
+    16039.5498046875,
+    1015.58740234375
+   ],
+   "setup": "continues; wax wisps alive",
+   "shot": 27,
+   "slow_motion": false,
+   "start_frame": 4466,
+   "still": "shot_27.png",
+   "success": true,
+   "t": [
+    26,
+    27
+   ],
+   "take": "hive"
+  },
+  {
+   "area": "HONEYCOMB HIVE",
+   "camera": {
+    "at": [
+     16900.0,
+     1120.0
+    ],
+    "mode": "fixed",
+    "pan_to": [
+     16900.0,
+     900.0
+    ],
+    "zoom": [
+     1.4,
+     1.2
+    ]
+   },
+   "camera_world": [
+    16900.0,
+    900.0,
+    1.20000004768372
+   ],
+   "check": "bubble_launch",
+   "frames": 108,
+   "key_frame": 4812,
+   "means": "bubble squashed, then runner rising faster than 800px/s",
+   "move": "Upward tilt, strong ease-out",
+   "name": "BUBBLE SLINGSHOT",
+   "overlay": {},
+   "phenomenon": "The honey bubble bends under the runner, then flings them up.",
+   "runner_end": [
+    16880.37109375,
+    997.3203125
+   ],
+   "runner_screen": [
+    616.4453125,
+    790.249267578125
+   ],
+   "runner_start": [
+    15400.0,
+    1267.0
+   ],
+   "runner_world": [
+    16880.37109375,
+    1258.541015625
+   ],
+   "setup": "continues",
+   "shot": 28,
+   "slow_motion": false,
+   "start_frame": 4724,
+   "still": "shot_28.png",
+   "success": true,
+   "t": [
+    27,
+    28
+   ],
+   "take": "hive"
+  },
+  {
+   "area": "HONEYCOMB HIVE",
+   "camera": {
+    "at": [
+     0.0,
+     -80.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.3,
+     1.3
+    ]
+   },
+   "camera_world": [
+    16880.37109375,
+    877.863586425781,
+    1.29999995231628
+   ],
+   "check": "in_shaft",
+   "frames": 47,
+   "key_frame": 4841,
+   "means": "runner rising inside the shaft",
+   "move": "Continue upward tracking",
+   "name": "HIVE SHAFT ASCENT",
+   "overlay": {},
+   "phenomenon": "The honey current carries the launch up the narrow shaft.",
+   "runner_end": [
+    16880.37109375,
+    438.816436767578
+   ],
+   "runner_screen": [
+    640.0,
+    376.261993408203
+   ],
+   "runner_start": [
+    15400.0,
+    1267.0
+   ],
+   "runner_world": [
+    16880.37109375,
+    890.372802734375
+   ],
+   "setup": "continues",
+   "shot": 29,
+   "slow_motion": false,
+   "start_frame": 4832,
+   "still": "shot_29.png",
+   "success": true,
+   "t": [
+    28,
+    29
+   ],
+   "take": "hive"
+  },
+  {
+   "area": "HONEYCOMB HIVE",
+   "camera": {
+    "at": [
+     16960.0,
+     300.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.0,
+     1.25
+    ]
+   },
+   "camera_world": [
+    16960.0,
+    300.0,
+    1.03448152542114
+   ],
+   "check": "membrane_broken",
+   "frames": 62,
+   "key_frame": 4893,
+   "means": "membrane state 1",
+   "move": "Upward pullback, then snap follow",
+   "name": "BREAK THROUGH THE HIVE",
+   "overlay": {},
+   "phenomenon": "The wax membrane bursts; glowing honey debris rains back down the shaft.",
+   "runner_end": [
+    16994.39453125,
+    176.925201416016
+   ],
+   "runner_screen": [
+    557.625366210938,
+    331.503356933594
+   ],
+   "runner_start": [
+    15400.0,
+    1267.0
+   ],
+   "runner_world": [
+    16880.37109375,
+    272.453216552734
+   ],
+   "setup": "continues",
+   "shot": 30,
+   "slow_motion": false,
+   "start_frame": 4879,
+   "still": "shot_30.png",
+   "success": true,
+   "t": [
+    29,
+    30
+   ],
+   "take": "hive"
+  },
+  {
+   "area": "STONE GIANT",
+   "camera": {
+    "at": [
+     60.0,
+     -30.0
+    ],
+    "mode": "follow",
+    "rotation": 0.07,
+    "shake": 5.0,
+    "zoom": [
+     1.5,
+     1.5
+    ]
+   },
+   "camera_world": [
+    17747.490234375,
+    164.01904296875,
+    1.5
+   ],
+   "check": "on_tilted_ledge",
+   "frames": 232,
+   "key_frame": 5034,
+   "means": "runner standing on the tilted ledge slope",
+   "move": "Tilted camera, short landing shake",
+   "name": "OFF-CENTER LANDING",
+   "overlay": {},
+   "phenomenon": "Drop onto the isolated tilted ledge and recover.",
+   "runner_end": [
+    18302.517578125,
+    276.925201416016
+   ],
+   "runner_screen": [
+    587.7255859375,
+    537.108154296875
+   ],
+   "runner_start": [
+    17150.0,
+    177.0
+   ],
+   "runner_world": [
+    17712.640625,
+    282.091156005859
+   ],
+   "setup": "checkpoint 8; giant asleep",
+   "shot": 31,
+   "slow_motion": false,
+   "start_frame": 4945,
+   "still": "shot_31.png",
+   "success": true,
+   "t": [
+    30,
+    31
+   ],
+   "take": "giant"
+  },
+  {
+   "area": "STONE GIANT",
+   "camera": {
+    "at": [
+     18620.0,
+     60.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     0.9,
+     0.62
+    ]
+   },
+   "camera_world": [
+    18620.0,
+    60.0,
+    0.897970020771027
+   ],
+   "check": "giant_rising",
+   "frames": 147,
+   "key_frame": 5180,
+   "means": "giant awake, risen more than half way",
+   "move": "Pullback and low-angle reveal",
+   "name": "SOMETHING HUGE WAKES",
+   "overlay": {},
+   "phenomenon": "The stone automaton rises out of the gorge across the route.",
+   "runner_end": [
+    18316.69921875,
+    276.925201416016
+   ],
+   "runner_screen": [
+    363.78125,
+    554.792358398438
+   ],
+   "runner_start": [
+    17150.0,
+    177.0
+   ],
+   "runner_world": [
+    18312.396484375,
+    276.925201416016
+   ],
+   "setup": "continues",
+   "shot": 32,
+   "slow_motion": false,
+   "start_frame": 5177,
+   "still": "shot_32.png",
+   "success": true,
+   "t": [
+    31,
+    32
+   ],
+   "take": "giant"
+  },
+  {
+   "area": "STONE GIANT",
+   "camera": {
+    "at": [
+     30.0,
+     -120.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.0,
+     1.0
+    ]
+   },
+   "camera_world": [
+    18623.888671875,
+    95.9498901367188,
+    1.0
+   ],
+   "check": "jumped_mace",
+   "frames": 401,
+   "key_frame": 5581,
+   "means": "mace passes beneath the airborne runner with no hit",
+   "move": "Camera follows sweeping hazard",
+   "name": "SWEEP!",
+   "overlay": {},
+   "phenomenon": "Jump over the colossal chained mace as it sweeps across the toppled bridge.",
+   "runner_end": [
+    18484.998046875,
+    276.924041748047
+   ],
+   "runner_screen": [
+    116.111328125,
+    474.050109863281
+   ],
+   "runner_start": [
+    17150.0,
+    177.0
+   ],
+   "runner_world": [
+    18100.0,
+    210.0
+   ],
+   "setup": "continues; slab toppled into a bridge",
+   "shot": 33,
+   "slow_motion": false,
+   "start_frame": 5324,
+   "still": "shot_33.png",
+   "success": true,
+   "t": [
+    32,
+    33
+   ],
+   "take": "giant"
+  },
+  {
+   "area": "DRAGON BONE CANYON",
+   "camera": {
+    "at": [
+     20250.0,
+     240.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     0.75,
+     0.6
+    ]
+   },
+   "camera_world": [
+    20250.0,
+    240.0,
+    0.600000023841858
+   ],
+   "check": "on_rib_bridge",
+   "frames": 273,
+   "key_frame": 5814,
+   "means": "runner on an arched rib bridge",
+   "move": "Massive wide reveal, strong parallax",
+   "name": "THE FOSSIL CANYON",
+   "overlay": {},
+   "phenomenon": "A canyon of enormous fossil ribs; arched rib bridges and rotor skulls.",
+   "runner_end": [
+    20361.310546875,
+    296.970245361328
+   ],
+   "runner_screen": [
+    286.966796875,
+    377.504180908203
+   ],
+   "runner_start": [
+    19300.0,
+    277.0
+   ],
+   "runner_world": [
+    19661.611328125,
+    269.173614501953
+   ],
+   "setup": "far plateau past the giant",
+   "shot": 34,
+   "slow_motion": false,
+   "start_frame": 5729,
+   "still": "shot_34.png",
+   "success": true,
+   "t": [
+    33,
+    34
+   ],
+   "take": "bone"
+  },
+  {
+   "area": "DRAGON BONE CANYON",
+   "camera": {
+    "at": [
+     120.0,
+     -40.0
+    ],
+    "mode": "follow",
+    "zoom": [
+     1.3,
+     1.3
+    ]
+   },
+   "camera_world": [
+    20676.890625,
+    153.118423461914,
+    1.29999995231628
+   ],
+   "check": "on_rib_bridge",
+   "frames": 86,
+   "key_frame": 6080,
+   "means": "runner on the second rib bridge",
+   "move": "Pan along diagonal fossil bridge",
+   "name": "BONE ARCH RUN",
+   "overlay": {},
+   "phenomenon": "Run up the narrow curved rib high above the canyon.",
+   "runner_end": [
+    20602.9765625,
+    173.500274658203
+   ],
+   "runner_screen": [
+    505.434753417969,
+    400.080749511719
+   ],
+   "runner_start": [
+    19300.0,
+    277.0
+   ],
+   "runner_world": [
+    20573.37890625,
+    183.949768066406
+   ],
+   "setup": "continues",
+   "shot": 35,
+   "slow_motion": false,
+   "start_frame": 6002,
+   "still": "shot_35.png",
+   "success": true,
+   "t": [
+    34,
+    35
+   ],
+   "take": "bone"
+  },
+  {
+   "area": "DRAGON BONE CANYON",
+   "camera": {
+    "at": [
+     60.0,
+     -60.0
+    ],
+    "mode": "follow",
+    "rotation": -0.04,
+    "zoom": [
+     1.1,
+     1.1
+    ]
+   },
+   "camera_world": [
+    20611.9765625,
+    164.500274658203,
+    1.10000002384186
+   ],
+   "check": "drones_close",
+   "frames": 133,
+   "key_frame": 6088,
+   "means": "three or more skull drones within 450px",
+   "move": "Loose tilt and side follow",
+   "name": "ROTORS EVERYWHERE",
+   "overlay": {},
+   "phenomenon": "Rotor-skull drones hover, wind up and lunge between the ribs.",
+   "runner_end": [
+    21300.0,
+    257.0
+   ],
+   "runner_screen": [
+    630.099975585938,
+    369.899993896484
+   ],
+   "runner_start": [
+    19300.0,
+    277.0
+   ],
+   "runner_world": [
+    20602.9765625,
+    173.500274658203
+   ],
+   "setup": "continues; five skull drones alive",
+   "shot": 36,
+   "slow_motion": false,
+   "start_frame": 6088,
+   "still": "shot_36.png",
+   "success": true,
+   "t": [
+    35,
+    36
+   ],
+   "take": "bone"
+  },
+  {
+   "area": "DRAGON BONE CANYON",
+   "camera": {
+    "at": [
+     21900.0,
+     300.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     0.95,
+     0.85
+    ]
+   },
+   "camera_world": [
+    21900.0,
+    300.0,
+    0.850000023841858
+   ],
+   "check": "beast_erupted",
+   "frames": 340,
+   "key_frame": 6330,
+   "means": "beast state 1, deck vertebrae broken",
+   "move": "Low reveal to upward motion",
+   "name": "IT COMES ALIVE",
+   "overlay": {},
+   "phenomenon": "The skeletal beast erupts through the vertebra bridge below, bursting it apart.",
+   "runner_end": [
+    22564.87890625,
+    276.925201416016
+   ],
+   "runner_screen": [
+    485.660247802734,
+    340.386413574219
+   ],
+   "runner_start": [
+    21250.0,
+    257.0
+   ],
+   "runner_world": [
+    21718.423828125,
+    276.925201416016
+   ],
+   "setup": "checkpoint 10; beast dormant",
+   "shot": 37,
+   "slow_motion": false,
+   "start_frame": 6221,
+   "still": "shot_37.png",
+   "success": true,
+   "t": [
+    36,
+    37
+   ],
+   "take": "bone"
+  },
+  {
+   "area": "DRAGON BONE CANYON",
+   "camera": {
+    "at": [
+     40.0,
+     -60.0
+    ],
+    "mode": "follow",
+    "shake": 4.0,
+    "zoom": [
+     1.1,
+     1.0
+    ]
+   },
+   "camera_world": [
+    22865.859375,
+    109.841323852539,
+    1.0
+   ],
+   "check": "pillars_and_jets",
+   "frames": 186,
+   "key_frame": 6630,
+   "means": "jaws chasing, a pillar collapsing and a sand jet active in frame",
+   "move": "Vertical chase; dynamic shake",
+   "name": "SAND GOES VERTICAL",
+   "overlay": {},
+   "phenomenon": "Sand geysers blast up between collapsing bone pillars as the jaws pursue.",
+   "runner_end": [
+    23331.298828125,
+    6.99598789215088
+   ],
+   "runner_screen": [
+    625.47265625,
+    449.342498779297
+   ],
+   "runner_start": [
+    21250.0,
+    257.0
+   ],
+   "runner_world": [
+    22851.33203125,
+    199.183822631836
+   ],
+   "setup": "continues; jaws chasing",
+   "shot": 38,
+   "slow_motion": false,
+   "start_frame": 6561,
+   "still": "shot_38.png",
+   "success": true,
+   "t": [
+    37,
+    38
+   ],
+   "take": "bone"
+  },
+  {
+   "area": "DRAGON BONE CANYON",
+   "camera": {
+    "at": [
+     23900.0,
+     220.0
+    ],
+    "mode": "fixed",
+    "shake": 12.0,
+    "zoom": [
+     1.1,
+     1.4
+    ]
+   },
+   "camera_world": [
+    23900.0,
+    220.0,
+    1.39999997615814
+   ],
+   "check": "jaws_snapped",
+   "frames": 189,
+   "key_frame": 6906,
+   "means": "jaws snapped at the gate with the runner beyond it",
+   "move": "Extreme diagonal push; shake",
+   "name": "CLOSING JAWS",
+   "overlay": {},
+   "phenomenon": "The runner dives through the stone gate; the fossil jaws slam shut behind.",
+   "runner_end": [
+    24077.41796875,
+    276.925201416016
+   ],
+   "runner_screen": [
+    888.385131835938,
+    439.695281982422
+   ],
+   "runner_start": [
+    21250.0,
+    257.0
+   ],
+   "runner_world": [
+    24077.41796875,
+    276.925201416016
+   ],
+   "setup": "continues",
+   "shot": 39,
+   "slow_motion": false,
+   "start_frame": 6747,
+   "still": "shot_39.png",
+   "success": true,
+   "t": [
+    38,
+    39
+   ],
+   "take": "bone"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     24940.0,
+     230.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     0.95,
+     0.95
+    ]
+   },
+   "camera_world": [
+    24940.0,
+    230.0,
+    0.949999988079071
+   ],
+   "check": "runner_below_title",
+   "frames": 217,
+   "key_frame": 6944,
+   "means": "runner stays in the lower 45% of frame, moving",
+   "move": "Wide shot; centered title; hold",
+   "name": "THE NAME APPEARS",
+   "overlay": {
+    "title": [
+     0.200000002980232,
+     0.119999997317791,
+     0.600000023841858,
+     0.419999986886978
+    ]
+   },
+   "phenomenon": "Continuous running down the meadow slope in the lower third; sky left open for the logo.",
+   "runner_end": [
+    25221.923828125,
+    496.925170898438
+   ],
+   "runner_screen": [
+    -10.8112182617188,
+    404.578948974609
+   ],
+   "runner_start": [
+    24200.0,
+    277.0
+   ],
+   "runner_world": [
+    24254.935546875,
+    276.925201416016
+   ],
+   "setup": "checkpoint 11",
+   "shot": 40,
+   "slow_motion": false,
+   "start_frame": 6940,
+   "still": "shot_40.png",
+   "success": true,
+   "t": [
+    39,
+    40
+   ],
+   "take": "title"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     60.0,
+     330.0
+    ],
+    "mode": "track_x",
+    "zoom": [
+     0.95,
+     0.95
+    ]
+   },
+   "camera_world": [
+    25416.765625,
+    330.000091552734,
+    0.949999988079071
+   ],
+   "check": "drone_pursuit",
+   "frames": 186,
+   "key_frame": 7305,
+   "means": "brass drone within 450px while the runner clears the saw",
+   "move": "Slow pan along terrain",
+   "name": "CHASE UNDER THE TITLE",
+   "overlay": {
+    "title": [
+     0.200000002980232,
+     0.0799999982118607,
+     0.600000023841858,
+     0.400000005960464
+    ]
+   },
+   "phenomenon": "Drone pursuers close in as the runner hops the rail saw under the title.",
+   "runner_end": [
+    25632.443359375,
+    496.925170898438
+   ],
+   "runner_screen": [
+    606.957824707031,
+    518.578857421875
+   ],
+   "runner_start": [
+    24200.0,
+    277.0
+   ],
+   "runner_world": [
+    25381.984375,
+    496.925170898438
+   ],
+   "setup": "continues; brass drones pursuing",
+   "shot": 41,
+   "slow_motion": false,
+   "start_frame": 7157,
+   "still": "shot_41.png",
+   "success": true,
+   "t": [
+    40,
+    41
+   ],
+   "take": "title"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     60.0,
+     330.0
+    ],
+    "mode": "track_x",
+    "zoom": [
+     0.95,
+     0.95
+    ]
+   },
+   "camera_world": [
+    26280.24609375,
+    330.000091552734,
+    0.949999988079071
+   ],
+   "check": "height_changes",
+   "frames": 277,
+   "key_frame": 7580,
+   "means": "runner's floor height changes by 55px+ twice",
+   "move": "Side follow; camera keeps title centered",
+   "name": "THE CHASE TIGHTENS",
+   "overlay": {
+    "title": [
+     0.200000002980232,
+     0.0799999982118607,
+     0.600000023841858,
+     0.400000005960464
+    ]
+   },
+   "phenomenon": "Weaving up and down changing ledge heights past the spike pit and cannon fire.",
+   "runner_end": [
+    26394.7734375,
+    536.925170898438
+   ],
+   "runner_screen": [
+    606.349243164062,
+    556.578857421875
+   ],
+   "runner_start": [
+    24200.0,
+    277.0
+   ],
+   "runner_world": [
+    26244.82421875,
+    536.925170898438
+   ],
+   "setup": "continues; cannon on the high step",
+   "shot": 42,
+   "slow_motion": false,
+   "start_frame": 7343,
+   "still": "shot_42.png",
+   "success": true,
+   "t": [
+    41,
+    42
+   ],
+   "take": "title"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     26380.0,
+     470.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.5,
+     1.9
+    ]
+   },
+   "camera_world": [
+    26380.0,
+    470.0,
+    1.89999997615814
+   ],
+   "check": "knocked_into_saw",
+   "frames": 121,
+   "key_frame": 7715,
+   "means": "runner hurt, then killed by the saw",
+   "move": "Short punch-in + hit stop",
+   "name": "OOPS, DOWN AGAIN",
+   "overlay": {
+    "title": [
+     0.200000002980232,
+     0.0599999986588955,
+     0.600000023841858,
+     0.360000014305115
+    ]
+   },
+   "phenomenon": "An enemy strike knocks the runner into the saw.",
+   "runner_end": [
+    26419.056640625,
+    527.427001953125
+   ],
+   "runner_screen": [
+    714.207641601562,
+    469.111297607422
+   ],
+   "runner_start": [
+    26360.0,
+    537.0
+   ],
+   "runner_world": [
+    26419.056640625,
+    527.427001953125
+   ],
+   "setup": "checkpoint 12, beside the post saw; a brass drone swoops from behind",
+   "shot": 43,
+   "slow_motion": false,
+   "start_frame": 7624,
+   "still": "shot_43.png",
+   "success": true,
+   "t": [
+    42,
+    43
+   ],
+   "take": "oops"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     26330.0,
+     470.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.4,
+     1.5
+    ]
+   },
+   "camera_world": [
+    26330.0,
+    470.0,
+    1.5
+   ],
+   "check": "respawned",
+   "frames": 81,
+   "key_frame": 7808,
+   "means": "runner respawned at checkpoint 12 and moving within 0.5s",
+   "move": "Locked shot, light zoom",
+   "name": "CHECKPOINT RESTART",
+   "overlay": {
+    "title": [
+     0.200000002980232,
+     0.0599999986588955,
+     0.600000023841858,
+     0.360000014305115
+    ]
+   },
+   "phenomenon": "Respawn at the checkpoint flag beside the saw; running again at once.",
+   "runner_end": [
+    26228.673828125,
+    536.925170898438
+   ],
+   "runner_screen": [
+    592.755859375,
+    460.387756347656
+   ],
+   "runner_start": [
+    26360.0,
+    537.0
+   ],
+   "runner_world": [
+    26298.50390625,
+    536.925170898438
+   ],
+   "setup": "continues",
+   "shot": 44,
+   "slow_motion": false,
+   "start_frame": 7745,
+   "still": "shot_44.png",
+   "success": true,
+   "t": [
+    43,
+    44
+   ],
+   "take": "oops"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     26560.0,
+     440.0
+    ],
+    "mode": "fixed",
+    "zoom": [
+     1.05,
+     1.0
+    ]
+   },
+   "camera_world": [
+    26560.0,
+    440.0,
+    1.02997040748596
+   ],
+   "check": "awkward_blocks",
+   "frames": 46,
+   "key_frame": 7852,
+   "means": "two guardian platforms, one slanted >20 degrees",
+   "move": "Wide framing of impossible platforms",
+   "name": "WHAT ARE THOSE BLOCKS?",
+   "overlay": {
+    "title": [
+     0.200000002980232,
+     0.0599999986588955,
+     0.600000023841858,
+     0.360000014305115
+    ]
+   },
+   "phenomenon": "YOU builds blocks in odd places: a steep slanted stroke and a block too high.",
+   "runner_end": [
+    26214.4921875,
+    536.925170898438
+   ],
+   "runner_screen": [
+    284.137176513672,
+    459.830047607422
+   ],
+   "runner_start": [
+    26360.0,
+    537.0
+   ],
+   "runner_world": [
+    26214.4921875,
+    536.925170898438
+   ],
+   "setup": "continues; guardian builds awkward blocks over the spike bed",
+   "shot": 45,
+   "slow_motion": false,
+   "start_frame": 7826,
+   "still": "shot_45.png",
+   "success": true,
+   "t": [
+    44,
+    45
+   ],
+   "take": "oops"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     60.0,
+     -40.0
+    ],
+    "mode": "follow",
+    "rotation": 0.04,
+    "zoom": [
+     1.2,
+     1.2
+    ]
+   },
+   "camera_world": [
+    26839.75390625,
+    270.982299804688,
+    1.20000004768372
+   ],
+   "check": "recovered",
+   "frames": 154,
+   "key_frame": 8005,
+   "means": "runner touched a guardian block and reached the meadow at x>26700",
+   "move": "Follow evasive jump, slight tilt",
+   "name": "THAT WAS NOT THE PLAN",
+   "overlay": {
+    "title": [
+     0.200000002980232,
+     0.0599999986588955,
+     0.600000023841858,
+     0.360000014305115
+    ]
+   },
+   "phenomenon": "The runner scrambles across using the awkward blocks and the pillars, recovering onto the meadow.",
+   "runner_end": [
+    26800.107421875,
+    396.925201416016
+   ],
+   "runner_screen": [
+    590.237487792969,
+    511.131530761719
+   ],
+   "runner_start": [
+    26360.0,
+    537.0
+   ],
+   "runner_world": [
+    26798.28515625,
+    396.925231933594
+   ],
+   "setup": "continues",
+   "shot": 46,
+   "slow_motion": false,
+   "start_frame": 7872,
+   "still": "shot_46.png",
+   "success": true,
+   "t": [
+    45,
+    46
+   ],
+   "take": "oops"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     80.0,
+     560.0
+    ],
+    "mode": "track_x",
+    "zoom": [
+     0.95,
+     0.95
+    ]
+   },
+   "camera_world": [
+    26935.58984375,
+    559.101318359375,
+    0.949999988079071
+   ],
+   "check": "upper_half",
+   "frames": 241,
+   "key_frame": 8061,
+   "means": "runner inside the upper 48% of the frame for the whole cut",
+   "move": "Wide game scene on upper half",
+   "name": "AVAILABLE IN STORES",
+   "overlay": {
+    "card": [
+     0.0,
+     0.5,
+     1.0,
+     0.5
+    ]
+   },
+   "phenomenon": "Upper half: running and dodging the dipping saw. Lower half left for the store card.",
+   "runner_end": [
+    27264.240234375,
+    396.925201416016
+   ],
+   "runner_start": [
+    26760.0,
+    397.0
+   ],
+   "runner_world": [
+    26881.494140625,
+    396.925201416016
+   ],
+   "setup": "meadow T4; brass drone and dipping saw ahead",
+   "shot": 47,
+   "slow_motion": false,
+   "start_frame": 8030,
+   "still": "shot_47.png",
+   "success": true,
+   "t": [
+    46,
+    47
+   ],
+   "take": "end"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     80.0,
+     560.0
+    ],
+    "mode": "track_x",
+    "zoom": [
+     0.95,
+     0.95
+    ]
+   },
+   "camera_world": [
+    27376.982421875,
+    559.100952148438,
+    0.949999988079071
+   ],
+   "check": "upper_half",
+   "frames": 307,
+   "key_frame": 8302,
+   "means": "runner in the upper 48%; a coin collected",
+   "move": "Same upper-half game motion",
+   "name": "COMING OCTOBER 2026",
+   "overlay": {
+    "card": [
+     0.0,
+     0.5,
+     1.0,
+     0.5
+    ]
+   },
+   "phenomenon": "Ride the lift and collect the coin line.",
+   "runner_end": [
+    27953.197265625,
+    456.925201416016
+   ],
+   "runner_start": [
+    26760.0,
+    397.0
+   ],
+   "runner_world": [
+    27297.806640625,
+    396.925201416016
+   ],
+   "setup": "continues; lift and coins",
+   "shot": 48,
+   "slow_motion": false,
+   "start_frame": 8271,
+   "still": "shot_48.png",
+   "success": true,
+   "t": [
+    47,
+    48
+   ],
+   "take": "end"
+  },
+  {
+   "area": "TITLE RUN",
+   "camera": {
+    "at": [
+     80.0,
+     560.0
+    ],
+    "mode": "track_x",
+    "zoom": [
+     0.95,
+     0.95
+    ]
+   },
+   "camera_world": [
+    28148.45703125,
+    559.431701660156,
+    0.949999988079071
+   ],
+   "check": "upper_half",
+   "frames": 166,
+   "key_frame": 8609,
+   "means": "runner in the upper 48% heading to the goal",
+   "move": "Same upper-half game motion",
+   "name": "CREATED BY",
+   "overlay": {
+    "card": [
+     0.0,
+     0.5,
+     1.0,
+     0.5
+    ]
+   },
+   "phenomenon": "Final run over the bridge toward the goal flag.",
+   "runner_end": [
+    28695.9375,
+    396.925201416016
+   ],
+   "runner_start": [
+    26760.0,
+    397.0
+   ],
+   "runner_world": [
+    28094.57421875,
+    456.925201416016
+   ],
+   "setup": "continues; rope bridge and goal",
+   "shot": 49,
+   "slow_motion": false,
+   "start_frame": 8578,
+   "still": "shot_49.png",
+   "success": true,
+   "t": [
+    48,
+    49
+   ],
+   "take": "end"
+  }
+ ],
+ "stage": "1-10",
+ "start": [
+  -300.0,
+  876.0
+ ],
+ "total": 49,
+ "zones": [
+  {
+   "from": -1000,
+   "name": "GRASSLAND CLIFFS",
+   "seconds": "0-10",
+   "skin": "grass",
+   "sky": "meadow",
+   "to": 3000
+  },
+  {
+   "from": 3000,
+   "name": "THUNDER BRIDGE",
+   "seconds": "10-13",
+   "skin": "storm",
+   "sky": "storm",
+   "to": 5800
+  },
+  {
+   "from": 5800,
+   "name": "SHIFTING SAND RUINS",
+   "seconds": "13-16",
+   "skin": "sand",
+   "sky": "sand",
+   "to": 7500
+  },
+  {
+   "from": 7500,
+   "name": "VOLCANO CORE",
+   "seconds": "16-20",
+   "skin": "lava",
+   "sky": "lava",
+   "to": 11300
+  },
+  {
+   "from": 11300,
+   "name": "IRON RAIL",
+   "seconds": "20-24",
+   "skin": "rail",
+   "sky": "rail",
+   "to": 15600
+  },
+  {
+   "from": 15600,
+   "name": "HONEYCOMB HIVE",
+   "seconds": "24-30",
+   "skin": "hive",
+   "sky": "hive",
+   "to": 17300
+  },
+  {
+   "from": 17300,
+   "name": "STONE GIANT",
+   "seconds": "30-33",
+   "skin": "cliff",
+   "sky": "cliff",
+   "to": 19660
+  },
+  {
+   "from": 19660,
+   "name": "DRAGON BONE CANYON",
+   "seconds": "33-39",
+   "skin": "bone",
+   "sky": "canyon",
+   "to": 24600
+  },
+  {
+   "from": 24600,
+   "name": "TITLE RUN",
+   "seconds": "39-49",
+   "skin": "grass",
+   "sky": "meadow",
+   "to": 29500
+  }
+ ],
+ "note": "Per-cut checks from a headless run of the final code; stills shot_NN.png from the rendered run (also 49/49)."
+}
