@@ -1,0 +1,65 @@
+name: 1-10 PV render
+
+# Plays the 49 storyboard cuts of the final PV in the real 1-10 (tools/
+# promotion/capture_finale_pv.tscn), records the game with Godot's Movie
+# Maker and cuts the MP4s with ffmpeg. Software GL under xvfb: every frame is
+# rendered, so the recording is exact even though the runner is slow.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-3aa73fa5-posj8o]
+    paths:
+      - "src/**"
+      - "assets/stage_1_10/**"
+      - "tools/promotion/capture_finale_pv.*"
+      - "tools/promotion/render_finale_pv.py"
+      - ".github/workflows/finale-pv.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finale-pv-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+      - name: Install pinned EOS runtime required by project autoloads
+        run: bash tools/install-eosg.sh linux
+      - name: Install ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Import project
+        run: xvfb-run -a "$GODOT" --headless --editor --path . --import >/dev/null 2>&1 || true
+      - name: Play and record the 49 cuts
+        run: |
+          mkdir -p build/promotion/stage-1-10/pv
+          xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . \
+            --rendering-method gl_compatibility --rendering-driver opengl3 \
+            --fixed-fps 60 --resolution 1280x720 \
+            --write-movie "$PWD/build/promotion/stage-1-10/pv/takes.avi" \
+            res://tools/promotion/capture_finale_pv.tscn -- --ci-skip-eos 2>&1 | tee capture.log
+          grep -q "finale PV: 49 / 49" capture.log
+      - name: Cut and encode MP4
+        run: python3 tools/promotion/render_finale_pv.py build/promotion/stage-1-10/pv/takes.avi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: finale-pv-mp4
+          path: |
+            build/promotion/stage-1-10/pv/*.mp4
+            build/promotion/stage-1-10/pv/shots_report.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: finale-pv-stills
+          path: build/promotion/stage-1-10/pv/shot_*.png
+          if-no-files-found: warn

@@ -25,7 +25,7 @@ jobs:
       - name: Import project
         run: |
           "$GODOT" --headless --editor --path . --import
-      - name: Render all eight maps
+      - name: Render all nine maps (1-1 to 1-8 and 1-10)
         run: xvfb-run -a "$GODOT" --path . --rendering-method gl_compatibility tools/export_stage_maps.tscn -- --ci-skip-eos
       - name: Check complete PNG output
         run: |
@@ -33,7 +33,7 @@ jobs:
           import json, pathlib, struct
           root = pathlib.Path('build/stage-maps')
           maps = json.loads((root / 'maps.json').read_text())['maps']
-          assert {m['stage'] for m in maps} == {f'1-{n}' for n in range(1, 9)}
+          assert {m['stage'] for m in maps} == {f'1-{n}' for n in range(1, 9)} | {'1-10'}
           for m in maps:
               data = (root / m['png']).read_bytes()
               assert data[:8] == b'\x89PNG\r\n\x1a\n'
