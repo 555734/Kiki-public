@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
-"""Flatten the 1-10 PV capture report into docs: JSON copy + CSV table.
+"""Export the 1-10 PV director's report into docs.
 
     python3 tools/promotion/export_finale_shots.py
+
+Reads build/promotion/stage-1-10/pv/shots_report.json and audio_check.json
+(written by capture_finale_pv.tscn and render_finale_pv.py) and writes to
+docs/promotion/stage-1-10/:
+
+  shots_report.json   the director's report as recorded
+  audio_check.json    the soundtrack-vs-event-log check
+  shots.csv           one row per cut: storyboard, intent, evidence, verdict
+  pv_match.md         the same as a readable storyboard comparison table
 """
 import csv
 import json
@@ -9,29 +18,91 @@ import os
 import shutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SRC = os.path.join(ROOT, "build", "promotion", "stage-1-10", "pv", "shots_report.json")
+PV = os.path.join(ROOT, "build", "promotion", "stage-1-10", "pv")
 DST = os.path.join(ROOT, "docs", "promotion", "stage-1-10")
+
+# Game events worth quoting as evidence of what happened on air.
+EVIDENCE = {"machine", "hologram", "landed_on_hologram", "rescue", "died", "respawned", "enemy_killed",
+            "damaged", "cliff_jump", "leap_gap", "duck", "in_honey", "on_escape_ledge", "on_bridge",
+            "through_gate", "checkpoint", "ledge_grab", "air_jump"}
+
+
+def evidence(row):
+    out = []
+    for e in row.get("events", []):
+        if e["ev"] in EVIDENCE:
+            out.append("%s %s @f%d" % (e["ev"], e["detail"], e["cut_frame"]))
+    sounds = sorted({e["detail"] for e in row.get("events", []) if e["ev"] == "sound"})
+    return out, sounds
+
+
+def storyboard():
+    """The supplied shot list (camera and action per cut), keyed by cut."""
+    path = os.path.join(DST, "storyboard_shot_list.csv")
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8-sig") as f:
+        return {int(r["shot"]): r for r in csv.DictReader(f)}
+
 
 def main():
     os.makedirs(DST, exist_ok=True)
-    shutil.copy(SRC, os.path.join(DST, "shots_report.json"))
-    report = json.load(open(SRC))
+    board = storyboard()
+    report = json.load(open(os.path.join(PV, "shots_report.json")))
+    shutil.copy(os.path.join(PV, "shots_report.json"), os.path.join(DST, "shots_report.json"))
+    audio = {}
+    if os.path.exists(os.path.join(PV, "audio_check.json")):
+        shutil.copy(os.path.join(PV, "audio_check.json"), os.path.join(DST, "audio_check.json"))
+        audio = json.load(open(os.path.join(PV, "audio_check.json")))
+    rows = sorted(report["shots"], key=lambda r: r["shot"])
     with open(os.path.join(DST, "shots.csv"), "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["shot", "seconds", "name", "area", "take", "runner_start", "setup", "camera_mode",
-                    "camera_at", "zoom_from", "zoom_to", "camera_extra", "move", "phenomenon",
-                    "success_check", "success_means", "verified", "runner_at_key_moment",
-                    "camera_at_key_moment", "overlay_regions", "slow_motion", "still"])
-        for r in report["shots"]:
-            cam = r.get("camera", {})
-            extra = {k: v for k, v in cam.items() if k not in ("mode", "at", "zoom")}
-            w.writerow([r["shot"], "%s-%s" % tuple(r.get("t", ["", ""])), r["name"], r["area"], r["take"],
-                        r.get("runner_start"), r.get("setup"), cam.get("mode"), cam.get("at"),
-                        cam.get("zoom", [None, None])[0], cam.get("zoom", [None, None])[1], json.dumps(extra),
-                        r.get("move"), r.get("phenomenon"), r["check"], r["means"],
-                        "yes" if r["success"] else "NO", r.get("runner_world"), r.get("camera_world"),
-                        json.dumps(r.get("overlay", {})), r.get("slow_motion", False), r.get("still")])
-    print("exported", len(report["shots"]), "cuts;", report["passed"], "verified")
+        w.writerow(["cut", "seconds", "name", "area", "storyboard_camera", "storyboard_action", "intent",
+                    "happened", "key_frame_in_cut", "game_events", "sounds", "runner_height_avg_pct",
+                    "runner_height_min_pct", "runner_on_screen_pct", "subject", "subject_on_screen_pct",
+                    "runner_start", "runner_end", "camera_samples", "verdict", "why"])
+        for r in rows:
+            ev, snd = evidence(r)
+            sb = board.get(r["shot"], {})
+            w.writerow([r["shot"], "%s-%s" % tuple(r["t"]), r["name"], r["area"], sb.get("camera", r.get("storyboard", "")),
+                        sb.get("action", r.get("phenomenon", "")), r["intent"], "yes" if r["happened"] else "no",
+                        r.get("key_cut_frame", ""), "; ".join(ev), " ".join(snd),
+                        round(100 * r["hero_frac_avg"], 1), round(100 * r["hero_frac_min"], 1),
+                        round(100 * r["hero_on_screen"]), r.get("subject_name", ""),
+                        round(100 * r["subject_on_screen"]) if "subject_on_screen" in r else "",
+                        r.get("runner_start"), r.get("runner_end"), json.dumps(r.get("camera_log", [])),
+                        r["verdict"], "; ".join(r.get("why", []))])
+    lines = ["# 1-10 PV — storyboard match table", "",
+             "Generated by `tools/promotion/export_finale_shots.py` from the director's report "
+             "(`shots_report.json`) and the soundtrack check (`audio_check.json`). Each cut is exactly "
+             "60 frames of real gameplay. **Intent** is what the cut must show; **happened** is a game-state "
+             "check evaluated every on-air frame; **visible** is measured from the camera: the runner's "
+             "drawn height as a share of the 720px frame, the share of frames the runner and the cut's "
+             "subject are on screen. A cut also fails if the runner is hurt on air (except cut 43).", "",
+             "Result: **%d / %d cuts pass**." % (report["passed"], report["total"]), ""]
+    if audio:
+        lines.append("Soundtrack: %d game sounds fired on air; %d show an onset in the final mix at their event "
+                     "time, %d play under a louder sound already ringing (no onset to measure), %d missing."
+                     % (audio["sound_events_on_air"], audio["heard"], audio.get("masked", 0), audio.get("missing", 0)))
+        lines.append("")
+    lines += ["| Cut | Time | Storyboard | Intent (what the cut shows) | What happened (game events) | Runner size / on screen | Subject on screen | Verdict |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for r in rows:
+        ev, snd = evidence(r)
+        happened = ("yes, at frame %s/60" % r.get("key_cut_frame", "?")) if r["happened"] else "**no**"
+        evs = "<br>".join(ev[:4]) if ev else ""
+        if snd:
+            evs += ("<br>" if evs else "") + "sounds: " + ", ".join(snd)
+        subj = ("%s %d%%" % (r.get("subject_name", ""), round(100 * r["subject_on_screen"]))) if "subject_on_screen" in r else "—"
+        sb = board.get(r["shot"], {})
+        lines.append("| %d | %s–%ss | **%s** — %s<br>*camera: %s* | %s | %s (%s) | %.1f%% / %d%% | %s | %s |" % (
+            r["shot"], r["t"][0], r["t"][1], r["name"], sb.get("action", r.get("phenomenon", "")),
+            sb.get("camera", r.get("storyboard", "")), r["intent"], happened,
+            evs.replace("|", "/"), 100 * r["hero_frac_avg"], round(100 * r["hero_on_screen"]), subj,
+            r["verdict"] + ((" — " + "; ".join(r["why"])) if r.get("why") else "")))
+    open(os.path.join(DST, "pv_match.md"), "w").write("\n".join(lines) + "\n")
+    print("exported", len(rows), "cuts;", report["passed"], "pass")
+
 
 if __name__ == "__main__":
     main()

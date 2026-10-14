@@ -28,7 +28,7 @@ func _pose(tick: int) -> void:
 	set_solid(_top, d < 60.0)
 
 func _on_state() -> void:
-	sound("land", -12.0, 1.1)
+	sound("crumble", -6.0, 1.0)
 
 func _host_step(_delta: float) -> void:
 	if state == 0 and runner_on(_top):

@@ -23,7 +23,7 @@ func _pose(tick: int) -> void:
 	_angle = angle_at(tick)
 	var s := signf(_angle)
 	if s != _last_sign and _last_sign != 0.0:
-		sound("dash", -9.0, 0.9)
+		sound("whoosh", -4.0, 1.3)
 		FinaleFx.kick(2.0)
 	_last_sign = s
 

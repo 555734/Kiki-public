@@ -31,14 +31,14 @@ Full size: [stage-1-10-map.jpg](images/stage-1-10/stage-1-10-map.jpg).
 
 | Area (PV seconds) | World x | What changes the terrain | Enemies |
 | --- | --- | --- | --- |
-| Grassland cliffs (0–10) | −900…3,000 | Curved downhill; a 700px chasm with the far bank 120px **higher** — the runner cannot make it alone. The guardian's mid-air platforms are the rescue. A wall-kick-free chimney of ledges behind the far bank lets a solo runner climb out of the 940px-deep chasm. | Burrbug (1-3 sprout): walks up to meet the runner, skids and turns when jumped over |
+| Grassland cliffs (0–10) | −900…3,000 | Curved downhill; a 710px chasm whose far bank stands 200px **higher** than the take-off lip — above the apex of a sprint double jump (measured: 301px), so the best jump falls short just below the ledge. The guardian's traced staircase is the rescue. A chimney of ledges behind the far bank lets a solo runner climb out of the 940px-deep chasm. A painted, animated waterfall falls behind the chasm. | Burrbug (1-3 sprout): walks up to meet the runner, skids and turns when jumped over |
 | Thunder bridge (10–13) | 3,000…5,800 | 13 deck spans. Crossing trigger lines calls lightning: 0.75s of glowing spans, then the bolt — flash, shake, spans burst and fall. The second strike opens a 320px double gap: the route moves **up** onto broken spans, two electrified on a 3s cycle. Shooting the lightning rod earths them for 5s. | Spark wisps (recoloured 1-3 wisp) hover and lunge |
-| Sand ruins (13–16) | 5,800…7,500 | Two-level hall with a sand waterfall that pushes you down; a 160×130 chained stone block swings through both levels (crouch under it at the bottom of its arc, 36px clearance); the last floor **collapses tile by tile** into a 1,500px shaft with falling stones. | 1-6 scarab and mummy |
+| Sand ruins (13–16) | 5,800…7,500 | Two-level hall with a sand waterfall that pushes you down; a 160×130 chained stone block swings through both levels (crouch under it at the bottom of its arc, 36px clearance); the last floor **collapses tile by tile** into a 1,500px shaft with falling stones. | 1-6 scarab and mummy, patrolling the upper tiers |
 | Volcano core (16–20) | 7,500…11,300 | Basalt pillars over a lethal lake; a **magma sphere** freed behind the runner rolls down the cracked slope faster than a run, smashes the crust bridge (the low path is gone) and sinks. Escape ledge needs a double jump. The guardian's wall stops the sphere while it stands. Two chain swings; three **geyser lifts** thrown 300–340px up by eruptions between lethal lava jets. | Magma slime hopping pillar to pillar, fire bat |
-| Iron rail (20–24) | 11,300…15,600 | Two trains on one 25s timetable (arrive from the west portal, stop 5s, pull away at 280px/s, vanish into the east tunnel). Roofs at mismatched heights; a 300–390px gap between the trains that breathes as they accelerate. Train momentum is kept through jumps. Cranes drop crates onto passing cars; landed crates ride the car as new obstacles/steps. A low bridge sweeps anyone still on a roof — leave by the footbridge. | Rail gunners (1-7 turret) ride the roofs and fire back down the train |
+| Iron rail (20–24) | 11,300…15,600 | Two trains on one 25s timetable (arrive from the west portal, stop 5s, pull away at 280px/s, vanish into the east tunnel). Roofs at mismatched heights; a 300–390px gap between the trains that breathes as they accelerate. Train momentum is kept through jumps. Line-side posts, wind streaks off the cars and loco smoke show the speed. Cranes drop crates onto passing cars (the second right in front of a runner who has just leapt to the lead train); landed crates ride the car as new obstacles/steps. A low bridge sweeps anyone still on a roof — leave by the footbridge. | Rail gunners (1-7 turret) ride the roofs and fire back down the train |
 | Honeycomb hive (24–30) | 15,600…17,300 | Honey pools stall a landing and cut jumps to 60%; inverted wax tiers; a level-paddle honey wheel; a **honey bubble** that bends under you then flings you into a 1,000px shaft where a honey current carries you up to a **wax membrane** that bursts when hit from below. | Wax wisps that swarm after the runner, keeping apart |
 | Stone giant (30–33) | 17,300…19,660 | Isolated tilted ledge; a giant automaton of ruin blocks **rises out of the gorge**, swats the standing slab that blocks the way so it **topples into a bridge**, then sweeps a chained spiked mace low across that bridge. Shooting its chest core staggers it (mace hangs still 2.5s). | — |
-| Dragon bone canyon (33–39) | 19,660…24,600 | Arched fossil-rib bridges (polygon slopes), a vertebra bridge the **skeletal beast erupts through** (three vertebrae burst out), sand geysers that blow you up to the high rib path, **collapsing bone pillars** and a **jaw chase** at 300px/s that ends when the jaws slam shut on the stone gate. | Rotor-skull drones (7) drift, wind up and lunge |
+| Dragon bone canyon (33–39) | 19,660…24,600 | Arched fossil-rib bridges (polygon slopes), a vertebra bridge the **skeletal beast erupts through** (three vertebrae burst out), sand geysers that blow you up to the high rib path, **collapsing bone pillars** and a **jaw chase** at 350px/s that ends when the jaws slam shut on the stone gate. | Rotor-skull drones (7) drift, wind up and lunge |
 | Title run (39–49) | 24,600…28,900 | Long meadow downhill (runner in the lower third, sky clear for the title), a rail saw, a spike pit, a cannon on the high step, a post saw beside checkpoint 12, narrow pillars over a spike bed (where the guardian's awkward blocks come in), a dipping saw, a lift, coin line, rope bridge and goal. | Brass drones shadow and dive; cannon; burrbug |
 
 No area is a flat run to the right: every one changes height by hundreds of
@@ -122,27 +122,47 @@ Lightning bolts, rain, honey drips, chains and particles are drawn at runtime.
 
 ## PV shooting data
 
-* `src/levels/finale_shots.gd` — the 49 cuts: area, take, runner start,
-  initial state, world camera framing and move, the phenomenon, a machine
-  checked success condition, and overlay regions (Discord card, title, end
-  cards) kept clear of action.
-* `tools/promotion/capture_finale_pv.tscn` plays each take in the real game
-  (inputs only through `InputHub.drive_runner` and `Guardian.use_active`),
-  directs the camera, checks every cut and writes a still per cut plus
-  `shots_report.json`. `-- --frames` also writes every frame for the edit.
-  Slow-motion cuts 4–7 run the real simulation slowed (`Engine.time_scale`
-  with physics interpolation).
-* Result: **49 / 49 cuts shot successfully** (headless and rendered runs).
-  Stills: `build/promotion/stage-1-10/pv/shot_NN.png`; a selection is in
-  `docs/images/stage-1-10/`. The report is copied to
-  `docs/promotion/stage-1-10/shots_report.json`, and a flat table to
-  `docs/promotion/stage-1-10/shots.csv`.
+The PV is played and recorded by a director script in the real stage. See
+[promotion/stage-1-10/pv-rebuild.md](promotion/stage-1-10/pv-rebuild.md) for
+the audit of the first render and what changed, and
+[promotion/stage-1-10/pv_match.md](promotion/stage-1-10/pv_match.md) for the
+per-cut storyboard match table.
+
+* `src/levels/finale_shots.gd` — the 49 cuts: names, seconds, areas and the
+  storyboard's camera/action text.
+* `tools/promotion/capture_finale_pv.tscn` — the director. A play script per
+  area drives the runner through `InputHub.drive_runner` and the guardian
+  through `Guardian.use_active` (traced `place_path` platforms included),
+  deciding from game state (machine phases on the shared `Clock`, positions,
+  floor contact). Every cut is exactly 60 on-air frames; each has its own
+  camera (follow / fixed pan / fit-several-targets, zoom ease, tilt, shake,
+  hit-stop) and is checked for *intent*, *happened* and *visible*. Slow
+  motion (cuts 4–7) is the real simulation at `Engine.time_scale`.
+* `tools/promotion/pv_overlay.gd` — the in-game screen layers: the incoming
+  call (official Discord mark, decline/accept buttons, no text), the blue YOU
+  hand pointer, the MELOS GAME title drawn between the backdrop and the world,
+  and the end cards (official Google Play / App Store badges, COMING OCTOBER
+  2026, Created by Takumi & TyoRo) one at a time on a lower panel. Assets in
+  `assets/promo/` (sources in `assets/promo/SOURCES.md`).
+* `tools/promotion/render_finale_pv.py` — locates the slate, cuts the 49 × 60
+  frames with their game sound, lays the project's synthesized stage music
+  under it, checks every logged sound against the audio, and writes the
+  contact sheet and storyboard comparison sheets.
+* `tools/promotion/export_finale_shots.py` — copies the report and writes
+  `docs/promotion/stage-1-10/shots.csv` and `pv_match.md`.
 
 Run (needs a display; Xvfb works):
 
-    xvfb-run -a godot --path . --rendering-method gl_compatibility \
-        --rendering-driver opengl3 --fixed-fps 60 \
-        res://tools/promotion/capture_finale_pv.tscn -- [--frames] [--take=opening,storm,...]
+    xvfb-run -a -s "-screen 0 1280x720x24" godot --path . \
+        --rendering-method gl_compatibility --rendering-driver opengl3 \
+        --fixed-fps 60 --resolution 1280x720 \
+        --write-movie build/promotion/stage-1-10/pv/takes.avi \
+        res://tools/promotion/capture_finale_pv.tscn -- [--take=opening,storm,...]
+    python3 tools/promotion/render_finale_pv.py [--storyboard DIR]
+
+Headless (`--headless --fixed-fps 60`, no movie) runs the same play and
+checks in about 15 seconds. `.github/workflows/finale-pv.yml` does both on CI
+and uploads the MP4, report, audio check and contact sheet.
 
 ## Tests
 
@@ -166,7 +186,8 @@ Run (needs a display; Xvfb works):
 * The rail's momentum carry and the honey/geyser forces act directly on the
   runner on the host; they are not part of the runner's own movement model.
 * Difficulty and pacing have only been played by the scripted bot.
-* The guardian's platforms keep the game's existing yellow style; the
-  storyboard's blue blocks would be a game-wide change.
-* The Discord call card, the title and the end cards are edit overlays; the
-  shot table reserves screen regions for them.
+* On 1-10 the guardian's platforms are drawn as blue glowing blocks (as in
+  the storyboard); other stages keep the painted yellow slab. Collision and
+  timing are the same.
+* The Discord call, title and end cards are drawn by the PV director, not by
+  the game's own HUD.

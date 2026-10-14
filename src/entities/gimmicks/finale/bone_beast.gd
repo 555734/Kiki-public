@@ -4,7 +4,7 @@ extends FinaleMachine
 ## three vertebrae out of the deck and roaring before it sinks again: jump
 ## the new gap (double jump) or ride the sand geyser that blows up through
 ## it to the rib above. Leaving the deck wakes it for good: the jaws come up
-## behind the runner at 300px/s -- faster than a walk -- snapping, through the
+## behind the runner at 350px/s -- faster than a run -- snapping, through the
 ## collapsing pillars, until the stone gate stops them and they slam shut.
 ##
 ## state 1 = erupted at placed_tick, 2 = chasing since placed_tick.
@@ -44,10 +44,10 @@ func _pose(tick: int) -> void:
 func _on_state() -> void:
 	_snapped = false
 	if state == 1:
-		sound("gate", -15.0, 1.6)
+		sound("boom", -2.0, 1.7)
 		FinaleFx.kick(14.0)
 	else:
-		sound("enemy_die", -14.0, 1.4)
+		sound("crumble", -4.0, 1.4)
 		FinaleFx.kick(8.0)
 
 ## Eruption head centre (world) and how open the jaws are.
@@ -106,7 +106,7 @@ func _host_step(_delta: float) -> void:
 			kill_runner("jaws")
 		if front >= gate and not _snapped:
 			_snapped = true
-			sound("gate", -10.0, 1.6)
+			sound("boom", 2.0, 1.7)
 			FinaleFx.kick(16.0)
 
 func _draw() -> void:

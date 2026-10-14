@@ -4,6 +4,7 @@ extends FinaleMachine
 ## `front` are drawn by a child above the terrain and the runner.
 
 var _front: Node2D
+var _falls: Node2D
 
 func _build() -> void:
 	z_index = -1
@@ -11,6 +12,29 @@ func _build() -> void:
 	_front.owner_scenery = self
 	_front.z_index = 9
 	add_child(_front)
+	for item in data.get("items", []):
+		if String(item[0]) == "waterfall" and _falls == null:
+			_falls = Falls.new()
+			_falls.owner_scenery = self
+			add_child(_falls)
+
+## Waterfalls move, so they get their own canvas item that redraws each frame
+## (only while on screen); the rest of the dressing stays cached.
+class Falls extends Node2D:
+	var owner_scenery
+	func _process(_delta: float) -> void:
+		var cam := get_viewport().get_camera_2d()
+		if cam == null:
+			return
+		for item in owner_scenery.data.get("items", []):
+			if String(item[0]) == "waterfall" and absf(float(item[1]) - cam.global_position.x) < 1400.0:
+				queue_redraw()
+				return
+	func _draw() -> void:
+		var t := float(Clock.tick) / float(Clock.HZ)
+		for item in owner_scenery.data.get("items", []):
+			if String(item[0]) == "waterfall":
+				owner_scenery.waterfall(self, Vector2(float(item[1]), float(item[2])), float(item[3]), 150.0, t)
 
 func _physics_process(_delta: float) -> void:
 	pass
@@ -34,7 +58,7 @@ func draw_item(ci: CanvasItem, item: Array) -> void:
 	var flip := bool(item[4])
 	match key:
 		"waterfall":
-			_waterfall(ci, at, h, 150.0)
+			pass
 		"chain":
 			_tiled_column(ci, "chain", Vector2(at.x, at.y + h), h, 34.0)
 		"lavafall":
@@ -76,19 +100,45 @@ func _tiled_column(ci: CanvasItem, key: String, bottom: Vector2, height: float, 
 			Rect2(0, 0, t.get_width(), t.get_height() * h / tile_h), tint)
 		y += h
 
-## The 1-3 waterfall painting: its sheet of water stretched to the height,
-## its foam drawn once where it lands.
-func _waterfall(ci: CanvasItem, bottom: Vector2, height: float, width: float) -> void:
-	var t := FinaleArt.tex("waterfall")
-	if t == null:
-		return
-	var tw := float(t.get_width())
-	var th := float(t.get_height())
-	var foam := width * th / tw * 0.42
-	ci.draw_texture_rect_region(t, Rect2(bottom.x - width * 0.5, bottom.y - height, width, height - foam),
-		Rect2(0, th * 0.08, tw, th * 0.40), Color(1, 1, 1, 0.92))
-	ci.draw_texture_rect_region(t, Rect2(bottom.x - width * 0.5, bottom.y - foam, width, foam),
-		Rect2(0, th * 0.58, tw, th * 0.42), Color(1, 1, 1, 0.95))
+## A painted waterfall: a translucent sheet with streaks running down it,
+## foam where it pours over the lip and mist where it lands. Driven by the
+## shared Clock so every device (and every recording) shows the same water.
+func waterfall(ci: CanvasItem, bottom: Vector2, height: float, width: float, t: float) -> void:
+	var top := bottom.y - height
+	var x0 := bottom.x - width * 0.5
+	var x1 := bottom.x + width * 0.5
+	var sheet := PackedVector2Array([Vector2(x0 + 6, top), Vector2(x1 - 6, top), Vector2(x1 + 4, bottom.y), Vector2(x0 - 4, bottom.y)])
+	ci.draw_polygon(sheet, PackedColorArray([Color(0.38, 0.74, 1.0, 0.9), Color(0.38, 0.74, 1.0, 0.9),
+		Color(0.16, 0.46, 0.9, 0.9), Color(0.16, 0.46, 0.9, 0.9)]))
+	# Darker banks of the stream at both sides.
+	ci.draw_line(Vector2(x0 + 8, top), Vector2(x0 - 1, bottom.y), Color(0.12, 0.38, 0.75, 0.55), 8.0)
+	ci.draw_line(Vector2(x1 - 8, top), Vector2(x1 + 1, bottom.y), Color(0.12, 0.38, 0.75, 0.55), 8.0)
+	# Streaks falling at two speeds.
+	var streaks := PackedVector2Array()
+	var faint := PackedVector2Array()
+	for i in 13:
+		var lane := x0 + 14.0 + float(i) * (width - 28.0) / 12.0
+		var speed := 420.0 + float((i * 37) % 5) * 70.0
+		var dash := 70.0 + float((i * 53) % 4) * 35.0
+		var gap := dash * 1.6
+		var y := top - fposmod(-t * speed + float(i) * 91.0, dash + gap)
+		while y < bottom.y:
+			var a := maxf(y, top)
+			var b := minf(y + dash, bottom.y)
+			if b > a:
+				(streaks if i % 2 == 0 else faint).append(Vector2(lane, a))
+				(streaks if i % 2 == 0 else faint).append(Vector2(lane, b))
+			y += dash + gap
+	if not faint.is_empty():
+		ci.draw_multiline(faint, Color(1, 1, 1, 0.28), 5.0)
+	if not streaks.is_empty():
+		ci.draw_multiline(streaks, Color(1, 1, 1, 0.6), 3.0)
+	# Mist where it lands (the top pours from above the view).
+	for i in 7:
+		var k := float(i) / 6.0
+		var puff := 34.0 + 12.0 * sin(t * 2.3 + float(i) * 1.7)
+		ci.draw_circle(Vector2(lerpf(x0 - 40.0, x1 + 40.0, k), bottom.y - 18.0 - 10.0 * sin(t * 3.0 + float(i))),
+			puff, Color(1, 1, 1, 0.55))
 
 ## A colossal fossil rib: a textured curved band from the canyon floor.
 func _rib(ci: CanvasItem, base: Vector2, height: float, flip: bool) -> void:

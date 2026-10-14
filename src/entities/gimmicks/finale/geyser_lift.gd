@@ -44,7 +44,7 @@ func _pose(tick: int) -> void:
 	_slab.position = Vector2(shake, 15.0 - lift)
 	var up := lift > 1.0
 	if up and not _was_up:
-		sound("spring", -7.0)
+		sound("sizzle", 0.0, 1.0)
 	_was_up = up
 
 func _draw() -> void:

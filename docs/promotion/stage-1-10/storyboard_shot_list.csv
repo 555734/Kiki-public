@@ -1,0 +1,50 @@
+﻿shot,start_second,end_second,shot_name,camera,action,scene,pace,filename
+1,0,1,DOWNHILL START,Locked wide; ease pan right,Follow the hero down a green slope; one small enemy approaches.,GRASSLAND,NORMAL,Shot_01_00s-01s.jpg
+2,1,2,"ONE ENEMY, ONE LEAP",Side follow + short tilt up,"Jump cleanly over a single enemy, then reveal the gap.",GRASSLAND,NORMAL,Shot_02_01s-02s.jpg
+3,2,3,THE CLIFF,Pull back to expose deep chasm,Jump from the left precipice to the high opposite bank.,GRASSLAND,NORMAL,Shot_03_02s-03s.jpg
+4,3,4,NOT QUITE!,Push into airborne close-up,Fingers miss the ledge; motion eases toward near-stop.,GRASSLAND,SLOW MOTION,Shot_04_03s-04s.jpg
+5,4,5,INCOMING CALL,Hold angle; foreground overlay,Discord icon and accept/decline controls only. No message text.,GRASSLAND,SLOW MOTION,Shot_05_04s-05s.jpg
+6,5,6,YOUR PARTNER ARRIVES,Hero and blue cursor in frame,The call connects; blue YOU pointer appears (no second avatar).,GRASSLAND,SLOW MOTION,Shot_06_05s-06s.jpg
+7,6,7,"BRIDGE, ON DEMAND",Reveal vertical gap; slight pan,YOU draws a staircase of luminous blocks in the open air.,GRASSLAND,SPEED RAMP,Shot_07_06s-07s.jpg
+8,7,8,JUST IN TIME,Follow hero descending onto bridge,The hero lands on the new platform and regains balance.,GRASSLAND,NORMAL,Shot_08_07s-08s.jpg
+9,8,9,KEEP MOVING,Side tracking; stable camera,Cross the temporary platforms; keep the save continuous.,GRASSLAND,NORMAL,Shot_09_08s-09s.jpg
+10,9,10,SAFE SIDE!,Widen to reveal the landing,Leap off the last block and reach solid grass safely.,GRASSLAND,NORMAL,Shot_10_09s-10s.jpg
+11,10,11,ELECTRIC BRIDGE,Wide reveal; cold blue grade,Establish the thunder-struck broken stone bridge.,THUNDER BRIDGE,NORMAL,Shot_11_10s-11s.jpg
+12,11,12,A STRIKE!,Short shake; rapid push-in,Lightning blasts out a piece of the bridge; debris flies.,THUNDER BRIDGE,IMPACT,Shot_12_11s-12s.jpg
+13,12,13,ESCAPE THE GAP,Follow diagonal leap,Hero vaults upward across broken electrified spans.,THUNDER BRIDGE,NORMAL,Shot_13_12s-13s.jpg
+14,13,14,SHIFTING RUINS,Long lens; pull out,Reveal a multi-level desert ruin with sand waterfalls.,SAND RUINS,NORMAL,Shot_14_13s-14s.jpg
+15,14,15,SWINGING MASS,Side-step camera; slight push,Duck beneath an enormous chain-suspended stone block.,SAND RUINS,NORMAL,Shot_15_14s-15s.jpg
+16,15,16,VERTICAL COLLAPSE,Tilt down rapidly,A floor caves in; hero falls through sand and falling stones.,SAND RUINS,VERTICAL,Shot_16_15s-16s.jpg
+17,16,17,VOLCANO CORE,Wide reveal; warm contrast,Land among staggered lava platforms with hanging chains.,VOLCANO,NORMAL,Shot_17_16s-17s.jpg
+18,17,18,HOT PURSUIT,"Push sideways, slight shake",A giant magma sphere rolls after the hero over cracked rock.,VOLCANO,FAST,Shot_18_17s-18s.jpg
+19,18,19,SWING OVER LAVA,Track arc of moving platform,Leap onto a chain-supported platform swinging over lava.,VOLCANO,ARC,Shot_19_18s-19s.jpg
+20,19,20,BETWEEN THE GEYSERS,Rapid upward tilt,Thread through multiple staggered lava eruptions.,VOLCANO,VERTICAL,Shot_20_19s-20s.jpg
+21,20,21,ROOFTOP TRAIN RUN,Fast lateral tracking,Run across moving railway carriages at mismatched heights.,IRON RAIL,FAST,Shot_21_20s-21s.jpg
+22,21,22,TRAIN-TO-TRAIN,Show both car roofs; follow jump,Take a huge airborne leap across a moving train gap.,IRON RAIL,AIRBORNE,Shot_22_21s-22s.jpg
+23,22,23,CRANE DROPS,High angle to reveal hazard,Avoid a falling cargo crate by changing route instantly.,IRON RAIL,IMPACT,Shot_23_22s-23s.jpg
+24,23,24,FULL-SPEED ROOFTOPS,"Low follow, strong parallax",Charge across jagged train roofs; background rushes past.,IRON RAIL,FAST,Shot_24_23s-24s.jpg
+25,24,25,INSIDE THE HIVE,Tall establishing composition,Reveal tiered dripping honey formations and inverted ledges.,HONEYCOMB,NORMAL,Shot_25_24s-25s.jpg
+26,25,26,STUCK!,Sudden close-up / hold,Boot sinks into thick honey; movement briefly stalls.,HONEYCOMB,SLOW,Shot_26_25s-26s.jpg
+27,26,27,SWARM AND PADDLES,Vertical + horizontal follow,Dodge insect drones among rotating honey-coated paddles.,HONEYCOMB,FAST,Shot_27_26s-27s.jpg
+28,27,28,BUBBLE SLINGSHOT,"Upward tilt, strong ease-out",The honey bubble bends then launches the hero upward.,HONEYCOMB,VERTICAL,Shot_28_27s-28s.jpg
+29,28,29,HIVE SHAFT ASCENT,Continue upward tracking,Carry the same launch through a narrow honey-filled shaft.,HONEYCOMB,VERTICAL,Shot_29_28s-29s.jpg
+30,29,30,BREAK THROUGH THE HIVE,"Upward pullback, then snap follow",Exit through a jagged honeycomb gap; glowing debris drops.,HONEYCOMB,FAST,Shot_30_29s-30s.jpg
+31,30,31,OFF-CENTER LANDING,"Tilted camera, short landing shake",Drop onto an isolated uneven ledge; recover from momentum.,STONE GIANT,IMPACT,Shot_31_30s-31s.jpg
+32,31,32,SOMETHING HUGE WAKES,Pullback and low-angle reveal,A monumental stone automaton rises across the route.,STONE GIANT,REVEAL,Shot_32_31s-32s.jpg
+33,32,33,SWEEP!,Camera follows sweeping hazard,Jump over a colossal chained mace crossing the terrain.,STONE GIANT,IMPACT,Shot_33_32s-33s.jpg
+34,33,34,THE FOSSIL CANYON,"Massive wide reveal, strong parallax",Expose a winding canyon made of enormous fossil ribs.,DRAGON BONE,REVEAL,Shot_34_33s-34s.jpg
+35,34,35,BONE ARCH RUN,Pan along diagonal fossil bridge,Traverse a narrow rib-bridge high above a canyon.,DRAGON BONE,NORMAL,Shot_35_34s-35s.jpg
+36,35,36,ROTORS EVERYWHERE,Loose tilt and side follow,Dodge many hovering rotor-skull drones between ribs.,DRAGON BONE,FAST,Shot_36_35s-36s.jpg
+37,36,37,IT COMES ALIVE,Low reveal to upward motion,An ancient skeletal beast erupts below the bridge.,DRAGON BONE,REVEAL,Shot_37_36s-37s.jpg
+38,37,38,SAND GOES VERTICAL,Vertical chase; dynamic shake,Sand geysers shoot between collapsing bone structures.,DRAGON BONE,VERTICAL,Shot_38_37s-38s.jpg
+39,38,39,CLOSING JAWS,Extreme diagonal push; shake,Gigantic fossil jaws close behind the fleeing hero.,DRAGON BONE,IMPACT,Shot_39_38s-39s.jpg
+40,39,40,THE NAME APPEARS,Wide shot; centered title; hold,MELOS GAME appears centrally behind continuous gameplay.,TITLE RUN,TITLE,Shot_40_39s-40s.jpg
+41,40,41,CHASE UNDER THE TITLE,Slow pan along terrain,Drone pursuers enter as the hero jumps under the title.,TITLE RUN,NORMAL,Shot_41_40s-41s.jpg
+42,41,42,THE CHASE TIGHTENS,Side follow; camera keeps title centered,The hero weaves through changing platform heights.,TITLE RUN,FAST,Shot_42_41s-42s.jpg
+43,42,43,"OOPS, DOWN AGAIN",Short punch-in + hit stop,An enemy strike sends the hero into a nearby hazard.,TITLE RUN,IMPACT,Shot_43_42s-43s.jpg
+44,43,44,CHECKPOINT RESTART,"Locked shot, light zoom",Respawn at a checkpoint; gameplay resumes immediately.,TITLE RUN,RESET,Shot_44_43s-44s.jpg
+45,44,45,WHAT ARE THOSE BLOCKS?,Wide framing of impossible platforms,"YOU builds temporary blocks in awkward, irregular positions.",TITLE RUN,COMEDY,Shot_45_44s-45s.jpg
+46,45,46,THAT WAS NOT THE PLAN,"Follow evasive jump, slight tilt",Hero scrambles to recover from poorly placed blocks.,TITLE RUN,COMEDY,Shot_46_45s-46s.jpg
+47,46,47,AVAILABLE IN STORES,Wide game scene on upper half,Upper half: active gameplay. Lower half: Google Play + App Store only.,END MESSAGE 1,CARD 1,Shot_47_46s-47s.jpg
+48,47,48,COMING OCTOBER 2026,Same upper-half game motion,Remove previous text. Lower half: COMING OCTOBER 2026 only.,END MESSAGE 2,CARD 2,Shot_48_47s-48s.jpg
+49,48,49,CREATED BY,Same upper-half game motion,Remove previous text. Lower half: Created by Takumi & TyoRo only.,END MESSAGE 3,CARD 3,Shot_49_48s-49s.jpg

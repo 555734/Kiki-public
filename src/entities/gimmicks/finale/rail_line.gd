@@ -257,6 +257,28 @@ func _draw_car(train: int, car: int, b: float) -> void:
 	var dst := Rect2(lo - global_position.x, top, hi - lo, h)
 	var src := Rect2(u0 * t.get_width(), 0, (u1 - u0) * t.get_width(), t.get_height())
 	draw_texture_rect_region(t, dst, src)
+	# Speed: wind streaks trailing off the car and wheel blur, both scaled by
+	# how fast the train is actually going (nothing moves while parked).
+	var v := train_speed(train, b)
+	if v > 60.0:
+		var k := clampf(v / VMAX, 0.0, 1.0)
+		var tail := lo - global_position.x
+		var streaks := PackedVector2Array()
+		for i in 5:
+			var y := top + h * (0.18 + 0.15 * float(i))
+			var len := (60.0 + 50.0 * DrawUtil.hash01(i * 7 + car * 3 + train * 11)) * k
+			var x0 := tail - 6.0 - fposmod(b * 900.0 + float(i) * 37.0, 30.0)
+			streaks.append(Vector2(x0, y))
+			streaks.append(Vector2(x0 - len, y))
+		draw_multiline(streaks, Color(1, 1, 1, 0.55 * k), 3.0)
+		draw_rect(Rect2(lo - global_position.x, -24, hi - lo, 18), Color(0.25, 0.22, 0.24, 0.35 * k))
+	if spec[0] == "loco" and v > 30.0:
+		# Exhaust puffs left behind in the air as the loco pulls away.
+		var stack := Vector2(left - global_position.x + w * 0.72, top + h * 0.02)
+		for i in 6:
+			var age := fposmod(b * 2.2 + float(i) / 6.0, 1.0)
+			var p := stack + Vector2(-age * v * 0.45, -age * 70.0 - 10.0)
+			draw_circle(p, 12.0 + age * 26.0, Color(0.92, 0.92, 0.95, 0.55 * (1.0 - age)))
 	if spec[0] == "flat" and train == 0:
 		# Cargo lashed on the flatcar.
 		FinaleArt.centred(self, "crate", Vector2(left - global_position.x + w * 0.5, -roof - 40), 90.0)
@@ -281,6 +303,14 @@ class Top extends Node2D:
 			draw_line(Vector2(cx, hook_y - 200), Vector2(cx, hook_y + 20), Color("3a3a40"), 3.0)
 			var warn: float = float(d["t"]) - b
 			draw_circle(Vector2(cx, hook_y + 10), 9.0, Color("ff4a3a") if warn < 0.8 and warn > 0 else Color("ffd34a"))
+		# Line-side catenary posts in front of the trains: they whip past
+		# a runner on a moving roof and sell the train's speed.
+		var px: float = line.portal_in - origin.x + 260.0
+		while px < east - 120.0:
+			draw_rect(Rect2(px - 7, -330, 14, 350), Color("2b2a33"))
+			draw_rect(Rect2(px - 40, -332, 80, 10), Color("2b2a33"))
+			draw_circle(Vector2(px - 36, -318), 6.0, Color("ffd34a"))
+			px += 520.0
 		var bx: float = float(line.data.get("low_bridge", 15060.0)) - origin.x
 		draw_rect(Rect2(bx, -250, 40, 110), Color("2c2b33"))
 		for k in 4:

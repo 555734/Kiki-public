@@ -19,8 +19,13 @@ extends RefCounted
 ##   overlay       screen regions (fractions of the frame) kept clear of
 ##                 action for later text/graphics
 ##
-## Slow-motion cuts (4-7) are played at full speed in game; the edit
-## stretches them, so their takes are captured at 60 fps with no gaps.
+## These rows are the storyboard plan (names, seconds, areas, the cut's
+## camera/action text). The PV director (tools/promotion/capture_finale_pv.gd)
+## plays each cut from its own play script and camera, and records what it
+## actually did -- runner positions, camera samples, events, verdict -- in
+## build/promotion/stage-1-10/pv/shots_report.json (copied to
+## docs/promotion/stage-1-10/). Slow motion (cuts 4-7) is played in game at
+## Engine.time_scale, 60 recorded frames per cut.
 
 static func all() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -55,7 +60,7 @@ static func _rows() -> Array:
 			"runner": Vector2(160, 877), "setup": "continues", "slow_motion": true,
 			"camera": {"mode": "follow", "at": Vector2(60, -10), "zoom": [2.4, 2.4]},
 			"overlay": {"discord_call": Rect2(0.56, 0.12, 0.38, 0.70)},
-			"move": "Hold angle; foreground overlay", "phenomenon": "Mid-fall hold. The Discord call card is composited in the edit over the right of frame.",
+			"move": "Hold angle; foreground overlay", "phenomenon": "Mid-fall, near-frozen. The incoming-call card (Discord mark, decline and accept, no text) rings on the right of frame.",
 			"success": {"id": "falling_short", "means": "runner still airborne inside the left 55% of frame"}},
 		{"shot": 6, "t": [5, 6], "name": "YOUR PARTNER ARRIVES", "take": "opening", "area": "GRASSLAND CLIFFS",
 			"runner": Vector2(160, 877), "setup": "continues", "slow_motion": true,
@@ -65,7 +70,7 @@ static func _rows() -> Array:
 		{"shot": 7, "t": [6, 7], "name": "BRIDGE, ON DEMAND", "take": "opening", "area": "GRASSLAND CLIFFS",
 			"runner": Vector2(160, 877), "setup": "continues; guardian slot 1 (platform)", "slow_motion": true,
 			"camera": {"mode": "fixed", "at": Vector2(2060, 1120), "zoom": [1.35, 1.3]},
-			"move": "Reveal vertical gap; slight pan", "phenomenon": "YOU taps a slab under the fall, then draws a rising stroke toward the lip: luminous steps in open air.",
+			"move": "Reveal vertical gap; slight pan", "phenomenon": "YOU traces one stroke under the fall and up toward the lip: a staircase of glowing blocks in open air.",
 			"success": {"id": "built_steps", "means": "two guardian platforms exist in the chasm"}},
 		{"shot": 8, "t": [7, 8], "name": "JUST IN TIME", "take": "opening", "area": "GRASSLAND CLIFFS",
 			"runner": Vector2(160, 877), "setup": "continues",

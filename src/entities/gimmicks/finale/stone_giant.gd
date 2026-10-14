@@ -48,7 +48,7 @@ func _receive(id: String) -> void:
 		_stun_tick = int(fields[2])
 		_pause_before = _pause_after
 		_pause_after = float(fields[3])
-		sound("hurt", -10.0, 1.3)
+		sound("hit", -6.0, 1.4)
 		FinaleFx.kick(6.0)
 		return
 	super._receive(id)
@@ -98,12 +98,12 @@ func _pose(tick: int) -> void:
 	if state == 1 and since(tick) >= SWAT and not _swatted:
 		_swatted = true
 		if since(tick) < SWAT + 0.3:
-			sound("gate", -14.0, 1.5)
+			sound("boom", 0.0, 1.7)
 			FinaleFx.kick(16.0)
 
 func _on_state() -> void:
 	_swatted = false
-	sound("gate", -16.0, 1.4)
+	sound("boom", -3.0, 1.4)
 	FinaleFx.kick(9.0)
 
 func _host_step(_delta: float) -> void:
@@ -171,8 +171,9 @@ func _arm(from: Vector2, to: Vector2, width: float) -> void:
 	var n := maxi(2, int(from.distance_to(to) / (width * 0.8)))
 	for i in n + 1:
 		var p := from.lerp(to, float(i) / float(n))
-		FinaleArt.centred(self, "stone", p, width * (1.15 if i == n else 0.95), float(i) * 0.4,
-			Color(0.85, 0.80, 0.74))
+		var size := width * (1.15 if i == n else 0.95)
+		draw_circle(p, size * 0.56, Color(0.13, 0.12, 0.18, 0.9))
+		FinaleArt.centred(self, "stone", p, size, float(i) * 0.4, Color(0.66, 0.69, 0.78))
 
 ## The giant's body, behind the terrain.
 class Back extends Node2D:
@@ -184,28 +185,42 @@ class Back extends Node2D:
 			return
 		_body(giant.rise())
 	func _body(lift: float) -> void:
-		var stone := Color(0.84, 0.78, 0.70)
+		# Grey-blue ruin stone, so the automaton reads apart from the
+		# sandstone plateau it rises out of; every block gets a dark rim.
+		var stone := Color(0.66, 0.69, 0.78)
+		var rim := Color(0.13, 0.12, 0.18, 0.92)
+		var blocks: Array = []
 		# Legs.
 		for side in [-1.0, 1.0]:
 			for k in 4:
-				FinaleArt.centred(self, "stone", Vector2(side * 110.0, -60.0 - k * 95.0 + lift), 130.0, 0.0, stone)
+				blocks.append([Vector2(side * 110.0, -60.0 - k * 95.0 + lift), 130.0])
 		# Torso: a wall of ruin blocks, wider at the shoulders.
 		for row in 5:
 			var w := 3 + (1 if row >= 2 else 0)
 			for col in w:
 				var x := (float(col) - float(w - 1) * 0.5) * 110.0
-				FinaleArt.centred(self, "stone", Vector2(x, -430.0 - row * 95.0 + lift), 122.0, 0.0, stone)
-		# Moss on the shoulders.
-		draw_rect(Rect2(-240, -880 + lift, 480, 18), Color("5fa83a"))
+				blocks.append([Vector2(x, -430.0 - row * 95.0 + lift), 122.0])
 		# Head.
 		for col in 3:
 			for row in 2:
-				FinaleArt.centred(self, "stone", Vector2((col - 1) * 100.0, -950.0 - row * 90.0 + lift), 112.0, 0.0, stone)
-		var eye := Vector2(0, -960 + lift)
+				blocks.append([Vector2((col - 1) * 100.0, -950.0 - row * 90.0 + lift), 112.0])
+		for b in blocks:
+			draw_rect(Rect2(b[0] - Vector2.ONE * float(b[1]) * 0.56, Vector2.ONE * float(b[1]) * 1.12), rim)
+		for b in blocks:
+			FinaleArt.centred(self, "stone", b[0], b[1], 0.0, stone)
+		# Moss on the shoulders and the crown.
+		draw_rect(Rect2(-240, -880 + lift, 480, 22), Color("4f9a34"))
+		draw_rect(Rect2(-150, -1088 + lift, 300, 18), Color("5fa83a"))
+		# A dark brow band and two glowing eyes.
 		var glow := 0.6 + 0.4 * sin(Clock.seconds_at(Clock.tick) * 3.0)
-		if giant.state == 1:
-			draw_circle(eye, 40.0, Color(0.3, 0.95, 1.0, 0.35 * glow))
-			draw_circle(eye, 18.0, Color(0.7, 1.0, 1.0))
+		draw_rect(Rect2(-150, -1000 + lift, 300, 70), Color(0.08, 0.08, 0.12, 0.95))
+		for ex in [-60.0, 60.0]:
+			var eye := Vector2(ex, -965 + lift)
+			if giant.state == 1:
+				draw_circle(eye, 34.0, Color(0.3, 0.95, 1.0, 0.35 * glow))
+				draw_circle(eye, 15.0, Color(0.75, 1.0, 1.0))
+			else:
+				draw_circle(eye, 10.0, Color(0.3, 0.5, 0.6))
 		# Chest core (the shot target).
 		var core := Vector2(0, -620 + lift)
 		draw_circle(core, 52.0, Color(1.0, 0.6, 0.2, 0.25 if giant.stunned() else 0.4 * glow))

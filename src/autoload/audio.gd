@@ -50,6 +50,9 @@ const REPEAT_GAP := 0.045
 ## is unanswerable there -- but "did the right event reach the right sound" is
 ## the part that actually breaks, and this is how the suite reads it.
 var last_key: String = ""
+## Raised for every sound that actually starts, after rate limiting. The PV
+## director logs it to prove the soundtrack lines up with the game events.
+signal played(key: String)
 
 ## Every sound this node can ask for. Listed rather than inferred so a typo in
 ## one of the lambdas below is a failing check instead of a silent event.
@@ -62,6 +65,9 @@ const KEYS := [
 	"rescue_1", "rescue_2", "rescue_3",
 	"stage_clear", "game_over",
 	"music_stage", "music_drive",
+	# 1-10's machines and its PV (tools/make_finale_audio.py).
+	"thunder", "crumble", "boom", "whoosh", "rumble", "ring", "accept",
+	"bubble", "sizzle", "sting", "horn",
 ]
 
 func _ready() -> void:
@@ -168,6 +174,7 @@ func play(key: String, semitones: float = 0.0, spread: float = 0.0,
 		return
 	_last_played[key] = now
 	last_key = key
+	played.emit(key)
 	var stream := _stream(key)
 	if stream == null:
 		return

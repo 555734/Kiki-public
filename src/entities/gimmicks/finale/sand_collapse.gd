@@ -21,12 +21,20 @@ func _build() -> void:
 func tile_gone(i: int, tick: int) -> bool:
 	return state == 1 and since(tick) >= CRACK + STAGGER * float(i)
 
+var _dropped := false
+
 func _pose(tick: int) -> void:
 	for i in _tiles.size():
 		set_solid(_tiles[i], not tile_gone(i, tick))
+	# The lid giving way is its own crash, after the crack's warning.
+	var gone := tile_gone(0, tick)
+	if gone and not _dropped:
+		sound("crumble", 2.0, 1.6)
+		FinaleFx.kick(10.0)
+	_dropped = gone
 
 func _on_state() -> void:
-	sound("gate", -8.0, 1.2)
+	sound("crumble", -3.0, 1.5)
 	FinaleFx.kick(6.0)
 
 func _host_step(_delta: float) -> void:

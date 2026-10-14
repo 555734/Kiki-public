@@ -20,7 +20,8 @@ func _host_step(_delta: float) -> void:
 	if inside:
 		if not _in:
 			runner.velocity.x *= 0.15
-			sound("land", -9.0, 1.2)
+			sound("bubble", -14.0, 1.4)
+			sound("land", -9.0, 1.0)
 		runner.velocity.x = clampf(runner.velocity.x, -95.0, 95.0)
 		_jump_cut = false
 	elif _in and runner.velocity.y < -250.0 and not _jump_cut:

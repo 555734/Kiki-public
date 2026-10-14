@@ -1,9 +1,12 @@
 name: 1-10 PV render
 
 # Plays the 49 storyboard cuts of the final PV in the real 1-10 (tools/
-# promotion/capture_finale_pv.tscn), records the game with Godot's Movie
-# Maker and cuts the MP4s with ffmpeg. Software GL under xvfb: every frame is
-# rendered, so the recording is exact even though the runner is slow.
+# promotion/capture_finale_pv.tscn: scripted controller input, real physics,
+# machines and enemies), records the game with Godot's Movie Maker, then cuts
+# exactly 60 on-air frames per cut with their game sound, lays the project's
+# own music under it and checks every sound against the event log
+# (tools/promotion/render_finale_pv.py). Software GL under xvfb: every frame
+# is rendered, so the recording is exact even though the runner is slow.
 on:
   workflow_dispatch:
   push:
@@ -11,7 +14,10 @@ on:
     paths:
       - "src/**"
       - "assets/stage_1_10/**"
+      - "assets/promo/**"
+      - "assets/audio/**"
       - "tools/promotion/capture_finale_pv.*"
+      - "tools/promotion/pv_overlay.gd"
       - "tools/promotion/render_finale_pv.py"
       - ".github/workflows/finale-pv.yml"
 
@@ -36,8 +42,10 @@ jobs:
           version: ${{ env.GODOT_VERSION }}
       - name: Install pinned EOS runtime required by project autoloads
         run: bash tools/install-eosg.sh linux
-      - name: Install ffmpeg
-        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Install ffmpeg, numpy and Pillow
+        run: |
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          python3 -c "import numpy, PIL" 2>/dev/null || python3 -m pip install --user numpy pillow
       - name: Import project
         run: xvfb-run -a "$GODOT" --headless --editor --path . --import >/dev/null 2>&1 || true
       - name: Play and record the 49 cuts
@@ -48,18 +56,15 @@ jobs:
             --fixed-fps 60 --resolution 1280x720 \
             --write-movie "$PWD/build/promotion/stage-1-10/pv/takes.avi" \
             res://tools/promotion/capture_finale_pv.tscn -- --ci-skip-eos 2>&1 | tee capture.log
-          grep -q "finale PV: 49 / 49" capture.log
-      - name: Cut and encode MP4
+          grep -q "finale PV: 49 / 49 cuts pass" capture.log
+      - name: Cut, mix and check the 49-second MP4
         run: python3 tools/promotion/render_finale_pv.py build/promotion/stage-1-10/pv/takes.avi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: finale-pv-mp4
           path: |
-            build/promotion/stage-1-10/pv/*.mp4
+            build/promotion/stage-1-10/pv/finale_pv_49cuts.mp4
             build/promotion/stage-1-10/pv/shots_report.json
+            build/promotion/stage-1-10/pv/audio_check.json
+            build/promotion/stage-1-10/pv/contact_sheet.png
           if-no-files-found: error
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: finale-pv-stills
-          path: build/promotion/stage-1-10/pv/shot_*.png
-          if-no-files-found: warn

@@ -110,6 +110,10 @@ func _ready() -> void:
 	fx = preload("res://src/render/fx.gd").new()
 	fx.name = "Fx"
 	add_child(fx)
+	# 1-10's guardian builds luminous blue blocks (the PV storyboard look);
+	# every other stage keeps the painted slab. Set here, not read by the
+	# hologram, so the entity never asks which stage it is in.
+	Hologram.glow_style = Stage.is_finale()
 	if Stage.is_finale():
 		var finale_fx := FinaleFx.new()
 		finale_fx.name = "FinaleFx"

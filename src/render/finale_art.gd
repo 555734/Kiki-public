@@ -298,19 +298,28 @@ static func _layer(ci: CanvasItem, key: String, view: Vector2, cam: Vector2, rat
 		var x := float(i) * width - fposmod(offset, width)
 		ci.draw_texture_rect(t, Rect2(x, top, width + 0.5, height), false, Color(tint, alpha))
 
-## A few drifting clouds, spaced out (never a repeated strip).
+## A few drifting clouds, spaced out (never a repeated strip). Drawn as soft
+## clusters of circles rather than the mockup crops, whose edges were cut.
 static func _clouds(ci: CanvasItem, view: Vector2, offset: float, alpha: float) -> void:
 	var span := view.x * 1.6
 	for i in 4:
-		var key := "cloud_a" if i % 2 == 0 else "cloud_b"
-		var t := tex(key)
-		if t == null:
-			continue
-		var w := view.x * (0.16 + 0.05 * float(i % 3))
-		var h := w * float(t.get_height()) / float(t.get_width())
+		var w := view.x * (0.15 + 0.05 * float(i % 3))
 		var x := fposmod(float(i) * span / 4.0 - offset * (0.6 + 0.15 * float(i)), span) - view.x * 0.3
-		var y := view.y * (0.05 + 0.07 * float((i * 3) % 4))
-		ci.draw_texture_rect(t, Rect2(x, y, w, h), false, Color(1, 1, 1, alpha * 0.85))
+		var y := view.y * (0.06 + 0.07 * float((i * 3) % 4)) + w * 0.25
+		_cloud(ci, Vector2(x + w * 0.5, y), w, alpha * 0.92, i)
+
+static func _cloud(ci: CanvasItem, base: Vector2, w: float, alpha: float, seed: int) -> void:
+	var shade := Color(0.80, 0.88, 0.98, alpha)
+	var white := Color(1, 1, 1, alpha)
+	var puffs := [[-0.36, 0.0, 0.17], [-0.16, -0.12, 0.23], [0.08, -0.17, 0.27], [0.3, -0.06, 0.2], [0.42, 0.02, 0.13]]
+	for p in puffs:
+		var wob := 0.03 * float((seed * 7 + int(p[0] * 10.0)) % 3)
+		ci.draw_circle(base + Vector2(float(p[0]), float(p[1]) + 0.05) * w, (float(p[2]) + wob) * w, shade)
+	ci.draw_rect(Rect2(base + Vector2(-0.36, -0.02) * w, Vector2(0.78, 0.09) * w), shade)
+	for p in puffs:
+		var wob2 := 0.03 * float((seed * 7 + int(p[0] * 10.0)) % 3)
+		ci.draw_circle(base + Vector2(float(p[0]), float(p[1])) * w, (float(p[2]) + wob2) * w * 0.93, white)
+	ci.draw_rect(Rect2(base + Vector2(-0.36, -0.06) * w, Vector2(0.78, 0.08) * w), white)
 
 ## One backdrop per area, cross-faded over 500px at each border.
 static func background(ci: CanvasItem, view: Vector2, cam: Vector2, time: float, flash: float) -> void:
@@ -319,6 +328,11 @@ static func background(ci: CanvasItem, view: Vector2, cam: Vector2, time: float,
 	for i in zones.size():
 		if cam.x >= float(zones[i]["from"]):
 			here = i
+	# The geyser lifts climb out of the volcano right under the station: the
+	# backdrop follows height there, not just x.
+	if cam.y > 1750.0 and cam.x > 10500.0 and cam.x < 11900.0:
+		_sky(ci, "lava", view, cam, time, 1.0, flash)
+		return
 	_sky(ci, String(zones[here]["sky"]), view, cam, time, 1.0, flash)
 	var fade := 300.0
 	if here + 1 < zones.size():
@@ -354,8 +368,8 @@ static func _sky(ci: CanvasItem, sky: String, view: Vector2, cam: Vector2, time:
 			var pulse := 0.10 + 0.05 * sin(time * 1.7)
 			ci.draw_rect(Rect2(0, view.y * 0.6, view.x, view.y * 0.4), Color(1.0, 0.35, 0.05, pulse * alpha))
 		"rail":
-			_cover(ci, "meadow", view, cam, 0.16, alpha, 0.02, 0.86)
-			_layer(ci, "aqueduct", view, cam, 0.32, view.y * 0.48, view.y * 0.30, alpha)
+			_cover(ci, "meadow", view, cam, 0.22, alpha, 0.02, 0.86)
+			_layer(ci, "aqueduct", view, cam, 0.55, view.y * 0.48, view.y * 0.30, alpha)
 		"hive":
 			_cover(ci, "hive_sky", view, cam, 0.14, alpha, 0.10)
 		"cliff":

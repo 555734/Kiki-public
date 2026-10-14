@@ -49,6 +49,9 @@ static func skin_for(rect: Rect2) -> String:
 	var top := rect.position.y
 	if top >= 2300.0 and x > 6800.0 and x < 11500.0:
 		return "lava"
+	# The geyser-lift chimney climbs under the station: still volcano rock.
+	if top >= 1700.0 and x >= 10500.0 and x < 11700.0:
+		return "lava"
 	if top < 2300.0 and x >= 7500.0 and x < 8000.0:
 		return "sand"
 	if top <= 1560.0 and x >= 10850.0 and x < 15700.0:
@@ -68,13 +71,15 @@ static func ground() -> Array[Rect2]:
 		Rect2(-900, 900, 1100, 900),
 		Rect2(900, 1160, 640, 940),           # run-up before the cliff
 		Rect2(1540, 2100, 1460, 400),         # chasm floor, 940 below the lip
-		Rect2(2240, 1040, 160, 940),          # far bank face (tunnel under it)
-		Rect2(2600, 1040, 600, 1060),         # far bank / chimney right wall
-		Rect2(2400, 1040, 200, 24),           # chimney lid, jump-through
+		Rect2(2250, 960, 150, 1020),          # far bank: 200 above the lip, out of jump reach (tunnel under it)
+		Rect2(2600, 960, 320, 1140),          # far bank / chimney right wall
+		Rect2(2400, 960, 200, 24),            # chimney lid, jump-through
 		Rect2(2530, 1980, 70, 20), Rect2(2400, 1860, 70, 20),
 		Rect2(2530, 1740, 70, 20), Rect2(2400, 1620, 70, 20),
 		Rect2(2530, 1500, 70, 20), Rect2(2400, 1380, 70, 20),
 		Rect2(2530, 1260, 70, 20), Rect2(2400, 1140, 70, 20),
+		Rect2(2530, 1040, 70, 20),            # top chimney ledge under the lid
+		Rect2(2920, 1040, 280, 1060),         # step down to the bridge (slope above it)
 		# ---- THUNDER BRIDGE (10-13s). The deck itself is the storm machine.
 		Rect2(4110, 920, 130, 40),            # broken spans above the strike
 		Rect2(4330, 800, 110, 40),
@@ -102,8 +107,8 @@ static func ground() -> Array[Rect2]:
 		Rect2(11360, 2100, 140, 340),         # rock pillar right of the middle lift
 		# ---- IRON RAIL (20-24s)
 		Rect2(11050, 1500, 450, 60),          # station deck over the west portal
-		Rect2(14700, 1420, 400, 36),          # footbridge over the line
-		Rect2(15100, 1290, 600, 170),         # cutting above the far tunnel
+		Rect2(15000, 1420, 380, 36),          # footbridge over the line
+		Rect2(15380, 1290, 320, 170),         # cutting above the far tunnel
 		# ---- HONEYCOMB HIVE (24-30s)
 		Rect2(15700, 1300, 600, 600),         # hive hall floor
 		Rect2(16300, 1000, 250, 900),         # comb cliff (paddle wheel climb)
@@ -137,6 +142,8 @@ static func _slopes() -> Array[Dictionary]:
 	return [
 		{"type": "finale_slope", "pos": Vector2(200, 900), "skin": "grass", "depth": 900.0,
 			"points": PackedVector2Array([Vector2(0, 0), Vector2(220, 40), Vector2(450, 140), Vector2(700, 260)])},
+		{"type": "finale_slope", "pos": Vector2(2920, 960), "skin": "grass", "depth": 100.0,
+			"points": PackedVector2Array([Vector2(0, 0), Vector2(120, 20), Vector2(280, 80)])},
 		{"type": "finale_slope", "pos": Vector2(5800, 1040), "skin": "sand", "depth": 80.0,
 			"points": PackedVector2Array([Vector2(0, 0), Vector2(100, 0)])},
 		# Cracked downhill the magma ball chases the runner along.
@@ -169,7 +176,7 @@ static func hazards() -> Array[Dictionary]:
 
 static func checkpoints() -> Array[Vector2]:
 	return [
-		Vector2(2700, 990),     # 1 far bank, after the rescue
+		Vector2(2700, 910),     # 1 far bank, after the rescue
 		Vector2(5450, 990),     # 2 end of the thunder bridge
 		Vector2(7700, 2650),    # 3 bottom of the collapse shaft
 		Vector2(8780, 2470),    # 4 before the magma ball
@@ -203,14 +210,15 @@ static func coins() -> Array[Vector2]:
 static func enemies() -> Array[Dictionary]:
 	return [
 		# Grassland: the one enemy of the opening, walking up to meet the runner.
-		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(1460, 1135), "data": {"bounds": Vector2(920, 1520)}},
-		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(2900, 1015), "data": {"bounds": Vector2(2660, 3100)}},
+		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(1180, 1135), "data": {"bounds": Vector2(920, 1480)}},
+		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(2800, 935), "data": {"bounds": Vector2(2640, 2900)}},
 		# Thunder bridge: sparks that ride the storm.
 		{"type": "finale_enemy", "kind": "spark", "pos": Vector2(3760, 960), "data": {"amp": Vector2(0, 110)}},
 		{"type": "finale_enemy", "kind": "spark", "pos": Vector2(4480, 920), "data": {"amp": Vector2(70, 120)}},
 		# Sand ruins: the existing desert cast, in this course's corridors.
-		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(6150, 1012), "patrol": 180.0},
-		{"type": "desert_enemy", "kind": "mummy", "pos": Vector2(6250, 1130), "patrol": 60.0},
+		# On the upper tiers: the hall floor belongs to the swinging block.
+		{"type": "desert_enemy", "kind": "scarab", "pos": Vector2(6860, 802), "patrol": 70.0},
+		{"type": "desert_enemy", "kind": "mummy", "pos": Vector2(6555, 900), "patrol": 50.0},
 		# Volcano: slimes hop platform to platform, a bat crosses the lake.
 		{"type": "finale_enemy", "kind": "magma_slime", "pos": Vector2(8360, 2535), "data": {"hop": Vector2(200, 0)}},
 		{"type": "finale_enemy", "kind": "fire_bat", "pos": Vector2(10200, 2250), "data": {"amp": Vector2(260, 60)}},
@@ -231,8 +239,8 @@ static func enemies() -> Array[Dictionary]:
 		{"type": "finale_enemy", "kind": "skull_drone", "pos": Vector2(20650, -20), "data": {"amp": Vector2(80, 30)}},
 		{"type": "finale_enemy", "kind": "skull_drone", "pos": Vector2(20880, 40), "data": {"amp": Vector2(40, 60)}},
 		# Title run: brass drones in pursuit, a cannon, one walker.
-		{"type": "finale_enemy", "kind": "brass_drone", "pos": Vector2(25100, 300), "data": {"amp": Vector2(60, 40), "chase": true}},
-		{"type": "finale_enemy", "kind": "brass_drone", "pos": Vector2(26250, 330), "data": {"amp": Vector2(50, 50), "chase": true}},
+		{"type": "finale_enemy", "kind": "brass_drone", "pos": Vector2(25300, 300), "data": {"amp": Vector2(60, 40), "chase": true}},
+		{"type": "finale_enemy", "kind": "brass_drone", "pos": Vector2(25950, 300), "data": {"amp": Vector2(50, 50), "chase": true}},
 		{"type": "finale_enemy", "kind": "brass_drone", "pos": Vector2(27200, 260), "data": {"amp": Vector2(80, 40), "chase": true}},
 		{"type": "turret", "pos": Vector2(26080, 430), "aim": Vector2.LEFT, "burst": 2},
 		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(27000, 395), "data": {"bounds": Vector2(26740, 27280)}},
@@ -246,7 +254,7 @@ static func gimmicks() -> Array[Dictionary]:
 	# electrified stones. The rod on the ruined tower absorbs the storm.
 	out.append({"type": "finale_machine", "kind": "storm_bridge", "id": "storm", "pos": Vector2(3200, 1040),
 		"data": {"segments": 13, "seg_w": 160.0,
-			"strikes": [{"at": 3220.0, "segs": [3]}, {"at": 3950.0, "segs": [7, 8]}, {"at": 4880.0, "segs": [12]}],
+			"strikes": [{"at": 3310.0, "segs": [3]}, {"at": 3950.0, "segs": [7, 8]}, {"at": 4880.0, "segs": [12]}],
 			"arcs": [Rect2(4330, 800, 110, 40), Rect2(4700, 760, 110, 40)],
 			"rod": Vector2(4480, 610)}})
 	# ---- SAND RUINS
@@ -258,7 +266,7 @@ static func gimmicks() -> Array[Dictionary]:
 		"data": {"tiles": 5, "tile_w": 80.0, "thick": 40.0}})
 	for row in [[7170, 0.0], [7300, 1.1], [7430, 0.5]]:
 		out.append({"type": "finale_machine", "kind": "rockfall", "id": "rock_%d" % row[0], "pos": Vector2(row[0], 1250),
-			"data": {"fall": 1440.0, "period": 2.4, "phase": row[1]}})
+			"data": {"fall": 1330.0, "period": 2.4, "phase": row[1]}})
 	# ---- VOLCANO CORE
 	out.append({"type": "finale_machine", "kind": "lava", "id": "lava_lake", "pos": Vector2(8000, 2960),
 		"data": {"width": 2700.0}})
@@ -278,8 +286,8 @@ static func gimmicks() -> Array[Dictionary]:
 			"travel": Vector2(0, -float(row[2])), "width": 70.0, "period": 4.0, "phase": float(row[3])})
 	# ---- IRON RAIL: two trains on one schedule, two cranes, a low bridge.
 	out.append({"type": "finale_machine", "kind": "rail_line", "id": "rail", "pos": Vector2(11520, 1720),
-		"data": {"portal_in": 11500.0, "portal_out": 15600.0, "cranes": [[12900.0, 0, 2], [13900.0, 1, 1]], "period": 25.0,
-			"low_bridge": 15060.0}})
+		"data": {"portal_in": 11500.0, "portal_out": 15600.0, "cranes": [[12900.0, 0, 0], [14600.0, 1, 1]], "period": 25.0,
+			"low_bridge": 15340.0}})
 	# ---- HONEYCOMB HIVE
 	for row in [[15760, 140], [16080, 160], [16600, 180]]:
 		out.append({"type": "finale_machine", "kind": "honey", "id": "honey_%d" % row[0], "pos": Vector2(row[0], 1300),
@@ -295,7 +303,7 @@ static func gimmicks() -> Array[Dictionary]:
 	# ---- DRAGON BONE CANYON
 	out.append({"type": "finale_machine", "kind": "bone_beast", "id": "beast", "pos": Vector2(21400, 300),
 		"data": {"deck_to": 22600.0, "erupt_at": 21650.0, "erupt_x": 22050.0, "gap": Vector2(21900, 22200),
-			"chase_at": 22700.0, "chase_from": 22300.0, "speed": 300.0, "gate_x": 23880.0}})
+			"chase_at": 22700.0, "chase_from": 22300.0, "speed": 350.0, "gate_x": 23880.0}})
 	for row in [[22650, 320, 120], [22850, 260, 110], [23050, 330, 110], [23250, 240, 110], [23450, 300, 120], [23650, 270, 120]]:
 		out.append({"type": "finale_machine", "kind": "bone_pillar", "id": "pillar_%d" % row[0], "pos": Vector2(row[0], row[1]),
 			"data": {"width": float(row[2])}})
@@ -321,9 +329,9 @@ static func _scenery() -> Array[Dictionary]:
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_grass", "pos": Vector2.ZERO, "data": {"items": [
 			["tree", -650, 900, 300, false, false], ["flowers", -380, 900, 70, false, false],
 			["signpost", 40, 900, 120, false, false], ["fence", 1000, 1160, 70, false, false],
-			["waterfall", 1760, 2100, 1100, false, false], ["waterfall", 2080, 2100, 900, false, false],
-			["tree", 2900, 1040, 320, true, false], ["signpost", 2660, 1040, 120, false, false],
-			["flowers", 2780, 1040, 70, false, false]]}},
+			["waterfall", 1690, 2100, 1500, false, false],
+			["tree", 2860, 960, 320, true, false], ["signpost", 2310, 960, 120, false, false],
+			["flowers", 2340, 960, 70, false, false], ["flowers", 2700, 960, 70, false, false]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_storm", "pos": Vector2.ZERO, "data": {"items": [
 			["ruin_tower", 4480, 1100, 520, false, false], ["column", 3120, 1040, 250, false, false],
 			["broken_column", 5380, 1040, 160, false, false], ["column", 5800, 1040, 260, true, false]]}},
@@ -337,8 +345,9 @@ static func _scenery() -> Array[Dictionary]:
 			["lava_spikes", 9900, 2960, 120, false, false], ["lavafall", 10450, 2960, 520, false, false],
 			["gate_glow", 11160, 1500, 0, false, false]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_rail", "pos": Vector2.ZERO, "data": {"items": [
-			["viaduct", 11500, 2300, 580, false, false], ["viaduct", 12700, 2300, 580, false, false],
-			["viaduct", 13900, 2300, 580, false, false], ["viaduct", 15100, 2300, 580, false, false],
+			# Each viaduct is ~1,980px wide: kept clear of the volcano lifts.
+			["viaduct", 12700, 2300, 580, false, false], ["viaduct", 13900, 2300, 580, false, false],
+			["viaduct", 15100, 2300, 580, false, false],
 			["lamp", 11200, 1500, 160, false, false], ["signal", 14650, 1720, 160, false, false]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_hive", "pos": Vector2.ZERO, "data": {"items": [
 			["drip", 15900, 1000, 160, false, false], ["drip", 16250, 760, 200, false, false],

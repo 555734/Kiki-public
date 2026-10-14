@@ -72,10 +72,10 @@ func _pose(tick: int) -> void:
 
 func _on_state() -> void:
 	if state == 1 and aux == 0.0:
-		sound("gate", -12.0, 1.3)
+		sound("rumble", -2.0, 1.6)
 		FinaleFx.kick(8.0)
 	elif state == 2:
-		sound("place_wall", -6.0)
+		sound("sizzle", -3.0, 1.2)
 
 func _host_step(_delta: float) -> void:
 	if state == 0:

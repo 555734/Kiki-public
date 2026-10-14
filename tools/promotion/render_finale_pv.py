@@ -1,74 +1,237 @@
 #!/usr/bin/env python3
-"""Cut the 1-10 PV from a real-game recording into MP4s.
+"""Cut the 1-10 PV from the director's recording.
 
 Input: the Movie Maker recording of tools/promotion/capture_finale_pv.tscn
 (godot --write-movie ... --fixed-fps 60) and that run's shots_report.json.
-Every frame comes from the game; this script only cuts and encodes.
+Every frame comes from the game; this script only cuts, mixes and checks.
 
-    python3 tools/promotion/render_finale_pv.py build/promotion/stage-1-10/pv/takes.avi
+    python3 tools/promotion/render_finale_pv.py [takes.avi] [--storyboard DIR]
 
-Writes, next to the report:
-  finale_pv_49cuts.mp4  one second per storyboard cut, in order (49 s), each
-                        second chosen around the frame where that cut's
-                        action was verified in game
-  finale_pv_takes.mp4   the whole recording, every take uncut
-Requires ffmpeg.
+Steps
+  1. Find the director's one-frame magenta slate in the recording, which maps
+     the report's process-frame numbers to movie frames.
+  2. Take each cut's 60 on-air frames, in storyboard order, with the game's
+     own sound for exactly those frames, and join them (49 s).
+  3. Lay the project's own synthesized stage music (assets/audio/
+     music_stage.wav, tools/make_audio.py) under the game sound.
+  4. Check the soundtrack against the event log: every sound the game played
+     on air must show an onset in the cut's audio at that moment.
+  5. Write a 7x7 contact sheet (one frame per second, 0-48 s) and, with
+     --storyboard, a storyboard-vs-PV comparison sheet per 8 cuts.
+
+Writes next to the report: finale_pv_49cuts.mp4, pv_game_sound.wav,
+audio_check.json, contact_sheet.png, compare_XX.png, and pv_frames per cut
+back into shots_report.json. Requires ffmpeg, numpy and Pillow.
 """
 import json
 import os
 import subprocess
 import sys
+import wave
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PV = os.path.join(ROOT, "build", "promotion", "stage-1-10", "pv")
+MUSIC = os.path.join(ROOT, "assets", "audio", "music_stage.wav")
+FONT = os.path.join(ROOT, "assets", "fonts", "Nunito-ExtraBold.ttf")
 FPS = 60
-CUT = 60  # frames per storyboard second
+CUT = 60
+SR = 48000
 
 
-def probe_frames(path):
-    out = subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0",
-                          "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", path],
-                         capture_output=True, text=True, check=True).stdout.strip()
-    return int(out.split(",")[0])
+def run(cmd, **kw):
+    return subprocess.run(cmd, check=True, **kw)
 
 
-def window(row, total):
-    """60 frames inside the cut, around the moment its action happened."""
-    start = int(row["start_frame"])
-    end = start + int(row.get("frames", CUT))
-    key = int(row["key_frame"]) if int(row.get("key_frame", -1)) >= 0 else (start + end) // 2
-    # The verified moment sits a little after the middle: show the lead-up.
-    first = key - int(CUT * 0.6)
-    if end - start >= CUT:
-        first = max(start, min(first, end - CUT))
-    first = max(0, min(first, total - CUT))
-    return first
+def find_slate(movie):
+    """Index of the first all-magenta frame, read at 32x18."""
+    raw = run(["ffmpeg", "-v", "error", "-i", movie, "-vf", "scale=32:18", "-f", "rawvideo",
+               "-pix_fmt", "rgb24", "-frames:v", "1200", "-"], capture_output=True).stdout
+    frames = np.frombuffer(raw, np.uint8).reshape(-1, 18, 32, 3).astype(int)
+    for i, f in enumerate(frames):
+        r, g, b = f[..., 0].mean(), f[..., 1].mean(), f[..., 2].mean()
+        if r > 200 and b > 200 and g < 60:
+            return i
+    raise SystemExit("slate frame not found in the first 1200 frames")
+
+
+def movie_audio(movie):
+    """The recording's audio as float mono at SR."""
+    raw = run(["ffmpeg", "-v", "error", "-i", movie, "-vn", "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],
+              capture_output=True).stdout
+    return np.frombuffer(raw, "<i2").astype(np.float32) / 32768.0
+
+
+def write_wav(path, x):
+    with wave.open(path, "w") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes((np.clip(x, -1, 1) * 32767).astype("<i2").tobytes())
+
+
+def music_bed(n):
+    with wave.open(MUSIC) as w:
+        rate = w.getframerate()
+        x = np.frombuffer(w.readframes(w.getnframes()), "<i2").astype(np.float32) / 32768.0
+    # Resample to SR by linear interpolation; loop to length.
+    t = np.arange(int(len(x) * SR / rate)) * rate / SR
+    x = np.interp(t, np.arange(len(x)), x)
+    reps = int(np.ceil(n / len(x)))
+    bed = np.tile(x, reps)[:n]
+    fade = np.ones(n)
+    fade[:int(0.4 * SR)] = np.linspace(0, 1, int(0.4 * SR))
+    fade[-int(1.2 * SR):] = np.linspace(1, 0, int(1.2 * SR))
+    return bed * fade
+
+
+def onset_check(game, events, cut_start_s):
+    """For each sound event, look for an energy rise within 60 ms after it."""
+    win = int(0.010 * SR)
+    env = np.sqrt(np.convolve(game ** 2, np.ones(win) / win, mode="same"))
+    out = []
+    for ev in events:
+        t = ev["pv_time"]
+        i = int(t * SR)
+        before = env[max(0, i - int(0.08 * SR)):max(1, i - int(0.005 * SR))]
+        after = env[i:i + int(0.06 * SR)]
+        base = float(np.median(before)) if len(before) else 0.0
+        peak = float(after.max()) if len(after) else 0.0
+        # Right after a cut the "before" window belongs to the previous cut,
+        # so there only the level itself is judged.
+        at_joint = (t - np.floor(t)) < 0.085
+        heard = peak > 0.01 if at_joint else (peak > 0.004 and peak > base * 1.25)
+        out.append({"t": round(t, 3), "sound": ev["detail"], "cut": ev["cut"],
+                    "rise_db": round(20 * np.log10((peak + 1e-5) / (base + 1e-5)), 1),
+                    "peak_dbfs": round(20 * np.log10(peak + 1e-6), 1),
+                    "at_cut_start": bool(at_joint), "heard": bool(heard),
+                    # Playing, loud, but on top of a louder sound already
+                    # ringing (a land under a boom): no onset to measure.
+                    "masked": bool(not heard and peak > 0.1)})
+    return out
+
+
+def label_font(size):
+    try:
+        return ImageFont.truetype(FONT, size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def contact_sheet(mp4, out_path):
+    raw = run(["ffmpeg", "-v", "error", "-i", mp4, "-vf", "select='eq(mod(n\\,60)\\,30)',scale=320:180",
+               "-vsync", "0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+    frames = np.frombuffer(raw, np.uint8).reshape(-1, 180, 320, 3)
+    sheet = Image.new("RGB", (7 * 320, 7 * 180), (0, 0, 0))
+    d = ImageDraw.Draw(sheet)
+    font = label_font(18)
+    for i, f in enumerate(frames[:49]):
+        x, y = (i % 7) * 320, (i // 7) * 180
+        sheet.paste(Image.fromarray(f), (x, y))
+        d.rectangle([x, y, x + 74, y + 24], fill=(0, 0, 0))
+        d.text((x + 4, y + 2), "%02d  %ds" % (i + 1, i), font=font, fill=(255, 220, 0))
+    sheet.save(out_path)
+    return frames
+
+
+def compare_sheets(frames, storyboard, rows):
+    font = label_font(20)
+    files = sorted(f for f in os.listdir(storyboard) if f.startswith("Shot_") and f.endswith(".jpg"))
+    by_shot = {int(r["shot"]): r for r in rows}
+    for page in range(0, 49, 8):
+        sheet = Image.new("RGB", (4 * 480, 2 * 540), (0, 0, 0))
+        d = ImageDraw.Draw(sheet)
+        for j, i in enumerate(range(page, min(page + 8, 49))):
+            x, y = (j % 4) * 480, (j // 4) * 540
+            sb = Image.open(os.path.join(storyboard, files[i])).convert("RGB").resize((480, 270))
+            sheet.paste(sb, (x, y))
+            if i < len(frames):
+                sheet.paste(Image.fromarray(frames[i]).resize((480, 270)), (x, y + 270))
+            rw = by_shot.get(i + 1, {})
+            tag = "%02d %s  %s" % (i + 1, rw.get("verdict", "?"), rw.get("name", ""))
+            d.rectangle([x, y + 270, x + 480, y + 296], fill=(0, 0, 0))
+            d.text((x + 6, y + 272), tag, font=font, fill=(120, 255, 120) if rw.get("verdict") == "PASS" else (255, 90, 90))
+        sheet.save(os.path.join(PV, "compare_%02d.png" % (page // 8)))
 
 
 def main():
-    movie = sys.argv[1] if len(sys.argv) > 1 else os.path.join(PV, "takes.avi")
-    report = json.load(open(os.path.join(PV, "shots_report.json")))
-    total = probe_frames(movie)
+    args = sys.argv[1:]
+    storyboard = None
+    if "--storyboard" in args:
+        k = args.index("--storyboard")
+        storyboard = args[k + 1]
+        del args[k:k + 2]
+    movie = args[0] if args else os.path.join(PV, "takes.avi")
+    report_path = os.path.join(PV, "shots_report.json")
+    report = json.load(open(report_path))
+    slate = find_slate(movie)
+    offset = slate - int(report["slate_frame"])
     shots = sorted(report["shots"], key=lambda r: r["shot"])
-    parts, labels = [], []
+    print("slate at movie frame %d (process frame %d): offset %+d" % (slate, report["slate_frame"], offset))
+
+    audio = movie_audio(movie)
+    parts, labels, game = [], [], []
     for i, row in enumerate(shots):
-        first = window(row, total)
+        first = int(row["first_frame"]) + offset
+        row["pv_frames"] = [first, first + CUT]
         parts.append("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS[v%d]" % (first, first + CUT, i))
         labels.append("[v%d]" % i)
-        row["pv_frames"] = [first, first + CUT]
+        a0 = int(first / FPS * SR)
+        seg = audio[a0:a0 + SR]
+        game.append(np.pad(seg, (0, SR - len(seg))))
+    game = np.concatenate(game)
+    # A 4 ms fade at each joint so cuts do not click.
+    ramp = int(0.004 * SR)
+    for k in range(1, len(shots)):
+        j = k * SR
+        game[j - ramp:j] *= np.linspace(1, 0, ramp)
+        game[j:j + ramp] *= np.linspace(0, 1, ramp)
+    bed = music_bed(len(game)) * 0.32
+    mix = game * 0.95 + bed
+    peak = float(np.max(np.abs(mix)))
+    if peak > 0.98:
+        mix *= 0.98 / peak
+    game_wav = os.path.join(PV, "pv_game_sound.wav")
+    mix_wav = os.path.join(PV, "pv_mix.wav")
+    write_wav(game_wav, game)
+    write_wav(mix_wav, mix)
+
     graph = ";".join(parts) + ";" + "".join(labels) + "concat=n=%d:v=1:a=0[out]" % len(shots)
-    cuts = os.path.join(PV, "finale_pv_49cuts.mp4")
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", movie, "-filter_complex", graph, "-map", "[out]",
-                    "-r", str(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
-                    "-movflags", "+faststart", cuts], check=True)
-    takes = os.path.join(PV, "finale_pv_takes.mp4")
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", movie, "-r", str(FPS), "-c:v", "libx264",
-                    "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
-                    "-movflags", "+faststart", takes], check=True)
-    json.dump(report, open(os.path.join(PV, "shots_report.json"), "w"), indent=1)
-    print("recording: %d frames (%.1fs)" % (total, total / FPS))
-    print("wrote", cuts, "(%d cuts, %.0fs)" % (len(shots), len(shots) * CUT / FPS))
-    print("wrote", takes)
+    out = os.path.join(PV, "finale_pv_49cuts.mp4")
+    run(["ffmpeg", "-y", "-v", "error", "-i", movie, "-i", mix_wav, "-filter_complex", graph,
+         "-map", "[out]", "-map", "1:a", "-r", str(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "17",
+         "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", str(SR), "-shortest",
+         "-movflags", "+faststart", out])
+
+    # Sound events that fired on air, placed on the PV timeline.
+    order = {int(r["shot"]): i for i, r in enumerate(shots)}
+    sounds = []
+    for ev in report.get("events", []):
+        if ev["ev"] == "sound" and int(ev["cut"]) in order and int(ev["cut_frame"]) >= 0:
+            ev = dict(ev)
+            ev["pv_time"] = order[int(ev["cut"])] + int(ev["cut_frame"]) / FPS
+            sounds.append(ev)
+    checks = onset_check(game, sounds, None)
+    heard = sum(1 for c in checks if c["heard"])
+    rms = [round(20 * np.log10(np.sqrt(np.mean(mix[i * SR:(i + 1) * SR] ** 2)) + 1e-6), 1) for i in range(len(shots))]
+    masked = sum(1 for c in checks if c["masked"])
+    json.dump({"sound_events_on_air": len(checks), "heard": heard, "masked": masked,
+               "missing": len(checks) - heard - masked, "events": checks,
+               "mix_rms_dbfs_per_second": rms, "music": "assets/audio/music_stage.wav (project-synthesized)"},
+              open(os.path.join(PV, "audio_check.json"), "w"), indent=1)
+    frames = contact_sheet(out, os.path.join(PV, "contact_sheet.png"))
+    if storyboard:
+        compare_sheets(frames, storyboard, shots)
+    json.dump(report, open(report_path, "w"), indent=1)
+    probe = run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height,r_frame_rate:format=duration",
+                 "-of", "compact", out], capture_output=True, text=True).stdout
+    print(probe.strip())
+    print("wrote", out)
+    print("sound events on air: %d, onsets found: %d, masked by a louder sound: %d, missing: %d"
+          % (len(checks), heard, masked, len(checks) - heard - masked))
+    print("cuts passing in game: %d / %d" % (sum(1 for r in shots if r.get("verdict") == "PASS"), len(shots)))
 
 
 if __name__ == "__main__":

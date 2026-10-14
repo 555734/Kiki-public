@@ -27,7 +27,7 @@ func _pose(_tick: int) -> void:
 	if is_instance_valid(runner) and _on_bubble() and Clock.tick - _squash_tick > 40:
 		_squash_tick = Clock.tick
 		_launched = false
-		sound("spring", -4.0)
+		sound("bubble", -3.0, 1.4)
 
 func _on_bubble() -> bool:
 	var feet := runner.global_position + Vector2(0, Balance.RUNNER_SIZE.y * 0.5)
@@ -40,7 +40,7 @@ func squash() -> float:
 
 func _on_state() -> void:
 	if state == 1:
-		sound("enemy_die", -6.0, 1.4)
+		sound("crumble", 3.0, 1.2)
 		FinaleFx.kick(8.0)
 
 func _host_step(delta: float) -> void:

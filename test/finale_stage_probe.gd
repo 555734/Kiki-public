@@ -165,7 +165,7 @@ var _cover := true
 func _physics_process(_delta: float) -> void:
 	if main == null or not is_instance_valid(main) or not _cover or r == null:
 		return
-	if Clock.tick % 12 != 0:
+	if Clock.tick % 4 != 0:
 		return
 	for e in get_tree().get_nodes_in_group("enemy"):
 		if not (e is Node2D) or e.is_queued_for_deletion():
@@ -193,6 +193,10 @@ func from_checkpoint(index: int) -> void:
 # -------------------------------------------------------------------- run
 func run() -> void:
 	Stage.use(Stage.Which.FINALE)
+	if log_moves:
+		Events.runner_damaged.connect(func(hp: int, _m: int) -> void:
+			if r != null:
+				print("    damaged hp=%d at %s" % [hp, r.global_position.round()]))
 	_static_checks()
 	main = Main.instantiate()
 	add_child(main)
@@ -331,6 +335,8 @@ func area_storm() -> bool:
 	at("before first gap")
 	check(storm.state & 1 != 0, "lightning has been called on the deck ahead")
 	await wait_until(func() -> bool: return storm.broken_at(Clock.tick).has(3), 60)
+	# The span's collider follows on the machine's next pose.
+	await frames(2)
 	check(storm.broken_at(Clock.tick).has(3) and storm._spans[3].collision_layer == 0, "the strike broke span 3 out of the deck")
 	await hop_to(Vector2(3930, 1040))
 	await run_until(x_past(4120), 1.0, true, 200)
@@ -354,6 +360,12 @@ func area_storm() -> bool:
 ## into a 1,500px shaft with falling stones, the volcano chamber below.
 func area_sand() -> bool:
 	await from_checkpoint(2)
+	# The block's arc reaches the terrace edge at its left extreme: go in as
+	# it swings away to the right.
+	var pend0 := machine("ruin_pendulum")
+	await run_until(x_past(6200), 1.0, false, 200)
+	hold(0.0)
+	await wait_until(func() -> bool: return pend0.angle_at(Clock.tick) > 0.2 and pend0.angle_at(Clock.tick + 1) > pend0.angle_at(Clock.tick), 300)
 	await run_until(x_past(6440), 1.0, true, 400)
 	await run_until(func() -> bool: return r.is_on_floor(), 1.0, false, 60)
 	at("hall")
@@ -371,7 +383,13 @@ func area_sand() -> bool:
 	check(floor.state == 1, "standing on the last floor cracks it")
 	await wait_until(func() -> bool: return r.global_position.y > 1400.0, 120)
 	check(r.global_position.y > 1400.0, "the floor gave way: falling down the shaft")
-	await wait_until(func() -> bool: return r.is_on_floor() and r.global_position.y > 2600.0, 300)
+	# Steer down the clear lane between the rockfalls.
+	for i in 300:
+		if r.is_on_floor() and r.global_position.y > 2600.0:
+			break
+		hold(clampf((7238.0 - r.global_position.x) / 40.0, -1.0, 1.0))
+		await frames(1)
+	hold(0.0)
 	at("shaft bottom")
 	await run_until(x_past(7720), 1.0, false, 300)
 	return GameState.checkpoint_index >= 3
@@ -404,7 +422,8 @@ func area_lava() -> bool:
 	var deck_a := func() -> Vector2: return a._deck.global_position + Vector2(0, -12)
 	var deck_b := func() -> Vector2: return b._deck.global_position + Vector2(0, -12)
 	var moving_left := func(m: FinaleMachine) -> bool: return m.offset_at(Clock.tick + 1).x < m.offset_at(Clock.tick).x
-	await wait_until(func() -> bool: return a._deck.global_position.x < 9800.0 and moving_left.call(a), 400)
+	await wait_until(func() -> bool: return a._deck.global_position.x < 9960.0 and moving_left.call(a), 400)
+	await frames(8)
 	await hop_to(deck_a)
 	at("on swing a")
 	check(r.is_on_floor() and absf(r.global_position.x - a._deck.global_position.x) < 80.0, "rode swing A over the lava")
@@ -463,14 +482,14 @@ func area_rail() -> bool:
 	at("train 1")
 	check(r.global_position.y < 1530.0 and r.global_position.x > b_rear.call(), "train-to-train leap landed")
 	hold(0.0)
-	await wait_until(func() -> bool: return r.global_position.x > 14740.0, 1200)
+	await wait_until(func() -> bool: return r.global_position.x > 15020.0, 1200)
 	at("under the footbridge")
-	await hop_to(Vector2(14980.0, 1420.0))
+	await hop_to(Vector2(15200.0, 1420.0))
 	at("footbridge")
-	check(standing_on(Rect2(14700, 1420, 400, 36)), "off the roof onto the footbridge")
+	check(standing_on(Rect2(15000, 1420, 380, 36)), "off the roof onto the footbridge")
 	check(line._carry == 0.0, "train momentum ends on landing")
-	await hop_to(Vector2(15200, 1290))
-	await run_until(x_past(15410), 1.0, false, 200)
+	await hop_to(Vector2(15460, 1290))
+	await run_until(x_past(15480), 1.0, false, 200)
 	return GameState.checkpoint_index >= 7
 
 ## 24-30s: honey floor, inverted tiers, bubble slingshot, shaft current,
@@ -637,13 +656,13 @@ func area_solo() -> bool:
 	await run_until(x_past(2440), 1.0, false, 300)
 	at("chimney foot")
 	var ledges := [Vector2(2565, 1980), Vector2(2435, 1860), Vector2(2565, 1740), Vector2(2435, 1620),
-		Vector2(2565, 1500), Vector2(2435, 1380), Vector2(2565, 1260), Vector2(2435, 1140), Vector2(2500, 1040)]
+		Vector2(2565, 1500), Vector2(2435, 1380), Vector2(2565, 1260), Vector2(2435, 1140), Vector2(2565, 1040), Vector2(2500, 960)]
 	for feet in ledges:
 		if not await hop_to(feet):
 			at("chimney missed %s" % feet)
 			return false
 	at("out of the chimney")
-	check(r.global_position.y < 1030.0, "climbed out of the chasm alone via the chimney")
+	check(r.global_position.y < 950.0, "climbed out of the chasm alone via the chimney")
 	return true
 
 func area_mechanics() -> bool:
@@ -700,10 +719,10 @@ func area_mechanics() -> bool:
 			break
 	check(crate_ok, "the crane's crate lands on a car roof and rides it")
 	check(line._drops[0]["t"] < line.period and line._drops[1]["t"] < line.period, "both cranes drop once per timetable")
-	await place_runner(Vector2(15000, 1500))
-	r.global_position = Vector2(15030, 1520)
+	await place_runner(Vector2(15280, 1500))
+	r.global_position = Vector2(15310, 1520)
 	await frames(2)
-	r.global_position = Vector2(15075, 1520)
+	r.global_position = Vector2(15355, 1520)
 	await frames(3)
 	check(r.state == Runner.State.DEAD, "the low bridge sweeps a runner still on the roof")
 	await frames(100)

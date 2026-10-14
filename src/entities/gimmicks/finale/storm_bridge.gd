@@ -70,6 +70,7 @@ func broken_at(tick: int) -> Dictionary:
 var _flashed := -1
 
 func _pose(tick: int) -> void:
+	_ambient(tick)
 	var gone := broken_at(tick)
 	for i in _spans.size():
 		set_solid(_spans[i], not gone.has(i))
@@ -79,10 +80,20 @@ func _pose(tick: int) -> void:
 		if since(tick) < WARN + 0.3:
 			FinaleFx.flash(1.0)
 			FinaleFx.kick(12.0)
-			sound("hit", -12.0, 1.4)
+			sound("thunder", 0.0, 1.6)
+			sound("crumble", -2.0, 1.2)
 
 func _on_state() -> void:
-	sound("gate", -5.0, 0.7)
+	sound("rumble", 4.0, 0.6)
+
+## Distant sheet lightning over the storm, on a fixed Clock cycle (no gameplay
+## effect): a soft flash and, while the runner is near, a low roll of thunder.
+func _ambient(tick: int) -> void:
+	var beat := fposmod(Clock.seconds_at(tick), 4.6)
+	var prev := fposmod(Clock.seconds_at(tick - 1), 4.6)
+	if beat < prev and _near:
+		FinaleFx.flash(0.45)
+		sound("thunder", -5.0, 0.5)
 
 func arcs_live(i: int, t: float) -> bool:
 	if Clock.tick < _rod_until:
@@ -151,8 +162,12 @@ func _draw() -> void:
 				for k in 4:
 					var a := float(k) * 1.7 + age * 22.0
 					draw_line(Vector2(cx + cos(a) * 50, -10), Vector2(cx + cos(a + 1.0) * 70, -40 + sin(a) * 18), Color(0.8, 0.95, 1.0, 0.8), 2.0)
-			elif age < WARN + 0.28:
-				_bolt(Vector2(cx + 40, -900), Vector2(cx, 20), int(placed_tick + s))
+			elif age < WARN + 0.32:
+				var k := (age - WARN) / 0.32
+				_bolt(Vector2(cx + 60, -1100), Vector2(cx, 20), int(placed_tick + s), 70.0, 12.0)
+				_bolt(Vector2(cx - 30, -1100), Vector2(cx + 10, 10), int(placed_tick + s) + 5, 50.0, 6.0)
+				draw_circle(Vector2(cx, 10), 120.0 * (1.0 - k) + 30.0, Color(0.75, 0.92, 1.0, 0.55 * (1.0 - k)))
+				draw_circle(Vector2(cx, 10), 50.0 * (1.0 - k) + 12.0, Color(1, 1, 1, 0.9 * (1.0 - k)))
 			if age >= WARN and age < WARN + 2.2:
 				_debris(Vector2(w * float(s), 0), w, age - WARN, int(s))
 	# Electrified broken spans.
@@ -195,9 +210,9 @@ func _bolt(a: Vector2, b: Vector2, seed: int, jag: float = 60.0, width: float = 
 	draw_polyline(pts, colour, width, true)
 
 func _debris(origin: Vector2, w: float, age: float, seed: int) -> void:
-	for k in 7:
-		var vx := (DrawUtil.hash01(seed * 7 + k) - 0.5) * 380.0
-		var vy := -220.0 - DrawUtil.hash01(seed * 11 + k) * 260.0
+	for k in 12:
+		var vx := (DrawUtil.hash01(seed * 7 + k) - 0.5) * 520.0
+		var vy := -320.0 - DrawUtil.hash01(seed * 11 + k) * 420.0
 		var p := origin + Vector2(w * (0.15 + 0.7 * DrawUtil.hash01(seed + k * 5)), 10) \
 			+ Vector2(vx * age, vy * age + 0.5 * 1800.0 * age * age)
 		var size := 22.0 + DrawUtil.hash01(seed * 3 + k) * 30.0

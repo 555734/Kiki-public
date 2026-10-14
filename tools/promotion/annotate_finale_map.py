@@ -28,6 +28,15 @@ def font(size):
     return ImageFont.load_default()
 
 
+def _checkpoints_from_data():
+    """The stage's checkpoints, read from its data script (older reports lack them)."""
+    import re
+    src = open(os.path.join(ROOT, "src", "levels", "level_finale_data.gd")).read()
+    block = src[src.index("static func checkpoints()"):]
+    block = block[:block.index("]")]
+    return [(float(a), float(b)) for a, b in re.findall(r"Vector2\((\d+), (\d+)\)", block)]
+
+
 def main():
     meta = json.load(open(os.path.join(MAPS, "maps.json")))
     record = [m for m in meta["maps"] if m["stage"] == "1-10"][0]
@@ -55,7 +64,8 @@ def main():
         d.rectangle([x0, pad_top - 26, x1, pad_top - 4], fill=c)
         d.text((x0 + 6, pad_top - 26), "%s (%ss)" % (z["name"], z["seconds"]), fill=(255, 255, 255), font=f_small)
         d.line([x0, pad_top, x0, pad_top + img.height], fill=c, width=2)
-    for i, (x, y) in enumerate(report["checkpoints"]):
+    checkpoints = report.get("checkpoints") or _checkpoints_from_data()
+    for i, (x, y) in enumerate(checkpoints):
         X, Y = px(x, y)
         Y += pad_top
         d.line([X, Y - 26, X, Y + 12], fill=(255, 255, 255), width=3)
@@ -67,11 +77,11 @@ def main():
         d.ellipse([X - 10, Y - 10, X + 10, Y + 10], fill=c)
         d.text((X + 12, Y - 30), label, fill=c, font=f_mid)
     for row in report["shots"]:
-        if "runner_world" not in row:
+        if "runner_key" not in row and "runner_start" not in row:
             continue
-        X, Y = px(*row["runner_world"])
+        X, Y = px(*row.get("runner_key", row.get("runner_start")))
         Y += pad_top
-        ok = row["success"]
+        ok = row.get("verdict") == "PASS"
         d.ellipse([X - 13, Y - 13, X + 13, Y + 13], fill=(255, 220, 40) if ok else (230, 60, 60), outline=(20, 20, 20), width=2)
         d.text((X - 9 if row["shot"] < 10 else X - 12, Y - 10), str(row["shot"]), fill=(20, 20, 20), font=f_small)
     os.makedirs(OUT, exist_ok=True)

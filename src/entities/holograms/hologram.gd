@@ -11,6 +11,9 @@ enum Kind { PLATFORM, WALL, WARP }
 const LAYER_HOLOGRAM := 8
 
 static var _white: ImageTexture = null
+## Platforms drawn as glowing blue blocks instead of the painted slab. Set by
+## main from the stage (1-10); collision and timing are identical.
+static var glow_style := false
 
 var kind: Kind = Kind.PLATFORM
 var size: Vector2 = Balance.PLATFORM_SIZE
@@ -158,6 +161,9 @@ func _draw() -> void:
 ## show a notch. Deliberately not the blue painted slab or the cyan hologram:
 ## those vanished against the sky. The last second flashes red.
 func _draw_platform() -> void:
+	if glow_style:
+		_draw_glow_platform()
+		return
 	var thick := Balance.PLATFORM_SIZE.y
 	var warn := clampf(1.0 - remaining_time(), 0.0, 1.0)
 	var flash := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * lerpf(6.0, 34.0, warn))
@@ -203,6 +209,38 @@ func _draw_platform() -> void:
 			var key := Art.platform_skin(length)
 			Art.draw_stretched(self, key, Rect2(-length * 0.5, -thick * 0.5, length, thick),
 				Color(1, 1, 1, _fade_in).lerp(Color(1, 0.4, 0.3, _fade_in), hot))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+## The glow style: each segment a row of translucent blue blocks with a
+## bright rim and a soft halo, flashing red-white in the last second like the
+## painted slab does.
+func _draw_glow_platform() -> void:
+	var thick := Balance.PLATFORM_SIZE.y
+	var warn := clampf(1.0 - remaining_time(), 0.0, 1.0)
+	var flash := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * lerpf(6.0, 34.0, warn))
+	var hot := warn * flash * 0.8
+	var a := _fade_in
+	var pulse := 0.85 + 0.15 * sin(float(Clock.tick) * 0.12)
+	var body := Color(0.2, 0.62, 1.0, 0.86 * a).lerp(Color(1.0, 0.35, 0.3, 0.86 * a), hot)
+	var rim := Color(0.75, 0.95, 1.0, 0.95 * a).lerp(Color(1, 0.8, 0.8, a), hot)
+	var halo := Color(0.45, 0.85, 1.0, 0.32 * a * pulse)
+	for i in range(path.size() - 1):
+		_slab(path[i], path[i + 1], thick + 22.0, 8.0, halo)
+	for i in range(path.size() - 1):
+		var p0 := path[i]
+		var p1 := path[i + 1]
+		var length := p0.distance_to(p1)
+		if length < 1.0:
+			continue
+		draw_set_transform((p0 + p1) * 0.5, (p1 - p0).angle(), Vector2.ONE)
+		var cells := maxi(1, int(roundf(length / 44.0)))
+		var cw := length / float(cells)
+		for c in cells:
+			var rect := Rect2(-length * 0.5 + float(c) * cw + 1.5, -thick * 0.5, cw - 3.0, thick)
+			draw_rect(rect, body)
+			draw_rect(Rect2(rect.position + Vector2(0, thick * 0.55), Vector2(rect.size.x, thick * 0.45)), Color(0.05, 0.3, 0.85, 0.45 * a))
+			draw_rect(Rect2(rect.position, Vector2(rect.size.x, 6.0)), Color(0.9, 0.98, 1.0, 0.9 * a))
+			draw_rect(rect, rim, false, 2.5)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 ## One straight slab from a to b, `thick` across, `extend` longer at each end.
