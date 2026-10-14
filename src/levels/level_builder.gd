@@ -300,7 +300,7 @@ func veil_field() -> VeilField:
 const ENEMY_TYPES: Array[String] = [
 	"cave_enemy", "desert_enemy", "chaser", "sky_pursuer", "thornmite", "walker",
 	"flyer", "shieldbearer", "keeper", "mine", "seedling", "golem", "turret",
-	"parade_gremlin", "parade_actor",
+	"parade_gremlin", "parade_actor", "finale_enemy",
 ]
 
 ## Spec types the builder does not know, as "enemy:<type>" / "gimmick:<type>".
@@ -324,6 +324,7 @@ func _make_enemy(spec: Dictionary) -> Node2D:
 		return null
 	match type:
 		"parade_actor": return ParadeActor.from_spec(spec, runner)
+		"finale_enemy": return FinaleEnemy.from_spec(spec, runner)
 		"parade_gremlin":
 			var gremlin := ParadeGremlin.new()
 			gremlin.runner = runner
@@ -445,6 +446,8 @@ static func configure_gimmick(node: Node2D, spec: Dictionary) -> void:
 const GIMMICKS := {
 	"parade_device": preload("res://src/entities/gimmicks/parade_device.gd"),
 	"parade_machine": preload("res://src/entities/gimmicks/parade_machine.gd"),
+	"finale_machine": preload("res://src/entities/gimmicks/finale_machine.gd"),
+	"finale_slope": preload("res://src/entities/gimmicks/finale_slope.gd"),
 	"coastal_hazard": preload("res://src/entities/gimmicks/coastal_hazard.gd"),
 	"volcanic_hazard": preload("res://src/entities/gimmicks/volcanic_hazard.gd"),
 	"moving_platform": preload("res://src/entities/gimmicks/moving_platform.gd"),

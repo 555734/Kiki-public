@@ -113,7 +113,8 @@ enum World {
 ## 27: two-tier coast, shared-clock surges and falling anchors.
 ## 28: stage 1-9 adds the parade, crowd actors and shootable machines.
 ## 29: expanded 1-9 layout and replayable theatre-device/cast transformations.
-const VERSION: int = 29
+## 30: stage 1-10 (FINALE) adds a stage id, its machines and cast.
+const VERSION: int = 30
 
 ## Fixed-point helpers shared with Snapshot, so a position means the same thing
 ## on both channels.

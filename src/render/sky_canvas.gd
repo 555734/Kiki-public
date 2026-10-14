@@ -12,6 +12,10 @@ func _draw() -> void:
 	var view := size
 	var scroll: float = sky.scroll()
 	var t: float = sky.time()
+	if Stage.is_finale():
+		var cam := Vector2(scroll, sky.vertical())
+		FinaleArt.background(self, view, cam, t, FinaleFx.flash_level())
+		return
 	if Stage.is_parade():
 		# Overscan preserves full coverage during a slow theatrical pan.
 		var shift := sin(scroll * 0.0003) * view.x * 0.035

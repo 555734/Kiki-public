@@ -13,6 +13,8 @@
 
 test/agreement_probe.tscn          gated
 test/parade_stage_probe.tscn       gated
+test/finale_stage_probe.tscn       gated
+tools/finale_preview.tscn          capture
 test/parade_v2_probe.tscn          tool
 tools/play_parade_v2.tscn          live
 test/arena_motion_probe.tscn       gated

@@ -3,6 +3,7 @@ extends RefCounted
 ## Accepted data keys mirror the builder and gimmick from_spec readers.
 ## Keep defaults optional; position/type are required for placed entities.
 const ENEMIES := {
+	"finale_enemy": ["kind", "data"],
 	"parade_actor": ["kind", "bounds", "dir"],
 	"parade_gremlin": ["speed", "dir", "wake", "bounds", "large"],
 	"cave_enemy": ["kind", "patrol", "wander", "dart"],
@@ -20,6 +21,8 @@ const ENEMIES := {
 	"turret": ["aim", "burst"],
 }
 const GIMMICKS := {
+	"finale_machine": ["kind", "id", "data"],
+	"finale_slope": ["points", "depth", "thick", "skin"],
 	"parade_device": ["kind", "id", "span", "target"],
 	"parade_machine": ["kind", "id", "period", "phase", "height"],
 	"coastal_hazard": ["kind", "travel", "width", "period", "phase"],
@@ -79,6 +82,15 @@ static func _validate(specs: Array, schema: Dictionary, category: String, out: A
 					out.append(label + ": " + String(key) + " must be finite numeric data")
 				elif key != "phase" and float(number) <= 0:
 					out.append(label + ": " + String(key) + " must be positive")
+		if kind == "finale_machine":
+			if not FinaleMachine.KINDS.has(String(spec.get("kind", ""))): out.append(label + ": unknown finale machine")
+			if not spec.get("data", {}) is Dictionary: out.append(label + ": data must be a Dictionary")
+		if kind == "finale_enemy" and String(spec.get("kind", "")) not in FinaleEnemy.KINDS:
+			out.append(label + ": unknown finale enemy")
+		if kind == "finale_slope":
+			var pts: Variant = spec.get("points")
+			if not pts is PackedVector2Array or (pts as PackedVector2Array).size() < 2:
+				out.append(label + ": points must be a PackedVector2Array of 2+ points")
 		if kind == "parade_machine":
 			if spec.get("kind", "mouth") not in ["mouth", "hammer"]:
 				out.append(label + ": unknown machine kind")

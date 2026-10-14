@@ -71,6 +71,8 @@ var _stage_1_8: Button:
 	get: return _card(Stage.Which.CAVE)
 var _stage_1_9: Button:
 	get: return _card(Stage.Which.PARADE)
+var _stage_1_10: Button:
+	get: return _card(Stage.Which.FINALE)
 var _banner_code: Label:
 	get: return _banner.code_label if _banner != null else null
 

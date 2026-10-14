@@ -15,7 +15,7 @@ extends RefCounted
 
 
 ## New stages go on the END: the value is what travels in the handshake.
-enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE, ROYAL_ARENA, PARADE }
+enum Which { GREENFIELD, CROSSING, WORKSHOP, HORROR, QUIET, KEEPER, SKY, SKYWARD_RUINS, SEA, SWAMP, DESERT, TOWER, CAVE, ROYAL_ARENA, PARADE, FINALE }
 
 ## A fresh launch starts at 1-1. The start panel can switch to 1-2 before play.
 ## Keeping 1-1 as the default means integrating a later stage never replaces the
@@ -49,6 +49,7 @@ const _DATA_FILES := {
 	Which.CAVE: "level_cave_data",
 	Which.ROYAL_ARENA: "level_royal_arena_data",
 	Which.PARADE: "level_parade_data",
+	Which.FINALE: "level_finale_data",
 }
 
 ## The current stage's data script.
@@ -136,6 +137,10 @@ static func is_cave() -> bool:
 
 static func is_parade() -> bool:
 	return _which == Which.PARADE
+
+## The nine-biome final course -- see docs/stage-1-10.md.
+static func is_finale() -> bool:
+	return _which == Which.FINALE
 
 ## The sea's surface on a stage that has one (1-4), or INF.
 static func water_y() -> float:

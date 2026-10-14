@@ -42,6 +42,9 @@ const SHOTS := [
 		"at": Vector2(0, 13475), "zoom": 1.45, "runner": Vector2(300, 13632)},
 	{"which": Stage.Which.CAVE, "file": "card_1_8.png",
 		"at": Vector2(0, 12370), "zoom": 1.45, "runner": Vector2(-250, 12610)},
+	# 1-10: the volcano core, magma sphere waiting at the top of the downhill.
+	{"which": Stage.Which.FINALE, "file": "card_1_10.png",
+		"at": Vector2(8930, 2420), "zoom": 1.25, "runner": Vector2(8780, 2496)},
 ]
 
 func _ready() -> void:
@@ -53,6 +56,8 @@ func run() -> void:
 	await get_tree().process_frame
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://assets/menu"))
 	for shot in SHOTS:
+		if "--finale-only" in OS.get_cmdline_user_args() and int(shot["which"]) != Stage.Which.FINALE:
+			continue
 		if "--late-assets-only" in OS.get_cmdline_user_args() and not int(shot["which"]) in [Stage.Which.DESERT, Stage.Which.TOWER, Stage.Which.CAVE]:
 			continue
 		if "--split-assets-only" in OS.get_cmdline_user_args() and not int(shot["which"]) in [Stage.Which.HORROR, Stage.Which.SKYWARD_RUINS, Stage.Which.SEA, Stage.Which.SWAMP]:
