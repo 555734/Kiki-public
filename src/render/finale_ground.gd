@@ -195,9 +195,12 @@ static func ground_group(ci: CanvasItem, rects: Array, seeds: Array) -> void:
 	var faces := {}
 	var caps := {}
 	var flat := TriBatch.new()
+	var painted: Array = Stage.data().painted_ground() if Stage.data().has_method("painted_ground") else []
 	for i in rects.size():
 		var rect: Rect2 = rects[i]
 		var seed: int = seeds[i]
+		if painted.has(rect):
+			continue
 		var skin := FinaleArt.skin_for(rect)
 		if skin == "bone" and rect.size.y <= 60.0:
 			bone_into(flat, [Vector2(rect.position.x, rect.position.y + rect.size.y * 0.5),

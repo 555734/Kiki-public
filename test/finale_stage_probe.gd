@@ -327,9 +327,9 @@ func area_grass() -> bool:
 		"the runner collides with the platform and the fall stops (vy %.0f -> on floor at %.0f)" % [vy_before, r.global_position.y + 23.0])
 	# From the platform: run to its end, jump, air jump, onto the far bank.
 	await run_until(x_past(cx + 95.0), 1.0, false, 60)
-	await hop_to(Vector2(2360, 1080), true)
+	await hop_to(Vector2(2360, 1040), true)
 	at("bank")
-	check(r.is_on_floor() and r.global_position.x > 2300 and absf(r.global_position.y + 23.0 - 1080.0) < 8.0, "jumps from the platform to the far bank")
+	check(r.is_on_floor() and r.global_position.x > 2300 and absf(r.global_position.y + 23.0 - 1040.0) < 8.0, "jumps from the platform to the far bank")
 	_cover = true
 	await run_until(x_past(2720), 1.0, true, 200)
 	check(GameState.checkpoint_index >= 1, "checkpoint 1 reached")

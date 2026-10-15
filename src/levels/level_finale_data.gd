@@ -65,6 +65,11 @@ static func zone_at(x: float) -> Dictionary:
 			return z
 	return all[-1]
 
+## Ground drawn by painted art instead of the terrain renderer (the opening
+## gorge: tools/promotion/make_gorge_art.py). Collision is unchanged.
+static func painted_ground() -> Array[Rect2]:
+	return [Rect2(900, 1160, 640, 2300), Rect2(2300, 1040, 900, 340), Rect2(2860, 1380, 340, 2000)]
+
 static func ground() -> Array[Rect2]:
 	return [
 		# ---- GRASSLAND CLIFFS (0-10s). Start hill; the downhill is a slope.
@@ -73,9 +78,8 @@ static func ground() -> Array[Rect2]:
 		# The gorge: 760px across and bottomless (kill_y). A full sprint jump
 		# with the air jump covers ~470px, so the leap falls short in the open,
 		# far from both walls -- without the guardian it is a fall to death.
-		Rect2(2300, 1080, 620, 300),          # far bank, 80 above the lip: an overhang
+		Rect2(2300, 1040, 900, 340),          # far bank, 120 above the lip: an overhang
 		Rect2(2860, 1380, 340, 2000),         # the bank's wall recedes under it: nothing to slide down
-		Rect2(2920, 1080, 280, 1060),         # rise to the bridge (slope above it)
 		# ---- THUNDER BRIDGE (10-13s). The deck itself is the storm machine.
 		Rect2(4110, 920, 130, 40),            # broken spans above the strike
 		Rect2(4330, 800, 110, 40),
@@ -136,8 +140,6 @@ static func _slopes() -> Array[Dictionary]:
 	return [
 		{"type": "finale_slope", "pos": Vector2(200, 900), "skin": "grass", "depth": 900.0,
 			"points": PackedVector2Array([Vector2(0, 0), Vector2(220, 40), Vector2(450, 140), Vector2(700, 260)])},
-		{"type": "finale_slope", "pos": Vector2(2920, 1080), "skin": "grass", "depth": 100.0,
-			"points": PackedVector2Array([Vector2(0, 0), Vector2(140, -20), Vector2(280, -40)])},
 		{"type": "finale_slope", "pos": Vector2(5800, 1040), "skin": "sand", "depth": 80.0,
 			"points": PackedVector2Array([Vector2(0, 0), Vector2(100, 0)])},
 		# Cracked downhill the magma ball chases the runner along.
@@ -170,7 +172,7 @@ static func hazards() -> Array[Dictionary]:
 
 static func checkpoints() -> Array[Vector2]:
 	return [
-		Vector2(2700, 1030),    # 1 far bank, after the rescue
+		Vector2(2700, 990),     # 1 far bank, after the rescue
 		Vector2(5450, 990),     # 2 end of the thunder bridge
 		Vector2(7700, 2650),    # 3 bottom of the collapse shaft
 		Vector2(8780, 2470),    # 4 before the magma ball
@@ -205,7 +207,7 @@ static func enemies() -> Array[Dictionary]:
 	return [
 		# Grassland: the one enemy of the opening, walking up to meet the runner.
 		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(1180, 1135), "data": {"bounds": Vector2(920, 1480)}},
-		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(2800, 1055), "data": {"bounds": Vector2(2680, 2900)}},
+		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(3120, 1015), "data": {"bounds": Vector2(3060, 3180)}},
 		# Thunder bridge: sparks that ride the storm.
 		{"type": "finale_enemy", "kind": "spark", "pos": Vector2(3760, 960), "data": {"amp": Vector2(0, 110)}},
 		{"type": "finale_enemy", "kind": "spark", "pos": Vector2(4480, 920), "data": {"amp": Vector2(70, 120)}},
@@ -333,11 +335,15 @@ static func _scenery() -> Array[Dictionary]:
 	return [
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_grass", "pos": Vector2.ZERO, "data": {"items": [
 			["tree", -650, 900, 300, false, false], ["flowers", -380, 900, 70, false, false],
-			["signpost", 40, 900, 120, false, false], ["fence", 1000, 1160, 70, false, false],
-			# Open gorge: no falls or walls behind the leap, only depth.
-			["abyss", 1540, 1150, 2250, false, false, 1330, 140],
-			["tree", 2860, 1080, 320, true, false], ["signpost", 2380, 1080, 120, false, false],
-			["flowers", 2420, 1080, 70, false, false], ["flowers", 2700, 1080, 70, false, false]]}},
+			["signpost", 40, 900, 120, false, false],
+			# The gorge: dark depth, the painted far side (hazy terraces and a
+			# waterfall, low and to the right of the leap), then the painted
+			# cliffs in front of the terrain, then their dressing.
+			["abyss", 1540, 1150, 2250, false, false, 1330, 260],
+			["gorge_far", 1480, 1180, 1.0, false, false], ["dark", 860, 2880, 2400, false, false, 900],
+			["gorge_left", 860, 1100, 1.0, false, true], ["gorge_right", 2280, 1000, 1.0, false, true],
+			["fence", 1000, 1160, 70, false, true],
+			["tree", 2960, 1040, 320, true, true], ["signpost", 2420, 1040, 120, false, true]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_storm", "pos": Vector2.ZERO, "data": {"items": [
 			["ruin_tower", 4480, 1100, 520, false, false], ["column", 3120, 1040, 250, false, false],
 			["broken_column", 5380, 1040, 160, false, false], ["column", 5800, 1040, 260, true, false]]}},

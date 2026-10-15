@@ -93,6 +93,14 @@ func draw_item(ci: CanvasItem, item: Array) -> void:
 				ci.draw_colored_polygon(PackedVector2Array([path[-1] + Vector2(-26, 0), path[-1] + Vector2(26, 0), path[-1] + Vector2(-side * 10.0, 60)]), FinaleGround.BONE_SHADE)
 		"drip":
 			_drip(ci, at, h)
+		"dark":
+			# The bottom of a drop: plain deep shadow (x, y, width, height).
+			ci.draw_rect(Rect2(at, Vector2(h, float(item[6]))), Color(0.06, 0.07, 0.13))
+		"gorge_left", "gorge_right", "gorge_far":
+			# Painted 1:1, placed by its top-left corner.
+			var t := FinaleArt.tex(key)
+			if t != null:
+				ci.draw_texture_rect(t, Rect2(at, t.get_size() * h), false)
 		"abyss":
 			_abyss(ci, at, h, float(item[6]) if item.size() > 6 else 600.0, float(item[7]) if item.size() > 7 else 10.0)
 		"canyon_haze":

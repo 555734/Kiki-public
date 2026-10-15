@@ -1,0 +1,29 @@
+== nohelp  (clip length 3.40 s)
+   0.43s  beat 3 f26  pos ( 1533, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | jump_start: take-off x 1533 vx 492
+   0.45s  beat 3 f27  pos ( 1541, 1120) v (  492,-1020) ts 1.000 floor false wall false dead false | jump | floor_off
+   0.47s  beat 3 f28  pos ( 1550, 1104) v (  492, -973) ts 1.000 floor false wall false dead false | machine: cliff_lip|1|224|0.000
+   0.77s  beat 3 f46  pos ( 1697,  949) v (  492,    0) ts 1.000 floor false wall false dead false | air_jump: x 1697: the last of the runner's height
+   0.78s  beat 3 f47  pos ( 1706,  935) v (  492, -858) ts 1.000 floor false wall false dead false | air_jump | jump
+   1.05s  beat 4 f3   pos ( 1837,  819) v (  492,   66) ts 1.000 floor false wall false dead false | fall_start: apex passed at (1837.0, 819.0), 463 px short of the bank
+   2.83s  beat 5 f50  pos ( 2715, 2654) v (    0,    0) ts 1.000 floor false wall false dead true  | died: hazard | death: runner (2715.0, 2654.0)
+  airborne frames with wall contact: 0
+  position jumps beyond velocity x time scale: none
+== help  (clip length 7.03 s)
+   0.43s  beat 3 f26  pos ( 1533, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | jump_start: take-off x 1533 vx 492
+   0.45s  beat 3 f27  pos ( 1541, 1120) v (  492,-1020) ts 1.000 floor false wall false dead false | jump | floor_off
+   0.47s  beat 3 f28  pos ( 1550, 1104) v (  492, -973) ts 1.000 floor false wall false dead false | machine: cliff_lip|1|224|0.000
+   0.77s  beat 3 f46  pos ( 1697,  949) v (  492,    0) ts 1.000 floor false wall false dead false | air_jump: x 1697: the last of the runner's height
+   0.78s  beat 3 f47  pos ( 1706,  935) v (  492, -858) ts 1.000 floor false wall false dead false | air_jump | jump
+   1.05s  beat 4 f3   pos ( 1837,  819) v (  492,   66) ts 1.000 floor false wall false dead false | fall_start: apex passed at (1837.0, 819.0), 463 px short of the bank
+   1.27s  beat 4 f16  pos ( 1944,  934) v (  492,  922) ts 0.959 floor false wall false dead false | slowmo: time scale -> 0.05 at feet 957 (bank top 1040), vy 922
+   2.92s  beat 6 f5   pos ( 2011, 1082) v (  492, 1100) ts 0.050 floor false wall false dead false | call_answered
+   3.38s  beat 6 f33  pos ( 2023, 1108) v (  492, 1100) ts 0.050 floor false wall false dead false | platform_planned: runner (2023.0, 1108.0) vy 1100; stroke y 1211 x 1983..2233
+   3.92s  beat 7 f17  pos ( 2036, 1137) v (  492, 1100) ts 0.055 floor false wall false dead false | hologram: kind=0 at (2108.0, 1211.0) | platform_built: top 1198, x 1983..2233; runner feet 1160
+   4.12s  beat 7 f29  pos ( 2054, 1175) v (  492,    0) ts 0.330 floor true  wall false dead false | land: hard | landed_on_hologram | rescue: tier 3 | contact: fall stopped by the platform: vy 1100 -> 0, feet 1198 | floor_on
+   4.98s  beat 8 f15  pos ( 2104, 1175) v (    0,    0) ts 1.000 floor true  wall false dead false | escape_jump: from the platform at (2104.0, 1175.0)
+   5.00s  beat 8 f16  pos ( 2104, 1159) v (   30, -931) ts 1.000 floor false wall false dead false | jump | floor_off
+   5.32s  beat 9 f1   pos ( 2179, 1001) v (  410, -858) ts 1.000 floor false wall false dead false | air_jump | jump
+   5.80s  beat 9 f30  pos ( 2378, 1017) v (  410,    0) ts 1.000 floor true  wall false dead false | land: hard | bank: landed on the far bank at (2378.0, 1017.0) | floor_on
+   6.53s  beat 10 f10  pos ( 2679, 1017) v (  410,    0) ts 1.000 floor true  wall false dead false | checkpoint: 1
+  airborne frames with wall contact: 0
+  position jumps beyond velocity x time scale: none

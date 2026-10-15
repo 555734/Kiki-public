@@ -127,6 +127,8 @@ func log_event(ev: String, detail: String = "") -> void:
 	events.append({"frame": Engine.get_process_frames(), "cut": int(row.get("shot", 0)) if on_air else 0,
 		"cut_frame": cut_frames if on_air else -1, "ev": ev, "detail": detail,
 		"runner": [roundf(at.x), roundf(at.y)], "tick": Clock.tick})
+	if _trace_on and ev != "sound":
+		_trace_mark_next += ("%s%s%s" % [" | " if _trace_mark_next != "" else "", ev, (": " + detail.replace("\"", "'")) if detail != "" else ""])
 	if OS.get_environment("FINALE_LOG") != "":
 		print("      [%s] %s %s at %s" % [("cut %d f%d" % [row.get("shot", 0), cut_frames]) if on_air else "off-air", ev, detail, at.round()])
 
@@ -573,6 +575,7 @@ func _process(delta: float) -> void:
 		return
 	_update_camera(delta)
 	_measure_cut()
+	_trace_step()
 	# Pointer: screen position of the guardian's aim, with fade and pop.
 	overlay.pointer = screen_of(pointer) if pointer.x != INF else Vector2(INF, INF)
 	overlay.pointer_alpha = move_toward(overlay.pointer_alpha, _pointer_alpha_to, 0.12)
@@ -760,7 +763,7 @@ func take_opening() -> void:
 	await begin_take(Vector2(-60, 877), 0)
 	var bug := enemy_near("burrbug", Vector2(1180, 1135))
 	var lip := Vector2(1540, 1160)
-	var bank := Vector2(2300, 1080)
+	var bank := Vector2(2300, 1040)
 	hold(1.0, true)
 	await until(x_past(envf("PV_OPEN_X", 560.0)), 200)
 
@@ -783,140 +786,210 @@ func take_opening() -> void:
 	await until(func() -> bool: return r.global_position.x > bug.global_position.x + 30.0 and r.is_on_floor(), 70)
 	_flags["cleared_enemy"] = r.hp == Balance.RUNNER_MAX_HP and r.global_position.x > bug.global_position.x
 
-	# 3 THE LEAP: close behind the sprint to the very edge; on the take-off
-	# the camera pulls far back: the gorge is 760px wide and has no bottom
-	# in sight; the far bank is plainly out of reach.
-	await cut(3, "Runner leaps from the crumbling edge; wide: the gorge is far wider than the jump and drops out of sight",
-		func() -> bool: return machine("cliff_lip").state == 1 and not r.is_on_floor() and r.global_position.x > 1620.0,
-		func() -> Vector2: return bank, {"subject_name": "far bank", "subject_r": 60.0, "establish": true, "hero_floor": 0.04, "frames": 80})
-	camera({"mode": "follow", "zoom": 2.0, "lead": 170.0, "offset": Vector2(80, -30), "smooth": 9.0, "rotation": 0.03})
-	await until(x_past(1524), 60)
-	log_event("cliff_jump", "take-off x %.0f, far bank at x %.0f" % [r.global_position.x, bank.x])
-	camera({"mode": "frame", "fit": [func() -> Vector2: return Vector2(1430, 760), func() -> Vector2: return bank + Vector2(160, -60),
-		func() -> Vector2: return Vector2(1900, 2050), func() -> Vector2: return r.global_position + Vector2(0, -110)], "pad": 30.0, "zoom": 0.62,
-		"zoom_from": 2.0, "zoom_frames": 24, "min_zoom": 0.42, "smooth": 12.0})
-	_watch_fall(lip, bank)
+	# The rescue, beats 3-10 (PV_RESCUE=nohelp: the same leap, nobody
+	# answers). One continuous shot from the take-off to the catch; the
+	# runner moves only by the game's own physics -- slow motion is the
+	# engine's time scale, so the fall goes on (slowly) the whole time.
+	var nohelp := OS.get_environment("PV_RESCUE") == "nohelp"
+	_trace_on = true
+	_trace_rows.clear()
+	_trace_mark("take_start", "variant %s" % ("nohelp" if nohelp else "help"))
+
+	# 3 THE LEAP (0-1 s): wide -- both cliffs, the gap and the drop -- as
+	# the runner sprints off the lip.
+	camera({"mode": "frame", "fit": [func() -> Vector2: return Vector2(1240, 1060), func() -> Vector2: return bank + Vector2(260, -40),
+		func() -> Vector2: return Vector2(1900, 1560), func() -> Vector2: return r.global_position + Vector2(0, -150)], "pad": 30.0,
+		"zoom": 0.8, "min_zoom": 0.6, "smooth": 14.0, "snap": true})
+	await cut(3, "Wide: the runner sprints off the left cliff toward a far bank that is higher and too far; the gorge drops into the dark",
+		func() -> bool: return not r.is_on_floor() and r.global_position.x > lip.x + 20.0,
+		func() -> Vector2: return bank, {"subject_name": "far bank", "subject_r": 60.0, "establish": true, "hero_floor": 0.04, "frames": 60})
+	hold(1.0, true)
+	await until(x_past(1525), 80)
 	_jump = true
+	_trace_mark("jump_start", "take-off x %.0f vx %.0f" % [r.global_position.x, r.velocity.x])
 	await frames(18)
 	_jump = false
 	await until(func() -> bool: return r.velocity.y > -60.0, 30)
 	_jump = true
+	_trace_mark("air_jump", "x %.0f: the last of the runner's height" % r.global_position.x)
 	await frames(14)
 	_jump = false
-	log_event("air_jump_spent", "x %.0f: nothing left to reach the bank" % r.global_position.x)
 
-	# 4 FALLING SHORT: on the way down, far short of the bank and clear of
-	# both walls, the camera closes in on the runner with nothing under them;
-	# time stretches almost to a stop.
-	cut(4, "Close on the runner falling in the open gorge, far from both walls, nothing below; time slows almost to a stop",
-		func() -> bool: return r.velocity.y > 0.0 and not r.is_on_floor() and r.global_position.x < bank.x - 250.0 and Engine.time_scale < 0.2,
-		Callable(), {"wait": false, "frames": 64,
-		"start_when": func() -> bool: return r.velocity.y > 0.0,
-		"on_start": func() -> void:
-			camera({"mode": "follow", "zoom": 2.0, "zoom_from": 1.2, "zoom_frames": 40, "lead": 0.0, "offset": Vector2(170, 150),
-				"smooth": 10.0, "rotation": -0.03})})
-	await until(func() -> bool: return on_air and int(row["shot"]) == 4, 200)
-	log_event("falling", "runner %s vy %.0f, %.0f px short of the bank, lip %.0f px behind" % [r.global_position.round(), r.velocity.y,
-		bank.x - r.global_position.x, r.global_position.x - lip.x])
+	# 4 SHORT (1-2 s): the camera closes in on the runner as the arc tops
+	# out short of the bank and turns into a fall.
+	cut(4, "The camera closes in: the arc tops out far short of the higher bank and the runner starts to fall, nothing under them",
+		func() -> bool: return r.velocity.y > 150.0 and not r.is_on_floor() and r.global_position.x < bank.x - 200.0,
+		Callable(), {"wait": false, "frames": 60, "on_start": func() -> void:
+			camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-120, -100), func() -> Vector2: return r.global_position + Vector2(260, 380)],
+				"pad": 30.0, "zoom": 1.4, "zoom_from": 0.8, "zoom_frames": 60, "min_zoom": 0.8, "smooth": 7.0})})
+	await until(func() -> bool: return r.velocity.y > 0.0, 60)
+	_trace_mark("fall_start", "apex passed at %s, %.0f px short of the bank" % [r.global_position.round(), bank.x - r.global_position.x])
 
-	# 5 INCOMING CALL: still falling, an incoming call slides in on the
-	# right; the runner stays framed on the left.
-	await cut(5, "Still falling, an incoming call appears on the right (Discord mark, decline and accept only); the runner stays clear on the left",
-		func() -> bool: return overlay.call_alpha > 0.9 and overlay.call_state == 1 and not r.is_on_floor() and screen_of(r.global_position).x < 820.0,
-		Callable(), {"frames": 54})
-	ramp_time(0.02, 12)
-	camera({"mode": "follow", "zoom": 1.9, "lead": 0.0, "offset": Vector2(160, 120), "smooth": 10.0, "rotation": -0.02})
+	if nohelp:
+		# Nobody answers: the fall goes on at full speed, the camera follows
+		# it down into the dark until the game ends the life.
+		await end_cut()
+		cut(5, "Nobody answers: the runner falls past both walls into the dark and dies",
+			func() -> bool: return r.state == Runner.State.DEAD, Callable(),
+			{"wait": false, "frames": 84, "allow_hurt": true, "on_start": func() -> void:
+				camera({"mode": "follow", "zoom": 1.1, "lead": 0.0, "offset": Vector2(60, 120), "smooth": 5.0, "smooth_y": 7.0})})
+		await until(func() -> bool: return r.state == Runner.State.DEAD, 240)
+		_trace_mark("death", "runner %s" % r.global_position.round())
+		await end_cut()
+		_trace_on = false
+		_write_trace("nohelp")
+		return
+
+	# Slow motion once the fall is under way: the engine's time scale, so
+	# the runner keeps falling -- and accelerating -- the whole time.
+	# Once the runner has dropped to the far bank's height -- plunging,
+	# clearly short of it.
+	await until(func() -> bool: return feet().y > bank.y - 90.0, 40)
+	ramp_time(0.05, 8)
+	sfx("whoosh", -3.0, 0.7)
+	_trace_mark("slowmo", "time scale -> 0.05 at feet %.0f (bank top %.0f), vy %.0f" % [feet().y, bank.y, r.velocity.y])
+	await end_cut()
+
+	# 5 CALL (2-3 s): still falling; the call slides in on the right, the
+	# runner framed on the left with the drop under them.
+	await cut(5, "Still falling (slow motion), the incoming call appears on the right: Discord mark, decline and accept only",
+		func() -> bool: return overlay.call_alpha > 0.9 and overlay.call_state == 1 and not r.is_on_floor() and screen_of(r.global_position).x < 800.0,
+		Callable(), {"frames": 50})
+	# The runner high on the left, the dark drop filling the frame under
+	# them, the call card on the right.
+	camera({"mode": "follow", "zoom": 1.4, "lead": 0.0, "offset": Vector2(180, 170), "smooth": 6.0})
 	overlay.call_state = 1
 	overlay.call_t = 0.0
 	sfx("ring")
 	await fade_call(1.0, 10)
-	await frames(24)
+	await frames(22)
 	sfx("ring")
 
-	# 6 YOUR PARTNER ARRIVES: accept; the blue YOU finger swoops in.
-	await cut(6, "The call is accepted and the blue YOU finger swoops in beside the falling runner (no second avatar)",
-		func() -> bool: return overlay.call_state == 2 and overlay.pointer_alpha > 0.8 and pointer.distance_to(r.global_position) < 220.0,
-		func() -> Vector2: return pointer if pointer.x != INF else r.global_position, {"subject_name": "YOU finger", "subject_r": 30.0, "frames": 40})
+	# 6 ANSWER (3-4 s): accept; the YOU finger swoops in under the runner.
+	await cut(6, "The call is answered and the blue YOU finger swoops in under the falling runner",
+		func() -> bool: return overlay.call_state == 2 and overlay.pointer_alpha > 0.8 and pointer.y > r.global_position.y,
+		func() -> Vector2: return pointer if pointer.x != INF else r.global_position, {"subject_name": "YOU finger", "subject_r": 30.0, "frames": 48})
 	await frames(4)
 	overlay.call_state = 2
 	overlay.call_t = 0.0
 	sfx("accept")
+	_trace_mark("call_answered")
 	await frames(6)
 	fade_call(0.0, 12)
-	pointer = r.global_position + Vector2(-260, 120)
-	await point(r.global_position + Vector2(-150, 80), 18)
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-140, -100), func() -> Vector2: return r.global_position + Vector2(240, 330),
+		func() -> Vector2: return pointer if pointer.x != INF else r.global_position], "pad": 40.0, "zoom": 1.4, "min_zoom": 1.1, "smooth": 6.0})
+	pointer = r.global_position + Vector2(-340, 260)
+	await point(r.global_position + Vector2(-110, 120), 22)
 	overlay.pointer_pop = 1.0
 	sfx("scope_up")
 
-	# 7 A FLOOR IN THE AIR: under the falling runner YOU draws a platform.
-	var hp := r.global_position
-	var fy := feet().y + 56.0
-	var path := PackedVector2Array([Vector2(hp.x - 150.0, fy), Vector2(hp.x + 150.0, fy)])
-	log_event("platform_planned", "runner %s feet %.0f, platform top %.0f" % [hp.round(), feet().y, fy - 13.0])
-	await cut(7, "YOU draws a glowing platform in the air right under the falling runner",
-		func() -> bool: return main.guardian.holograms_of(Hologram.Kind.PLATFORM).size() >= 1,
-		func() -> Vector2: return (path[0] + path[1]) * 0.5, {"subject_name": "platform", "subject_r": 70.0, "frames": 46})
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(0, -60), func() -> Vector2: return path[0] + Vector2(0, 50),
-		func() -> Vector2: return path[1] + Vector2(260, 50)], "pad": 40.0, "zoom": 1.9, "min_zoom": 1.3, "smooth": 8.0})
-	var built := await trace(path, 12)
-	_flags["platform"] = built
+	# 7 THE FLOOR (4-5 s): the finger strokes a platform into the air under
+	# the falling runner; its blocks build along the stroke; time comes
+	# back toward full speed as the runner drops onto it.
+	var fy := feet().y + 80.0
+	var px := r.global_position.x
+	# From right under the runner out toward the bank: the blocks build from
+	# under their feet first.
+	var path := PackedVector2Array([Vector2(px - 40.0, fy), Vector2(px + 210.0, fy)])
+	_trace_mark("platform_planned", "runner %s vy %.0f; stroke y %.0f x %.0f..%.0f" % [r.global_position.round(), r.velocity.y, fy, path[0].x, path[1].x])
+	await cut(7, "YOU strokes a platform into the air under the falling runner; its blocks build along the stroke and the runner drops onto it",
+		func() -> bool: return main.guardian.holograms_of(Hologram.Kind.PLATFORM).size() >= 1 and _flags.get("on_holo", false),
+		func() -> Vector2: return (path[0] + path[1]) * 0.5, {"subject_name": "platform", "subject_r": 80.0, "frames": 66})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-130, -110), func() -> Vector2: return path[0] + Vector2(-20, 200),
+		func() -> Vector2: return path[1] + Vector2(40, 200)], "pad": 40.0, "zoom": 1.45, "min_zoom": 1.15, "smooth": 7.0})
+	var built := await trace(path, 10)
 	if built != null:
-		log_event("platform_built", "top %.0f under feet %.0f" % [built.global_position.y - 13.0, feet().y])
+		_trace_mark("platform_built", "top %.0f, x %.0f..%.0f; runner feet %.0f" % [built.global_position.y - 13.0, path[0].x, path[1].x, feet().y])
 	hide_pointer()
-
-	# 8 CAUGHT: the runner drops onto it -- the fall stops dead; time snaps
-	# back on the landing. Runner and platform together in the frame.
-	await cut(8, "The falling runner hits the platform and stops; runner and platform in one frame, the drop below",
-		func() -> bool: return _flags.get("on_holo", false) and r.is_on_floor() and absf(r.velocity.y) < 1.0,
-		func() -> Vector2: return (path[0] + path[1]) * 0.5, {"subject_name": "platform", "subject_r": 70.0, "frames": 46,
-		"on_start": func() -> void: ramp_time(0.5, 8)})
+	ramp_time(0.3, 12)
 	var vy_hit := r.velocity.y
-	while not r.is_on_floor():
+	while not r.is_on_floor() and r.state != Runner.State.DEAD:
 		vy_hit = r.velocity.y
 		await frames(1)
-	Engine.time_scale = 1.0
-	_ramp = [1.0, 1.0, 0, 0]
-	log_event("caught", "fall stopped on the platform: vy %.0f -> %.0f, feet %.0f" % [vy_hit, r.velocity.y, feet().y])
-	hitstop(4)
-	sfx("thud", 2.0, 0.9)
-	punch(0.12, 10)
-	hold(0.0)
-	await frames(10)
-
-	# 9 AGAIN: along the platform and a full jump with the air jump up to
-	# the bank, now in reach.
-	cut(9, "From the platform the runner jumps again, air jump at the top, and reaches the far bank",
-		func() -> bool: return r.global_position.x > bank.x and r.global_position.y < bank.y,
-		func() -> Vector2: return bank, {"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 54,
-		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-60, -80), func() -> Vector2: return bank + Vector2(120, -60),
-			func() -> Vector2: return r.global_position + Vector2(0, 80)], "pad": 60.0, "zoom": 1.7, "min_zoom": 1.2, "smooth": 7.0})})
-	hold(1.0)
-	await until(func() -> bool: return r.global_position.x > path[1].x - 30.0, 60)
-	await hop_to(bank + Vector2(70, 0), true, 20, 120)
-	log_event("bank", "runner %s on the far bank" % r.global_position.round())
-
-	# 10 SAFE SIDE: the landing, the gorge behind.
-	cut(10, "The runner lands on the far bank and runs on, the gorge and the fading platform behind",
-		func() -> bool: return r.is_on_floor() and r.global_position.x > bank.x and absf(feet().y - bank.y) < 6.0,
-		func() -> Vector2: return bank + Vector2(60, -30), {"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 42,
-		"on_start": func() -> void: camera({"mode": "follow", "zoom": 1.5, "zoom_from": 1.7, "zoom_frames": 50, "lead": 120.0, "offset": Vector2(-60, -60), "smooth": 6.0, "smooth_y": 10.0})})
-	hitstop(3)
-	sfx("thud", 0.0, 0.7)
-	hold(0.6)
-	await frames(18)
+	_trace_mark("contact", "fall stopped by the platform: vy %.0f -> %.0f, feet %.0f" % [vy_hit, r.velocity.y, feet().y])
+	# Caught: let go of the stick, as a player would.
 	release()
+	ramp_time(1.0, 8)
+	sfx("thud", 2.0, 0.9)
+	punch(0.1, 10)
 	await end_cut()
 
-## Beside the leap: once the runner is falling back toward the lip's height
-## with the air jump spent, time stretches almost to a stop.
-func _watch_fall(lip: Vector2, bank: Vector2) -> void:
-	for i in 200:
-		if r.velocity.y > 0.0 and feet().y > lip.y - 150.0 and r.global_position.x > lip.x + 150.0:
-			ramp_time(0.03, 10)
-			sfx("whoosh", -3.0, 0.7)
-			log_event("slowmo", "falling: feet %.0f (lip %.0f), %.0f px short of the bank" % [feet().y, lip.y, bank.x - r.global_position.x])
-			return
-		await get_tree().process_frame
+	# 8 SAVED (5-5.6 s): on the platform, the landing settles; the camera
+	# opens to show the bank above.
+	cut(8, "The runner lands on the glowing platform over the gorge and gets up, the higher bank ahead",
+		func() -> bool: return r.is_on_floor() and _flags.get("on_holo", false),
+		func() -> Vector2: return (path[0] + path[1]) * 0.5, {"subject_name": "platform", "subject_r": 80.0, "wait": false, "frames": 34,
+		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-150, -80), func() -> Vector2: return bank + Vector2(140, -60),
+			func() -> Vector2: return path[0] + Vector2(-20, 90)], "pad": 50.0, "zoom": 1.25, "min_zoom": 0.9, "smooth": 5.0})})
+	hold(0.0)
+	await frames(14)
+
+	# 9-10 OUT (5.6-7.5 s): along the platform, jump, air jump, onto the
+	# bank; land and run on; the camera pulls back over the gorge.
+	cut(9, "From the platform the runner jumps again, air jump at the top, and lands on the higher far bank",
+		func() -> bool: return r.global_position.x > bank.x and r.is_on_floor() and absf(feet().y - bank.y) < 6.0,
+		func() -> Vector2: return bank, {"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 64,
+		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-140, -90), func() -> Vector2: return bank + Vector2(220, -80),
+			func() -> Vector2: return path[0] + Vector2(-60, 120)], "pad": 50.0, "zoom": 1.1, "min_zoom": 0.85, "smooth": 4.0})})
+	# A full jump from the platform's end; steer right; the air jump only
+	# if the arc would fall short of the bank's top.
+	hold(1.0, true)
+	await until(func() -> bool: return r.global_position.x > path[0].x + 110.0, 60)
+	_jump = true
+	_trace_mark("escape_jump", "from the platform at %s" % r.global_position.round())
+	await frames(18)
+	_jump = false
+	await until(func() -> bool: return r.velocity.y > -60.0, 30)
+	_jump = true
+	await frames(12)
+	_jump = false
+	await until(func() -> bool: return r.is_on_floor(), 90)
+	_trace_mark("bank", "landed on the far bank at %s" % r.global_position.round())
+	sfx("thud", 0.0, 0.7)
+	cut(10, "The runner runs on across the far bank, the gorge and the fading platform behind",
+		func() -> bool: return r.is_on_floor() and r.global_position.x > bank.x + 120.0,
+		func() -> Vector2: return bank + Vector2(60, -30), {"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 40,
+		"on_start": func() -> void: camera({"mode": "follow", "zoom": 0.95, "lead": 60.0, "offset": Vector2(-180, -40), "smooth": 3.0})})
+	hold(1.0, true)
+	await end_cut()
+	_trace_mark("take_end", "runner %s" % r.global_position.round())
+	release()
+	_trace_on = false
+	_write_trace("help")
+
+## Per-frame state of the runner while a rescue take is on (CSV), with the
+## events of the take marked on the frame they happened.
+var _trace_on := false
+var _trace_rows: Array = []
+var _trace_mark_next := ""
+var _trace_floor := false
+
+func _trace_mark(ev: String, detail: String = "") -> void:
+	log_event(ev, detail)
+
+func _trace_step() -> void:
+	if not _trace_on or r == null:
+		return
+	var fl := r.is_on_floor()
+	var ev := _trace_mark_next
+	_trace_mark_next = ""
+	if fl != _trace_floor:
+		ev += ("%s%s" % [" | " if ev != "" else "", "floor_on" if fl else "floor_off"])
+		_trace_floor = fl
+	_trace_rows.append([Engine.get_process_frames(), int(row.get("shot", 0)) if on_air else 0, cut_frames if on_air else -1,
+		Clock.tick, snappedf(Engine.time_scale, 0.001), roundf(r.global_position.x), roundf(r.global_position.y),
+		roundf(r.velocity.x), roundf(r.velocity.y), fl, r.is_on_wall(), r.state, r.state == Runner.State.DEAD, ev])
+
+func _write_trace(variant: String) -> void:
+	var f := FileAccess.open(OUT + "rescue_trace_%s.csv" % variant, FileAccess.WRITE)
+	f.store_line("process_frame,beat,beat_frame,clock_tick,time_scale,x,y,vx,vy,on_floor,on_wall,state,dead,events")
+	for rw in _trace_rows:
+		var cells: Array = []
+		for v in rw:
+			cells.append(("\"%s\"" % v) if v is String else str(v))
+		f.store_line(",".join(cells))
+	f.close()
+	print("rescue trace: %d rows -> rescue_trace_%s.csv" % [_trace_rows.size(), variant])
 
 func _nearest_launch_ring() -> LaunchTrigger:
 	var best: LaunchTrigger = null
