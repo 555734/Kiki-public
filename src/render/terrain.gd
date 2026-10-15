@@ -19,6 +19,8 @@ var _cave_chunks: Array[Node2D] = []
 ## directly (the versus arena, the 3D view) still get one node that draws all.
 var is_chunk: bool = false
 var seed_base: int = 0
+## 1-10 groups neighbouring slabs into one chunk; their original indices.
+var seeds: Array[int] = []
 var _chunks: Array[Node2D] = []
 const CaveSlabScript = preload("res://src/render/cave_slab.gd")
 
@@ -33,6 +35,9 @@ func _draw() -> void:
 	# One CanvasItem spanning the whole 24,000 px cave prevents the renderer
 	# from rejecting off-screen ground. Each cave slab has its own bounds below.
 	if Stage.is_cave() or not _chunks.is_empty():
+		return
+	if Stage.is_finale() and not seeds.is_empty():
+		FinaleGround.ground_group(self, slabs, seeds)
 		return
 	for i in slabs.size():
 		_draw_slab(slabs[i], seed_base + i)
@@ -56,6 +61,30 @@ func set_slabs(next_slabs: Array[Rect2]) -> void:
 			remove_child(chunk)
 			chunk.queue_free()
 		_chunks.clear()
+		if Stage.is_finale():
+			# Neighbouring slabs share a chunk (1,600px columns), so their
+			# faces, marks and caps go out as a few batched meshes instead
+			# of several draw calls per slab.
+			var groups := {}
+			for i in slabs.size():
+				var key := floori(slabs[i].position.x / 1600.0)
+				if not groups.has(key):
+					groups[key] = []
+				groups[key].append(i)
+			for key in groups:
+				var chunk: Node2D = get_script().new()
+				chunk.is_chunk = true
+				var rs: Array[Rect2] = []
+				var ids: Array[int] = []
+				for i in groups[key]:
+					rs.append(slabs[i])
+					ids.append(i)
+				chunk.slabs = rs
+				chunk.seeds = ids
+				add_child(chunk)
+				_chunks.append(chunk)
+			queue_redraw()
+			return
 		for i in slabs.size():
 			var chunk: Node2D = get_script().new()
 			chunk.is_chunk = true

@@ -185,22 +185,32 @@ static func slabs_on(ci: CanvasItem, rects: Array, skin: String) -> void:
 	var body := _load(face.get("tex", s["body"]))
 	var tile := float(face.get("tile", s["tile"]))
 	var tint: Color = Color.WHITE if face.has("tex") else s["tint"]
+	# Three meshes for any number of slabs: faces, flat marks, caps.
+	var faces := TriBatch.new()
+	var flat := TriBatch.new()
 	for rect in rects:
-		ci.draw_rect(rect, s["fill"])
-	if body != null:
-		for rect in rects:
-			tiled_rect(ci, body, rect, tile, tint)
-	if face.has("rim"):
-		for rect in rects:
-			ci.draw_rect(rect, face["rim"], false, 4.0)
-	for rect in rects:
-		ci.draw_rect(Rect2(rect.position.x, rect.position.y + 40.0, rect.size.x, maxf(0.0, rect.size.y - 40.0)), Color(0.08, 0.03, 0.06, 0.16))
-		ci.draw_rect(Rect2(rect.position.x, rect.position.y, 7.0, rect.size.y), Color(0, 0, 0, 0.14))
-		ci.draw_rect(Rect2(rect.end.x - 7.0, rect.position.y, 7.0, rect.size.y), Color(0, 0, 0, 0.14))
+		if body != null:
+			var pts := PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)])
+			var uvs := PackedVector2Array()
+			for p in pts:
+				uvs.append(Vector2(p.x / tile, p.y / (tile * float(body.get_height()) / float(body.get_width()))))
+			faces.quad_uv(pts, uvs, tint)
+		else:
+			flat.rect(rect, s["fill"])
+		flat.rect(Rect2(rect.position.x, rect.position.y + 40.0, rect.size.x, maxf(0.0, rect.size.y - 40.0)), Color(0.08, 0.03, 0.06, 0.16))
+		flat.rect(Rect2(rect.position.x, rect.position.y, 7.0, rect.size.y), Color(0, 0, 0, 0.14))
+		flat.rect(Rect2(rect.end.x - 7.0, rect.position.y, 7.0, rect.size.y), Color(0, 0, 0, 0.14))
+		if face.has("rim"):
+			flat.polyline(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end,
+				Vector2(rect.position.x, rect.end.y), rect.position]), 4.0, face["rim"], false)
+	faces.flush(ci, body)
+	flat.flush(ci)
 	if skin == "bone":
 		return
+	var caps := TriBatch.new()
 	for rect in rects:
-		_cap_strip(ci, s, [rect.position, Vector2(rect.end.x, rect.position.y)])
+		_cap_strip(ci, s, [rect.position, Vector2(rect.end.x, rect.position.y)], caps)
+	caps.flush(ci, _load(s["cap"]))
 
 ## A rectangular slab. The cap's solid band sits on the collision top.
 static func slab_on(ci: CanvasItem, rect: Rect2, skin: String) -> void:
@@ -234,7 +244,7 @@ static func cap_on(ci: CanvasItem, rect: Rect2, skin: String) -> void:
 	_cap_strip(ci, s, [rect.position - Vector2(ext, 0), Vector2(rect.end.x + ext, rect.position.y)])
 
 ## A cap texture laid along a polyline (flat or sloped) with its band on top.
-static func _cap_strip(ci: CanvasItem, s: Dictionary, top: Array) -> void:
+static func _cap_strip(ci: CanvasItem, s: Dictionary, top: Array, into: TriBatch = null) -> void:
 	var cap := _load(s["cap"])
 	if cap == null:
 		return
@@ -244,6 +254,7 @@ static func _cap_strip(ci: CanvasItem, s: Dictionary, top: Array) -> void:
 	var src_w := float(cap.get_width())
 	var src_h := rows.y - rows.x
 	var seg_w := h * src_w / src_h
+	var batch := into if into != null else TriBatch.new()
 	for i in range(top.size() - 1):
 		var a: Vector2 = top[i]
 		var b: Vector2 = top[i + 1]
@@ -266,7 +277,10 @@ static func _cap_strip(ci: CanvasItem, s: Dictionary, top: Array) -> void:
 			# uv.x may exceed 1 only by rounding; one piece is one tile.
 			uvs[1].x = minf(uvs[1].x, 1.0)
 			uvs[2].x = minf(uvs[2].x, 1.0)
-			ci.draw_polygon(pts, PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE]), uvs, cap)
+			batch.quad_uv(pts, uvs)
+	# Every piece of the strip in one mesh: one draw call per cap.
+	if into == null:
+		batch.flush(ci, cap)
 
 ## A polygon slope. `top` is the walkable polyline (world space), `bottom`
 ## the y of the closed underside (or the thickness for a thin bridge).

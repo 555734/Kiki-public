@@ -140,40 +140,42 @@ func _draw() -> void:
 ## The deck: a spine of giant vertebrae, pass by pass so each pass batches
 ## (discs, spines, bodies, shading, rims). The walk line is the flat top.
 func _vertebrae(rects: Array) -> void:
+	var b := TriBatch.new()
 	var bone := FinaleGround.BONE
 	var shade := FinaleGround.BONE_SHADE
 	var rim := FinaleGround.BONE_RIM
 	for r in rects:
-		draw_rect(Rect2(r.position.x - 6, r.position.y + 10, 12, 30), Color("8f7a5c"))
+		b.rect(Rect2(r.position.x - 6, r.position.y + 10, 12, 30), Color("8f7a5c"))
 	for r in rects:
 		var c: Vector2 = r.position + Vector2(SEG * 0.5, DECK)
 		var spine := PackedVector2Array([c + Vector2(-20, -4), c + Vector2(18, -4), c + Vector2(-2, 92), c + Vector2(-14, 92)])
-		draw_colored_polygon(spine, shade)
-		draw_circle(c + Vector2(-8, 92), 9.0, shade)
+		b.poly(spine, shade)
+		b.circle(c + Vector2(-8, 92), 9.0, shade)
 	var bodies: Array = []
 	for r in rects:
 		var x: float = r.position.x
 		bodies.append(PackedVector2Array([Vector2(x + 6, 0), Vector2(x + SEG - 6, 0), Vector2(x + SEG, 12), Vector2(x + SEG - 3, 36),
 			Vector2(x + SEG - 14, DECK), Vector2(x + 14, DECK), Vector2(x + 3, 36), Vector2(x, 12)]))
-	for b in bodies:
-		draw_colored_polygon(b, shade)
+	for body in bodies:
+		b.poly(body, shade)
 	for r in rects:
 		var x: float = r.position.x
-		draw_colored_polygon(PackedVector2Array([Vector2(x + 8, 2), Vector2(x + SEG - 8, 2), Vector2(x + SEG - 4, 14),
+		b.poly(PackedVector2Array([Vector2(x + 8, 2), Vector2(x + SEG - 8, 2), Vector2(x + SEG - 4, 14),
 			Vector2(x + SEG - 10, 30), Vector2(x + 10, 30), Vector2(x + 4, 14)]), bone)
 	for r in rects:
-		draw_circle(r.position + Vector2(SEG * 0.5, 30), 7.0, Color("6b5642"))
+		b.circle(r.position + Vector2(SEG * 0.5, 30), 7.0, Color("6b5642"))
 	var outlines := PackedVector2Array()
 	var shine := PackedVector2Array()
-	for b in bodies:
-		for k in b.size():
-			outlines.append(b[k])
-			outlines.append(b[(k + 1) % b.size()])
+	for body in bodies:
+		for k in body.size():
+			outlines.append(body[k])
+			outlines.append(body[(k + 1) % body.size()])
 	for r in rects:
 		shine.append(r.position + Vector2(10, 4))
 		shine.append(Vector2(r.end.x - 10, r.position.y + 4))
-	draw_multiline(outlines, rim, 3.0)
-	draw_multiline(shine, Color("fffaf0"), 3.0)
+	b.multiline(outlines, 3.0, rim)
+	b.multiline(shine, 3.0, Color("fffaf0"))
+	b.flush(self)
 
 ## A fossil skull facing right, centre at `c`. `open` 0..1 drops the jaw.
 ## Ivory bone shaded from the top, a heavy brow, horns, a burning eye.
@@ -182,6 +184,7 @@ func _skull(c: Vector2, s: float, open: float, angle: float) -> void:
 	var shade := FinaleGround.BONE_SHADE
 	var rim := FinaleGround.BONE_RIM
 	draw_set_transform(c, angle, Vector2(s, s))
+	var b := TriBatch.new()
 	var hinge := Vector2(-150, 30)
 	var jaw_drop := open * 0.6
 	var upper := PackedVector2Array([Vector2(-240, -40), Vector2(-215, -150), Vector2(-90, -205), Vector2(60, -195), Vector2(160, -150),
@@ -194,22 +197,22 @@ func _skull(c: Vector2, s: float, open: float, angle: float) -> void:
 		var a: Vector2 = hb[0]
 		var tip: Vector2 = hb[1]
 		var nrm := (tip - a).normalized().orthogonal() * 34.0
-		draw_colored_polygon(PackedVector2Array([a + nrm, a - nrm, tip]), rim)
-		draw_colored_polygon(PackedVector2Array([a + nrm * 0.75, a - nrm * 0.75, tip.lerp(a, 0.06)]), shade)
+		b.poly(PackedVector2Array([a + nrm, a - nrm, tip]), rim)
+		b.poly(PackedVector2Array([a + nrm * 0.75, a - nrm * 0.75, tip.lerp(a, 0.06)]), shade)
 	# Teeth (behind the bone so their roots hide).
 	for i in 8:
 		var x := -90.0 + i * 48.0
 		var tl := 44.0 if i % 3 == 1 else 32.0
-		draw_colored_polygon(PackedVector2Array([Vector2(x, 20), Vector2(x + 26, 20), Vector2(x + 13, 20 + tl)]), Color("fffaf0"))
+		b.poly(PackedVector2Array([Vector2(x, 20), Vector2(x + 26, 20), Vector2(x + 13, 20 + tl)]), Color("fffaf0"))
 		var pts := PackedVector2Array()
 		for q in [Vector2(x, 50), Vector2(x + 26, 50), Vector2(x + 13, 50 - tl)]:
 			pts.append((q - hinge).rotated(jaw_drop) + hinge)
-		draw_colored_polygon(pts, Color("fffaf0"))
+		b.poly(pts, Color("fffaf0"))
 	# Dark mouth behind open jaws.
 	if open > 0.05:
-		draw_colored_polygon(PackedVector2Array([hinge, Vector2(300, 30), (Vector2(300, 40) - hinge).rotated(jaw_drop) + hinge]), Color(0.18, 0.06, 0.04))
+		b.poly(PackedVector2Array([hinge, Vector2(300, 30), (Vector2(300, 40) - hinge).rotated(jaw_drop) + hinge]), Color(0.18, 0.06, 0.04))
 	for poly in [lower, upper]:
-		draw_colored_polygon(poly, shade)
+		b.poly(poly, shade)
 		var top := PackedVector2Array()
 		var lo := INF
 		var hi := -INF
@@ -219,19 +222,20 @@ func _skull(c: Vector2, s: float, open: float, angle: float) -> void:
 		# Lit upper part: the same outline squashed toward its top.
 		for p in poly:
 			top.append(Vector2(p.x, lerpf(lo, p.y, 0.72)) + Vector2(0, 4))
-		draw_colored_polygon(top, bone)
+		b.poly(top, bone)
 		var line := PackedVector2Array(poly)
 		line.append(poly[0])
-		draw_polyline(line, rim, 7.0, true)
+		b.polyline(line, 7.0, rim)
 	# Brow ridge, cheek line, nostril, cracks.
-	draw_polyline(PackedVector2Array([Vector2(-60, -150), Vector2(30, -168), Vector2(110, -140)]), rim, 9.0, true)
-	draw_polyline(PackedVector2Array([Vector2(-120, -10), Vector2(60, -30), Vector2(220, -20)]), Color(rim, 0.45), 5.0, true)
-	draw_circle(Vector2(268, -52), 16.0, Color("2a1712"))
-	draw_polyline(PackedVector2Array([Vector2(-190, -110), Vector2(-140, -70), Vector2(-150, -30)]), Color(rim, 0.6), 4.0, true)
+	b.polyline(PackedVector2Array([Vector2(-60, -150), Vector2(30, -168), Vector2(110, -140)]), 9.0, rim)
+	b.polyline(PackedVector2Array([Vector2(-120, -10), Vector2(60, -30), Vector2(220, -20)]), 5.0, Color(rim, 0.45))
+	b.circle(Vector2(268, -52), 16.0, Color("2a1712"))
+	b.polyline(PackedVector2Array([Vector2(-190, -110), Vector2(-140, -70), Vector2(-150, -30)]), 4.0, Color(rim, 0.6))
 	# The eye: a deep socket with a burning ember.
-	draw_circle(Vector2(30, -100), 52.0, Color("2a1712"))
+	b.circle(Vector2(30, -100), 52.0, Color("2a1712"))
 	var glow := 0.65 + 0.35 * sin(seconds() * 7.0)
-	draw_circle(Vector2(36, -96), 40.0, Color(1.0, 0.25, 0.05, 0.35 * glow))
-	draw_circle(Vector2(36, -96), 22.0, Color(1.0, 0.45, 0.08, glow))
-	draw_circle(Vector2(36, -96), 9.0, Color(1.0, 0.95, 0.6))
+	b.circle(Vector2(36, -96), 40.0, Color(1.0, 0.25, 0.05, 0.35 * glow))
+	b.circle(Vector2(36, -96), 22.0, Color(1.0, 0.45, 0.08, glow))
+	b.circle(Vector2(36, -96), 9.0, Color(1.0, 0.95, 0.6))
+	b.flush(self)
 	draw_set_transform(Vector2.ZERO)

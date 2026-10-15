@@ -173,11 +173,14 @@ func _arm(from: Vector2, to: Vector2, width: float) -> void:
 	# A sculpted stone limb: upper arm and forearm as tapered slabs of the
 	# giant's own rock, a heavy fist at the end.
 	var elbow := from.lerp(to, 0.5) + (to - from).orthogonal().normalized() * width * 0.35
-	var tex := FinaleArt._load(Giant.TEX)
-	Giant.limb(self, from, elbow, width * 1.05, width * 0.9, tex)
-	Giant.limb(self, elbow, to, width * 0.9, width * 0.75, tex)
-	Giant.blob(self, to, width * 0.72, tex, 7)
-	Giant.blob(self, elbow, width * 0.5, tex, 3)
+	var faces := TriBatch.new()
+	var flat := TriBatch.new()
+	Giant.limb_into(faces, flat, from, elbow, width * 1.05, width * 0.9)
+	Giant.limb_into(faces, flat, elbow, to, width * 0.9, width * 0.75)
+	Giant.blob_into(faces, flat, to, width * 0.72, 7)
+	Giant.blob_into(faces, flat, elbow, width * 0.5, 3)
+	faces.flush(self, FinaleArt._load(Giant.TEX))
+	flat.flush(self)
 
 ## The giant's body, behind the terrain.
 class Back extends Node2D:
@@ -194,23 +197,25 @@ class Back extends Node2D:
 		# two burning eyes; dark rims, moss, cracks. Reads apart from the
 		# red mesa it rises out of.
 		var tex := FinaleArt._load(Giant.TEX)
+		var faces := TriBatch.new()
+		var b := TriBatch.new()
 		var o := Vector2(0, lift)
 		for side in [-1.0, 1.0]:
-			Giant.limb(self, o + Vector2(side * 120.0, -470.0), o + Vector2(side * 140.0, 40.0), 150.0, 175.0, tex)
+			Giant.limb_into(faces, b, o + Vector2(side * 120.0, -470.0), o + Vector2(side * 140.0, 40.0), 150.0, 175.0)
 		var torso := PackedVector2Array()
 		for p in [Vector2(-170, -400), Vector2(-250, -560), Vector2(-280, -760), Vector2(-230, -880), Vector2(-90, -920),
 				Vector2(90, -920), Vector2(230, -880), Vector2(280, -760), Vector2(250, -560), Vector2(170, -400), Vector2(0, -360)]:
 			torso.append(o + p)
-		Giant.mass(self, torso, tex)
+		Giant.mass_into(faces, b, torso)
 		# Belt of stone and a chest plate.
-		Giant.mass(self, PackedVector2Array([o + Vector2(-190, -470), o + Vector2(190, -470), o + Vector2(175, -400), o + Vector2(-175, -400)]), tex, 0.8)
+		Giant.mass_into(faces, b, PackedVector2Array([o + Vector2(-190, -470), o + Vector2(190, -470), o + Vector2(175, -400), o + Vector2(-175, -400)]), 0.8)
 		for side in [-1.0, 1.0]:
-			Giant.blob(self, o + Vector2(side * 250.0, -840.0), 115.0, tex, 11 if side > 0 else 5)
+			Giant.blob_into(faces, b, o + Vector2(side * 250.0, -840.0), 115.0, 11 if side > 0 else 5)
 		var head := PackedVector2Array()
 		for p in [Vector2(-140, -930), Vector2(-150, -1060), Vector2(-110, -1140), Vector2(0, -1165), Vector2(110, -1140),
 				Vector2(150, -1060), Vector2(140, -930), Vector2(60, -900), Vector2(-60, -900)]:
 			head.append(o + p)
-		Giant.mass(self, head, tex)
+		Giant.mass_into(faces, b, head)
 		# Moss on the crown and the shoulders.
 		for m in [[Vector2(-90, -1150), 180.0], [Vector2(-310, -930), 120.0], [Vector2(210, -935), 110.0]]:
 			var at: Vector2 = o + m[0]
@@ -222,31 +227,33 @@ class Back extends Node2D:
 			for k in range(8, -1, -1):
 				var t := float(k) / 8.0
 				moss.append(at + Vector2(w * t, 14.0 + (FinaleGround.h(k * 7 + int(w)) * 22.0) * sin(t * PI)))
-			draw_colored_polygon(moss, Color("4f8f30"))
+			b.poly(moss, Color("4f8f30"))
 		# Cracks.
 		for c in [[Vector2(-120, -800), Vector2(-60, -700), Vector2(-90, -620)], [Vector2(140, -560), Vector2(90, -500)],
 				[Vector2(40, -1120), Vector2(70, -1060)]]:
 			var line := PackedVector2Array()
 			for q in c:
 				line.append(o + q)
-			draw_polyline(line, Color(0.1, 0.1, 0.15, 0.8), 5.0, true)
+			b.polyline(line, 5.0, Color(0.1, 0.1, 0.15, 0.8))
 		# Brow, eyes, mouth slit.
 		var glow := 0.6 + 0.4 * sin(Clock.seconds_at(Clock.tick) * 3.0)
-		draw_colored_polygon(PackedVector2Array([o + Vector2(-130, -1060), o + Vector2(130, -1060), o + Vector2(120, -1020), o + Vector2(-120, -1020)]), Color(0.1, 0.1, 0.16))
+		b.poly(PackedVector2Array([o + Vector2(-130, -1060), o + Vector2(130, -1060), o + Vector2(120, -1020), o + Vector2(-120, -1020)]), Color(0.1, 0.1, 0.16))
 		for ex in [-62.0, 62.0]:
 			var eye := o + Vector2(ex, -1000)
-			draw_circle(eye, 30.0, Color(0.05, 0.05, 0.09))
+			b.circle(eye, 30.0, Color(0.05, 0.05, 0.09))
 			if giant.state == 1:
-				draw_circle(eye, 46.0, Color(0.3, 0.95, 1.0, 0.30 * glow))
-				draw_circle(eye, 20.0, Color(0.55, 1.0, 1.0))
-				draw_circle(eye, 8.0, Color.WHITE)
+				b.circle(eye, 46.0, Color(0.3, 0.95, 1.0, 0.30 * glow))
+				b.circle(eye, 20.0, Color(0.55, 1.0, 1.0))
+				b.circle(eye, 8.0, Color.WHITE)
 			else:
-				draw_circle(eye, 10.0, Color(0.3, 0.5, 0.6))
-		draw_line(o + Vector2(-70, -935), o + Vector2(70, -935), Color(0.08, 0.08, 0.12), 8.0)
+				b.circle(eye, 10.0, Color(0.3, 0.5, 0.6))
+		b.line(o + Vector2(-70, -935), o + Vector2(70, -935), 8.0, Color(0.08, 0.08, 0.12))
 		# Chest core (the shot target).
 		var core := o + Vector2(0, -620)
-		draw_circle(core, 70.0, Color(0.08, 0.08, 0.12))
-		draw_circle(core, 62.0, Color(1.0, 0.6, 0.2, 0.25 if giant.stunned() else 0.45 * glow))
+		b.circle(core, 70.0, Color(0.08, 0.08, 0.12))
+		b.circle(core, 62.0, Color(1.0, 0.6, 0.2, 0.25 if giant.stunned() else 0.45 * glow))
+		faces.flush(self, tex)
+		b.flush(self)
 		FinaleArt.centred(self, "golem_eye", core, 96.0)
 		draw_arc(core, 36.0, 0, TAU, 28, Color("ffd34a"), 5.0, true)
 	func _process(_delta: float) -> void:
@@ -261,6 +268,40 @@ class Giant:
 
 	## A filled rock mass: textured, shaded darker toward its bottom and
 	## right (light from the upper left), dark rim, lit upper-left edge.
+	## Batched form: the face into `faces` (textured), the rim into `flat`.
+	static func mass_into(faces: TriBatch, flat: TriBatch, poly: PackedVector2Array, light: float = 1.0) -> void:
+		var lo := Vector2(INF, INF)
+		var hi := -lo
+		for p in poly:
+			lo = lo.min(p)
+			hi = hi.max(p)
+		var idx := Geometry2D.triangulate_polygon(poly)
+		for i in range(0, idx.size(), 3):
+			var c := []
+			for k in 3:
+				var p: Vector2 = poly[idx[i + k]]
+				var t := clampf(((p.x - lo.x) / maxf(hi.x - lo.x, 1.0)) * 0.4 + ((p.y - lo.y) / maxf(hi.y - lo.y, 1.0)) * 0.6, 0.0, 1.0)
+				var v := lerpf(1.0, 0.62, t) * light
+				c.append(Color(v, v, minf(1.0, v * 1.04)))
+			faces._textured = true
+			faces._v.append_array(PackedVector2Array([poly[idx[i]], poly[idx[i + 1]], poly[idx[i + 2]]]))
+			faces._c.append_array(PackedColorArray(c))
+			faces._uv.append_array(PackedVector2Array([poly[idx[i]] / 360.0, poly[idx[i + 1]] / 360.0, poly[idx[i + 2]] / 360.0]))
+		var line := PackedVector2Array(poly)
+		line.append(poly[0])
+		flat.polyline(line, 7.0, RIM)
+
+	static func limb_into(faces: TriBatch, flat: TriBatch, a: Vector2, b: Vector2, wa: float, wb: float) -> void:
+		var n := (b - a).orthogonal().normalized()
+		mass_into(faces, flat, PackedVector2Array([a + n * wa * 0.5, b + n * wb * 0.5, b - n * wb * 0.5, a - n * wa * 0.5]))
+
+	static func blob_into(faces: TriBatch, flat: TriBatch, c: Vector2, r: float, seed: int) -> void:
+		var poly := PackedVector2Array()
+		for k in 10:
+			var a := TAU * float(k) / 10.0
+			poly.append(c + Vector2(cos(a), sin(a)) * r * (0.86 + 0.18 * FinaleGround.h(seed * 11 + k)))
+		mass_into(faces, flat, poly)
+
 	static func mass(ci: CanvasItem, poly: PackedVector2Array, tex: Texture2D, light: float = 1.0) -> void:
 		var lo := Vector2(INF, INF)
 		var hi := -lo

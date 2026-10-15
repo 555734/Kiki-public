@@ -1140,7 +1140,7 @@ func take_volcano() -> void:
 	var moving_left := func(m: FinaleMachine) -> bool: return m.offset_at(Clock.tick + 1).x < m.offset_at(Clock.tick).x
 	await until(func() -> bool: return machine("swing_a")._deck.global_position.x < 9960.0 and moving_left.call(machine("swing_a")), 300)
 	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position, func() -> Vector2: return machine("swing_a").global_position + Vector2(0, 60),
-		func() -> Vector2: return machine("swing_a")._deck.global_position + Vector2(0, 30)], "pad": 130.0, "zoom": 1.5, "min_zoom": 1.05, "smooth": 6.0, "fx": 0.4, "snap": true})
+		func() -> Vector2: return machine("swing_a")._deck.global_position + Vector2(0, 30)], "pad": 90.0, "zoom": 1.7, "min_zoom": 1.25, "smooth": 6.0, "fx": 0.4, "snap": true})
 	await cut(19, "The runner leaps off the ledge onto a chain-hung platform and rides its arc over the lava",
 		func() -> bool: return r.is_on_floor() and machine("swing_a").runner_on(machine("swing_a")._deck),
 		func() -> Vector2: return machine("swing_a")._deck.global_position, {"subject_name": "swinging platform", "subject_r": 80.0})
@@ -1153,7 +1153,7 @@ func take_volcano() -> void:
 	var lift := func() -> FinaleMachine: return machine("lift_2440")
 	await until(func() -> bool: return lift.call().lift_at(Clock.tick) < 0.5 and lift.call().warning_at(Clock.tick), 400)
 	await hop_to(Vector2(10990, 2440))
-	camera({"mode": "follow", "zoom": 1.35, "lead": 0.0, "offset": Vector2(150, -150), "smooth": 8.0, "smooth_y": 12.0, "snap": true, "fx": 0.6})
+	camera({"mode": "follow", "zoom": 1.6, "lead": 0.0, "offset": Vector2(120, -110), "smooth": 8.0, "smooth_y": 12.0, "snap": true, "fx": 0.6})
 	await cut(20, "Rapid upward ride on the vent lifts between staggered lava eruptions",
 		func() -> bool:
 			var l := lift.call() as FinaleMachine
@@ -1540,8 +1540,8 @@ func take_bone() -> void:
 	cut(39, "The gigantic fossil jaws snap shut right behind the runner as they dive through the stone gate",
 		func() -> bool: return machine("beast")._snapped and r.global_position.x > gate,
 		func() -> Vector2: return Vector2(gate - 120.0, 160.0), {"subject_name": "closing jaws", "subject_r": 160.0, "wait": false,
-		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(100, -150), func() -> Vector2: return r.global_position + Vector2(40, 80), func() -> Vector2: return machine("beast").chase_head() + Vector2(160, -40)],
-			"pad": 70.0, "zoom": 1.8, "min_zoom": 1.3, "smooth": 8.0, "rotation": -0.07, "fx": 1.0, "snap": true}),
+		"on_start": func() -> void: camera({"mode": "follow", "zoom": 1.6, "lead": 0.0, "offset": Vector2(-150, 50), "smooth": 8.0, "smooth_y": 9.0,
+			"rotation": -0.07, "fx": 1.0, "snap": true}),
 		"start_when": func() -> bool: return machine("beast").jaw_front() > gate - 300.0})
 	# Across the last pillars -- or, if a sand jet has thrown the runner up
 	# onto the rib path, along the ribs -- and down through the gate.

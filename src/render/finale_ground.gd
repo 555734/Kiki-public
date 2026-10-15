@@ -157,7 +157,9 @@ static func _uvs(pts: PackedVector2Array, tile: float) -> PackedVector2Array:
 		uvs[i] = pts[i] / tile
 	return uvs
 
-## Paint one ground rectangle.
+## Paint one ground rectangle. Draw calls: the textured face, one batched
+## mesh for every flat-coloured mark (shading, rims, strata, cracks, drips),
+## the cap, and the sprites.
 static func ground_on(ci: CanvasItem, rect: Rect2, skin: String, seed: int) -> void:
 	if skin == "bone" and rect.size.y <= 60.0:
 		bone_on(ci, [Vector2(rect.position.x, rect.position.y + rect.size.y * 0.5),
@@ -177,14 +179,62 @@ static func ground_on(ci: CanvasItem, rect: Rect2, skin: String, seed: int) -> v
 		ci.draw_polygon(pts, cols, _uvs(pts, float(look["tile"])), tex)
 	else:
 		ci.draw_colored_polygon(pts, FinaleArt.SKINS[skin]["fill"])
-	_shade(ci, pts, rect, look)
-	_rim(ci, pts, rect, look, style)
-	_details(ci, rect, skin, look, seed, pts)
+	var b := TriBatch.new()
+	_shade(b, pts, rect, look)
+	_rim(b, pts, rect, look, style)
+	_details(b, rect, skin, look, seed)
+	b.flush(ci)
 	FinaleArt.cap_on(ci, rect, skin)
+	_vines(ci, rect, skin, seed)
 	_props(ci, rect, skin, seed)
 
+## Paint a group of slabs (one terrain chunk) with as few draw calls as
+## possible: one mesh per face texture, one for every flat mark of every slab,
+## one per cap texture, then the sprites.
+static func ground_group(ci: CanvasItem, rects: Array, seeds: Array) -> void:
+	var faces := {}
+	var caps := {}
+	var flat := TriBatch.new()
+	for i in rects.size():
+		var rect: Rect2 = rects[i]
+		var seed: int = seeds[i]
+		var skin := FinaleArt.skin_for(rect)
+		if skin == "bone" and rect.size.y <= 60.0:
+			bone_into(flat, [Vector2(rect.position.x, rect.position.y + rect.size.y * 0.5),
+				Vector2(rect.end.x, rect.position.y + rect.size.y * 0.5)], rect.size.y + 6.0, seed)
+			continue
+		var look: Dictionary = LOOK.get(skin, LOOK["grass"])
+		var style := String(look["style"])
+		var pts := outline(rect, style, seed)
+		if Geometry2D.triangulate_polygon(pts).is_empty():
+			pts = PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)])
+		var tex_path := String(look["tex"])
+		if not faces.has(tex_path):
+			faces[tex_path] = TriBatch.new()
+		(faces[tex_path] as TriBatch).poly_uv(pts, _uvs(pts, float(look["tile"])))
+		_shade(flat, pts, rect, look)
+		_rim(flat, pts, rect, look, style)
+		_details(flat, rect, skin, look, seed)
+		if skin != "bone":
+			var s: Dictionary = FinaleArt.SKINS.get(skin, FinaleArt.SKINS["grass"])
+			var cap_path := String(s["cap"])
+			if cap_path != "":
+				if not caps.has(cap_path):
+					caps[cap_path] = TriBatch.new()
+				FinaleArt._cap_strip(ci, s, [rect.position - Vector2(7, 0), Vector2(rect.end.x + 7.0, rect.position.y)], caps[cap_path])
+	for path in faces:
+		(faces[path] as TriBatch).flush(ci, FinaleArt._load(path))
+	flat.flush(ci)
+	for path in caps:
+		(caps[path] as TriBatch).flush(ci, FinaleArt._load(path))
+	for i in rects.size():
+		var rect: Rect2 = rects[i]
+		var skin := FinaleArt.skin_for(rect)
+		_vines(ci, rect, skin, seeds[i])
+		_props(ci, rect, skin, seeds[i])
+
 ## Darken with depth (vertex colours over the same outline).
-static func _shade(ci: CanvasItem, pts: PackedVector2Array, rect: Rect2, look: Dictionary) -> void:
+static func _shade(b: TriBatch, pts: PackedVector2Array, rect: Rect2, look: Dictionary) -> void:
 	var c: Color = look["shade"]
 	var cols := PackedColorArray()
 	cols.resize(pts.size())
@@ -192,11 +242,11 @@ static func _shade(ci: CanvasItem, pts: PackedVector2Array, rect: Rect2, look: D
 		var d := pts[i].y - rect.position.y
 		var a := clampf((d - 30.0) / 520.0, 0.0, 1.0) * 0.55
 		cols[i] = Color(c, a)
-	ci.draw_polygon(pts, cols)
+	b.poly_colors(pts, cols)
 
 ## Dark rim around the exposed outline, a lit inner edge on the left (light
 ## comes from the upper left), and a soft occlusion band inside the rim.
-static func _rim(ci: CanvasItem, pts: PackedVector2Array, rect: Rect2, look: Dictionary, style: String) -> void:
+static func _rim(b: TriBatch, pts: PackedVector2Array, rect: Rect2, look: Dictionary, style: String) -> void:
 	var open_l := _exposed(rect, true)
 	var open_r := _exposed(rect, false)
 	var line := PackedVector2Array()
@@ -221,8 +271,9 @@ static func _rim(ci: CanvasItem, pts: PackedVector2Array, rect: Rect2, look: Dic
 		runs.append(line)
 	var rim: Color = look["rim"]
 	for run in runs:
-		ci.draw_polyline(run, Color(0, 0, 0, 0.16), 22.0)
-		ci.draw_polyline(run, rim, 5.0, true)
+		b.polyline(run, 22.0, Color(0, 0, 0, 0.16), false)
+	for run in runs:
+		b.polyline(run, 5.0, rim)
 	# Lit edge: the left side just inside the rim, fading with depth.
 	if open_l > 30.0 and style != "masonry":
 		var lit := PackedVector2Array()
@@ -231,38 +282,41 @@ static func _rim(ci: CanvasItem, pts: PackedVector2Array, rect: Rect2, look: Dic
 			if p.x < rect.position.x + rect.size.x * 0.5 and p.y - rect.position.y < minf(open_l, 260.0) and p.y < rect.end.y - 2.0:
 				lit.append(p + Vector2(7, 0))
 		if lit.size() > 1:
-			ci.draw_polyline(lit, look["lit"], 5.0, true)
+			b.polyline(lit, 5.0, look["lit"])
+
+## Vines and roots over exposed cliff lips (sprites, after the batch).
+static func _vines(ci: CanvasItem, rect: Rect2, skin: String, seed: int) -> void:
+	if not (skin == "grass" or skin == "cliff") or rect.size.x < 40.0:
+		return
+	for left in [true, false]:
+		if _exposed(rect, left) < 140.0:
+			continue
+		var n := 1
+		for i in n:
+			var key := "vine_%s" % ["a", "b", "c"][int(h(seed * 3 + i + (7 if left else 0)) * 3.0) % 3]
+			var x := (rect.position.x + 14.0 + float(i) * 34.0) if left else (rect.end.x - 14.0 - float(i) * 34.0)
+			var vh := 130.0 + h(seed * 7 + i) * 110.0
+			FinaleArt.sprite(ci, key, Vector2(x, rect.position.y + 10.0 + vh), vh, not left)
 
 ## Material marks inside the face: strata lines, glowing cracks, honey.
-static func _details(ci: CanvasItem, rect: Rect2, skin: String, look: Dictionary, seed: int, pts: PackedVector2Array) -> void:
+static func _details(b: TriBatch, rect: Rect2, skin: String, look: Dictionary, seed: int) -> void:
 	var x0 := rect.position.x + 20.0
 	var x1 := rect.end.x - 20.0
 	if x1 - x0 < 40.0:
 		return
-	if skin == "grass" or skin == "cliff":
-		# Vines and roots over exposed cliff lips.
-		for left in [true, false]:
-			if _exposed(rect, left) < 140.0:
-				continue
-			var n := 1 + int(h(seed * 5 + (1 if left else 2)) * 2.0)
-			for i in n:
-				var key := "vine_%s" % ["a", "b", "c"][int(h(seed * 3 + i + (7 if left else 0)) * 3.0) % 3]
-				var x := (rect.position.x + 14.0 + float(i) * 34.0) if left else (rect.end.x - 14.0 - float(i) * 34.0)
-				var vh := 130.0 + h(seed * 7 + i) * 110.0
-				FinaleArt.sprite(ci, key, Vector2(x, rect.position.y + 10.0 + vh), vh, not left)
 	match skin:
 		"grass", "sand", "cliff":
 			# Sediment bands across the face.
 			var bands := mini(5, int(minf(rect.size.y, 700.0) / 120.0))
-			for b in bands:
-				var y := rect.position.y + 90.0 + float(b) * 120.0 + h(seed * 7 + b) * 40.0
+			for k in bands:
+				var y := rect.position.y + 90.0 + float(k) * 120.0 + h(seed * 7 + k) * 40.0
 				var line := PackedVector2Array()
 				var n := maxi(2, int((x1 - x0) / 40.0))
 				for i in n + 1:
 					var x := lerpf(x0, x1, float(i) / float(n))
-					line.append(Vector2(x, y + noise1(x / 90.0, seed + b * 3) * 10.0))
-				ci.draw_polyline(line, Color(look["shade"], 0.28), 4.0, true)
-				ci.draw_polyline(_shift(line, Vector2(0, 5)), Color(1, 0.95, 0.85, 0.10), 3.0, true)
+					line.append(Vector2(x, y + noise1(x / 90.0, seed + k * 3) * 10.0))
+				b.polyline(line, 4.0, Color(look["shade"], 0.28), false)
+				b.polyline(_shift(line, Vector2(0, 5)), 3.0, Color(1, 0.95, 0.85, 0.10), false)
 		"lava":
 			# Glowing fissures running down from the top.
 			var n := maxi(1, int((x1 - x0) / 160.0))
@@ -274,15 +328,15 @@ static func _details(ci: CanvasItem, rect: Rect2, skin: String, look: Dictionary
 					y += 30.0 + h(seed + i * 11 + k) * 40.0
 					x += (h(seed * 5 + i * 7 + k) - 0.5) * 40.0
 					crack.append(Vector2(x, minf(y, rect.end.y - 10.0)))
-				ci.draw_polyline(crack, Color(1.0, 0.35, 0.05, 0.35), 9.0, true)
-				ci.draw_polyline(crack, Color(1.0, 0.75, 0.25), 3.0, true)
+				b.polyline(crack, 9.0, Color(1.0, 0.35, 0.05, 0.35))
+				b.polyline(crack, 3.0, Color(1.0, 0.75, 0.25), false)
 		"hive":
 			# Honey seeping over the lip in drips.
 			var n := maxi(1, int((x1 - x0) / 110.0))
 			for i in n:
 				var x := lerpf(x0, x1, (float(i) + 0.5) / float(n)) + (h(seed * 9 + i) - 0.5) * 50.0
 				var len := 26.0 + h(seed * 13 + i) * 60.0
-				honey_drip(ci, Vector2(x, rect.position.y + 6.0), len, 9.0 + h(i + seed) * 6.0)
+				honey_drip_into(b, Vector2(x, rect.position.y + 6.0), len, 9.0 + h(i + seed) * 6.0)
 
 static func _shift(line: PackedVector2Array, by: Vector2) -> PackedVector2Array:
 	var out := PackedVector2Array(line)
@@ -292,6 +346,11 @@ static func _shift(line: PackedVector2Array, by: Vector2) -> PackedVector2Array:
 
 ## A glossy drip of honey hanging from `top`.
 static func honey_drip(ci: CanvasItem, top: Vector2, length: float, width: float) -> void:
+	var b := TriBatch.new()
+	honey_drip_into(b, top, length, width)
+	b.flush(ci)
+
+static func honey_drip_into(b: TriBatch, top: Vector2, length: float, width: float) -> void:
 	var c := Color("e88a00")
 	var poly := PackedVector2Array()
 	for i in 9:
@@ -300,10 +359,10 @@ static func honey_drip(ci: CanvasItem, top: Vector2, length: float, width: float
 	for i in range(8, -1, -1):
 		var t := float(i) / 8.0
 		poly.append(top + Vector2(width * (1.0 - t * 0.55), t * length))
-	ci.draw_colored_polygon(poly, c)
-	ci.draw_circle(top + Vector2(0, length), width * 0.85, c)
-	ci.draw_circle(top + Vector2(-width * 0.25, length - width * 0.2), width * 0.3, Color(1, 0.95, 0.7, 0.8))
-	ci.draw_line(top + Vector2(-width * 0.45, 2), top + Vector2(-width * 0.3, length * 0.7), Color(1, 0.9, 0.5, 0.6), 2.5)
+	b.poly(poly, c)
+	b.circle(top + Vector2(0, length), width * 0.85, c)
+	b.circle(top + Vector2(-width * 0.25, length - width * 0.2), width * 0.3, Color(1, 0.95, 0.7, 0.8), 8)
+	b.line(top + Vector2(-width * 0.45, 2), top + Vector2(-width * 0.3, length * 0.7), 2.5, Color(1, 0.9, 0.5, 0.6))
 
 ## Small set dressing on a slab's top, never on the walk line's edges.
 static func _props(ci: CanvasItem, rect: Rect2, skin: String, seed: int) -> void:
@@ -330,40 +389,46 @@ static func _props(ci: CanvasItem, rect: Rect2, skin: String, seed: int) -> void
 
 ## A fossil bone laid along `path` (world points): a thick ivory shaft with
 ## a dark rim, a lit ridge, joint knuckles at each point and knobbed ends.
+## One draw call (TriBatch).
 static func bone_on(ci: CanvasItem, path: Array, thick: float, seed: int) -> void:
+	var b := TriBatch.new()
+	bone_into(b, path, thick, seed)
+	b.flush(ci)
+
+static func bone_into(b: TriBatch, path: Array, thick: float, seed: int) -> void:
 	var line := PackedVector2Array(path)
 	var w := thick
-	ci.draw_polyline(line, BONE_RIM, w + 8.0, true)
+	var ends := []
 	for p in [line[0], line[-1]]:
 		var dir := (line[1] - line[0]).normalized() if p == line[0] else (line[-1] - line[-2]).normalized()
-		var nrm := Vector2(-dir.y, dir.x)
+		ends.append([p, Vector2(-dir.y, dir.x)])
+	b.polyline(line, w + 8.0, BONE_RIM)
+	for e in ends:
 		for s in [-1.0, 1.0]:
-			ci.draw_circle(p + nrm * s * w * 0.42, w * 0.55 + 4.0, BONE_RIM)
-	ci.draw_polyline(line, BONE_SHADE, w, true)
-	ci.draw_polyline(_shift(line, Vector2(0, -w * 0.16)), BONE, w * 0.66, true)
-	ci.draw_polyline(_shift(line, Vector2(0, -w * 0.3)), Color(1, 1, 0.96, 0.85), maxf(2.0, w * 0.14), true)
-	for p in [line[0], line[-1]]:
-		var dir := (line[1] - line[0]).normalized() if p == line[0] else (line[-1] - line[-2]).normalized()
-		var nrm := Vector2(-dir.y, dir.x)
+			b.circle(e[0] + e[1] * s * w * 0.42, w * 0.55 + 4.0, BONE_RIM)
+	b.polyline(line, w, BONE_SHADE)
+	b.polyline(_shift(line, Vector2(0, -w * 0.16)), w * 0.66, BONE)
+	b.polyline(_shift(line, Vector2(0, -w * 0.3)), maxf(2.0, w * 0.14), Color(1, 1, 0.96, 0.85))
+	for e in ends:
 		for s in [-1.0, 1.0]:
-			ci.draw_circle(p + nrm * s * w * 0.42, w * 0.55, BONE_SHADE)
-			ci.draw_circle(p + nrm * s * w * 0.42 + Vector2(-2, -3), w * 0.38, BONE)
+			b.circle(e[0] + e[1] * s * w * 0.42, w * 0.55, BONE_SHADE)
+			b.circle(e[0] + e[1] * s * w * 0.42 + Vector2(-2, -3), w * 0.38, BONE)
 	# Vertebra joints along the shaft.
 	var total := 0.0
 	for i in range(1, line.size()):
 		total += line[i].distance_to(line[i - 1])
-	var spacing := 70.0
+	var spacing := 70.0 if total < 900.0 else 130.0
 	var walked := 0.0
 	var next := spacing * (0.6 + h(seed) * 0.4)
 	for i in range(1, line.size()):
 		var a := line[i - 1]
-		var b := line[i]
-		var seg := a.distance_to(b)
+		var c := line[i]
+		var seg := a.distance_to(c)
 		while walked + seg >= next and next < total - spacing * 0.5:
-			var p := a.lerp(b, (next - walked) / maxf(seg, 0.001))
-			var dir := (b - a).normalized()
+			var p := a.lerp(c, (next - walked) / maxf(seg, 0.001))
+			var dir := (c - a).normalized()
 			var nrm := Vector2(-dir.y, dir.x)
-			ci.draw_line(p + nrm * w * 0.5, p - nrm * w * 0.5, Color(BONE_RIM, 0.55), 3.0, true)
-			ci.draw_circle(p - nrm * w * 0.52, w * 0.2, BONE_SHADE)
+			b.line(p + nrm * w * 0.5, p - nrm * w * 0.5, 3.0, Color(BONE_RIM, 0.55))
+			b.circle(p - nrm * w * 0.52, w * 0.2, BONE_SHADE, 8)
 			next += spacing
 		walked += seg
