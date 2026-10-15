@@ -41,15 +41,13 @@ func _draw() -> void:
 	var shake := 0.0
 	if state == 1 and since() < HOLD:
 		shake = sin(since() * 80.0) * 3.0
-	var t := FinaleArt.tex("bone_tile")
+	# A colossal fossil leg bone standing in the canyon: the walk line is
+	# the top of its joint head.
 	var h := 1750.0 - global_position.y
-	var r := Rect2(shake, d, _width, h)
-	draw_texture_rect(t, r, true, Color(0.95, 0.9, 0.8))
-	draw_rect(r, Color("6b5642"), false, 4.0)
-	draw_line(r.position + Vector2(0, 2), r.position + Vector2(_width, 2), Color("fff7e4"), 5.0)
-	for k in 3:
-		var y := d + 60.0 + k * 140.0
-		draw_rect(Rect2(shake - 8, y, _width + 16, 26), Color("d9cbaa"))
-		draw_rect(Rect2(shake - 8, y, _width + 16, 26), Color("6b5642"), false, 3.0)
+	var x := _width * 0.5 + shake
+	FinaleGround.bone_on(self, [Vector2(x, d + _width * 0.5), Vector2(x, d + h)], _width * 0.78, int(global_position.x))
+	# The flat of the joint, where the runner lands.
+	draw_line(Vector2(shake + 6, d + 3), Vector2(shake + _width - 6, d + 3), Color("fff7e4"), 5.0)
 	if state == 1:
-		draw_line(Vector2(shake + 20, d + 6), Vector2(shake + 50, d + 40), Color("6b5642"), 3.0)
+		draw_line(Vector2(x - 10, d + 10), Vector2(x + 18, d + 60), FinaleGround.BONE_RIM, 4.0)
+		draw_line(Vector2(x + 18, d + 60), Vector2(x - 4, d + 110), FinaleGround.BONE_RIM, 4.0)

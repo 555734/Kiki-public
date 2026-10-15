@@ -103,7 +103,33 @@ def horn() -> np.ndarray:
     return norm(lowpass(tone, 1400.0) * env(n, 0.03, 0.8, 0.7, 0.15), 0.6)
 
 
+def build_glow() -> np.ndarray:
+    """1-10's traced platform appearing: a quick rising sparkle of four
+    bright notes over a soft shimmer, so the rescue blocks are heard."""
+    parts = []
+    for f in (880.0, 1175.0, 1568.0, 2093.0):
+        n = secs(0.07)
+        parts.append((sine(f, n) * 0.7 + triangle(f * 2.0, n) * 0.3) * env(n, 0.002, 0.05))
+    head = np.concatenate(parts)
+    tail_n = secs(0.32)
+    tail = sine(2093.0, tail_n) * env(tail_n, 0.002, 0.3) * 0.5
+    sparkle = np.concatenate([head, tail])
+    shimmer = lowpass(noise(len(sparkle)), 0.5) * env(len(sparkle), 0.01, 0.4) * 0.12
+    return norm(sparkle + shimmer, 0.8)
+
+
+def thud() -> np.ndarray:
+    """A heavy landing / impact: a low sine drop with a short dusty crack."""
+    n = secs(0.42)
+    body = sweep(140.0, 45.0, n) * env(n, 0.002, 0.38)
+    crack = lowpass(noise(secs(0.06)), 0.3) * env(secs(0.06), 0.001, 0.05)
+    out = body.copy()
+    out[:len(crack)] += crack * 0.8
+    return norm(out, 0.9)
+
+
 SOUNDS = {
+    "build_glow": build_glow, "thud": thud,
     "thunder": thunder, "crumble": crumble, "boom": boom, "whoosh": whoosh,
     "rumble": rumble, "ring": ring, "accept": accept, "bubble": bubble,
     "sizzle": sizzle, "sting": sting, "horn": horn,

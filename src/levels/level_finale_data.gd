@@ -30,8 +30,8 @@ static func goal() -> Vector2: return Vector2(28600, 365)
 ## Areas, in course order. `skin` picks terrain art, `sky` the backdrop.
 static func zones() -> Array[Dictionary]:
 	return [
-		{"name": "GRASSLAND CLIFFS", "from": -1000, "to": 3000, "skin": "grass", "sky": "meadow", "seconds": "0-10"},
-		{"name": "THUNDER BRIDGE", "from": 3000, "to": 5800, "skin": "storm", "sky": "storm", "seconds": "10-13"},
+		{"name": "GRASSLAND CLIFFS", "from": -1000, "to": 3150, "skin": "grass", "sky": "meadow", "seconds": "0-10"},
+		{"name": "THUNDER BRIDGE", "from": 3150, "to": 5800, "skin": "storm", "sky": "storm", "seconds": "10-13"},
 		{"name": "SHIFTING SAND RUINS", "from": 5800, "to": 7500, "skin": "sand", "sky": "sand", "seconds": "13-16"},
 		{"name": "VOLCANO CORE", "from": 7500, "to": 11300, "skin": "lava", "sky": "lava", "seconds": "16-20"},
 		{"name": "IRON RAIL", "from": 11300, "to": 15600, "skin": "rail", "sky": "rail", "seconds": "20-24"},
@@ -330,6 +330,7 @@ static func _scenery() -> Array[Dictionary]:
 			["tree", -650, 900, 300, false, false], ["flowers", -380, 900, 70, false, false],
 			["signpost", 40, 900, 120, false, false], ["fence", 1000, 1160, 70, false, false],
 			["waterfall", 1690, 2100, 1500, false, false],
+			["abyss", 1540, 1250, 860, false, false, 710],
 			["tree", 2860, 960, 320, true, false], ["signpost", 2310, 960, 120, false, false],
 			["flowers", 2340, 960, 70, false, false], ["flowers", 2700, 960, 70, false, false]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_storm", "pos": Vector2.ZERO, "data": {"items": [
@@ -356,6 +357,7 @@ static func _scenery() -> Array[Dictionary]:
 			["tree", 18050, 300, 260, false, false], ["rubble", 19100, 300, 110, false, false],
 			["grass", 18300, 300, 60, false, false], ["grass", 19300, 300, 60, false, false]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_bone", "pos": Vector2.ZERO, "data": {"items": [
+			["canyon_haze", 19560, 420, 1330, false, false, 4500],
 			["rib", 20200, 1700, 1500, false, false], ["rib", 21000, 1700, 1400, true, false],
 			["rib", 22900, 1700, 1500, false, false], ["skull_rock", 21250, 280, 200, false, false],
 			["jaw_gate", 23940, 300, 380, false, true]]}},

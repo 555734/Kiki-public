@@ -40,6 +40,8 @@ func _build() -> void:
 	_back = Back.new()
 	_back.giant = self
 	_back.z_index = -2
+	_back.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	add_child(_back)
 
 func _receive(id: String) -> void:
@@ -168,14 +170,14 @@ func _draw() -> void:
 	FinaleArt.centred(self, "mace", c, MACE_R * 2.6, t * 2.0)
 
 func _arm(from: Vector2, to: Vector2, width: float) -> void:
-	var n := maxi(2, int(from.distance_to(to) / (width * 0.8)))
-	# Two passes (all rims, then all stones) so the rims batch together.
-	for i in n + 1:
-		var size := width * (1.15 if i == n else 0.95)
-		draw_circle(from.lerp(to, float(i) / float(n)), size * 0.56, Color(0.13, 0.12, 0.18, 0.9))
-	for i in n + 1:
-		var size := width * (1.15 if i == n else 0.95)
-		FinaleArt.centred(self, "stone", from.lerp(to, float(i) / float(n)), size, float(i) * 0.4, Color(0.66, 0.69, 0.78))
+	# A sculpted stone limb: upper arm and forearm as tapered slabs of the
+	# giant's own rock, a heavy fist at the end.
+	var elbow := from.lerp(to, 0.5) + (to - from).orthogonal().normalized() * width * 0.35
+	var tex := FinaleArt._load(Giant.TEX)
+	Giant.limb(self, from, elbow, width * 1.05, width * 0.9, tex)
+	Giant.limb(self, elbow, to, width * 0.9, width * 0.75, tex)
+	Giant.blob(self, to, width * 0.72, tex, 7)
+	Giant.blob(self, elbow, width * 0.5, tex, 3)
 
 ## The giant's body, behind the terrain.
 class Back extends Node2D:
@@ -187,52 +189,108 @@ class Back extends Node2D:
 			return
 		_body(giant.rise())
 	func _body(lift: float) -> void:
-		# Grey-blue ruin stone, so the automaton reads apart from the
-		# sandstone plateau it rises out of; every block gets a dark rim.
-		var stone := Color(0.66, 0.69, 0.78)
-		var rim := Color(0.13, 0.12, 0.18, 0.92)
-		var blocks: Array = []
-		# Legs.
+		# A sculpted automaton of grey-blue ruin rock: stout legs, a broad
+		# chest with heavy shoulder boulders, a blocky head with a brow and
+		# two burning eyes; dark rims, moss, cracks. Reads apart from the
+		# red mesa it rises out of.
+		var tex := FinaleArt._load(Giant.TEX)
+		var o := Vector2(0, lift)
 		for side in [-1.0, 1.0]:
-			for k in 4:
-				blocks.append([Vector2(side * 110.0, -60.0 - k * 95.0 + lift), 130.0])
-		# Torso: a wall of ruin blocks, wider at the shoulders.
-		for row in 5:
-			var w := 3 + (1 if row >= 2 else 0)
-			for col in w:
-				var x := (float(col) - float(w - 1) * 0.5) * 110.0
-				blocks.append([Vector2(x, -430.0 - row * 95.0 + lift), 122.0])
-		# Head.
-		for col in 3:
-			for row in 2:
-				blocks.append([Vector2((col - 1) * 100.0, -950.0 - row * 90.0 + lift), 112.0])
-		for b in blocks:
-			draw_rect(Rect2(b[0] - Vector2.ONE * float(b[1]) * 0.56, Vector2.ONE * float(b[1]) * 1.12), rim)
-		# Upright blocks need no transform, so they batch into one draw.
-		var t := FinaleArt.tex("stone")
-		if t != null:
-			var aspect := float(t.get_height()) / float(t.get_width())
-			for b in blocks:
-				var w := float(b[1])
-				draw_texture_rect(t, Rect2(b[0] - Vector2(w, w * aspect) * 0.5, Vector2(w, w * aspect)), false, stone)
-		# Moss on the shoulders and the crown.
-		draw_rect(Rect2(-240, -880 + lift, 480, 22), Color("4f9a34"))
-		draw_rect(Rect2(-150, -1088 + lift, 300, 18), Color("5fa83a"))
-		# A dark brow band and two glowing eyes.
+			Giant.limb(self, o + Vector2(side * 120.0, -470.0), o + Vector2(side * 140.0, 40.0), 150.0, 175.0, tex)
+		var torso := PackedVector2Array()
+		for p in [Vector2(-170, -400), Vector2(-250, -560), Vector2(-280, -760), Vector2(-230, -880), Vector2(-90, -920),
+				Vector2(90, -920), Vector2(230, -880), Vector2(280, -760), Vector2(250, -560), Vector2(170, -400), Vector2(0, -360)]:
+			torso.append(o + p)
+		Giant.mass(self, torso, tex)
+		# Belt of stone and a chest plate.
+		Giant.mass(self, PackedVector2Array([o + Vector2(-190, -470), o + Vector2(190, -470), o + Vector2(175, -400), o + Vector2(-175, -400)]), tex, 0.8)
+		for side in [-1.0, 1.0]:
+			Giant.blob(self, o + Vector2(side * 250.0, -840.0), 115.0, tex, 11 if side > 0 else 5)
+		var head := PackedVector2Array()
+		for p in [Vector2(-140, -930), Vector2(-150, -1060), Vector2(-110, -1140), Vector2(0, -1165), Vector2(110, -1140),
+				Vector2(150, -1060), Vector2(140, -930), Vector2(60, -900), Vector2(-60, -900)]:
+			head.append(o + p)
+		Giant.mass(self, head, tex)
+		# Moss on the crown and the shoulders.
+		for m in [[Vector2(-90, -1150), 180.0], [Vector2(-310, -930), 120.0], [Vector2(210, -935), 110.0]]:
+			var at: Vector2 = o + m[0]
+			var w: float = m[1]
+			var moss := PackedVector2Array()
+			for k in 9:
+				var t := float(k) / 8.0
+				moss.append(at + Vector2(w * t, -10.0 + sin(t * PI) * -14.0))
+			for k in range(8, -1, -1):
+				var t := float(k) / 8.0
+				moss.append(at + Vector2(w * t, 14.0 + (FinaleGround.h(k * 7 + int(w)) * 22.0) * sin(t * PI)))
+			draw_colored_polygon(moss, Color("4f8f30"))
+		# Cracks.
+		for c in [[Vector2(-120, -800), Vector2(-60, -700), Vector2(-90, -620)], [Vector2(140, -560), Vector2(90, -500)],
+				[Vector2(40, -1120), Vector2(70, -1060)]]:
+			var line := PackedVector2Array()
+			for q in c:
+				line.append(o + q)
+			draw_polyline(line, Color(0.1, 0.1, 0.15, 0.8), 5.0, true)
+		# Brow, eyes, mouth slit.
 		var glow := 0.6 + 0.4 * sin(Clock.seconds_at(Clock.tick) * 3.0)
-		draw_rect(Rect2(-150, -1000 + lift, 300, 70), Color(0.08, 0.08, 0.12, 0.95))
-		for ex in [-60.0, 60.0]:
-			var eye := Vector2(ex, -965 + lift)
+		draw_colored_polygon(PackedVector2Array([o + Vector2(-130, -1060), o + Vector2(130, -1060), o + Vector2(120, -1020), o + Vector2(-120, -1020)]), Color(0.1, 0.1, 0.16))
+		for ex in [-62.0, 62.0]:
+			var eye := o + Vector2(ex, -1000)
+			draw_circle(eye, 30.0, Color(0.05, 0.05, 0.09))
 			if giant.state == 1:
-				draw_circle(eye, 34.0, Color(0.3, 0.95, 1.0, 0.35 * glow))
-				draw_circle(eye, 15.0, Color(0.75, 1.0, 1.0))
+				draw_circle(eye, 46.0, Color(0.3, 0.95, 1.0, 0.30 * glow))
+				draw_circle(eye, 20.0, Color(0.55, 1.0, 1.0))
+				draw_circle(eye, 8.0, Color.WHITE)
 			else:
 				draw_circle(eye, 10.0, Color(0.3, 0.5, 0.6))
+		draw_line(o + Vector2(-70, -935), o + Vector2(70, -935), Color(0.08, 0.08, 0.12), 8.0)
 		# Chest core (the shot target).
-		var core := Vector2(0, -620 + lift)
-		draw_circle(core, 52.0, Color(1.0, 0.6, 0.2, 0.25 if giant.stunned() else 0.4 * glow))
-		FinaleArt.centred(self, "golem_eye", core, 84.0)
-		draw_arc(core, 30.0, 0, TAU, 28, Color("ffd34a"), 4.0, true)
+		var core := o + Vector2(0, -620)
+		draw_circle(core, 70.0, Color(0.08, 0.08, 0.12))
+		draw_circle(core, 62.0, Color(1.0, 0.6, 0.2, 0.25 if giant.stunned() else 0.45 * glow))
+		FinaleArt.centred(self, "golem_eye", core, 96.0)
+		draw_arc(core, 36.0, 0, TAU, 28, Color("ffd34a"), 5.0, true)
 	func _process(_delta: float) -> void:
 		if giant._near:
 			queue_redraw()
+
+
+## Shared painting for the giant's rock masses (body and arms).
+class Giant:
+	const TEX := "res://assets/stage_1_10/tex_giant.png"
+	const RIM := Color(0.10, 0.10, 0.15)
+
+	## A filled rock mass: textured, shaded darker toward its bottom and
+	## right (light from the upper left), dark rim, lit upper-left edge.
+	static func mass(ci: CanvasItem, poly: PackedVector2Array, tex: Texture2D, light: float = 1.0) -> void:
+		var lo := Vector2(INF, INF)
+		var hi := -lo
+		for p in poly:
+			lo = lo.min(p)
+			hi = hi.max(p)
+		var cols := PackedColorArray()
+		var uvs := PackedVector2Array()
+		for p in poly:
+			var k := clampf(((p.x - lo.x) / maxf(hi.x - lo.x, 1.0)) * 0.4 + ((p.y - lo.y) / maxf(hi.y - lo.y, 1.0)) * 0.6, 0.0, 1.0)
+			var v := lerpf(1.12, 0.62, k) * light
+			cols.append(Color(v, v, v * 1.04))
+			uvs.append(p / 360.0)
+		if tex != null:
+			ci.draw_polygon(poly, cols, uvs, tex)
+		else:
+			ci.draw_polygon(poly, cols)
+		var line := PackedVector2Array(poly)
+		line.append(poly[0])
+		ci.draw_polyline(line, RIM, 7.0, true)
+
+	## A tapered limb from a to b.
+	static func limb(ci: CanvasItem, a: Vector2, b: Vector2, wa: float, wb: float, tex: Texture2D) -> void:
+		var n := (b - a).orthogonal().normalized()
+		mass(ci, PackedVector2Array([a + n * wa * 0.5, b + n * wb * 0.5, b - n * wb * 0.5, a - n * wa * 0.5]), tex)
+
+	## A rounded boulder (shoulder, fist, joint), lumpy by `seed`.
+	static func blob(ci: CanvasItem, c: Vector2, r: float, tex: Texture2D, seed: int) -> void:
+		var poly := PackedVector2Array()
+		for k in 10:
+			var a := TAU * float(k) / 10.0
+			poly.append(c + Vector2(cos(a), sin(a)) * r * (0.86 + 0.18 * FinaleGround.h(seed * 11 + k)))
+		mass(ci, poly, tex)

@@ -311,6 +311,15 @@ class Top extends Node2D:
 			draw_rect(Rect2(px - 40, -332, 80, 10), Color("2b2a33"))
 			draw_circle(Vector2(px - 36, -318), 6.0, Color("ffd34a"))
 			px += 520.0
+		# A hedge along the line, in front of the wheels: it streams past at
+		# full speed whenever the camera rides a train.
+		var hx: float = line.portal_in - origin.x + 40.0
+		var n := 0
+		while hx < east - 60.0:
+			var hh := 54.0 + 30.0 * DrawUtil.hash01(n * 13)
+			FinaleArt.sprite(self, "bush" if n % 3 != 2 else "tuft", Vector2(hx, 62.0), hh, n % 2 == 0, Color(0.55, 0.7, 0.55))
+			hx += 120.0 + 70.0 * DrawUtil.hash01(n * 7)
+			n += 1
 		var bx: float = float(line.data.get("low_bridge", 15060.0)) - origin.x
 		draw_rect(Rect2(bx, -250, 40, 110), Color("2c2b33"))
 		for k in 4:

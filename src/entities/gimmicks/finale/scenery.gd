@@ -8,6 +8,7 @@ var _falls: Node2D
 
 func _build() -> void:
 	z_index = -1
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_front = Front.new()
 	_front.owner_scenery = self
 	_front.z_index = 9
@@ -81,11 +82,73 @@ func draw_item(ci: CanvasItem, item: Array) -> void:
 				ci.draw_texture_rect_region(t, Rect2(at.x - w * 0.5, at.y - h, w, h),
 					Rect2(0, 34, 256, 222), Color(0.95, 0.9, 0.82))
 		"jaw_gate":
-			FinaleArt.sprite(ci, "arch", at + Vector2(0, 6), h, flip, Color(0.98, 0.93, 0.82))
+			# Two colossal fangs curving over the way out: the gate the jaws
+			# slam shut against.
+			for side in [-1.0, 1.0]:
+				var path: Array = []
+				for k in 7:
+					var t := float(k) / 6.0
+					path.append(at + Vector2(side * (150.0 - 120.0 * t * t), -h * t + 10.0))
+				FinaleGround.bone_on(ci, path, 62.0 - 0.0, int(at.x + side))
+				ci.draw_colored_polygon(PackedVector2Array([path[-1] + Vector2(-26, 0), path[-1] + Vector2(26, 0), path[-1] + Vector2(-side * 10.0, 60)]), FinaleGround.BONE_SHADE)
 		"drip":
 			_drip(ci, at, h)
+		"abyss":
+			_abyss(ci, at, h, float(item[6]) if item.size() > 6 else 600.0)
+		"canyon_haze":
+			_haze(ci, at, h, float(item[6]) if item.size() > 6 else 600.0, Color(0.42, 0.16, 0.08))
 		_:
 			FinaleArt.sprite(ci, key, at, h, flip)
+
+## Depth haze filling a chasm: clear at the top, deep blue-black lower down,
+## with pale mist bands, so a drop reads as a drop even when the floor is
+## out of frame. `at` is the top-left corner.
+func _abyss(ci: CanvasItem, at: Vector2, height: float, width: float) -> void:
+	var deep := Color(0.03, 0.07, 0.16)
+	# The gorge's far wall: shaded rock behind the gap, its ragged top edge
+	# just under the lip, so the eye reads a drop rather than open country.
+	var tex := FinaleArt._load("res://assets/stage_1_10/tex_slate.png")
+	var wall := PackedVector2Array()
+	var n := 16
+	for k in n + 1:
+		var x := at.x - 30.0 + (width + 60.0) * float(k) / float(n)
+		wall.append(Vector2(x, at.y + 10.0 + sin(float(k) * 1.7) * 22.0 + FinaleGround.h(k * 13) * 34.0))
+	wall.append(Vector2(at.x + width + 30.0, at.y + height))
+	wall.append(Vector2(at.x - 30.0, at.y + height))
+	var wc := PackedColorArray()
+	var uv := PackedVector2Array()
+	for p in wall:
+		var k2 := clampf((p.y - at.y) / height, 0.0, 1.0)
+		wc.append(Color(1.25, 1.3, 1.4).lerp(Color(0.3, 0.36, 0.52), sqrt(k2)))
+		uv.append(p / 300.0)
+	if tex != null:
+		ci.draw_polygon(wall, wc, uv, tex)
+	var top := PackedVector2Array()
+	for k in n + 1:
+		top.append(wall[k])
+	ci.draw_polyline(top, Color(0.2, 0.22, 0.35, 0.8), 4.0, true)
+	var mid := at.y + height * 0.55
+	ci.draw_polygon(PackedVector2Array([at, at + Vector2(width, 0), Vector2(at.x + width, mid), Vector2(at.x, mid)]),
+		PackedColorArray([Color(deep, 0.0), Color(deep, 0.0), Color(deep, 0.35), Color(deep, 0.35)]))
+	ci.draw_polygon(PackedVector2Array([Vector2(at.x, mid), Vector2(at.x + width, mid), at + Vector2(width, height), at + Vector2(0, height)]),
+		PackedColorArray([Color(deep, 0.35), Color(deep, 0.35), Color(deep, 0.95), Color(deep, 0.95)]))
+	for i in 4:
+		var y := at.y + height * (0.3 + 0.16 * float(i))
+		var mist := Color(0.75, 0.88, 1.0, 0.07 - 0.012 * float(i))
+		var band := PackedVector2Array()
+		for k in 13:
+			var x := at.x + width * float(k) / 12.0
+			band.append(Vector2(x, y + sin(float(k) * 1.3 + float(i) * 2.0) * 14.0))
+		ci.draw_polyline(band, mist, 46.0 - 6.0 * float(i), true)
+
+## Depth haze without a back wall (the canyon has its painted backdrop):
+## clear at the top, `deep` and nearly opaque at the bottom.
+func _haze(ci: CanvasItem, at: Vector2, height: float, width: float, deep: Color) -> void:
+	var mid := at.y + height * 0.5
+	ci.draw_polygon(PackedVector2Array([at, at + Vector2(width, 0), Vector2(at.x + width, mid), Vector2(at.x, mid)]),
+		PackedColorArray([Color(deep, 0.0), Color(deep, 0.0), Color(deep, 0.45), Color(deep, 0.45)]))
+	ci.draw_polygon(PackedVector2Array([Vector2(at.x, mid), Vector2(at.x + width, mid), at + Vector2(width, height), at + Vector2(0, height)]),
+		PackedColorArray([Color(deep, 0.45), Color(deep, 0.45), Color(deep, 0.9), Color(deep, 0.9)]))
 
 func _tiled_column(ci: CanvasItem, key: String, bottom: Vector2, height: float, width: float,
 		tint: Color = Color.WHITE) -> void:

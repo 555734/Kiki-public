@@ -90,7 +90,7 @@ func _palette() -> Dictionary:
 
 func _draw_slab(rect: Rect2, seed_index: int) -> void:
 	if Stage.is_finale():
-		FinaleArt.slab_on(self, rect, FinaleArt.skin_for(rect))
+		FinaleGround.ground_on(self, rect, FinaleArt.skin_for(rect), seed_index)
 		return
 	if Stage.is_parade():
 		ParadeArt.floor_on(self, rect)

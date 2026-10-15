@@ -80,6 +80,15 @@ const SPRITES := {
 	"wax_wisp_attack": "res://assets/stage_1_10/wax_wisp_attack.png",
 	"spark_idle": "res://assets/stage_1_10/spark_idle.png",
 	"spark_attack": "res://assets/stage_1_10/spark_attack.png",
+	# Small props scattered on the ground tops (FinaleGround._props).
+	"tuft": "res://assets/stage_1_3/sprites/grass_a.png",
+	"bush": "res://assets/stage_1_3/sprites/bush.png",
+	"rock_mossy": "res://assets/stage_1_3/sprites/rock_mossy.png",
+	"desert_grass": "res://assets/split/1-6/gimmicks/grass.png",
+	"rocks": "res://assets/split/1-6/gimmicks/rocks.png",
+	"vine_a": "res://assets/stage_1_3/sprites/vine_a.png",
+	"vine_b": "res://assets/stage_1_3/sprites/vine_b.png",
+	"vine_c": "res://assets/stage_1_3/sprites/vine_c.png",
 }
 
 static var _cache: Dictionary = {}
@@ -172,12 +181,18 @@ static func tiled_rect(ci: CanvasItem, tex: Texture2D, rect: Rect2, tile: float,
 ## instead of three per slab.
 static func slabs_on(ci: CanvasItem, rects: Array, skin: String) -> void:
 	var s: Dictionary = SKINS.get(skin, SKINS["grass"])
-	var body := _load(s["body"])
+	var face: Dictionary = FinaleGround.LOOK.get(skin, {})
+	var body := _load(face.get("tex", s["body"]))
+	var tile := float(face.get("tile", s["tile"]))
+	var tint: Color = Color.WHITE if face.has("tex") else s["tint"]
 	for rect in rects:
 		ci.draw_rect(rect, s["fill"])
 	if body != null:
 		for rect in rects:
-			tiled_rect(ci, body, rect, float(s["tile"]), s["tint"])
+			tiled_rect(ci, body, rect, tile, tint)
+	if face.has("rim"):
+		for rect in rects:
+			ci.draw_rect(rect, face["rim"], false, 4.0)
 	for rect in rects:
 		ci.draw_rect(Rect2(rect.position.x, rect.position.y + 40.0, rect.size.x, maxf(0.0, rect.size.y - 40.0)), Color(0.08, 0.03, 0.06, 0.16))
 		ci.draw_rect(Rect2(rect.position.x, rect.position.y, 7.0, rect.size.y), Color(0, 0, 0, 0.14))
@@ -190,10 +205,13 @@ static func slabs_on(ci: CanvasItem, rects: Array, skin: String) -> void:
 ## A rectangular slab. The cap's solid band sits on the collision top.
 static func slab_on(ci: CanvasItem, rect: Rect2, skin: String) -> void:
 	var s: Dictionary = SKINS.get(skin, SKINS["grass"])
-	var body := _load(s["body"])
+	var face: Dictionary = FinaleGround.LOOK.get(skin, {})
+	var body := _load(face.get("tex", s["body"]))
 	ci.draw_rect(rect, s["fill"])
 	if body != null:
-		tiled_rect(ci, body, rect, float(s["tile"]), s["tint"])
+		tiled_rect(ci, body, rect, float(face.get("tile", s["tile"])), Color.WHITE if face.has("tex") else s["tint"])
+	if face.has("rim") and skin != "bone":
+		ci.draw_rect(rect, face["rim"], false, 4.0)
 	# Depth shading and soft side edges, as on the painted 1-1 banks.
 	var shade := minf(rect.size.y, 600.0)
 	for i in 4:
@@ -206,6 +224,14 @@ static func slab_on(ci: CanvasItem, rect: Rect2, skin: String) -> void:
 		ci.draw_rect(rect, Color("6b5642"), false, 4.0)
 		return
 	_cap_strip(ci, s, [rect.position, Vector2(rect.end.x, rect.position.y)])
+
+## The cap along a slab's top, overhanging both ends a little.
+static func cap_on(ci: CanvasItem, rect: Rect2, skin: String) -> void:
+	if skin == "bone":
+		return
+	var s: Dictionary = SKINS.get(skin, SKINS["grass"])
+	var ext := 7.0
+	_cap_strip(ci, s, [rect.position - Vector2(ext, 0), Vector2(rect.end.x + ext, rect.position.y)])
 
 ## A cap texture laid along a polyline (flat or sloped) with its band on top.
 static func _cap_strip(ci: CanvasItem, s: Dictionary, top: Array) -> void:
@@ -246,24 +272,42 @@ static func _cap_strip(ci: CanvasItem, s: Dictionary, top: Array) -> void:
 ## the y of the closed underside (or the thickness for a thin bridge).
 static func slope_on(ci: CanvasItem, top: PackedVector2Array, poly: PackedVector2Array, skin: String) -> void:
 	var s: Dictionary = SKINS.get(skin, SKINS["grass"])
-	var body := _load(s["body"])
+	var face: Dictionary = FinaleGround.LOOK.get(skin, {})
+	var body := _load(face.get("tex", s["body"]))
 	var uvs := PackedVector2Array()
-	var scale: float = float(s["tile"])
+	var scale: float = float(face.get("tile", s["tile"]))
 	for p in poly:
 		uvs.append(p / scale)
-	if body != null:
+	if body != null and skin != "bone":
 		var cols := PackedColorArray()
 		cols.resize(poly.size())
-		cols.fill(s["tint"])
+		cols.fill(Color.WHITE if face.has("tex") else s["tint"])
 		ci.draw_polygon(poly, cols, uvs, body)
 	else:
 		ci.draw_colored_polygon(poly, s["fill"])
 	if skin == "bone":
-		var outline := PackedVector2Array(poly)
-		outline.append(poly[0])
-		ci.draw_polyline(outline, Color("6b5642"), 4.0, true)
-		ci.draw_polyline(top, Color("fff7e4"), 5.0, true)
+		# A fossil rib: the walk line is the bone's top surface.
+		var path: Array = []
+		var thick := poly[top.size()].y - top[-1].y if poly.size() > top.size() else 40.0
+		for p in top:
+			path.append(p + Vector2(0, thick * 0.5))
+		FinaleGround.bone_on(ci, path, thick + 4.0, int(top[0].x))
 		return
+	# Depth shading and a rim on the sides and underside (not the walk line).
+	var look: Dictionary = FinaleGround.LOOK.get(skin, FinaleGround.LOOK["grass"])
+	var low := -INF
+	for p in top:
+		low = maxf(low, p.y)
+	var shade := PackedColorArray()
+	shade.resize(poly.size())
+	for i in poly.size():
+		shade[i] = Color(look["shade"], clampf((poly[i].y - top[0].y - 30.0) / 520.0, 0.0, 1.0) * 0.55)
+	ci.draw_polygon(poly, shade)
+	var under := PackedVector2Array()
+	for i in range(top.size() - 1, poly.size()):
+		under.append(poly[i])
+	under.append(poly[0])
+	ci.draw_polyline(under, look["rim"], 5.0, true)
 	var arr: Array = []
 	for p in top:
 		arr.append(p)
@@ -362,8 +406,9 @@ static func _sky(ci: CanvasItem, sky: String, view: Vector2, cam: Vector2, time:
 			var pulse := 0.10 + 0.05 * sin(time * 1.7)
 			ci.draw_rect(Rect2(0, view.y * 0.6, view.x, view.y * 0.4), Color(1.0, 0.35, 0.05, pulse * alpha))
 		"rail":
-			_cover(ci, "meadow", view, cam, 0.22, alpha, 0.02, 0.86)
-			_layer(ci, "aqueduct", view, cam, 0.55, view.y * 0.48, view.y * 0.30, alpha)
+			# Faster parallax than the other areas: the camera rides a train.
+			_cover(ci, "meadow", view, cam, 0.36, alpha, 0.02, 0.86)
+			_layer(ci, "aqueduct", view, cam, 0.85, view.y * 0.48, view.y * 0.30, alpha)
 		"hive":
 			_cover(ci, "hive_sky", view, cam, 0.14, alpha, 0.10)
 		"cliff":

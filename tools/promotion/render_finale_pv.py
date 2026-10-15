@@ -10,8 +10,10 @@ Every frame comes from the game; this script only cuts, mixes and checks.
 Steps
   1. Find the director's one-frame magenta slate in the recording, which maps
      the report's process-frame numbers to movie frames.
-  2. Take each cut's 60 on-air frames, in storyboard order, with the game's
-     own sound for exactly those frames, and join them (49 s).
+  2. Take each beat's on-air frames (its own length; the 49 beats add up to
+     2,940 frames), in storyboard order, with the game's own sound for exactly
+     those frames, and join them (49 s). Beats recorded back to back are one
+     continuous shot in the PV.
   3. Lay the project's own synthesized stage music (assets/audio/
      music_stage.wav, tools/make_audio.py) under the game sound.
   4. Check the soundtrack against the event log: every sound the game played
@@ -101,7 +103,7 @@ def onset_check(game, events, cut_start_s):
         peak = float(after.max()) if len(after) else 0.0
         # Right after a cut the "before" window belongs to the previous cut,
         # so there only the level itself is judged.
-        at_joint = (t - np.floor(t)) < 0.085
+        at_joint = ev.get("at_joint", False)
         heard = peak > 0.01 if at_joint else (peak > 0.004 and peak > base * 1.25)
         out.append({"t": round(t, 3), "sound": ev["detail"], "cut": ev["cut"],
                     "rise_db": round(20 * np.log10((peak + 1e-5) / (base + 1e-5)), 1),
@@ -134,6 +136,20 @@ def contact_sheet(mp4, out_path):
         d.text((x + 4, y + 2), "%02d  %ds" % (i + 1, i), font=font, fill=(255, 220, 0))
     sheet.save(out_path)
     return frames
+
+
+def beat_frames(mp4, shots):
+    """The middle frame of every beat, at 320x180."""
+    mids = []
+    t = 0
+    for r in shots:
+        n = int(r.get("frames", CUT))
+        mids.append(t + n // 2)
+        t += n
+    expr = "+".join("eq(n\\,%d)" % m for m in mids)
+    raw = run(["ffmpeg", "-v", "error", "-i", mp4, "-vf", "select='%s',scale=320:180" % expr,
+               "-vsync", "0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+    return np.frombuffer(raw, np.uint8).reshape(-1, 180, 320, 3)
 
 
 def compare_sheets(frames, storyboard, rows):
@@ -173,22 +189,45 @@ def main():
 
     audio = movie_audio(movie)
     parts, labels, game = [], [], []
+    starts = []          # each beat's start on the PV timeline (frames)
+    t = 0
     for i, row in enumerate(shots):
+        n = int(row.get("frames", CUT))
         first = int(row["first_frame"]) + offset
-        row["pv_frames"] = [first, first + CUT]
-        parts.append("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS[v%d]" % (first, first + CUT, i))
+        row["pv_frames"] = [first, first + n]
+        row["pv_start"] = round(t / FPS, 3)
+        starts.append(t)
+        t += n
+        parts.append("[0:v]trim=start_frame=%d:end_frame=%d,setpts=PTS-STARTPTS[v%d]" % (first, first + n, i))
         labels.append("[v%d]" % i)
-        a0 = int(first / FPS * SR)
-        seg = audio[a0:a0 + SR]
-        game.append(np.pad(seg, (0, SR - len(seg))))
+        a0 = int(round(first / FPS * SR))
+        length = int(round(n / FPS * SR))
+        seg = audio[a0:a0 + length]
+        game.append(np.pad(seg, (0, length - len(seg))))
+    if t != 49 * FPS:
+        raise SystemExit("beats add up to %d frames, not %d" % (t, 49 * FPS))
     game = np.concatenate(game)
-    # A 4 ms fade at each joint so cuts do not click.
+    # A 4 ms fade at each hard joint so cuts do not click (a joint inside a
+    # continuous shot is contiguous in the recording and needs none).
     ramp = int(0.004 * SR)
     for k in range(1, len(shots)):
-        j = k * SR
+        if int(shots[k]["first_frame"]) == int(shots[k - 1]["first_frame"]) + int(shots[k - 1].get("frames", CUT)):
+            continue
+        j = int(round(starts[k] / FPS * SR))
         game[j - ramp:j] *= np.linspace(1, 0, ramp)
         game[j:j + ramp] *= np.linspace(0, 1, ramp)
-    bed = music_bed(len(game)) * 0.32
+    # The bed ducks under the game's own sounds (up to -8 dB, 40 ms attack,
+    # 250 ms release) so every jump, crash and chime stays on top.
+    win = int(0.04 * SR)
+    level = np.sqrt(np.convolve(game ** 2, np.ones(win) / win, mode="same"))
+    duck = 1.0 - 0.6 * np.clip(level / 0.15, 0.0, 1.0)
+    rel = int(0.25 * SR)
+    smooth = np.copy(duck)
+    k = 1.0 / rel
+    for i in range(1, len(smooth)):
+        if smooth[i] > smooth[i - 1]:
+            smooth[i] = smooth[i - 1] + (smooth[i] - smooth[i - 1]) * k
+    bed = music_bed(len(game)) * 0.28 * smooth
     mix = game * 0.95 + bed
     peak = float(np.max(np.abs(mix)))
     if peak > 0.98:
@@ -211,11 +250,14 @@ def main():
     for ev in report.get("events", []):
         if ev["ev"] == "sound" and int(ev["cut"]) in order and int(ev["cut_frame"]) >= 0:
             ev = dict(ev)
-            ev["pv_time"] = order[int(ev["cut"])] + int(ev["cut_frame"]) / FPS
+            ev["pv_time"] = starts[order[int(ev["cut"])]] / FPS + int(ev["cut_frame"]) / FPS
+            k = order[int(ev["cut"])]
+            hard = k == 0 or int(shots[k]["first_frame"]) != int(shots[k - 1]["first_frame"]) + int(shots[k - 1].get("frames", CUT))
+            ev["at_joint"] = hard and int(ev["cut_frame"]) < 5
             sounds.append(ev)
     checks = onset_check(game, sounds, None)
     heard = sum(1 for c in checks if c["heard"])
-    rms = [round(20 * np.log10(np.sqrt(np.mean(mix[i * SR:(i + 1) * SR] ** 2)) + 1e-6), 1) for i in range(len(shots))]
+    rms = [round(20 * np.log10(np.sqrt(np.mean(mix[i * SR:(i + 1) * SR] ** 2)) + 1e-6), 1) for i in range(49)]
     masked = sum(1 for c in checks if c["masked"])
     json.dump({"sound_events_on_air": len(checks), "heard": heard, "masked": masked,
                "missing": len(checks) - heard - masked, "events": checks,
@@ -223,7 +265,8 @@ def main():
               open(os.path.join(PV, "audio_check.json"), "w"), indent=1)
     frames = contact_sheet(out, os.path.join(PV, "contact_sheet.png"))
     if storyboard:
-        compare_sheets(frames, storyboard, shots)
+        mids = beat_frames(out, shots)
+        compare_sheets(mids, storyboard, shots)
     json.dump(report, open(report_path, "w"), indent=1)
     probe = run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height,r_frame_rate:format=duration",
                  "-of", "compact", out], capture_output=True, text=True).stdout

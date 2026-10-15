@@ -118,6 +118,14 @@ func _ready() -> void:
 		var finale_fx := FinaleFx.new()
 		finale_fx.name = "FinaleFx"
 		add_child(finale_fx)
+		# A foreground plane in front of the world (finale_foreground.gd).
+		var near := CanvasLayer.new()
+		near.name = "FinaleForeground"
+		near.layer = 3
+		var fg := preload("res://src/render/finale_foreground.gd").new()
+		fg.camera = camera
+		near.add_child(fg)
+		add_child(near)
 	if Stage.is_parade():
 		var parade_fx := preload("res://src/render/parade_fx.gd").new()
 		parade_fx.name = "ParadeFx"

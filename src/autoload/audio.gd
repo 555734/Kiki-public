@@ -67,7 +67,7 @@ const KEYS := [
 	"music_stage", "music_drive",
 	# 1-10's machines and its PV (tools/make_finale_audio.py).
 	"thunder", "crumble", "boom", "whoosh", "rumble", "ring", "accept",
-	"bubble", "sizzle", "sting", "horn",
+	"bubble", "sizzle", "sting", "horn", "build_glow", "thud",
 ]
 
 func _ready() -> void:
@@ -152,7 +152,7 @@ func _connect_events() -> void:
 ## without turning round.
 func _on_ability_used(slot: int, _at: Vector2) -> void:
 	match slot:
-		1: play("place_platform")
+		1: play("build_glow" if Hologram.glow_style else "place_platform")
 		2: play("place_wall")
 		4: play("place_warp")
 

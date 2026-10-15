@@ -14,6 +14,8 @@ static var _white: ImageTexture = null
 ## Platforms drawn as glowing blue blocks instead of the painted slab. Set by
 ## main from the stage (1-10); collision and timing are identical.
 static var glow_style := false
+## 1-10 platforms build along their stroke at this many px per second.
+const GLOW_BUILD_SPEED := 1100.0
 
 var kind: Kind = Kind.PLATFORM
 var size: Vector2 = Balance.PLATFORM_SIZE
@@ -224,8 +226,13 @@ func _draw_glow_platform() -> void:
 	var body := Color(0.2, 0.62, 1.0, 0.86 * a).lerp(Color(1.0, 0.35, 0.3, 0.86 * a), hot)
 	var rim := Color(0.75, 0.95, 1.0, 0.95 * a).lerp(Color(1, 0.8, 0.8, a), hot)
 	var halo := Color(0.45, 0.85, 1.0, 0.32 * a * pulse)
+	# The blocks build along the stroke, first to last, over the first moments
+	# of the platform's life (it is solid from the start: only the picture
+	# grows). Each block pops in from a flash at its own turn.
+	var grown := _age * GLOW_BUILD_SPEED
+	var walked := 0.0
 	for i in range(path.size() - 1):
-		_slab(path[i], path[i + 1], thick + 22.0, 8.0, halo)
+		_slab(path[i], path[i + 1], thick + 22.0, 8.0, Color(halo, halo.a * clampf(grown / 120.0, 0.0, 1.0)))
 	for i in range(path.size() - 1):
 		var p0 := path[i]
 		var p1 := path[i + 1]
@@ -236,12 +243,21 @@ func _draw_glow_platform() -> void:
 		var cells := maxi(1, int(roundf(length / 44.0)))
 		var cw := length / float(cells)
 		for c in cells:
+			var at := walked + (float(c) + 0.5) * cw
+			var k := clampf((grown - at) / 70.0, 0.0, 1.0)
+			if k <= 0.0:
+				continue
+			var pop := 1.0 + 0.35 * sin(k * PI)
 			var rect := Rect2(-length * 0.5 + float(c) * cw + 1.5, -thick * 0.5, cw - 3.0, thick)
+			rect = Rect2(rect.get_center() - rect.size * 0.5 * pop * k, rect.size * pop * k)
 			draw_rect(rect, body)
-			draw_rect(Rect2(rect.position + Vector2(0, thick * 0.55), Vector2(rect.size.x, thick * 0.45)), Color(0.05, 0.3, 0.85, 0.45 * a))
+			draw_rect(Rect2(rect.position + Vector2(0, rect.size.y * 0.55), Vector2(rect.size.x, rect.size.y * 0.45)), Color(0.05, 0.3, 0.85, 0.45 * a))
 			draw_rect(Rect2(rect.position, Vector2(rect.size.x, 6.0)), Color(0.9, 0.98, 1.0, 0.9 * a))
 			draw_rect(rect, rim, false, 2.5)
+			if k < 1.0:
+				draw_rect(rect.grow(6.0 * (1.0 - k)), Color(1, 1, 1, (1.0 - k) * 0.8 * a))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		walked += length
 
 ## One straight slab from a to b, `thick` across, `extend` longer at each end.
 func _slab(a: Vector2, b: Vector2, thick: float, extend: float, col: Color) -> void:
