@@ -1362,7 +1362,7 @@ func _near_kind(kind: String, radius: float) -> int:
 func take_giant() -> void:
 	await begin_take(Vector2(17150, 177), 8)
 	cover = false
-	camera({"mode": "follow", "zoom": 1.5, "lead": 120.0, "offset": Vector2(120, -10), "smooth": 7.0, "snap": true, "rotation": 0.0, "fx": 0.6})
+	camera({"mode": "follow", "zoom": 1.8, "lead": 120.0, "offset": Vector2(100, 0), "smooth": 7.0, "smooth_y": 12.0, "snap": true, "rotation": 0.0, "fx": 0.6})
 	hold(1.0, true)
 	await until(x_past(17290), 60)
 	hop_to(Vector2(17730, 300), true)
@@ -1373,7 +1373,7 @@ func take_giant() -> void:
 		func() -> bool: return r.is_on_floor() and r.global_position.x > 17620.0 and r.global_position.x < 17880.0,
 		func() -> Vector2: return Vector2(17750, 300), {"subject_name": "tilted ledge", "subject_r": 90.0})
 	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position, func() -> Vector2: return Vector2(17760, 320)],
-		"pad": 120.0, "zoom": 1.55, "min_zoom": 1.1, "smooth": 7.0, "rotation": -0.05, "fx": 0.6})
+		"pad": 80.0, "zoom": 1.8, "min_zoom": 1.3, "smooth": 7.0, "smooth_y": 12.0, "rotation": -0.05, "fx": 0.6})
 	await until(func() -> bool: return r.is_on_floor(), 60)
 	camera({"mode": "follow", "zoom": 1.55, "lead": 60.0, "offset": Vector2(60, -30), "smooth": 7.0, "rotation": -0.08, "shake": 12.0, "fx": 0.6})
 	release()
@@ -1540,8 +1540,9 @@ func take_bone() -> void:
 	cut(39, "The gigantic fossil jaws snap shut right behind the runner as they dive through the stone gate",
 		func() -> bool: return machine("beast")._snapped and r.global_position.x > gate,
 		func() -> Vector2: return Vector2(gate - 120.0, 160.0), {"subject_name": "closing jaws", "subject_r": 160.0, "wait": false,
-		"on_start": func() -> void: camera({"mode": "follow", "zoom": 1.6, "lead": 0.0, "offset": Vector2(-150, 50), "smooth": 8.0, "smooth_y": 9.0,
-			"rotation": -0.07, "fx": 1.0, "snap": true}),
+		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(60, -110),
+			func() -> Vector2: return r.global_position + Vector2(0, 60), func() -> Vector2: return Vector2(gate - 160.0, 200.0)],
+			"pad": 60.0, "zoom": 1.6, "min_zoom": 1.1, "smooth": 8.0, "smooth_y": 9.0, "rotation": -0.07, "fx": 1.0, "snap": true}),
 		"start_when": func() -> bool: return machine("beast").jaw_front() > gate - 300.0})
 	# Across the last pillars -- or, if a sand jet has thrown the runner up
 	# onto the rib path, along the ribs -- and down through the gate.

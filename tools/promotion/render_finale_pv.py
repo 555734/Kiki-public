@@ -89,6 +89,9 @@ def music_bed(n):
     return bed * fade
 
 
+SWELL = {"whoosh": 0.32, "rumble": 0.3}
+
+
 def onset_check(game, events, cut_start_s):
     """For each sound event, look for an energy rise within 60 ms after it."""
     win = int(0.010 * SR)
@@ -98,7 +101,8 @@ def onset_check(game, events, cut_start_s):
         t = ev["pv_time"]
         i = int(t * SR)
         before = env[max(0, i - int(0.08 * SR)):max(1, i - int(0.005 * SR))]
-        after = env[i:i + int(0.06 * SR)]
+        # Swelling sounds (a whoosh, a rumble) reach their level later.
+        after = env[i:i + int(SWELL.get(ev["detail"], 0.06) * SR)]
         base = float(np.median(before)) if len(before) else 0.0
         peak = float(after.max()) if len(after) else 0.0
         # Right after a cut the "before" window belongs to the previous cut,
