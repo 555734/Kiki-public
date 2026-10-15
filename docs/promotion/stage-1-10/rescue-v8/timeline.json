@@ -1,0 +1,70 @@
+{
+ "branch_match": {
+  "branch_frame_mean_abs_diff": 0.0,
+  "max": 0,
+  "pixels_differing": 0
+ },
+ "rescue_direct": {
+  "source": "help take frames 135..492",
+  "length_s": 5.95,
+  "events_s": {
+   "hop_enemy": 0.4,
+   "jump": 0.42,
+   "wide": 1.0,
+   "jump_start": 1.58,
+   "machine": 1.62,
+   "air_jump": 1.92,
+   "apex": 2.18,
+   "branch": 2.52,
+   "call_answered": 3.18,
+   "aim_1": 3.23,
+   "stroke_start": 3.47,
+   "hologram": 3.72,
+   "platform_1": 3.72,
+   "landed_on_hologram": 3.83,
+   "rescue": 3.83,
+   "contact_1": 3.83,
+   "platform_2": 4.03,
+   "jump_to_step": 4.03,
+   "on_step": 4.4,
+   "jump_to_bank": 4.43,
+   "bank": 5.2,
+   "checkpoint": 5.62,
+   "clip_end": 5.88
+  }
+ },
+ "rescue_rewind": {
+  "source": "nohelp frames 135..316, held 14 frames, frames 285..316 reversed (eased, 36 frames), help frames 286..492",
+  "length_s": 7.3,
+  "events_s": {
+   "fail:hop_enemy": 0.4,
+   "fail:jump": 0.42,
+   "fail:wide": 1.0,
+   "fail:jump_start": 1.58,
+   "fail:machine": 1.62,
+   "fail:air_jump": 1.92,
+   "fail:apex": 2.18,
+   "fail:branch": 2.52,
+   "fail:fail_end": 3.02,
+   "fail_hold": 3.03,
+   "rewind_start": 3.27,
+   "rewind_end": 3.87,
+   "help:branch": 3.87,
+   "help:call_answered": 4.53,
+   "help:aim_1": 4.58,
+   "help:stroke_start": 4.82,
+   "help:hologram": 5.07,
+   "help:platform_1": 5.07,
+   "help:landed_on_hologram": 5.18,
+   "help:rescue": 5.18,
+   "help:contact_1": 5.18,
+   "help:platform_2": 5.38,
+   "help:jump_to_step": 5.38,
+   "help:on_step": 5.75,
+   "help:jump_to_bank": 5.78,
+   "help:bank": 6.55,
+   "help:checkpoint": 6.97,
+   "help:clip_end": 7.23
+  }
+ }
+}

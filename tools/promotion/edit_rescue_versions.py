@@ -12,15 +12,19 @@ takes run the same inputs and camera up to the top of the leap, the
 * rescue_direct.mp4  (Version B): the help take, from just before the hop
   over the enemy to the runner running on across the far bank.
 * rescue_rewind.mp4  (Version A): the nohelp take from the same start
-  through the fall into the gorge ("fail_end"), then those same frames
-  played backwards (the fall and the camera retrace) to the branch frame,
-  then the help take from the very next frame.
+  through the fall into the gorge ("fail_end"), a short hold on the failure
+  (draining of colour), then those same frames played backwards to the
+  branch frame (eased, with ghosts of the later frames, a cool tint, tape
+  lines and a rewind mark, all fading out before the join), then the help
+  take from the very next frame with a brief flash.
 
 Sound: the game's own sounds from each recording; the stage music
 (assets/audio/music_stage.wav, the game's own) as a low bed that runs
 backwards with the picture during the rewind; and a few sounds made here
-(numpy): wind on the fall, a failure note, the rewind whirr, a lift under
-the platform's build, an arrival chime. Nothing licensed from outside.
+(numpy): wind on the fall, a failure note, the rewind whirr, a reversed
+swell into the join and the click of time starting again, a lift under
+each platform's build, an arrival chime; a soft limiter on the mix. Nothing
+licensed from outside.
 
 Writes 1280x720 60 fps H.264/AAC, a contact sheet per second for each, and
 timeline.json (segment boundaries in each output and the source frames).
@@ -44,7 +48,7 @@ PRE_HOP = 24        # frames before the hop over the enemy where both clips star
 TAIL = 4            # frames after "clip_end"
 REWIND_SPEED = 1.15  # how much faster than the fall the rewind plays (on average; it is eased)
 MIN_REWIND = 36     # frames
-HOLD = 10           # frames the failure is held before the rewind
+HOLD = 14           # frames the failure is held before the rewind
 FLASH = 7           # frames of the flash as time starts again
 
 
@@ -157,6 +161,15 @@ def arrive_chime(n=int(0.8 * SR)):
     return out
 
 
+def limit(x, ceiling=0.94):
+    """Soft limiter: leaves everything under ~0.7 alone, rounds off peaks."""
+    knee = 0.7
+    y = x.copy()
+    over = np.abs(y) > knee
+    y[over] = np.sign(y[over]) * (knee + (ceiling - knee) * np.tanh((np.abs(y[over]) - knee) / (ceiling - knee)))
+    return y
+
+
 def place(buf, at, x, gain=1.0):
     at = int(at)
     if at >= len(buf):
@@ -241,7 +254,7 @@ def rewind_look(img, k, ghosts):
         f = f * (1 - w * k) + g.astype(np.float32) * (w * k)
     grey = f.mean(axis=2, keepdims=True)
     f = grey + (f - grey) * (1 - 0.35 * k)
-    f = f * (1 + np.array([-0.06, 0.02, 0.12], np.float32) * k) + np.array([0, 6, 18], np.float32) * k
+    f = f * (1 + np.array([-0.06, 0.02, 0.12], np.float32) * k) + np.array([0, 2, 10], np.float32) * k
     sh = int(round(4 * k))
     if sh:
         f[:, sh:, 0] = f[:, :-sh, 0]
@@ -379,7 +392,7 @@ def main():
     place(aud, (H["platform_2"] - h0) / FPS * SR, build_lift(), 0.5)
     place(aud, (H["bank"] - h0) / FPS * SR, arrive_chime(), 0.8)
     wav = os.path.join(out, "_b.wav")
-    R.write_wav(wav, aud)
+    R.write_wav(wav, limit(aud))
     segments_to_mp4(segs, os.path.join(out, "rescue_direct.mp4"), wav)
     os.remove(wav)
     tb = {k: secs(v - h0) for k, v in H.items() if v >= h0 and v <= h_end}
@@ -414,7 +427,7 @@ def main():
     place(aud, post0 + (H["platform_2"] - hb - 1) / FPS * SR, build_lift(), 0.5)
     place(aud, post0 + (H["bank"] - hb - 1) / FPS * SR, arrive_chime(), 0.8)
     wav = os.path.join(out, "_a.wav")
-    R.write_wav(wav, aud)
+    R.write_wav(wav, limit(aud))
     write_frames(os.path.join(out, "rescue_rewind.mp4"), wav,
                  rewind_frames(nh["movie"], hp["movie"], a0, nb, fail_end, hb, h_end, HOLD, rewind_n, FLASH))
     os.remove(wav)

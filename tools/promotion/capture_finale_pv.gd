@@ -814,9 +814,9 @@ func take_opening() -> void:
 
 	# THE LEAP: both cliffs, the gap and the drop, as the runner sprints
 	# off the lip -- framed as close as that allows.
-	camera({"mode": "frame", "fit": [func() -> Vector2: return Vector2(1390, 1010), func() -> Vector2: return bank + Vector2(150, -50),
-		func() -> Vector2: return Vector2(1930, 1430), func() -> Vector2: return r.global_position + Vector2(0, -140)], "pad": 20.0,
-		"zoom": 1.15, "min_zoom": 0.9, "smooth": 14.0, "snap": true})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return Vector2(1450, 1010), func() -> Vector2: return bank + Vector2(90, -40),
+		func() -> Vector2: return Vector2(1920, 1360), func() -> Vector2: return r.global_position + Vector2(-60, -120)], "pad": 10.0,
+		"zoom": 1.22, "min_zoom": 1.0, "smooth": 10.0, "snap": true})
 	_trace_mark("wide", "the gorge: both cliffs and the drop")
 	await cut(3, "The runner sprints off the left cliff toward a higher far bank that is too far; the gorge drops into the dark",
 		func() -> bool: return not r.is_on_floor() and r.global_position.x > lip.x + 20.0,
@@ -866,8 +866,8 @@ func take_opening() -> void:
 	# call rings; time eases down (the fall goes on, slowly). The card is
 	# small, in the sky over the far bank.
 	release()
-	ramp_time(0.07, 8)
-	overlay.call_centre = Vector2(1120, 200)
+	ramp_time(0.045, 8)
+	overlay.call_centre = Vector2(170, 200)
 	overlay.call_scale = 0.56
 	overlay.call_dim = 0.1
 	overlay.call_state = 1
@@ -943,28 +943,28 @@ func take_opening() -> void:
 	# OUT: the runner takes the landing (a moment crouched), the finger adds
 	# the next step up toward the bank; a hard jump to it, then to the bank.
 	var top2 := top1 - envf("PV_P2_RISE", 112.0)
-	var p2x := minf(p1[1].x + 75.0, bank.x - 120.0)
+	var p2x := minf(p1[1].x + envf("PV_P2_GAP", 30.0), bank.x - 150.0)
 	var p2 := PackedVector2Array([Vector2(p2x, top2 + 13.0), Vector2(p2x + 92.0, top2 + 13.0)])
 	cut(7, "Caught, the runner springs to a second short platform the finger adds, onto the higher far bank, and runs on",
 		func() -> bool: return r.is_on_floor() and r.global_position.x > bank.x + 60.0, func() -> Vector2: return bank,
 		{"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 150, "on_start": func() -> void: pass})
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-120, -100), func() -> Vector2: return bank + Vector2(150, -70),
-		func() -> Vector2: return p1[0] + Vector2(-30, 80)], "pad": 30.0, "zoom": 1.55, "min_zoom": 1.2, "smooth": 3.5})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-120, -130), func() -> Vector2: return bank + Vector2(150, -90),
+		func() -> Vector2: return Vector2(p1[1].x, top1 + 40.0)], "pad": 30.0, "zoom": 1.55, "min_zoom": 1.2, "smooth": 3.5})
 	sfx("build_glow", 3.0, 0.85)
 	var built2 := await trace(p2, 6)
 	if built2 != null:
 		_trace_mark("platform_2", "created: top %.0f, x %.0f..%.0f (%.0f wide); runner at %s" % [built2.global_position.y - 13.0, p2[0].x, p2[1].x, p2[1].x - p2[0].x, r.global_position.round()])
 	hide_pointer()
 	hold(1.0, true)
-	await until(func() -> bool: return r.global_position.x > p1[1].x - 22.0, 40)
+	await until(func() -> bool: return r.global_position.x > p1[1].x - 40.0, 40)
 	_jump = true
 	_trace_mark("jump_to_step", "from platform 1 at %s" % r.global_position.round())
-	await frames(14)
+	await frames(12)
 	_jump = false
 	await until(func() -> bool: return r.is_on_floor() and r.global_position.x > p2[0].x, 50)
 	_trace_mark("on_step", "runner %s" % r.global_position.round())
 	_land_fx = [feet(), 0]
-	await until(func() -> bool: return r.global_position.x > p2[1].x - 55.0, 30)
+	await frames(2)
 	_jump = true
 	_trace_mark("jump_to_bank", "from platform 2 at %s" % r.global_position.round())
 	await frames(14)
@@ -977,8 +977,8 @@ func take_opening() -> void:
 	_trace_mark("bank", "on the far bank at %s" % r.global_position.round())
 	_land_fx = [feet(), 0]
 	sfx("checkpoint", 0.0, 0.8)
-	camera({"mode": "follow", "zoom": 1.35, "lead": 90.0, "offset": Vector2(-140, -40), "smooth": 3.0})
-	await until(func() -> bool: return r.global_position.x > bank.x + 240.0, 60)
+	camera({"mode": "follow", "zoom": 1.7, "lead": 120.0, "offset": Vector2(-60, -30), "smooth": 3.5})
+	await until(func() -> bool: return r.global_position.x > bank.x + 480.0, 90)
 	_trace_mark("clip_end", "running on at %s" % r.global_position.round())
 	await end_cut()
 	release()
