@@ -578,9 +578,10 @@ def canyon_background():
     board = src("assets/split/1-6/background/background.png")
     w, h = board.size
     warm = recolor(board, [[1.05, 0.05, 0.0], [0.02, 0.92, 0.0], [0.0, 0.05, 0.85]], (0.02, 0.0, -0.02))
-    ribs = rib_layer(w, h, 12, (226, 214, 188))
+    # Far ribs, warm and hazy: dimmer than the walkable bones in front.
+    ribs = rib_layer(w, h, 12, (168, 122, 102))
     a = arr(ribs)
-    a[..., 3] *= 0.75
+    a[..., 3] *= 0.45
     warm.alpha_composite(to_img(a))
     return warm
 

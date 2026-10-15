@@ -94,47 +94,78 @@ func draw_item(ci: CanvasItem, item: Array) -> void:
 		"drip":
 			_drip(ci, at, h)
 		"abyss":
-			_abyss(ci, at, h, float(item[6]) if item.size() > 6 else 600.0)
+			_abyss(ci, at, h, float(item[6]) if item.size() > 6 else 600.0, float(item[7]) if item.size() > 7 else 10.0)
 		"canyon_haze":
 			_haze(ci, at, h, float(item[6]) if item.size() > 6 else 600.0, Color(0.42, 0.16, 0.08))
 		_:
 			FinaleArt.sprite(ci, key, at, h, flip)
 
-## Depth haze filling a chasm: clear at the top, deep blue-black lower down,
-## with pale mist bands, so a drop reads as a drop even when the floor is
-## out of frame. `at` is the top-left corner.
-func _abyss(ci: CanvasItem, at: Vector2, height: float, width: float) -> void:
-	var deep := Color(0.03, 0.07, 0.16)
-	# The gorge's far wall: shaded rock behind the gap, its ragged top edge
-	# just under the lip, so the eye reads a drop rather than open country.
+## Depth filling a chasm, so a drop reads as a drop even when the floor is
+## out of frame. `at` is the top-left corner. `drop`: how far under the lip
+## the first far ridge starts. Small: a near back wall just under the lip.
+## Large (an open gorge): nothing stands behind a runner in the air; under
+## them, ridge after ridge of the gorge's far side sinks into blue-black
+## haze, and the scenery behind is covered so no meadow shows at the bottom.
+func _abyss(ci: CanvasItem, at: Vector2, height: float, width: float, drop: float = 10.0) -> void:
+	var deep := Color(0.03, 0.06, 0.13)
 	var tex := FinaleArt._load("res://assets/stage_1_10/tex_slate.png")
-	var wall := PackedVector2Array()
-	var n := 16
-	for k in n + 1:
-		var x := at.x - 30.0 + (width + 60.0) * float(k) / float(n)
-		wall.append(Vector2(x, at.y + 10.0 + sin(float(k) * 1.7) * 22.0 + FinaleGround.h(k * 13) * 34.0))
-	wall.append(Vector2(at.x + width + 30.0, at.y + height))
-	wall.append(Vector2(at.x - 30.0, at.y + height))
-	var wc := PackedColorArray()
-	var uv := PackedVector2Array()
-	for p in wall:
-		var k2 := clampf((p.y - at.y) / height, 0.0, 1.0)
-		wc.append(Color(1.25, 1.3, 1.4).lerp(Color(0.3, 0.36, 0.52), sqrt(k2)))
-		uv.append(p / 300.0)
-	if tex != null:
-		ci.draw_polygon(wall, wc, uv, tex)
-	var top := PackedVector2Array()
-	for k in n + 1:
-		top.append(wall[k])
-	ci.draw_polyline(top, Color(0.2, 0.22, 0.35, 0.8), 4.0, true)
-	var mid := at.y + height * 0.55
-	ci.draw_polygon(PackedVector2Array([at, at + Vector2(width, 0), Vector2(at.x + width, mid), Vector2(at.x, mid)]),
-		PackedColorArray([Color(deep, 0.0), Color(deep, 0.0), Color(deep, 0.35), Color(deep, 0.35)]))
+	var n := 18
+	# Three ridges, each further down and further into the haze.
+	var layers := 1 if drop < 100.0 else 3
+	for l in layers:
+		var top_y := at.y + drop + float(l) * 170.0
+		var wall := PackedVector2Array()
+		for k in n + 1:
+			var x := at.x - 30.0 + (width + 60.0) * float(k) / float(n)
+			var jag := sin(float(k) * 1.7 + float(l) * 2.3) * 26.0 + FinaleGround.h(k * 13 + l * 5) * 46.0
+			wall.append(Vector2(x, top_y + jag))
+		wall.append(Vector2(at.x + width + 30.0, at.y + height))
+		wall.append(Vector2(at.x - 30.0, at.y + height))
+		var wc := PackedColorArray()
+		var uv := PackedVector2Array()
+		var fade := float(l) / 3.0
+		for p in wall:
+			if layers == 1:
+				var k1 := clampf((p.y - top_y) / 700.0, 0.0, 1.0)
+				wc.append(Color(1.25, 1.3, 1.4).lerp(Color(0.10, 0.13, 0.22), sqrt(k1)))
+				continue
+			# Far side of the gorge: pale and blue at the top (air between
+			# it and the runner), darker lower down, the deeper ridges
+			# already dimmer where they start.
+			var k2 := clampf((p.y - top_y) / 380.0, 0.0, 1.0)
+			var lit := Color(0.42, 0.52, 0.70).lerp(Color(0.20, 0.27, 0.42), fade)
+			wc.append(lit.lerp(Color(0.04, 0.06, 0.13), sqrt(k2)))
+			uv.append(p / (300.0 + 90.0 * float(l)))
+		if layers > 1:
+			# Mostly the haze's colour: the slate shows through faintly.
+			ci.draw_polygon(wall, wc)
+		if tex != null:
+			if layers > 1:
+				var faint := PackedColorArray()
+				for c in wc:
+					faint.append(Color(c.r * 1.1, c.g * 1.1, c.b * 1.1, 0.18))
+				ci.draw_polygon(wall, faint, uv, tex)
+			else:
+				ci.draw_polygon(wall, wc, uv, tex)
+		var ridge := PackedVector2Array()
+		for k in n + 1:
+			ridge.append(wall[k])
+		ci.draw_polyline(ridge, Color(0.16, 0.18, 0.30, 0.8 - 0.2 * float(l)), 4.0, true)
+		# Haze between the ridges: each one sits deeper in the blue.
+		if layers > 1:
+			ci.draw_polygon(PackedVector2Array([Vector2(at.x - 30, top_y - 60), Vector2(at.x + width + 30, top_y - 60),
+				Vector2(at.x + width + 30, top_y + 260), Vector2(at.x - 30, top_y + 260)]),
+				PackedColorArray([Color(0.70, 0.82, 0.95, 0.0), Color(0.70, 0.82, 0.95, 0.0),
+				Color(0.55, 0.68, 0.85, 0.22), Color(0.55, 0.68, 0.85, 0.22)]))
+	var start := at.y + (drop if layers > 1 else 0.0)
+	var mid := start + (height - (start - at.y)) * 0.4
+	ci.draw_polygon(PackedVector2Array([Vector2(at.x, start), Vector2(at.x + width, start), Vector2(at.x + width, mid), Vector2(at.x, mid)]),
+		PackedColorArray([Color(deep, 0.0), Color(deep, 0.0), Color(deep, 0.55), Color(deep, 0.55)]))
 	ci.draw_polygon(PackedVector2Array([Vector2(at.x, mid), Vector2(at.x + width, mid), at + Vector2(width, height), at + Vector2(0, height)]),
-		PackedColorArray([Color(deep, 0.35), Color(deep, 0.35), Color(deep, 0.95), Color(deep, 0.95)]))
+		PackedColorArray([Color(deep, 0.55), Color(deep, 0.55), Color(deep, 1.0), Color(deep, 1.0)]))
 	for i in 4:
-		var y := at.y + height * (0.3 + 0.16 * float(i))
-		var mist := Color(0.75, 0.88, 1.0, 0.07 - 0.012 * float(i))
+		var y := start + 120.0 + 170.0 * float(i)
+		var mist := Color(0.75, 0.88, 1.0, 0.10 - 0.018 * float(i))
 		var band := PackedVector2Array()
 		for k in 13:
 			var x := at.x + width * float(k) / 12.0
@@ -223,11 +254,13 @@ func _rib(ci: CanvasItem, base: Vector2, height: float, flip: bool) -> void:
 		uvs.append(p / 220.0)
 	var cols := PackedColorArray()
 	cols.resize(poly.size())
-	cols.fill(Color(0.86, 0.8, 0.7))
+	# Background fossil: dimmer than the bones the runner stands on, so the
+	# way across reads in front of it.
+	cols.fill(Color(0.58, 0.44, 0.38, 0.8))
 	ci.draw_polygon(poly, cols, uvs, t)
 	var line := PackedVector2Array(poly)
 	line.append(poly[0])
-	ci.draw_polyline(line, Color("6b5642"), 4.0, true)
+	ci.draw_polyline(line, Color(0.32, 0.2, 0.15, 0.7), 3.0, true)
 
 func _drip(ci: CanvasItem, top: Vector2, length: float) -> void:
 	var honey := Color("ffb21e")

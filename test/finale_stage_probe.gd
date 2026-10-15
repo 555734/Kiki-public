@@ -74,6 +74,8 @@ func hop_to(feet: Variant, double: bool = false, held: int = 18, limit: int = 12
 			_jump = true
 			pressed = held - 10
 		await frames(1)
+		if OS.get_environment("HOP_LOG") != "" and i % 3 == 0:
+			print("      hop f%d %s v%s st%d floor%s tick%d" % [i, r.global_position.round(), r.velocity.round(), r.state, r.is_on_floor(), Clock.tick])
 		if r.state == Runner.State.HANG:
 			# Caught the lip: release and press again to climb up from the hang.
 			_jump = false
@@ -182,6 +184,9 @@ func from_checkpoint(index: int) -> void:
 	main._respawn_timer = -1.0
 	main.guardian.clear_constructs()
 	var cp: Vector2 = Stage.checkpoints()[index - 1]
+	# Every area plays from the same clock as when it is run alone (the
+	# machines are functions of the shared clock).
+	Clock.reset(0)
 	# As if the flag had just been touched (flags already passed stay lit).
 	GameState.checkpoint_index = index
 	GameState.checkpoint_position = cp + Vector2(0, 26)
@@ -283,48 +288,62 @@ func area_grass() -> bool:
 	hold(1.0, true)
 	await run_until(func() -> bool: return r.global_position.x > bug.global_position.x + 40 and r.is_on_floor(), 1.0, true, 120)
 	check(r.hp == Balance.RUNNER_MAX_HP, "jumped the enemy cleanly")
-	# The cliff leap: full sprint jump from the lip, double jump at the top.
-	# The lip of the near cliff breaks away under the take-off.
-	await run_until(x_past(1525), 1.0, true, 200)
-	await jump(18)
-	await wait_until(func() -> bool: return r.velocity.y > -60.0, 30)
-	await jump(14)
-	# Not reaching for the edge (a held direction would catch it from a
-	# perfect jump): this is the fall the guardian has to answer.
-	hold(0.0)
+	# The gorge, first WITHOUT the guardian: the best leap there is -- full
+	# sprint, full jump, air jump at the top, steering for the far bank the
+	# whole way -- falls short in the open and the fall is fatal. No wall to
+	# slide on, no ledge to catch, no floor to land on.
+	var lip_y := 1160.0
+	await _gorge_leap()
 	check(machine("cliff_lip").state == 1, "the overhanging lip broke away under the take-off")
-	# The jump ends against the far wall, under its top.
-	await wait_until(func() -> bool: return r.global_position.y > 1040.0 and r.velocity.y > 0.0, 90)
-	at("short")
-	check(r.global_position.x < 2000 and not r.is_on_floor() and r.global_position.y + 23.0 > 1000.0,
-		"short of the high bank: the runner drops below the top of the far wall")
-	# The guardian draws a ledge out from the wall under the runner, and
-	# fires its launch ring: thrown up the wall and over the top.
-	var fy := r.global_position.y + 23.0 + 60.0
-	check(place_platform(Vector2(1915, fy), PackedVector2Array([Vector2(83, 0), Vector2(-83, 0)])), "guardian places a platform in mid-air")
-	hold(0.0)
-	await wait_until(grounded(), 90)
+	var best_x := r.global_position.x
+	var touched := false
+	for i in 240:
+		if r.state == Runner.State.DEAD:
+			break
+		best_x = maxf(best_x, r.global_position.x)
+		touched = touched or r.is_on_floor() or r.is_on_wall() or r.state == Runner.State.HANG
+		await frames(1)
+	at("unaided")
+	check(r.state == Runner.State.DEAD and not touched,
+		"without the guardian the leap falls short and the runner falls to death, touching nothing on the way (x %.0f at death)" % best_x)
+	# Again, now with the guardian: the same leap, and while the runner is
+	# falling clear of everything the guardian draws a platform under them.
+	main._respawn_timer = -1.0
+	main.runner.respawn(Vector2(1300, 1137))
+	await frames(6)
+	await _gorge_leap()
+	await wait_until(func() -> bool: return r.velocity.y > 200.0 and r.global_position.y + 23.0 > lip_y + 20.0, 90)
+	at("falling")
+	var feet_y := r.global_position.y + 23.0
+	check(not r.is_on_floor() and feet_y > lip_y and r.global_position.x > 1540.0 + 200.0 and r.global_position.x < 2300.0 - 250.0,
+		"the runner is falling in the open gorge, below the lip, far from both walls")
+	var fy := feet_y + 50.0
+	var cx := r.global_position.x + 70.0
+	check(place_platform(Vector2(cx, fy), PackedVector2Array([Vector2(-120, 0), Vector2(120, 0)])), "guardian draws a platform in mid-air under the falling runner")
+	var vy_before := r.velocity.y
+	await wait_until(grounded(), 40)
 	at("caught")
-	check(r.is_on_floor() and r.global_position.y < 1200, "the runner lands on the guardian's platform")
-	hold(0.3)
-	await frames(3)
-	hold(0.0)
-	var ring: LaunchTrigger = null
-	for t in get_tree().get_nodes_in_group("launch_trigger"):
-		if t is LaunchTrigger and (t as LaunchTrigger).armed:
-			ring = t
-	await wait_until(func() -> bool: return ring != null and ring.loaded(), 30)
-	shoot(ring.global_position)
-	await frames(2)
-	check(r.velocity.y < -300.0, "the launch ring throws the runner up the wall")
-	hold(1.0)
-	await run_until(func() -> bool: return r.is_on_floor() and r.global_position.y < 960.0, 1.0, false, 150)
+	check(r.is_on_floor() and absf(r.global_position.y + 23.0 - (fy - 13.0)) < 6.0 and vy_before > 200.0,
+		"the runner collides with the platform and the fall stops (vy %.0f -> on floor at %.0f)" % [vy_before, r.global_position.y + 23.0])
+	# From the platform: run to its end, jump, air jump, onto the far bank.
+	await run_until(x_past(cx + 95.0), 1.0, false, 60)
+	await hop_to(Vector2(2360, 1080), true)
 	at("bank")
-	check(r.global_position.y < 960 and r.global_position.x > 2000, "safe on the far bank")
+	check(r.is_on_floor() and r.global_position.x > 2300 and absf(r.global_position.y + 23.0 - 1080.0) < 8.0, "jumps from the platform to the far bank")
 	_cover = true
 	await run_until(x_past(2720), 1.0, true, 200)
 	check(GameState.checkpoint_index >= 1, "checkpoint 1 reached")
 	return r.global_position.x > 2700
+
+## The leap at the gorge: full sprint to the lip, full jump, air jump at the
+## top, steering right all the way.
+func _gorge_leap() -> void:
+	await run_until(x_past(1525), 1.0, true, 200)
+	hold(1.0, true)
+	await jump(18)
+	await wait_until(func() -> bool: return r.velocity.y > -60.0, 30)
+	await jump(14)
+	hold(1.0, true)
 
 func machine(id: String) -> FinaleMachine:
 	for m in get_tree().get_nodes_in_group("finale_machine"):
@@ -351,7 +370,9 @@ func area_storm() -> bool:
 	await frames(2)
 	check(Clock.tick < storm._rod_until, "guardian's shot earths the lightning rod")
 	for feet in [Vector2(4175, 920), Vector2(4385, 800), Vector2(4575, 860), Vector2(4755, 760)]:
-		if not await hop_to(feet):
+		# The climb to the high span takes the air jump (a spark under it
+		# to bounce off is not always there).
+		if not await hop_to(feet, feet.y < 900.0 and feet.x < 4400.0):
 			at("missed span %s" % feet)
 			return false
 	at("high spans")
@@ -536,30 +557,75 @@ func area_giant() -> bool:
 	await run_until(x_past(17460), 1.0, true, 200)
 	await hop_to(Vector2(17760, 300))
 	at("tilted ledge")
-	await hop_to(Vector2(18050, 300))
+	await hop_to(Vector2(18030, 300))
 	var giant := machine("giant")
-	# Past the slam point, to the edge, and wait there for the bridge.
-	await run_until(x_past(18440), 1.0, false, 200)
+	# Onto the bridge; as the fist goes up and its shadow gathers ahead,
+	# stop short of it.
+	await run_until(x_past(18110), 1.0, false, 120)
 	hold(0.0)
-	check(giant.state == 1, "the stone giant woke")
-	await wait_until(func() -> bool: return giant.slab_angle() >= PI * 0.5 - 0.01, 300)
-	check(giant.slab_angle() >= PI * 0.5 - 0.01, "the giant's slam toppled the pillar into a bridge")
-	check(r.hp == Balance.RUNNER_MAX_HP, "the slam missed a runner who got out from under it")
-	await wait_until(func() -> bool: return giant.cycle_time() > 1.2 and giant.cycle_time() < 1.6, 300)
-	shoot(giant._core.global_position)
 	await frames(2)
-	check(giant.stunned(), "the guardian's shot staggered the giant")
-	var frozen: Vector2 = giant.swipe_fist()
-	await run_until(x_past(18500), 1.0, true, 100)
-	at("slab foot")
-	await hop_to(Vector2(18700, 240))
-	at("on the toppled slab")
+	check(giant.state == 1, "the stone giant noticed the runner stepping onto its bridge")
 	if log_moves:
-		print("      slab body ", giant._slab.global_position, " rot ", giant._slab.rotation, " layer ", giant._slab.collision_layer)
-	check(giant.swipe_fist().distance_to(frozen) < 1.0, "the fists hold still while staggered")
-	await run_until(x_past(18880), 1.0, true, 100)
-	await hop_to(Vector2(19050, 300))
+		print("      ramp line ", giant.ramp_line(), " elbow ", giant.elbow(giant.shoulder(-1), giant.slam_target(), -1.0))
+	await wait_until(func() -> bool: return giant.windup() > 0.4, 120)
+	at("wind-up")
+	hold(-0.15)
+	var blocks_solid := 0
+	for i in giant.block_count():
+		blocks_solid += 1 if giant.block_body(i).collision_layer != 0 else 0
+	check(blocks_solid == giant.block_count(), "the stone bridge is whole and solid before the slam (%d blocks)" % blocks_solid)
+	for i in 120:
+		if giant.bridge_broken():
+			break
+		if log_moves and i % 6 == 0:
+			at("waiting c=%.2f" % giant.cycle_time())
+		await frames(1)
+	hold(0.0)
+	await frames(2)
+	at("impact")
+	var fist: Vector2 = giant.slam_fist()
+	check(absf(fist.x - r.global_position.x) < 190.0 and r.hp == Balance.RUNNER_MAX_HP,
+		"the slam lands right in front of the runner (%.0f px) without touching them" % (fist.x - r.global_position.x))
+	var under := -1
+	for i in giant.block_count():
+		var rect: Rect2 = giant.block_rect(i)
+		if rect.position.x < fist.x and rect.end.x > fist.x:
+			under = i
+	check(under >= 0 and giant.block_body(under).collision_layer == 0, "the block under the fist lost its collider at once")
+	check(giant.ramp_body().collision_layer != 0, "the planted arm became solid ground (a ramp)")
+	# The runner's own block is cracked and sagging: off it, onto the arm.
+	var mine := -1
+	for i in giant.block_count():
+		var rect: Rect2 = giant.block_rect(i)
+		if rect.position.x <= r.global_position.x and rect.end.x > r.global_position.x:
+			mine = i
+	check(mine >= 0 and giant.block_phase(mine) == 1, "the runner's own block is cracking under them")
+	var line: PackedVector2Array = giant.ramp_line()
+	await hop_to(line[0] + (line[1] - line[0]).normalized() * 60.0, true)
+	at("on the arm")
+	check(r.is_on_floor() and r.global_position.y < 300.0 - 60.0, "jumped off the crumbling bridge onto the giant's arm")
+	hold(1.0, true)
+	for i in 200:
+		if r.global_position.x > line[1].x - 30.0 or r.state == Runner.State.DEAD:
+			break
+		if log_moves and i % 8 == 0:
+			at("climbing c=%.2f" % giant.cycle_time())
+		await frames(1)
+	at("elbow")
+	check(mine >= 0 and giant.block_body(mine).collision_layer == 0, "the block the runner left has fallen")
+	check(r.is_on_floor() and r.global_position.y < 200.0, "ran up the planted forearm to the elbow (at %s)" % r.global_position.round())
+	var leap_c: float = giant.cycle_time()
+	await hop_to(Vector2(19020, 300), true)
 	at("far plateau")
+	check(r.global_position.x > 18900 and absf(r.global_position.y + 23.0 - 300.0) < 8.0 and r.hp == Balance.RUNNER_MAX_HP,
+		"leapt from the elbow down onto the far plateau unhurt")
+	check(leap_c < giant.SWAT_AT, "left the arm before the other fist came down on it (left at %.2f, swat at %.2f)" % [leap_c, giant.SWAT_AT])
+	await wait_until(func() -> bool: return giant.cycle_time() > giant.SWAT_AT + giant.SWAT_DROP, 120)
+	check(giant._last_swat == 0 and r.hp == Balance.RUNNER_MAX_HP, "the second attack came down on the top of the arm the runner had just left")
+	var gone := 0
+	for i in giant.block_count():
+		gone += 1 if giant.block_body(i).collision_layer == 0 else 0
+	check(gone >= giant.block_count() - 1, "the old way across, the bridge, is gone (%d / %d blocks fallen)" % [gone, giant.block_count()])
 	await run_until(x_past(19700), 1.0, false, 300)
 	await run_until(x_past(20280), 1.0, false, 300)
 	await hop_to(Vector2(20360, 320))
@@ -568,62 +634,63 @@ func area_giant() -> bool:
 	await run_until(x_past(21260), 1.0, false, 100)
 	return GameState.checkpoint_index >= 10
 
-## 35-39s: the beast erupts through the vertebra bridge, the gap, the jaw
-## chase over collapsing pillars, the gate.
+## 35-39s: up the great rib; the maw bites the span behind the runner and
+## its tip drops them onto the thigh bone below; slide; the maw chases and
+## bites the bone's end and the curved rib as they leave; the last jump.
 func area_bone() -> bool:
 	await from_checkpoint(10)
-	var beast := machine("beast")
-	await run_until(x_past(21700), 1.0, false, 200)
-	hold(0.0)
-	check(beast.state == 1, "the skeletal beast erupts")
-	await wait_until(func() -> bool: return beast.broken(), 60)
+	var maw := machine("maw")
+	await run_until(x_past(21560), 1.0, true, 200)
 	await frames(2)
-	check(beast._segments[6].collision_layer == 0, "it burst vertebrae out of the bridge")
-	await frames(110)
-	check(r.state != Runner.State.DEAD, "the eruption missed a runner who waited")
-	await run_until(x_past(21880), 1.0, true, 100)
-	await hop_to(Vector2(22400, 300), true)
-	at("past gap")
-	await run_until(x_past(22560), 1.0, true, 200)
-	for feet in [Vector2(22710, 320), Vector2(22905, 260), Vector2(23105, 330)]:
-		var ok := await hop_to(feet + Vector2(25, 0))
-		at("pillar %s %s jaw front %d" % [feet, ok, int(beast.jaw_front()) if beast.state == 2 else -1])
-		if not ok:
-			return false
-	check(beast.state == 2, "the jaws are chasing")
-	var crushed := 0
-	for m in get_tree().get_nodes_in_group("finale_machine"):
-		if m.kind == "bone_pillar" and m.state == 2:
-			crushed += 1
-	check(crushed >= 1, "the jaws bit through a pillar behind the runner")
-	# Into the jet, up past the rib, out of the column onto it.
-	_jump = true
-	hold(1.0)
-	var blew := false
-	for i in 160:
-		if i == 18:
-			_jump = false
-		if machine("sandjet_23205").active():
-			blew = true
-		if r.global_position.y < 120.0:
-			hold(1.0, true)
-		if i > 20 and r.is_on_floor():
+	check(maw.state == 1, "the maw stirs as the runner starts up the great rib")
+	hold(1.0, true)
+	var climbed := 0.0
+	for i in 200:
+		if maw.destroyed("B") or r.state == Runner.State.DEAD:
 			break
+		climbed = minf(climbed, r.global_position.y) if climbed != 0.0 else r.global_position.y
 		await frames(1)
-	_jump = false
-	at("after the jet")
-	check(blew, "the jaws' impact blew the sand vent ahead")
-	check(r.global_position.y < 60.0 and r.is_on_floor(), "the jet threw the runner up onto the rib path")
-	await run_until(x_past(23688), 1.0, true, 120)
-	await hop_to(Vector2(24140, 300), true)
-	at("through the gate")
-	await wait_until(func() -> bool: return beast._snapped, 200)
-	check(beast._snapped, "the jaws slammed shut at the gate behind the runner")
-	await run_until(x_past(24210), 1.0, false, 100)
+	await frames(2)
+	at("bite")
+	var b_end: Vector2 = maw.piece("B")["b"]
+	check(maw.destroyed("B") and maw.piece_body("B").collision_layer == 0, "the jaws bit span B: its collider is gone")
+	check(r.state != Runner.State.DEAD and r.global_position.x > b_end.x and r.global_position.y < 200.0,
+		"the runner had just run off span B and is up on the rib's tip (at %s)" % r.global_position.round())
+	# The tip drops away with them onto the thigh bone below.
+	hold(0.6)
+	await wait_until(func() -> bool: return maw.piece_body("C").collision_layer == 0, 60)
+	check(maw.piece_body("C").collision_layer == 0, "the rib's tip lost its hold and fell")
+	await wait_until(func() -> bool: return r.is_on_floor() and r.global_position.y > 250.0, 90)
+	at("thigh bone")
+	check(r.is_on_floor() and r.global_position.y > 250.0 and r.global_position.x > 21880.0,
+		"dropped with the collapse onto the lower route, the tilted thigh bone (y %.0f, was %.0f)" % [r.global_position.y, climbed])
+	# Slide down it.
+	_crouch = true
+	hold(1.0)
+	var slid := false
+	for i in 120:
+		if r.global_position.x > 22500.0 or r.state == Runner.State.DEAD:
+			break
+		slid = slid or r.crouching()
+		await frames(1)
+	_crouch = false
+	at("bone end")
+	check(slid and maw.state == 2, "slid down the thigh bone; the maw is up again behind (state %d)" % maw.state)
+	await hop_to(Vector2(22800, 568), true)
+	at("curved rib")
+	check(r.is_on_floor() and r.global_position.x > 22690.0 and r.global_position.y < 560.0, "jumped from the thigh bone onto the curved rib")
+	await wait_until(func() -> bool: return maw.destroyed("L1b"), 60)
+	check(maw.destroyed("L1b") and maw.piece_body("L1b").collision_layer == 0 and r.state != Runner.State.DEAD,
+		"the jaws bit the thigh bone's end off right behind the runner")
+	await run_until(x_past(23010), 1.0, true, 80)
+	await hop_to(Vector2(23500, 500), true)
+	at("gate slope")
+	check(r.is_on_floor() and r.global_position.x > 23380.0, "the last long jump made it to the slope by the gate")
+	await wait_until(func() -> bool: return maw.destroyed("P2"), 60)
+	check(maw.destroyed("P2") and r.state != Runner.State.DEAD, "the jaws snapped the curved rib a moment after the jump")
+	await run_until(x_past(24220), 1.0, true, 200)
 	return GameState.checkpoint_index >= 11
 
-## 39-49s: saws, the spike pit, the cannon, the impossible pillars, the
-## dipping saw, the lift, the goal.
 func area_title() -> bool:
 	await from_checkpoint(11)
 	at("title start")
@@ -678,24 +745,30 @@ func place_runner(at: Vector2) -> void:
 	r.respawn(at)
 	await frames(3)
 
-## No guardian at all: a runner who falls into the opening chasm climbs the
-## chimney behind the far bank. Nothing is a dead end alone.
+## No guardian at all: the opening gorge is the one place a lone runner
+## cannot cross -- the rescue there is the guardian's.
 func area_solo() -> bool:
+	# Alone (no guardian), a runner in the gorge has no way out: no floor,
+	# no chimney, no wall in reach. The fall ends the life and the run goes
+	# back to the last checkpoint -- here the start.
 	release()
 	main.guardian.clear_constructs()
-	await place_runner(Vector2(1800, 2070))
-	await wait_until(grounded(), 60)
-	await run_until(x_past(2440), 1.0, false, 300)
-	at("chimney foot")
-	var ledges := [Vector2(2565, 1980), Vector2(2435, 1860), Vector2(2565, 1740), Vector2(2435, 1620),
-		Vector2(2565, 1500), Vector2(2435, 1380), Vector2(2565, 1260), Vector2(2435, 1140), Vector2(2565, 1040), Vector2(2500, 960)]
-	for feet in ledges:
-		if not await hop_to(feet):
-			at("chimney missed %s" % feet)
-			return false
-	at("out of the chimney")
-	check(r.global_position.y < 950.0, "climbed out of the chasm alone via the chimney")
-	return true
+	GameState.checkpoint_index = 0
+	GameState.checkpoint_position = Stage.start()
+	await place_runner(Vector2(1900, 1300))
+	var died := false
+	for i in 200:
+		hold(1.0, true)
+		if r.state == Runner.State.DEAD:
+			died = true
+			break
+		await frames(1)
+	check(died, "alone in the gorge, the runner falls to death")
+	main._respawn_timer = -1.0
+	main._do_respawn()
+	await frames(6)
+	check(r.global_position.distance_to(Stage.start()) < 80.0, "and starts again from the beginning")
+	return r.state != Runner.State.DEAD
 
 func area_mechanics() -> bool:
 	_cover = false
@@ -758,41 +831,23 @@ func area_mechanics() -> bool:
 	await frames(3)
 	check(r.state == Runner.State.DEAD, "the low bridge sweeps a runner still on the roof")
 	await frames(100)
-	# Sand geyser lifts.
+	# The maw's bite kills a runner who stays on the span it bites.
 	await from_checkpoint(10)
-	var jet := machine("sandjet_23205")
-	await wait_until(func() -> bool: return not jet.active(), 400)
-	await wait_until(func() -> bool: return jet.active(), 400)
-	await place_runner(Vector2(23205, 700))
-	r.global_position = Vector2(23205, 700)
-	var y0 := r.global_position.y
-	for i in 6:
-		await frames(5)
-		at("jet %d active=%s" % [i, jet.active()])
-	check(r.global_position.y < y0 - 150.0, "a sand geyser throws the runner upward")
-	# The jaws kill a runner who stops.
-	await from_checkpoint(10)
-	var beast := machine("beast")
-	await place_runner(Vector2(22710, 297))
-	await frames(3)
-	check(beast.state == 2, "the chase starts past the bridge")
-	r.global_position = Vector2(22540, 277)
-	for i in 12:
-		await frames(20)
-		at("jaws %d front=%d" % [i, int(beast.jaw_front())])
+	var maw := machine("maw")
+	await place_runner(Vector2(21700, 160))
+	for i in 160:
 		if r.state == Runner.State.DEAD:
 			break
-	check(r.state == Runner.State.DEAD, "the jaws catch a runner who stands still")
+		await frames(1)
+	check(maw.state == 1 and r.state == Runner.State.DEAD, "the maw's bite kills a runner who stays on the bitten span")
 	await frames(100)
-	# Giant's sweep hits.
+	# The giant's slam hits a runner under it.
 	await from_checkpoint(9)
 	var giant := machine("giant")
-	giant.set_state(1)
-	await wait_until(func() -> bool: return giant.since() > 4.0, 400)
-	await place_runner(Vector2(18760, 217))
+	await place_runner(Vector2(18252, 250))
 	hp = r.hp
-	await wait_until(func() -> bool: return r.hp < hp, 300)
-	check(r.hp < hp, "the giant's sweep hits a runner standing on the bridge")
+	await wait_until(func() -> bool: return r.hp < hp, 200)
+	check(giant.state == 1 and r.hp < hp, "the giant's slam hits a runner standing where it lands")
 	# Honey cuts a jump.
 	await from_checkpoint(7)
 	await place_runner(Vector2(16690, 1277))

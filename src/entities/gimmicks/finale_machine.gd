@@ -37,6 +37,7 @@ const KINDS := {
 	"canyon_floor": "res://src/entities/gimmicks/finale/canyon_floor.gd",
 	"saw": "res://src/entities/gimmicks/finale/saw.gd",
 	"crumble_lip": "res://src/entities/gimmicks/finale/crumble_lip.gd",
+	"bone_maw": "res://src/entities/gimmicks/finale/bone_maw.gd",
 }
 
 var kind := ""

@@ -199,6 +199,8 @@ func hop_to(feet: Variant, double: bool = false, held: int = 18, limit: int = 14
 			_jump = true
 			pressed = held - 10
 		await frames(1)
+		if OS.get_environment("HOP_LOG") != "" and i % 3 == 0:
+			print("      hop f%d %s v%s st%d floor%s" % [i, r.global_position.round(), r.velocity.round(), r.state, r.is_on_floor()])
 		if r.state == Runner.State.HANG:
 			_jump = false
 			await frames(1)
@@ -757,7 +759,8 @@ func fade_call(to: float, n: int) -> void:
 func take_opening() -> void:
 	await begin_take(Vector2(-60, 877), 0)
 	var bug := enemy_near("burrbug", Vector2(1180, 1135))
-	var lip := Vector2(2000, 960)
+	var lip := Vector2(1540, 1160)
+	var bank := Vector2(2300, 1080)
 	hold(1.0, true)
 	await until(x_past(envf("PV_OPEN_X", 560.0)), 200)
 
@@ -780,17 +783,19 @@ func take_opening() -> void:
 	await until(func() -> bool: return r.global_position.x > bug.global_position.x + 30.0 and r.is_on_floor(), 70)
 	_flags["cleared_enemy"] = r.hp == Balance.RUNNER_MAX_HP and r.global_position.x > bug.global_position.x
 
-	# 3 THE CLIFF: close behind the sprint to the very edge; the lip breaks
-	# away under the take-off and the camera pulls back on the leap: the
-	# chunks tumble into the dark gorge, the far wall stands higher.
-	await cut(3, "Runner leaps from the crumbling edge of the cliff; the camera pulls back over the deep gorge to the higher far wall",
+	# 3 THE LEAP: close behind the sprint to the very edge; on the take-off
+	# the camera pulls far back: the gorge is 760px wide and has no bottom
+	# in sight; the far bank is plainly out of reach.
+	await cut(3, "Runner leaps from the crumbling edge; wide: the gorge is far wider than the jump and drops out of sight",
 		func() -> bool: return machine("cliff_lip").state == 1 and not r.is_on_floor() and r.global_position.x > 1620.0,
-		func() -> Vector2: return lip, {"subject_name": "far wall", "subject_r": 60.0, "establish": true, "hero_floor": 0.05, "frames": 84})
+		func() -> Vector2: return bank, {"subject_name": "far bank", "subject_r": 60.0, "establish": true, "hero_floor": 0.04, "frames": 80})
 	camera({"mode": "follow", "zoom": 2.0, "lead": 170.0, "offset": Vector2(80, -30), "smooth": 9.0, "rotation": 0.03})
 	await until(x_past(1524), 60)
-	log_event("cliff_jump")
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-80, -110), func() -> Vector2: return lip + Vector2(140, -80),
-		func() -> Vector2: return Vector2(1830, 1720)], "pad": 50.0, "zoom": 0.82, "zoom_from": 2.0, "zoom_frames": 30, "min_zoom": 0.62, "smooth": 7.0})
+	log_event("cliff_jump", "take-off x %.0f, far bank at x %.0f" % [r.global_position.x, bank.x])
+	camera({"mode": "frame", "fit": [func() -> Vector2: return Vector2(1430, 760), func() -> Vector2: return bank + Vector2(160, -60),
+		func() -> Vector2: return Vector2(1900, 2050), func() -> Vector2: return r.global_position + Vector2(0, -110)], "pad": 30.0, "zoom": 0.62,
+		"zoom_from": 2.0, "zoom_frames": 24, "min_zoom": 0.42, "smooth": 12.0})
+	_watch_fall(lip, bank)
 	_jump = true
 	await frames(18)
 	_jump = false
@@ -798,33 +803,29 @@ func take_opening() -> void:
 	_jump = true
 	await frames(14)
 	_jump = false
+	log_event("air_jump_spent", "x %.0f: nothing left to reach the bank" % r.global_position.x)
 
-	# 4 NOT QUITE!: hard cut in. The runner slams into the far wall a body
-	# length under its top and slides, one hand up at the edge out of reach;
+	# 4 FALLING SHORT: on the way down, far short of the bank and clear of
+	# both walls, the camera closes in on the runner with nothing under them;
 	# time stretches almost to a stop.
-	cut(4, "Close on the runner hitting the far wall just under its top, sliding, reaching for an edge out of reach; time slows almost to a stop",
-		func() -> bool: return r.movement_flags() & 8 != 0 and feet().y > lip.y + 40.0 and Engine.time_scale < 0.3,
-		func() -> Vector2: return lip, {"subject_name": "edge out of reach", "subject_r": 50.0, "wait": false, "frames": 72,
-		"start_when": func() -> bool: return r.global_position.x > lip.x - 40.0 or (r.global_position.y > lip.y + 60.0 and r.velocity.y > 0.0),
+	cut(4, "Close on the runner falling in the open gorge, far from both walls, nothing below; time slows almost to a stop",
+		func() -> bool: return r.velocity.y > 0.0 and not r.is_on_floor() and r.global_position.x < bank.x - 250.0 and Engine.time_scale < 0.2,
+		Callable(), {"wait": false, "frames": 64,
+		"start_when": func() -> bool: return r.velocity.y > 0.0,
 		"on_start": func() -> void:
-			hitstop(3)
-			sfx("thud", 4.0, 0.7)
-			ramp_time(0.06, 16)
-			camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-20, 10), func() -> Vector2: return lip + Vector2(30, -50)],
-				"pad": 40.0, "zoom": 3.1, "zoom_from": 2.6, "zoom_frames": 72, "min_zoom": 2.2, "smooth": 12.0, "snap": true, "rotation": -0.035})})
+			camera({"mode": "follow", "zoom": 2.0, "zoom_from": 1.2, "zoom_frames": 40, "lead": 0.0, "offset": Vector2(170, 150),
+				"smooth": 10.0, "rotation": -0.03})})
 	await until(func() -> bool: return on_air and int(row["shot"]) == 4, 200)
-	# Pressed into the wall, as a player would: the slide and the reach.
-	hold(1.0)
-	log_event("wall_hit", "runner %s lip %s" % [r.global_position.round(), lip])
+	log_event("falling", "runner %s vy %.0f, %.0f px short of the bank, lip %.0f px behind" % [r.global_position.round(), r.velocity.y,
+		bank.x - r.global_position.x, r.global_position.x - lip.x])
 
-	# 5 INCOMING CALL: frozen against the wall; the call slides in.
-	await cut(5, "Frozen on the wall, an incoming call appears: Discord mark, decline and accept only",
-		func() -> bool: return overlay.call_alpha > 0.9 and overlay.call_state == 1 and Engine.time_scale < 0.1, Callable(), {"frames": 52})
-	ramp_time(0.01, 12)
-	# While it rings, the camera eases back and down: the drop under the
-	# runner's feet comes into the frame.
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-40, -70), func() -> Vector2: return r.global_position + Vector2(20, 330),
-		func() -> Vector2: return lip + Vector2(40, -40)], "pad": 30.0, "zoom": 1.55, "zoom_from": 3.0, "zoom_frames": 50, "min_zoom": 1.2, "smooth": 10.0})
+	# 5 INCOMING CALL: still falling, an incoming call slides in on the
+	# right; the runner stays framed on the left.
+	await cut(5, "Still falling, an incoming call appears on the right (Discord mark, decline and accept only); the runner stays clear on the left",
+		func() -> bool: return overlay.call_alpha > 0.9 and overlay.call_state == 1 and not r.is_on_floor() and screen_of(r.global_position).x < 820.0,
+		Callable(), {"frames": 54})
+	ramp_time(0.02, 12)
+	camera({"mode": "follow", "zoom": 1.9, "lead": 0.0, "offset": Vector2(160, 120), "smooth": 10.0, "rotation": -0.02})
 	overlay.call_state = 1
 	overlay.call_t = 0.0
 	sfx("ring")
@@ -832,83 +833,90 @@ func take_opening() -> void:
 	await frames(24)
 	sfx("ring")
 
-	# 6 YOUR PARTNER ARRIVES: accept; the blue YOU hand swoops in.
-	await cut(6, "The call is accepted and the blue YOU pointer swoops in beside the runner (no second avatar)",
-		func() -> bool: return overlay.call_state == 2 and overlay.pointer_alpha > 0.8 and pointer.distance_to(r.global_position) < 200.0,
-		func() -> Vector2: return pointer if pointer.x != INF else r.global_position, {"subject_name": "YOU pointer", "subject_r": 30.0, "frames": 42})
+	# 6 YOUR PARTNER ARRIVES: accept; the blue YOU finger swoops in.
+	await cut(6, "The call is accepted and the blue YOU finger swoops in beside the falling runner (no second avatar)",
+		func() -> bool: return overlay.call_state == 2 and overlay.pointer_alpha > 0.8 and pointer.distance_to(r.global_position) < 220.0,
+		func() -> Vector2: return pointer if pointer.x != INF else r.global_position, {"subject_name": "YOU finger", "subject_r": 30.0, "frames": 40})
 	await frames(4)
 	overlay.call_state = 2
 	overlay.call_t = 0.0
 	sfx("accept")
 	await frames(6)
 	fade_call(0.0, 12)
-	pointer = r.global_position + Vector2(-260, -160)
-	await point(r.global_position + Vector2(-70, 40), 18)
+	pointer = r.global_position + Vector2(-260, 120)
+	await point(r.global_position + Vector2(-150, 80), 18)
 	overlay.pointer_pop = 1.0
 	sfx("scope_up")
 
-	# 7 BRIDGE, ON DEMAND: under the sliding runner YOU draws a ledge out
-	# from the wall, block by block.
+	# 7 A FLOOR IN THE AIR: under the falling runner YOU draws a platform.
 	var hp := r.global_position
-	var fy := feet().y + 46.0
-	var path := PackedVector2Array([Vector2(lip.x - 2.0, fy), Vector2(lip.x - 170.0, fy)])
-	log_event("ledge_planned", "runner %s feet %.0f" % [hp.round(), feet().y])
-	await cut(7, "YOU traces a ledge of glowing blocks out from the wall right under the sliding runner",
+	var fy := feet().y + 56.0
+	var path := PackedVector2Array([Vector2(hp.x - 150.0, fy), Vector2(hp.x + 150.0, fy)])
+	log_event("platform_planned", "runner %s feet %.0f, platform top %.0f" % [hp.round(), feet().y, fy - 13.0])
+	await cut(7, "YOU draws a glowing platform in the air right under the falling runner",
 		func() -> bool: return main.guardian.holograms_of(Hologram.Kind.PLATFORM).size() >= 1,
-		func() -> Vector2: return (path[0] + path[1]) * 0.5, {"subject_name": "ledge", "subject_r": 70.0, "frames": 54})
-	camera({"mode": "fixed", "at": hp + Vector2(-60, -10), "zoom": 2.3, "zoom_from": 3.0, "zoom_frames": 24})
+		func() -> Vector2: return (path[0] + path[1]) * 0.5, {"subject_name": "platform", "subject_r": 70.0, "frames": 46})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(0, -60), func() -> Vector2: return path[0] + Vector2(0, 50),
+		func() -> Vector2: return path[1] + Vector2(260, 50)], "pad": 40.0, "zoom": 1.9, "min_zoom": 1.3, "smooth": 8.0})
 	var built := await trace(path, 12)
-	_flags["ledge"] = built
-	ramp_time(0.35, 8)
-
-	# 8 JUST IN TIME: the runner drops onto it; full speed on the landing.
-	# YOU taps the launch ring that every drawn slab carries.
-	await cut(8, "The runner lands on the glowing ledge; time snaps back; YOU taps the slab's launch ring",
-		func() -> bool: return _flags.get("on_holo", false) and _flags.get("launched", false),
-		func() -> Vector2: return path[1], {"subject_name": "ledge", "subject_r": 60.0, "frames": 50})
-	await until(func() -> bool: return r.is_on_floor(), 90)
-	Engine.time_scale = 1.0
-	_ramp = [1.0, 1.0, 0, 0]
-	hitstop(4)
-	sfx("thud", 2.0, 0.8)
-	punch(0.15, 10)
-	release()
-	# Face the wall: the launch throws the runner the way they face.
-	hold(0.25)
-	await frames(3)
-	release()
-	var ring := _nearest_launch_ring()
-	await until(func() -> bool: return ring != null and ring.loaded(), 30)
-	if ring != null:
-		await shoot(ring.global_position)
-		camera({"mode": "follow", "zoom": 2.0, "lead": 0.0, "offset": Vector2(30, -70), "smooth": 9.0, "smooth_y": 16.0})
-		_flags["launched"] = r.velocity.y < -300.0
-		log_event("launch", "v %s" % r.velocity.round())
+	_flags["platform"] = built
+	if built != null:
+		log_event("platform_built", "top %.0f under feet %.0f" % [built.global_position.y - 13.0, feet().y])
 	hide_pointer()
 
-	# 9 KEEP MOVING -> LAUNCH: thrown straight up the face of the wall; the
-	# camera rises with the runner.
-	cut(9, "Launched from the ledge, the runner shoots up the face of the wall and over its top",
-		func() -> bool: return r.global_position.y < lip.y - 40.0 and not r.is_on_floor(),
-		func() -> Vector2: return lip, {"subject_name": "wall top", "subject_r": 60.0, "wait": false, "frames": 40,
-		"on_start": func() -> void: camera({"mode": "follow", "zoom": 1.9, "lead": 0.0, "offset": Vector2(40, -60), "smooth": 8.0, "smooth_y": 14.0})})
-	hold(1.0, true)
+	# 8 CAUGHT: the runner drops onto it -- the fall stops dead; time snaps
+	# back on the landing. Runner and platform together in the frame.
+	await cut(8, "The falling runner hits the platform and stops; runner and platform in one frame, the drop below",
+		func() -> bool: return _flags.get("on_holo", false) and r.is_on_floor() and absf(r.velocity.y) < 1.0,
+		func() -> Vector2: return (path[0] + path[1]) * 0.5, {"subject_name": "platform", "subject_r": 70.0, "frames": 46,
+		"on_start": func() -> void: ramp_time(0.5, 8)})
+	var vy_hit := r.velocity.y
+	while not r.is_on_floor():
+		vy_hit = r.velocity.y
+		await frames(1)
+	Engine.time_scale = 1.0
+	_ramp = [1.0, 1.0, 0, 0]
+	log_event("caught", "fall stopped on the platform: vy %.0f -> %.0f, feet %.0f" % [vy_hit, r.velocity.y, feet().y])
+	hitstop(4)
+	sfx("thud", 2.0, 0.9)
+	punch(0.12, 10)
+	hold(0.0)
+	await frames(10)
 
-	# 10 SAFE SIDE!: over the top in a high arc, down onto the grass; the
-	# camera opens up on the landing, the gorge behind.
-	cut(10, "The runner arcs over the edge and lands on the grass of the far bank, the gorge behind, and runs on",
-		func() -> bool: return r.is_on_floor() and r.global_position.x > lip.x + 30.0 and absf(feet().y - lip.y) < 6.0,
-		func() -> Vector2: return lip + Vector2(80, -40), {"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 56,
-		"on_start": func() -> void: camera({"mode": "follow", "zoom": 1.45, "zoom_from": 1.9, "zoom_frames": 50, "lead": 160.0, "offset": Vector2(0, -60), "smooth": 6.0, "smooth_y": 10.0})})
-	await until(func() -> bool: return r.is_on_floor() and r.global_position.y < lip.y, 140)
+	# 9 AGAIN: along the platform and a full jump with the air jump up to
+	# the bank, now in reach.
+	cut(9, "From the platform the runner jumps again, air jump at the top, and reaches the far bank",
+		func() -> bool: return r.global_position.x > bank.x and r.global_position.y < bank.y,
+		func() -> Vector2: return bank, {"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 54,
+		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-60, -80), func() -> Vector2: return bank + Vector2(120, -60),
+			func() -> Vector2: return r.global_position + Vector2(0, 80)], "pad": 60.0, "zoom": 1.7, "min_zoom": 1.2, "smooth": 7.0})})
+	hold(1.0)
+	await until(func() -> bool: return r.global_position.x > path[1].x - 30.0, 60)
+	await hop_to(bank + Vector2(70, 0), true, 20, 120)
+	log_event("bank", "runner %s on the far bank" % r.global_position.round())
+
+	# 10 SAFE SIDE: the landing, the gorge behind.
+	cut(10, "The runner lands on the far bank and runs on, the gorge and the fading platform behind",
+		func() -> bool: return r.is_on_floor() and r.global_position.x > bank.x and absf(feet().y - bank.y) < 6.0,
+		func() -> Vector2: return bank + Vector2(60, -30), {"subject_name": "far bank", "subject_r": 60.0, "wait": false, "frames": 42,
+		"on_start": func() -> void: camera({"mode": "follow", "zoom": 1.5, "zoom_from": 1.7, "zoom_frames": 50, "lead": 120.0, "offset": Vector2(-60, -60), "smooth": 6.0, "smooth_y": 10.0})})
 	hitstop(3)
 	sfx("thud", 0.0, 0.7)
-	# A few steps on, then a look back over the gorge (no running into the
-	# far bank's burrbug: that is the next beat's business).
 	hold(0.6)
-	await frames(16)
+	await frames(18)
 	release()
 	await end_cut()
+
+## Beside the leap: once the runner is falling back toward the lip's height
+## with the air jump spent, time stretches almost to a stop.
+func _watch_fall(lip: Vector2, bank: Vector2) -> void:
+	for i in 200:
+		if r.velocity.y > 0.0 and feet().y > lip.y - 150.0 and r.global_position.x > lip.x + 150.0:
+			ramp_time(0.03, 10)
+			sfx("whoosh", -3.0, 0.7)
+			log_event("slowmo", "falling: feet %.0f (lip %.0f), %.0f px short of the bank" % [feet().y, lip.y, bank.x - r.global_position.x])
+			return
+		await get_tree().process_frame
 
 func _nearest_launch_ring() -> LaunchTrigger:
 	var best: LaunchTrigger = null
@@ -1392,89 +1400,114 @@ func take_giant() -> void:
 	release()
 	await end_cut()
 
-	# Off air: onto the plateau, toward the gorge.
+	# Off air: onto the last rock before the bridge.
 	camera({"mode": "follow", "zoom": 1.3, "rotation": 0.0, "snap": true})
-	await hop_to(Vector2(18050, 300), true)
 	var giant := machine("giant")
-	var gx := giant.global_position.x
+	await hop_to(Vector2(18010, 300), true)
 
-	# 32 SOMETHING HUGE WAKES: low and wide. The runner runs out onto the
-	# plateau; the giant heaves up out of the gorge right across the way and
-	# stops them dead. Then it raises a fist over them -- its shadow grows
-	# on the ground under the runner -- and the runner breaks forward under
-	# it as the fist comes down where they stood. The impact cracks the rock
-	# and knocks the stone pillar over the gorge.
-	hold(1.0)
-	await until(x_past(18090), 60)
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-60, 40), func() -> Vector2: return giant.global_position + Vector2(0, -1180 + giant.rise()),
-		func() -> Vector2: return Vector2(18620, 300)], "pad": 60.0, "zoom": 0.85, "min_zoom": 0.7, "smooth": 4.0, "snap": true, "fx": 0.7})
-	await cut(32, "The giant rises across the runner's way; it raises a fist over them, the runner dashes forward and the fist smashes the ground where they stood, toppling the pillar",
-		func() -> bool: return giant.fight_time() >= giant.first_impact() and r.hp == Balance.RUNNER_MAX_HP and r.global_position.x > giant.slam_target().x + 90.0,
-		func() -> Vector2: return giant.global_position + Vector2(0, -620 + giant.rise()), {"subject_name": "stone giant", "subject_r": 300.0, "hero_floor": 0.05, "frames": 176})
-	hold(1.0)
-	await until(x_past(18120), 60)
-	await until(func() -> bool: return giant.state == 1, 30)
-	# Stopped dead by the thing rising in front of them.
-	await until(x_past(giant.slam_target().x - 30.0), 60)
+	# 32 IT SEES YOU: a short wide shot -- the giant stands in the gorge
+	# across the way, the long stone bridge the only path past it. It sees
+	# the runner step onto the bridge; then close: the fist goes up, its
+	# shadow gathers on the stone just ahead, the runner pulls up and backs
+	# off -- and the fist smashes down right in front of them.
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-80, 40), func() -> Vector2: return giant.global_position + Vector2(0, -1160),
+		func() -> Vector2: return Vector2(19500, 330)], "pad": 30.0, "zoom": 0.62, "min_zoom": 0.5, "smooth": 4.0, "snap": true, "fx": 0.7})
+	await cut(32, "Wide: the giant blocks the way past its stone bridge; it notices the runner and raises its fist; close: the runner pulls up as the fist slams the bridge just ahead",
+		func() -> bool: return giant.bridge_broken() and r.hp == Balance.RUNNER_MAX_HP and absf(giant.slam_fist().x - r.global_position.x) < 200.0,
+		func() -> Vector2: return giant.slam_fist(), {"subject_name": "giant's fist", "subject_r": 80.0, "hero_floor": 0.045, "frames": 140})
+	log_event("giant_sees", "runner %s, giant state %d" % [r.global_position.round(), giant.state])
+	hold(0.8)
+	await until(x_past(18060), 40)
+	# Close: the runner and the rising fist together.
+	# The fist comes in from the top of the frame; the frame never climbs
+	# after it to the giant's body.
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-110, 60),
+		func() -> Vector2: return Vector2(giant.slam_fist().x, maxf(giant.slam_fist().y - 60.0, giant.slam_target().y - 520.0)),
+		func() -> Vector2: return giant.slam_target() + Vector2(110, 70)], "pad": 30.0, "zoom": 1.45, "zoom_from": 0.62, "zoom_frames": 26, "min_zoom": 1.0,
+		"smooth": 6.0, "fx": 0.8, "rotation": 0.02})
+	await until(func() -> bool: return r.global_position.x > 18135.0 or giant.windup() > 0.35, 60)
 	release()
-	await until(func() -> bool: return giant.cycle_time() >= 0.0, 140)
-	# The wind-up: frame the runner under the rising fist.
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(0, 40), func() -> Vector2: return giant.slam_fist() + Vector2(0, -60),
-		func() -> Vector2: return giant.global_position + Vector2(-80, -1000 + giant.rise())], "pad": 70.0, "zoom": 1.1, "zoom_from": 0.7, "zoom_frames": 30,
-		"min_zoom": 0.62, "smooth": 7.0, "fx": 0.8, "rotation": 0.03})
-	await until(func() -> bool: return giant.windup() > envf("PV_GIANT_DODGE", 0.62), 90)
-	# Dodge: a dash forward toward the edge, out from under the shadow.
-	hold(1.0, true)
-	await until(x_past(giant.slam_target().x + 150.0), 60)
+	await until(func() -> bool: return giant.windup() > 0.45, 60)
+	log_event("windup", "fist %s over the bridge, shadow at x %.0f, runner %.0f" % [giant.slam_fist().round(), giant.slam_target().x, r.global_position.x])
+	# The dodge: a step back from the shadow.
+	hold(-0.3)
+	await frames(6)
 	release()
-	await until(func() -> bool: return giant.fight_time() >= giant.first_impact(), 60)
+	await until(func() -> bool: return giant.bridge_broken(), 60)
+	log_event("slam_impact", "fist %s, runner %s: %.0f px in front" % [giant.slam_fist().round(), r.global_position.round(), giant.slam_fist().x - r.global_position.x])
 	hitstop(6)
-	_shake = 18.0
-	punch(0.2, 12)
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(0, -60), func() -> Vector2: return giant.slam_target() + Vector2(-40, 0),
-		func() -> Vector2: return Vector2(18900, 260)], "pad": 80.0, "zoom": 1.2, "min_zoom": 0.8, "smooth": 7.0, "fx": 1.0})
+	_shake = 16.0
+	punch(0.15, 12)
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-70, 60), func() -> Vector2: return giant.slam_target() + Vector2(200, 80),
+		func() -> Vector2: return giant.slam_target() + Vector2(150, -180)], "pad": 60.0, "zoom": 1.3, "min_zoom": 1.0, "smooth": 8.0, "fx": 1.0})
 	await end_cut()
 
-	# 33 SWEEP!: the pillar crashes down into a bridge; the runner is on it at
-	# once; the far fist sweeps flat across it, the runner jumps it -- time
-	# drags as it passes under their feet -- and lands on the far plateau.
-	await cut(33, "Across the fallen pillar: the giant's other fist sweeps the bridge and the runner jumps it by inches to reach the far side",
-		func() -> bool:
-			var f: Vector2 = giant.swipe_fist()
-			if giant.swiping() and not r.is_on_floor() and absf(f.x - r.global_position.x) < 80.0 and f.y > r.global_position.y + 20.0:
-				_flags["over_fist"] = true
-			return _flags.get("over_fist", false) and r.hp == Balance.RUNNER_MAX_HP and r.global_position.x > 18960.0 and r.is_on_floor(),
-		func() -> Vector2: return giant.swipe_fist(), {"subject_name": "sweeping fist", "subject_r": 78.0, "frames": 150})
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(0, -80), func() -> Vector2: return Vector2(18980, 260),
-		func() -> Vector2: return r.global_position + Vector2(-80, 60)], "pad": 60.0, "zoom": 1.3, "min_zoom": 1.05, "smooth": 7.0, "fx": 0.8, "rotation": -0.03})
-	await until(func() -> bool: return giant.slab_angle() >= PI * 0.5 - 0.01, 60)
-	sfx("thud", -2.0, 1.0)
-	hold(1.0)
-	await until(x_past(18520), 60)
-	await hop_to(Vector2(18640, 240))
-	hold(0.6)
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-40, -110), func() -> Vector2: return Vector2(18990, 250),
-		func() -> Vector2: return r.global_position + Vector2(0, 70)], "pad": 70.0, "zoom": 1.5, "min_zoom": 1.15, "smooth": 9.0, "fx": 0.8})
-	# Jump as the sweep comes; slow while it passes under.
-	await until(func() -> bool: return giant.cycle_time() >= giant.SWIPE_AT - envf("PV_GIANT_JUMP", 0.2), 200)
-	release()
-	_watch_fist(giant)
-	await hop_to(Vector2(18880, 240), true)
+	# 33 UP THE ARM: the bridge falls apart block by block, the runner's own
+	# block sagging; they jump onto the giant's planted fist and run up the
+	# arm; the other fist rises over the arm's top; they leap off the
+	# shoulder across the gorge and it crashes down where they took off.
+	var line: PackedVector2Array = giant.ramp_line()
+	await cut(33, "The bridge collapses under the runner; they jump onto the planted arm, run up it and leap off the shoulder to the far plateau just before the other fist smashes down on the arm",
+		func() -> bool: return _flags.get("off_arm_before_swat", false) and r.hp == Balance.RUNNER_MAX_HP and r.global_position.x > 18900.0 and r.is_on_floor(),
+		func() -> Vector2: return r.global_position, {"subject_name": "runner", "subject_r": 40.0, "frames": 238})
+	# Wait on the cracking block until it starts to go.
+	var mine := -1
+	for i in giant.block_count():
+		var rect: Rect2 = giant.block_rect(i)
+		if rect.position.x <= r.global_position.x and rect.end.x > r.global_position.x:
+			mine = i
+	await until(func() -> bool: return mine < 0 or giant.since_break() > float(giant._block_info[mine][1]) - 0.3, 60)
+	log_event("bridge_gives", "block %d under the runner: %d of %d blocks already fallen" % [mine, giant._fell, giant.block_count()])
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-60, 70), func() -> Vector2: return r.global_position + Vector2(260, -170)],
+		"pad": 60.0, "zoom": 1.35, "min_zoom": 1.1, "smooth": 7.0, "fx": 0.8, "rotation": -0.02})
+	await hop_to(line[0] + (line[1] - line[0]).normalized() * 50.0, true)
+	log_event("on_arm", "runner %s on the giant's arm, ramp solid %s" % [r.global_position.round(), giant.ramp_body().collision_layer != 0])
+	sfx("thud", 4.0, 0.6)
+	# Up the arm, the far fist rising over its top.
+	# Close on the runner on the arm; the raised fist enters from above
+	# once it is up (its rest pose behind the body stays out of the frame).
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-150, 90), func() -> Vector2: return r.global_position + Vector2(170, -130),
+		func() -> Vector2: return giant.swat_fist() + Vector2(0, 60) if giant.cycle_time() > giant.SWAT_WIND + 0.4 else r.global_position]
+		, "pad": 50.0, "zoom": 1.55, "min_zoom": 1.2, "smooth": 6.0, "fx": 0.8, "rotation": -0.03})
 	hold(1.0, true)
-	await until(func() -> bool: return r.global_position.x > 18990.0 and r.is_on_floor(), 120)
+	await until(func() -> bool: return r.global_position.x > line[1].x - 40.0, 200)
+	var c: float = giant.cycle_time()
+	_flags["off_arm_before_swat"] = c < giant.SWAT_AT and r.is_on_floor()
+	log_event("leap", "off the elbow at cycle %.2f, swat falls at %.2f" % [c, giant.SWAT_AT])
+	# The leap: the runner and, behind them, the fist smashing the arm.
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-60, -60), func() -> Vector2: return r.global_position + Vector2(160, 80),
+		func() -> Vector2: return giant.swat_target() + Vector2(-40, 0)], "pad": 60.0, "zoom": 1.35, "min_zoom": 1.1, "smooth": 7.0, "fx": 1.0})
+	_watch_swat(giant)
+	_landing_camera(giant)
+	await hop_to(Vector2(19030, 300), true)
+	log_event("far_plateau", "runner %s hp %d" % [r.global_position.round(), r.hp])
 	release()
 	await end_cut()
 
-## Beside the jump over the sweeping fist: slow while it passes beneath.
-func _watch_fist(giant: FinaleMachine) -> void:
-	var slowed := false
+## Beside the run: log a bite of the maw (and shake) when it lands.
+func _watch_bite(maw: FinaleMachine, piece: String) -> void:
+	for i in 240:
+		if maw.destroyed(piece):
+			await frames(2)
+			_shake = 10.0
+			log_event("bite_" + piece, "%s bitten, collider %d; runner %s" % [piece, maw.piece_body(piece).collision_layer, r.global_position.round()])
+			return
+		await get_tree().process_frame
+
+## Once over the far plateau's edge: hold on the runner and the arm behind
+## (the giant's body stays out to the right).
+func _landing_camera(giant: FinaleMachine) -> void:
+	await until(func() -> bool: return r.global_position.x > 18880.0, 90)
+	# The runner at the right of the frame, looking back at the arm and the
+	# wreck of the bridge; the giant's body stays out past the right edge.
+	camera({"mode": "follow", "zoom": 1.5, "lead": 0.0, "offset": Vector2(-320, -70), "smooth": 4.0, "smooth_y": 6.0, "fx": 1.0})
+
+## Beside the leap off the giant's shoulder: the swat behind the runner.
+func _watch_swat(giant: FinaleMachine) -> void:
 	for i in 120:
-		var f: Vector2 = giant.swipe_fist()
-		if not slowed and absf(f.x - r.global_position.x) < 140.0:
-			slowed = true
-			ramp_time(0.22, 4)
-		elif slowed and (f.x < r.global_position.x - 110.0 or not giant.swiping()):
-			ramp_time(1.0, 8)
+		if giant.cycle_time() >= giant.SWAT_AT + giant.SWAT_DROP:
+			log_event("swat_impact", "fist %s on the arm's top; runner %s" % [giant.swat_fist().round(), r.global_position.round()])
+			_shake = 12.0
 			return
 		await get_tree().process_frame
 
@@ -1517,100 +1550,82 @@ func take_bone() -> void:
 	await until(x_past(20980), 300)
 	await end_cut()
 
-	# 37 IT COMES ALIVE: the skeletal beast bursts up through the deck.
+	# 37 UP THE GREAT RIB: the runner sprints diagonally up a huge rib arcing
+	# out over the canyon. Under it the maw comes up, tilts at the span the
+	# runner is on, jaws wide -- and snaps shut on that span just as they
+	# run off it: span B bursts apart behind them.
 	await begin_take(Vector2(21300, 257), 10)
 	cover = true
 	cover_radius = 150.0
-	# Off air: a fixed beat on the clock, so the sand jets fire between the
-	# runner's leaps rather than under one.
-	await frames(int(OS.get_environment("PV_BONE_WAIT")) if OS.get_environment("PV_BONE_WAIT") != "" else 20)
-	hold(1.0)
-	await until(x_past(21655), 100)
-	# Close on the runner on the spine; when the beast bursts out ahead
-	# the camera crash-zooms out to take in the whole skull.
-	camera({"mode": "follow", "zoom": 1.8, "lead": 160.0, "offset": Vector2(90, -30), "smooth": 9.0, "snap": true, "fx": 0.8})
-	cut(37, "An ancient skeletal beast erupts from below, smashing up through the vertebra bridge ahead of the runner",
-		func() -> bool: return machine("beast").state >= 1 and machine("beast").broken(),
-		func() -> Vector2: return machine("beast").erupt_head(), {"subject_name": "skeletal beast", "subject_r": 160.0, "wait": false})
-	await until(func() -> bool: return machine("beast").state >= 1, 120)
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(0, -140), func() -> Vector2: return r.global_position + Vector2(-60, 70), func() -> Vector2: return machine("beast").erupt_head() + Vector2(0, -200),
-		func() -> Vector2: return machine("beast").erupt_head() + Vector2(120, 120)], "pad": 60.0, "zoom": 1.1, "zoom_from": 1.8, "zoom_frames": 16, "min_zoom": 0.8, "smooth": 10.0, "fx": 1.0})
-	await until(x_past(21700), 100)
-	release()
-	await until(func() -> bool: return machine("beast").since() > 0.62, 80)
-	hitstop(5)
-	_shake = 14.0
-	await end_cut()
-	await until(func() -> bool: return machine("beast").since() > 1.9, 200)
+	var maw := machine("maw")
 	hold(1.0, true)
-	await until(x_past(21880), 100)
-	await hop_to(Vector2(22400, 300), true)
-	hold(1.0, true)
-	await until(x_past(22600), 200)
+	await until(x_past(21420), 60)
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-120, 60), func() -> Vector2: return r.global_position + Vector2(240, -120),
+		func() -> Vector2: return maw.centre("B") + Vector2(0, 300)], "pad": 50.0, "zoom": 1.35, "min_zoom": 1.05, "smooth": 7.0, "snap": true, "fx": 0.8, "rotation": -0.03})
+	await cut(37, "The runner sprints diagonally up a huge rib over the canyon; the maw rises beneath, opens on the span under them and bites it apart just behind them",
+		func() -> bool: return maw.destroyed("B") and r.global_position.x > maw.piece("B")["b"].x and r.state != Runner.State.DEAD,
+		func() -> Vector2: return maw.head()[0], {"subject_name": "the maw", "subject_r": 120.0, "frames": 104})
+	await until(func() -> bool: return maw.state == 1, 60)
+	log_event("maw_rises", "runner %s on the rib, span B %s..%s" % [r.global_position.round(), maw.piece("B")["a"], maw.piece("B")["b"]])
+	await until(func() -> bool: return maw.t1() >= maw.RISE, 60)
+	log_event("maw_opens", "jaws opening under span B; runner at x %.0f" % r.global_position.x)
+	await until(func() -> bool: return maw.destroyed("B"), 90)
+	# No hit-stop here: the runner stands on the span that starts to move.
+	_shake = 12.0
+	hold(0.5)
+	await frames(2)
+	log_event("bite_B", "span B bitten, collider %d; runner %s (B ends at x %.0f)" % [maw.piece_body("B").collision_layer, r.global_position.round(), maw.piece("B")["b"].x])
 
-	# 38 SAND GOES VERTICAL: the jaws come up out of the canyon and chase.
-	# Each bone pillar sags as the runner lands and is bitten through behind
-	# them. The jaws' crash into the canyon wall blows the sand vent ahead;
-	# the runner jumps into the jet and is thrown up onto the high rib path,
-	# while the jaws bite the pillar they just left.
-	var beast := machine("beast")
-	cut(38, "Chased by the jaws over sagging bone pillars that the jaws bite through, the runner rides a sand jet blown by the jaws' impact up to the high rib path",
-		func() -> bool:
-			var crushed := 0
-			for m in get_tree().get_nodes_in_group("finale_machine"):
-				if m.kind == "bone_pillar" and m.state == 2:
-					crushed += 1
-			if r.global_position.y < 60.0 and r.is_on_floor():
-				_flags["on_ribs"] = true
-			return beast.state == 2 and crushed >= 1 and _flags.get("on_ribs", false),
-		func() -> Vector2: return beast.chase_head(), {"subject_name": "chasing jaws", "subject_r": 200.0, "wait": false, "frames": 200,
-		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(120, -140), func() -> Vector2: return r.global_position + Vector2(40, 70),
-			func() -> Vector2: return beast.chase_head() + Vector2(260, -40)], "pad": 60.0, "zoom": 1.5, "min_zoom": 1.0, "smooth": 7.0, "smooth_y": 9.0, "rotation": 0.04, "fx": 0.9})})
-	for f in [Vector2(22710, 320), Vector2(22905, 260), Vector2(23105, 330)]:
-		await hop_to(f + Vector2(25, 0))
-	# Off the third pillar, over the vent as it blows: the jet carries the
-	# runner up; steer onto the rib above.
-	log_event("jet", "active %s beast %.2f front %.0f" % [machine("sandjet_23205").active(), beast.since(), beast.jaw_front()])
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(40, -120), func() -> Vector2: return beast.chase_head() + Vector2(200, 60),
-		func() -> Vector2: return Vector2(23230, 60)], "pad": 60.0, "zoom": 1.2, "min_zoom": 0.85, "smooth": 7.0, "smooth_y": 12.0, "rotation": 0.0, "fx": 0.9})
-	# Jump for the next pillar; the jet catches the runner over the vent
-	# and throws them up. As they rise past the rib, steer right, out of the
-	# column, and come down on the rib already running.
-	_jump = true
-	hold(1.0)
-	for i in 160:
-		if i == 18:
-			_jump = false
-		if r.global_position.y < 120.0:
-			hold(1.0, true)
-		if i > 20 and r.is_on_floor():
+	# 38 THE TIP GOES: with B gone, the rib's tip -- the runner on it --
+	# tips and drops; they ride it down onto the tilted thigh bone below
+	# and slide down it. The maw dives and comes up again behind them,
+	# chasing under the bone, and bites its lower end off as they jump.
+	cut(38, "The rib's tip drops away under the runner onto a tilted thigh bone below; they slide down it, the maw surfaces again behind and bites the bone's end off as they jump clear",
+		func() -> bool: return _flags.get("on_L1", false) and maw.destroyed("L1b") and r.state != Runner.State.DEAD and r.global_position.x > maw.piece("L1b")["b"].x,
+		func() -> Vector2: return r.global_position, {"subject_name": "runner", "subject_r": 40.0, "wait": false, "frames": 160,
+		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-140, -90), func() -> Vector2: return r.global_position + Vector2(220, 150),
+			func() -> Vector2: return maw.head()[0] if maw.head()[0].y < 900.0 else r.global_position], "pad": 50.0, "zoom": 1.35, "min_zoom": 1.0, "smooth": 6.0, "fx": 0.8})})
+	await until(func() -> bool: return maw.piece_body("C").collision_layer == 0 or not r.is_on_floor(), 40)
+	await frames(1)
+	log_event("tip_falls", "span C lost its hold; runner %s" % r.global_position.round())
+	for i in 90:
+		if r.is_on_floor() and r.global_position.y > 250.0:
 			break
+		if OS.get_environment("FINALE_LOG") != "" and i % 3 == 0:
+			print("      drop f%d %s v%s floor %s L1a layer %d at %s rot %.2f" % [i, r.global_position.round(), r.velocity.round(), r.is_on_floor(),
+				maw.piece_body("L1a").collision_layer, maw.piece_body("L1a").global_position.round(), maw.piece_body("L1a").rotation])
 		await frames(1)
-	_jump = false
-	hold(1.0, true)
-	log_event("after_jet", "pos %s floor %s front %.0f" % [r.global_position.round(), r.is_on_floor(), beast.jaw_front()])
-
-	# 39 CLOSING JAWS: along the high ribs, down past the fang gate, and the
-	# jaws slam shut on it right behind the runner.
-	var gate := float(beast.data["gate_x"])
-	cut(39, "Along the high rib path and down through the fang gate as the gigantic jaws snap shut on it right behind the runner",
-		func() -> bool: return beast._snapped and r.global_position.x > gate,
-		func() -> Vector2: return Vector2(gate - 120.0, 160.0), {"subject_name": "closing jaws", "subject_r": 160.0, "wait": false, "frames": 130,
-		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(140, -110),
-			func() -> Vector2: return r.global_position + Vector2(0, 80), func() -> Vector2: return beast.chase_head() + Vector2(300, -60)],
-			"pad": 60.0, "zoom": 1.5, "min_zoom": 0.95, "smooth": 8.0, "smooth_y": 9.0, "rotation": -0.05, "fx": 1.0})})
-	hold(1.0, true)
-	if r.global_position.x < 23380.0:
-		await until(func() -> bool: return r.global_position.x > 23330.0, 90)
-		await hop_to(Vector2(23560, 60), true)
-		hold(1.0, true)
-	await until(func() -> bool: return r.global_position.x > 23688.0, 90)
-	_watch_jaws(gate)
-	await hop_to(Vector2(24140, 300), true)
-	log_event("through_gate", "front %.0f t %.2f" % [machine("beast").jaw_front(), machine("beast").since()])
+	_flags["on_L1"] = true
+	log_event("on_thigh_bone", "landed on the lower route at %s (was up at y~40)" % r.global_position.round())
+	sfx("thud", 2.0, 0.7)
+	_crouch = true
 	hold(1.0)
-	await end_cut()
+	await until(func() -> bool: return maw.state == 2, 60)
+	log_event("maw_again", "the maw comes up again behind; runner %s sliding" % r.global_position.round())
+	await until(func() -> bool: return r.global_position.x > maw.piece("L1b")["b"].x - 60.0, 120)
+	_crouch = false
+	await hop_to(Vector2(22800, 568), true)
+	log_event("on_curved_rib", "runner %s" % r.global_position.round())
+	_watch_bite(maw, "L1b")
+	_watch_bite(maw, "P2")
+
+	# 39 THE LAST JUMP: across the curved rib with the maw coming up under
+	# it, a long jump over the open canyon -- the jaws snap the rib just
+	# behind -- onto the slope by the jaw gate.
+	cut(39, "The runner races over the curved rib with the maw rising under it and makes a long last jump over the canyon as the jaws snap the rib behind, landing by the jaw gate",
+		func() -> bool: return maw.destroyed("P2") and r.global_position.x > 23380.0 and r.is_on_floor() and r.state != Runner.State.DEAD,
+		func() -> Vector2: return r.global_position, {"subject_name": "runner", "subject_r": 40.0, "wait": false, "frames": 112,
+		"on_start": func() -> void: camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-160, -100), func() -> Vector2: return r.global_position + Vector2(260, 140),
+			func() -> Vector2: return maw.head()[0] if maw.head()[0].y < 1000.0 else r.global_position], "pad": 50.0, "zoom": 1.3, "min_zoom": 0.95, "smooth": 6.0, "fx": 0.8})})
+	hold(1.0, true)
+	await until(x_past(23010), 80)
+	log_event("final_jump", "from the curved rib's end at %s; maw at %s" % [r.global_position.round(), maw.head()[0].round()])
+	await hop_to(Vector2(23520, 495), true)
+	log_event("landed", "by the jaw gate at %s; curved rib bitten: %s" % [r.global_position.round(), maw.destroyed("P2")])
+	hold(1.0)
+	await frames(12)
 	release()
+	await end_cut()
 
 # --------------------------------------------- 39-46 s: title over gameplay
 ## Ease the title (behind the world) to a scale, centre and alpha.

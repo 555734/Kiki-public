@@ -69,17 +69,13 @@ static func ground() -> Array[Rect2]:
 	return [
 		# ---- GRASSLAND CLIFFS (0-10s). Start hill; the downhill is a slope.
 		Rect2(-900, 900, 1100, 900),
-		Rect2(900, 1160, 640, 940),           # run-up before the cliff
-		Rect2(1540, 2100, 1460, 400),         # chasm floor, 940 below the lip
-		Rect2(2000, 960, 400, 1020),          # far bank: 200 above the lip; a full jump ends against its face, just under the top
-		Rect2(2600, 960, 320, 1140),          # far bank / chimney right wall
-		Rect2(2400, 960, 200, 24),            # chimney lid, jump-through
-		Rect2(2530, 1980, 70, 20), Rect2(2400, 1860, 70, 20),
-		Rect2(2530, 1740, 70, 20), Rect2(2400, 1620, 70, 20),
-		Rect2(2530, 1500, 70, 20), Rect2(2400, 1380, 70, 20),
-		Rect2(2530, 1260, 70, 20), Rect2(2400, 1140, 70, 20),
-		Rect2(2530, 1040, 70, 20),            # top chimney ledge under the lid
-		Rect2(2920, 1040, 280, 1060),         # step down to the bridge (slope above it)
+		Rect2(900, 1160, 640, 2300),          # run-up before the gorge; its wall drops out of sight
+		# The gorge: 760px across and bottomless (kill_y). A full sprint jump
+		# with the air jump covers ~470px, so the leap falls short in the open,
+		# far from both walls -- without the guardian it is a fall to death.
+		Rect2(2300, 1080, 620, 300),          # far bank, 80 above the lip: an overhang
+		Rect2(2860, 1380, 340, 2000),         # the bank's wall recedes under it: nothing to slide down
+		Rect2(2920, 1080, 280, 1060),         # rise to the bridge (slope above it)
 		# ---- THUNDER BRIDGE (10-13s). The deck itself is the storm machine.
 		Rect2(4110, 920, 130, 40),            # broken spans above the strike
 		Rect2(4330, 800, 110, 40),
@@ -118,14 +114,12 @@ static func ground() -> Array[Rect2]:
 		Rect2(17300, 200, 200, 1700),
 		Rect2(15960, 1120, 140, 36), Rect2(16130, 990, 130, 36),  # inverted tiers
 		# ---- STONE GIANT (30-33s)
-		Rect2(17980, 300, 520, 1500),         # giant's plateau
-		Rect2(18960, 300, 700, 1500),         # far plateau
+		Rect2(17930, 300, 150, 1500),         # last rock before the giant's stone bridge (the bridge is its machine)
+		Rect2(18900, 300, 760, 1500),         # far plateau, 820px across the gorge; the giant stands behind it
 		# ---- DRAGON BONE CANYON (33-39s)
 		Rect2(20300, 320, 120, 1700),         # bone pillar between ribs
 		Rect2(21100, 280, 300, 1700),         # bone mesa
-		Rect2(22150, 60, 170, 30),            # rib above the eruption gap
 		Rect2(24000, 300, 600, 1500),         # past the jaw gate
-		Rect2(23100, 30, 260, 30), Rect2(23480, 60, 220, 30),  # upper rib path
 		# ---- TITLE RUN (39-49s)
 		Rect2(25200, 520, 500, 1200),
 		Rect2(25800, 460, 340, 1200),
@@ -142,8 +136,8 @@ static func _slopes() -> Array[Dictionary]:
 	return [
 		{"type": "finale_slope", "pos": Vector2(200, 900), "skin": "grass", "depth": 900.0,
 			"points": PackedVector2Array([Vector2(0, 0), Vector2(220, 40), Vector2(450, 140), Vector2(700, 260)])},
-		{"type": "finale_slope", "pos": Vector2(2920, 960), "skin": "grass", "depth": 100.0,
-			"points": PackedVector2Array([Vector2(0, 0), Vector2(120, 20), Vector2(280, 80)])},
+		{"type": "finale_slope", "pos": Vector2(2920, 1080), "skin": "grass", "depth": 100.0,
+			"points": PackedVector2Array([Vector2(0, 0), Vector2(140, -20), Vector2(280, -40)])},
 		{"type": "finale_slope", "pos": Vector2(5800, 1040), "skin": "sand", "depth": 80.0,
 			"points": PackedVector2Array([Vector2(0, 0), Vector2(100, 0)])},
 		# Cracked downhill the magma ball chases the runner along.
@@ -166,7 +160,7 @@ static func hazards() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	# Invisible floors of the voids. The lava, river and canyon art is drawn
 	# by their machines; these make falling into them final.
-	for row in [[4240, 2350, 2400], [13600, 2350, 4200], [21300, 2050, 4700], [26900, 1700, 3200],
+	for row in [[2200, 2700, 1400], [4240, 2350, 2400], [13600, 2350, 4200], [21300, 2050, 4700], [26900, 1700, 3200],
 			[-1500, 3300, 3000], [28600, 3300, 3000]]:
 		out.append({"pos": Vector2(row[0], row[1]), "size": Vector2(row[2], 120), "draw_spikes": false})
 	# Title-run spikes: the "down again" pit and the impossible-block bed.
@@ -176,7 +170,7 @@ static func hazards() -> Array[Dictionary]:
 
 static func checkpoints() -> Array[Vector2]:
 	return [
-		Vector2(2700, 910),     # 1 far bank, after the rescue
+		Vector2(2700, 1030),    # 1 far bank, after the rescue
 		Vector2(5450, 990),     # 2 end of the thunder bridge
 		Vector2(7700, 2650),    # 3 bottom of the collapse shaft
 		Vector2(8780, 2470),    # 4 before the magma ball
@@ -184,7 +178,7 @@ static func checkpoints() -> Array[Vector2]:
 		Vector2(11250, 1450),   # 6 station
 		Vector2(15400, 1240),   # 7 off the train
 		Vector2(17150, 150),    # 8 top of the hive shaft
-		Vector2(18100, 250),    # 9 the giant's plateau
+		Vector2(18030, 250),    # 9 the last rock before the giant's bridge
 		Vector2(21250, 230),    # 10 bone mesa, before the beast
 		Vector2(24200, 250),    # 11 past the jaw gate
 		Vector2(26300, 510),    # 12 title run restart point (beside a saw)
@@ -194,7 +188,7 @@ static func checkpoints() -> Array[Vector2]:
 static func coins() -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	for p in [Vector2(450, 880), Vector2(700, 990), Vector2(1100, 1100), Vector2(1250, 1100),
-			Vector2(1800, 1040), Vector2(1950, 1000),
+			Vector2(1800, 1040),
 			Vector2(3600, 980), Vector2(4180, 860), Vector2(4380, 740), Vector2(4750, 700),
 			Vector2(6550, 870), Vector2(6860, 770), Vector2(7300, 1700), Vector2(7300, 2200),
 			Vector2(8360, 2500), Vector2(9500, 2380), Vector2(9900, 2650), Vector2(10000, 2650),
@@ -211,7 +205,7 @@ static func enemies() -> Array[Dictionary]:
 	return [
 		# Grassland: the one enemy of the opening, walking up to meet the runner.
 		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(1180, 1135), "data": {"bounds": Vector2(920, 1480)}},
-		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(2800, 935), "data": {"bounds": Vector2(2640, 2900)}},
+		{"type": "finale_enemy", "kind": "burrbug", "pos": Vector2(2800, 1055), "data": {"bounds": Vector2(2680, 2900)}},
 		# Thunder bridge: sparks that ride the storm.
 		{"type": "finale_enemy", "kind": "spark", "pos": Vector2(3760, 960), "data": {"amp": Vector2(0, 110)}},
 		{"type": "finale_enemy", "kind": "spark", "pos": Vector2(4480, 920), "data": {"amp": Vector2(70, 120)}},
@@ -300,23 +294,27 @@ static func gimmicks() -> Array[Dictionary]:
 	out.append({"type": "finale_machine", "kind": "honey_shaft", "id": "hive_shaft", "pos": Vector2(16900, 1300),
 		"data": {"top": 230.0, "left": 16830.0, "right": 16970.0}})
 	# ---- STONE GIANT
-	out.append({"type": "finale_machine", "kind": "stone_giant", "id": "giant", "pos": Vector2(18760, 760),
-		"data": {"trigger": 18150.0, "slab": Rect2(18500, -100, 60, 400), "slam_at": Vector2(18290, 300), "swipe_y": 196.0}})
+	# Stands in the gorge behind a long stone bridge. Its slam breaks the
+	# bridge; the slammed arm, planted, is the ramp up and over; the other
+	# fist swats the top of that arm.
+	out.append({"type": "finale_machine", "kind": "stone_giant", "id": "giant", "pos": Vector2(19400, 760),
+		"data": {"trigger": 18085.0, "bridge": Rect2(18080, 300, 820, 70), "blocks": [90, 120, 80, 130, 100, 140, 90, 70],
+			"slam_at": Vector2(18252, 262), "swat_at": Vector2(18690, -60)}})
 	# ---- DRAGON BONE CANYON
-	out.append({"type": "finale_machine", "kind": "bone_beast", "id": "beast", "pos": Vector2(21400, 300),
-		"data": {"deck_to": 22600.0, "erupt_at": 21650.0, "erupt_x": 22050.0, "gap": Vector2(21900, 22200),
-			"chase_at": 22700.0, "chase_from": 22300.0, "speed": 350.0, "gate_x": 23880.0}})
-	for row in [[22650, 320, 120], [22850, 260, 110], [23050, 330, 110], [23250, 240, 110], [23450, 300, 120], [23650, 270, 120]]:
-		out.append({"type": "finale_machine", "kind": "bone_pillar", "id": "pillar_%d" % row[0], "pos": Vector2(row[0], row[1]),
-			"data": {"width": float(row[2])}})
-	for row in [[22050, 1800, 4.0, 0.0], [23205, 1800, 3.6, 1.2], [23610, 1800, 3.6, 2.4]]:
-		var jet := {"top": -60.0, "period": float(row[2]), "phase": float(row[3]), "width": 80.0}
-		# The middle vent also blows when the chasing jaws hit the canyon at
-		# 22,640: the way up onto the high rib path, right under the runner.
-		if row[0] == 23205:
-			jet["beast_x"] = 22640.0
-		out.append({"type": "finale_machine", "kind": "sand_geyser", "id": "sandjet_%d" % row[0], "pos": Vector2(row[0], row[1]),
-			"data": jet})
+	# The way over the fossil: a great rib arcing up over the canyon (spans
+	# A B C), a tilted thigh bone below it (upper, lower part), a curved
+	# rib (P2), then the long jump to the slope by the jaw gate. The maw
+	# bites span B from under the runner (C falls with them onto the thigh
+	# bone), then the bone's lower end and P2 as they leave each.
+	out.append({"type": "finale_machine", "kind": "bone_maw", "id": "maw", "pos": Vector2(22200, 300),
+		"data": {"trigger": 21560.0, "trigger2": 22180.0,
+			"spans": {"A": [Vector2(21400, 280), Vector2(21600, 230), 64.0], "B": [Vector2(21600, 230), Vector2(21800, 147), 64.0],
+				"C": [Vector2(21800, 147), Vector2(22010, 40), 58.0],
+				"L1a": [Vector2(21880, 300), Vector2(22380, 521), 92.0], "L1b": [Vector2(22380, 521), Vector2(22560, 600), 92.0],
+				"P2": [Vector2(22720, 572), Vector2(23040, 556), 72.0],
+				# The last jump's landing: a great jawbone sloping up to the gate.
+				"G": [Vector2(23380, 530), Vector2(24040, 282), 110.0]},
+			"knobs": {"L1a": [0], "L1b": [1], "P2": [0, 1], "G": [0]}}})
 	out.append({"type": "finale_machine", "kind": "canyon_floor", "id": "canyon_floor", "pos": Vector2(19660, 1750),
 		"data": {"width": 4900.0}})
 	# ---- TITLE RUN
@@ -336,10 +334,10 @@ static func _scenery() -> Array[Dictionary]:
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_grass", "pos": Vector2.ZERO, "data": {"items": [
 			["tree", -650, 900, 300, false, false], ["flowers", -380, 900, 70, false, false],
 			["signpost", 40, 900, 120, false, false], ["fence", 1000, 1160, 70, false, false],
-			["waterfall", 1690, 2100, 1500, false, false],
-			["abyss", 1540, 1150, 960, false, false, 460],
-			["tree", 2860, 960, 320, true, false], ["signpost", 2310, 960, 120, false, false],
-			["flowers", 2340, 960, 70, false, false], ["flowers", 2700, 960, 70, false, false]]}},
+			# Open gorge: no falls or walls behind the leap, only depth.
+			["abyss", 1540, 1150, 2250, false, false, 1330, 140],
+			["tree", 2860, 1080, 320, true, false], ["signpost", 2380, 1080, 120, false, false],
+			["flowers", 2420, 1080, 70, false, false], ["flowers", 2700, 1080, 70, false, false]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_storm", "pos": Vector2.ZERO, "data": {"items": [
 			["ruin_tower", 4480, 1100, 520, false, false], ["column", 3120, 1040, 250, false, false],
 			["broken_column", 5380, 1040, 160, false, false], ["column", 5800, 1040, 260, true, false]]}},

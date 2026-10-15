@@ -311,9 +311,46 @@ def beast_rib():
     return {"beast_rib": {"root": (40, 540), "scale": 0.6}}
 
 
+def bone_shaft():
+    # One long fossil bone shaft, lying along x: the canyon's walkable bones
+    # (rib spans, the tilted femur) are drawn from stretches of it, so no two
+    # pieces show the same stretch. Centre line at y=80, about 100 thick.
+    c = Canvas(1400, 160)
+    xs = np.linspace(10, 1390, 40)
+    rad = 46 + 7 * np.sin(xs * 0.011) + 4 * np.sin(xs * 0.037 + 1.3)
+    d = np.full(c.x.shape, 1e9, np.float32)
+    for k in range(len(xs) - 1):
+        cy0 = 80 + 4 * np.sin(xs[k] * 0.006)
+        cy1 = 80 + 4 * np.sin(xs[k + 1] * 0.006)
+        d = np.minimum(d, c.capsule(xs[k], cy0, xs[k + 1], cy1, rad[k], rad[k + 1]))
+    cracks = []
+    rng = np.random.default_rng(7)
+    for k in range(9):
+        x = 80 + k * 150 + rng.uniform(-30, 30)
+        cracks.append(([(x, 52), (x + rng.uniform(-14, 14), 74), (x + rng.uniform(-10, 18), 98)], 1.8))
+    c.paint(d, BONE, bevel=40, ink=BONE_INK, seed=91, grain=0.08, cracks=cracks, bands=5)
+    # Pits and stains along the shaft.
+    for k in range(24):
+        x, y = rng.uniform(40, 1360), rng.uniform(62, 112)
+        r = rng.uniform(3, 7)
+        c.rgb = c.rgb * (1 - 0.35 * np.clip(1 - np.hypot(c.x - x, c.y - y) / r, 0, 1)[..., None])
+    c.save("bone_shaft")
+    return {"bone_shaft": {"centre_y": 80, "thick": 100}}
+
+
+def bone_knob():
+    # The knuckle end of a big bone: two lobes (condyles), shaft going left.
+    c = Canvas(240, 240)
+    d = smin(c.circle(130, 92, 62), c.circle(140, 160, 54), 24)
+    d = smin(d, c.capsule(10, 120, 110, 120, 44, 50), 30)
+    c.paint(d, BONE, bevel=36, ink=BONE_INK, seed=93, grain=0.08, cracks=[([(150, 70), (170, 96)], 1.8)])
+    c.save("bone_knob")
+    return {"bone_knob": {"neck": (10, 120), "thick": 92}}
+
+
 if __name__ == "__main__":
     pivots = {}
-    for f in (giant_body, giant_upper_arm, giant_fist_arm, beast_skull, beast_jaw, beast_vertebra, beast_rib):
+    for f in (giant_body, giant_upper_arm, giant_fist_arm, beast_skull, beast_jaw, beast_vertebra, beast_rib, bone_shaft, bone_knob):
         pivots.update(f())
     for k, v in pivots.items():
         print(k, v)

@@ -430,4 +430,6 @@ static func _sky(ci: CanvasItem, sky: String, view: Vector2, cam: Vector2, time:
 			_clouds(ci, view, cam.x * 0.06 + time * 30.0, alpha)
 		"canyon":
 			_cover(ci, "canyon_sky", view, cam, 0.08, alpha, 0.03)
-			_layer(ci, "rib_layer", view, cam, 0.22, view.y * 0.10, view.y * 0.95, alpha * 0.85)
+			# Far off in the haze, darker than the bones the runner uses, so
+			# the walkable fossil reads in front of it.
+			_layer(ci, "rib_layer", view, cam, 0.22, view.y * 0.10, view.y * 0.95, alpha * 0.42, Color(0.62, 0.44, 0.40))
