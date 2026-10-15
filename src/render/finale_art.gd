@@ -79,6 +79,7 @@ const SPRITES := {
 	"gorge_left": "res://assets/stage_1_10/gorge_left.png",
 	"gorge_right": "res://assets/stage_1_10/gorge_right.png",
 	"gorge_far": "res://assets/stage_1_10/gorge_far.png",
+	"gorge_wall": "res://assets/stage_1_10/gorge_wall.png",
 	"wax_wisp_idle": "res://assets/stage_1_10/wax_wisp_idle.png",
 	"wax_wisp_attack": "res://assets/stage_1_10/wax_wisp_attack.png",
 	"spark_idle": "res://assets/stage_1_10/spark_idle.png",

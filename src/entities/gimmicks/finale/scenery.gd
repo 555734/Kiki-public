@@ -96,7 +96,7 @@ func draw_item(ci: CanvasItem, item: Array) -> void:
 		"dark":
 			# The bottom of a drop: plain deep shadow (x, y, width, height).
 			ci.draw_rect(Rect2(at, Vector2(h, float(item[6]))), Color(0.06, 0.07, 0.13))
-		"gorge_left", "gorge_right", "gorge_far":
+		"gorge_left", "gorge_right", "gorge_far", "gorge_wall":
 			# Painted 1:1, placed by its top-left corner.
 			var t := FinaleArt.tex(key)
 			if t != null:

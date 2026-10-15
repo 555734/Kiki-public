@@ -42,7 +42,10 @@ SR = R.SR
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PRE_HOP = 24        # frames before the hop over the enemy where both clips start
 TAIL = 4            # frames after "clip_end"
-REWIND_SPEED = 1.3  # how much faster than the fall the rewind plays
+REWIND_SPEED = 1.15  # how much faster than the fall the rewind plays (on average; it is eased)
+MIN_REWIND = 36     # frames
+HOLD = 10           # frames the failure is held before the rewind
+FLASH = 7           # frames of the flash as time starts again
 
 
 # ------------------------------------------------------------------ inputs
@@ -60,6 +63,12 @@ def frame_rgb(movie, n):
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", movie, "-vf", "select=eq(n\\,%d)" % n, "-vsync", "0",
                           "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
     return np.frombuffer(raw, np.uint8).reshape(720, 1280, 3)
+
+
+def read_frames(movie, f0, n):
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", movie, "-vf", "trim=start_frame=%d:end_frame=%d" % (f0, f0 + n),
+                          "-vsync", "0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.uint8).reshape(-1, 720, 1280, 3)
 
 
 # ------------------------------------------------------------------ sounds
@@ -115,6 +124,18 @@ def rewind_whirr(n):
     hiss = lowpass(noise(n, 9), 3000.0) * 0.5
     e = np.clip(t(n) / 0.05, 0, 1) * np.clip((t(n)[-1] - t(n)) / 0.12, 0, 1)
     return (tone + hiss) * e * 0.6
+
+
+def reverse_swell(n):
+    """A reversed cymbal: noise swelling up to a sharp stop (time snaps back)."""
+    x = lowpass(noise(n, 17), 6000.0) - lowpass(noise(n, 17), 600.0)
+    e = (t(n) / t(n)[-1]) ** 3
+    return x * e * 1.6
+
+
+def resume_snap(n=int(0.18 * SR)):
+    """The click of time starting again."""
+    return (osc(glide(2400.0, 900.0, n), n) * 0.5 + noise(n, 21) * 0.3) * envelope(n, 0.001, 0.03)
 
 
 def build_lift(n=int(0.5 * SR)):
@@ -207,6 +228,90 @@ def segments_to_mp4(segs, out, wav):
     os.remove(icon)
 
 
+def ease_io(x):
+    return x * x * (3 - 2 * x)
+
+
+def rewind_look(img, k, ghosts):
+    """The rewind treatment at strength k (0..1): cooler, a little flatter,
+    a colour fringe, tape lines, the previous (later) frames as ghosts --
+    light enough that the runner stays plain."""
+    f = img.astype(np.float32)
+    for g, w in ghosts:
+        f = f * (1 - w * k) + g.astype(np.float32) * (w * k)
+    grey = f.mean(axis=2, keepdims=True)
+    f = grey + (f - grey) * (1 - 0.35 * k)
+    f = f * (1 + np.array([-0.06, 0.02, 0.12], np.float32) * k) + np.array([0, 6, 18], np.float32) * k
+    sh = int(round(4 * k))
+    if sh:
+        f[:, sh:, 0] = f[:, :-sh, 0]
+        f[:, :-sh, 2] = f[:, sh:, 2]
+    f[::4] *= 1 - 0.10 * k
+    return np.clip(f, 0, 255).astype(np.uint8)
+
+
+def icon_layer():
+    im = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    for k in range(2):
+        x = 64 + k * 50
+        d.polygon([(x + 48, 44), (x + 48, 116), (x, 80)], fill=(255, 255, 255, 235), outline=(30, 40, 80, 255))
+    a = np.asarray(im).astype(np.float32)
+    return a[..., :3], a[..., 3:] / 255.0
+
+
+def write_frames(out, wav, frames):
+    p = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "1280x720", "-r", str(FPS),
+                          "-i", "-", "-i", wav, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "medium", "-crf", "17",
+                          "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out],
+                         stdin=subprocess.PIPE)
+    for fr in frames:
+        p.stdin.write(np.ascontiguousarray(fr).tobytes())
+    p.stdin.close()
+    p.wait()
+
+
+def rewind_frames(nh_movie, hp_movie, a0, nb, fail_end, hb, h_end, hold_n, rewind_n, flash_n):
+    """The picture of Version A, frame by frame: the fall (forward), a held
+    beat on the failure, the fall played backwards (eased: it lurches off,
+    races, settles onto the branch frame), then the help take with a brief
+    flash as time starts again."""
+    for fr in read_frames(nh_movie, a0, fail_end - a0 + 1):
+        yield fr
+    fall = read_frames(nh_movie, nb, fail_end - nb + 1)   # fall[0] = branch-1 ... fall[-1] = fail_end
+    last = fall[-1].astype(np.float32)
+    for i in range(hold_n):
+        # The failure lands: the frame holds, draining of colour, a dark edge.
+        k = (i + 1) / hold_n
+        grey = last.mean(axis=2, keepdims=True)
+        f = grey + (last - grey) * (1 - 0.6 * k)
+        f = f * (1 - 0.25 * k * VIGNETTE[..., None])
+        yield np.clip(f, 0, 255).astype(np.uint8)
+    icon_rgb, icon_a = icon_layer()
+    m = len(fall) - 1
+    for i in range(rewind_n):
+        u = (i + 1) / rewind_n
+        pos = m * (1 - ease_io(u))
+        j = int(np.floor(pos))
+        w = pos - j
+        img = fall[j] if w < 1e-3 or j >= m else (fall[j] * (1 - w) + fall[j + 1] * w).astype(np.uint8)
+        ghosts = [(fall[min(m, j + 3)], 0.22), (fall[min(m, j + 6)], 0.12)]
+        k = min(1.0, 4 * u, 4 * (1 - u) + 0.15) if u < 1 else 0.0
+        out = rewind_look(img, max(0.0, min(1.0, k)), ghosts).astype(np.float32)
+        ia = icon_a * min(1.0, 5 * (1 - u) + 0.0) * min(1.0, 6 * u)
+        out = out * (1 - ia) + icon_rgb * ia
+        yield np.clip(out, 0, 255).astype(np.uint8)
+    for i, fr in enumerate(read_frames(hp_movie, hb + 1, h_end - hb - 1)):
+        if i < flash_n:
+            k = 0.45 * (1 - i / flash_n) ** 2
+            fr = np.clip(fr.astype(np.float32) * (1 - k) + 255 * k, 0, 255).astype(np.uint8)
+        yield fr
+
+
+_yy, _xx = np.mgrid[0:720, 0:1280]
+VIGNETTE = np.clip(np.hypot((_xx - 640) / 640, (_yy - 360) / 360) - 0.55, 0, 1) / 0.85
+
+
 def contact_sheet(mp4, out, notes):
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp4],
                                capture_output=True, text=True).stdout)
@@ -255,7 +360,7 @@ def main():
     fail_end = E["fail_end"]
     h_end = H["clip_end"] + TAIL
     fall_n = fail_end - nb
-    rewind_n = int(round(fall_n / REWIND_SPEED))
+    rewind_n = max(MIN_REWIND, int(round(fall_n / REWIND_SPEED)))
     music = music_bed()
     mgain = 0.16
 
@@ -280,46 +385,49 @@ def main():
     tb = {k: secs(v - h0) for k, v in H.items() if v >= h0 and v <= h_end}
     timeline["rescue_direct"] = {"source": "help take frames %d..%d" % (h0, h_end), "length_s": secs(nb_frames), "events_s": tb}
     # ---------------------------------------------------------- Version A
-    first = fail_end - a0
-    segs = [(nh["movie"], a0, first, "fwd"),
-            (nh["movie"], nb, fall_n, ("rev", REWIND_SPEED)),
-            (hp["movie"], hb + 1, h_end - hb - 1, "fwd")]
-    # (the reversed run ends on frame nb == hb; the help take goes on from hb + 1)
+    first = fail_end - a0 + 1
     pre = game_audio(nh, a0, first)
+    hold_aud = np.zeros(int(round(HOLD / FPS * SR)))
     fall_audio = game_audio(nh, nb, fall_n)[::-1]
     idx = np.linspace(0, len(fall_audio) - 1, int(round(rewind_n / FPS * SR)))
     rew = np.interp(idx, np.arange(len(fall_audio)), fall_audio)
     post = game_audio(hp, hb + 1, h_end - hb - 1)
-    aud = np.concatenate([pre, rew * 0.8, post])
-    # Music: forward to the failure, backwards through the rewind, then on
-    # from the branch again.
+    aud = np.concatenate([pre, hold_aud, rew * 0.8, post])
+    # Music: forward to the failure, cut on the held beat, backwards through
+    # the rewind, then on from the branch again.
     m_pre = music[:len(pre)]
     m_branch = int(round((nb - a0) / FPS * SR))
     m_rev = music[m_branch:len(pre)][::-1]
     m_rev = np.interp(np.linspace(0, len(m_rev) - 1, len(rew)), np.arange(len(m_rev)), m_rev)
     m_post = music[m_branch:m_branch + len(post)]
-    aud = aud + np.concatenate([m_pre, m_rev, m_post]) * mgain
+    aud = aud + np.concatenate([m_pre, hold_aud, m_rev, m_post]) * mgain
     fall_at = (nb - a0) / FPS * SR
     place(aud, fall_at, wind(int((fail_end - nb) / FPS * SR)), 0.35)
-    place(aud, len(pre) - int(0.3 * SR), fail_note(), 0.9)
-    place(aud, len(pre), rewind_whirr(len(rew)), 0.9)
-    post0 = len(pre) + len(rew)
+    place(aud, len(pre) - int(0.12 * SR), fail_note(), 0.9)
+    r0 = len(pre) + len(hold_aud)
+    place(aud, r0, rewind_whirr(len(rew)), 0.9)
+    post0 = r0 + len(rew)
+    sw = reverse_swell(int(0.35 * SR))
+    place(aud, post0 - len(sw), sw, 0.5)
+    place(aud, post0, resume_snap(), 0.8)
     place(aud, post0 + (H["platform_1"] - hb - 1) / FPS * SR, build_lift(), 0.7)
     place(aud, post0 + (H["platform_2"] - hb - 1) / FPS * SR, build_lift(), 0.5)
     place(aud, post0 + (H["bank"] - hb - 1) / FPS * SR, arrive_chime(), 0.8)
     wav = os.path.join(out, "_a.wav")
     R.write_wav(wav, aud)
-    segments_to_mp4(segs, os.path.join(out, "rescue_rewind.mp4"), wav)
+    write_frames(os.path.join(out, "rescue_rewind.mp4"), wav,
+                 rewind_frames(nh["movie"], hp["movie"], a0, nb, fail_end, hb, h_end, HOLD, rewind_n, FLASH))
     os.remove(wav)
     ta = {("fail:" + k): secs(v - a0) for k, v in E.items() if a0 <= v <= fail_end}
-    ta["rewind_start"] = secs(first)
-    ta["rewind_end"] = secs(first + rewind_n)
+    ta["fail_hold"] = secs(first)
+    ta["rewind_start"] = secs(first + HOLD)
+    ta["rewind_end"] = secs(first + HOLD + rewind_n)
     for k, v in H.items():
         if hb < v <= h_end:
-            ta["help:" + k] = secs(first + rewind_n + v - hb - 1)
-    timeline["rescue_rewind"] = {"source": "nohelp frames %d..%d, the same reversed (%d -> %d frames, x%.1f), help frames %d..%d"
-                                 % (a0, fail_end, fall_n, rewind_n, REWIND_SPEED, hb + 1, h_end),
-                                 "length_s": secs(first + rewind_n + h_end - hb - 1), "events_s": ta}
+            ta["help:" + k] = secs(first + HOLD + rewind_n + v - hb - 1)
+    timeline["rescue_rewind"] = {"source": "nohelp frames %d..%d, held %d frames, frames %d..%d reversed (eased, %d frames), help frames %d..%d"
+                                 % (a0, fail_end, HOLD, nb, fail_end, rewind_n, hb + 1, h_end),
+                                 "length_s": secs(first + HOLD + rewind_n + h_end - hb - 1), "events_s": ta}
     json.dump(timeline, open(os.path.join(out, "timeline.json"), "w"), indent=1)
     print(json.dumps(timeline, indent=1))
 

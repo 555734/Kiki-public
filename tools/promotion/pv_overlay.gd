@@ -20,6 +20,11 @@ var title_only := false
 var call_state := 0
 var call_t := 0.0
 var call_alpha := 0.0
+## Where the card sits (screen centre) and how big: a shot can move it into
+## empty sky so it covers neither the runner nor the ground ahead.
+var call_centre := Vector2(1280 - 150 - 70, 360)
+var call_scale := 1.0
+var call_dim := 0.28
 
 ## YOU pointer (screen position of the fingertip); INF hides it.
 var pointer := Vector2(INF, INF)
@@ -76,37 +81,46 @@ func _draw_title(alpha: float, centre: Vector2, scale: float) -> void:
 # --------------------------------------------------------------- the call
 func _draw_call() -> void:
 	var a := call_alpha
-	# A phone-style call card on the right third, sliding in from the edge.
-	var w := 300.0
-	var h := 420.0
+	# A phone-style call card (right third by default), sliding in from the
+	# edge.
+	var sc := call_scale
+	var w := 300.0 * sc
+	var h := 420.0 * sc
 	var slide := (1.0 - a) * 120.0
-	var rect := Rect2(1280 - w - 70 + slide, 360 - h * 0.5, w, h)
-	draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, 0.28 * a))
-	_round_rect(rect.grow(6), 34, Color(1, 1, 1, 0.16 * a))
-	_round_rect(rect, 30, Color(PANEL, 0.96 * a))
-	var centre := rect.position + Vector2(w * 0.5, 150)
+	var rect := Rect2(call_centre - Vector2(w, h) * 0.5 + Vector2(slide, 0), Vector2(w, h))
+	draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, call_dim * a))
+	_round_rect(rect.grow(6 * sc), 34 * sc, Color(1, 1, 1, 0.16 * a))
+	_round_rect(rect, 30 * sc, Color(PANEL, 0.96 * a))
+	var centre := rect.position + Vector2(w * 0.5, 150 * sc)
 	# Ringing pulses around the mark (stop once accepted).
 	if call_state == 1:
 		for i in 3:
 			var k := fposmod(call_t * 1.4 + float(i) / 3.0, 1.0)
-			draw_arc(centre, 70.0 + k * 70.0, 0, TAU, 64, Color(BLURPLE, (1.0 - k) * 0.7 * a), 5.0, true)
-	draw_circle(centre, 72, Color(BLURPLE, a))
+			draw_arc(centre, (70.0 + k * 70.0) * sc, 0, TAU, 64, Color(BLURPLE, (1.0 - k) * 0.7 * a), 5.0 * sc, true)
+	draw_circle(centre, 72 * sc, Color(BLURPLE, a))
 	var mark: Texture2D = _tex["discord_mark_white"]
 	if mark != null:
-		var ms := mark.get_size() * (84.0 / mark.get_size().x)
+		var ms := mark.get_size() * (84.0 * sc / mark.get_size().x)
 		var wob := sin(call_t * 26.0) * 0.08 if call_state == 1 else 0.0
 		draw_set_transform(centre, wob, Vector2.ONE)
 		draw_texture_rect(mark, Rect2(-ms * 0.5, ms), false, Color(1, 1, 1, a))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Decline and accept: the only controls, no words.
-	var y := rect.position.y + h - 92
+	var y := rect.position.y + h - 92 * sc
 	var decline := Vector2(rect.position.x + w * 0.27, y)
 	var accept := Vector2(rect.position.x + w * 0.73, y)
 	var press := clampf(call_t * 6.0, 0.0, 1.0) if call_state == 2 else 0.0
-	_button(decline, RED, true, a * (1.0 - 0.6 * press), 1.0)
-	_button(accept, GREEN, false, a, 1.0 - 0.18 * sin(press * PI) + (0.06 * sin(call_t * 9.0) if call_state == 1 else 0.0))
+	_button(decline, RED, true, a * (1.0 - 0.6 * press), sc)
+	_button(accept, GREEN, false, a, sc * (1.0 - 0.18 * sin(press * PI) + (0.06 * sin(call_t * 9.0) if call_state == 1 else 0.0)))
 	if call_state == 2:
-		draw_arc(accept, 44.0 + press * 40.0, 0, TAU, 48, Color(GREEN.lightened(0.4), (1.0 - press) * a), 6.0, true)
+		draw_arc(accept, (44.0 + press * 40.0) * sc, 0, TAU, 48, Color(GREEN.lightened(0.4), (1.0 - press) * a), 6.0 * sc, true)
+
+## Screen position of the accept button (for the YOU cursor to press).
+func call_accept_pos() -> Vector2:
+	var w := 300.0 * call_scale
+	var h := 420.0 * call_scale
+	var tl := call_centre - Vector2(w, h) * 0.5
+	return tl + Vector2(w * 0.73, h - 92 * call_scale)
 
 func _button(at: Vector2, color: Color, down: bool, a: float, scale: float) -> void:
 	draw_circle(at, 40.0 * scale, Color(color, a))

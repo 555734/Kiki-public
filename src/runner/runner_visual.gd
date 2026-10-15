@@ -25,6 +25,14 @@ var _trail: Array = []
 var _trail_left: float = 0.0
 ## Dust puffs in world space: [position, age, size].
 var _dust: Array = []
+## Take-off stretch (1 on the frame of a jump, easing out): the spring of
+## the legs, read from the velocity so a puppet shows it too.
+var _launch: float = 0.0
+var _last_vy: float = 0.0
+## The air jump has been used in this flight (seen as a second upward kick).
+var _air_jumped: bool = false
+## How long the runner has been dropping fast: a long fall flails.
+var _fall_time: float = 0.0
 
 func _ready() -> void:
 	z_index = 10
@@ -59,6 +67,19 @@ func _process(delta: float) -> void:
 		_puff(2 if not _was_pounding else 6, 1.0 if not _was_pounding else 1.8)
 		_spin_active = false
 		_spin = 0.0
+	# Take-off: off the ground with an upward kick, or a second kick in the
+	# air (the air jump).
+	if runner.velocity.y < -500.0 and _last_vy > -300.0:
+		if airborne and _was_airborne:
+			_air_jumped = true
+			_launch = 0.7
+		else:
+			_launch = 1.0
+	_last_vy = runner.velocity.y
+	_launch = maxf(0.0, _launch - delta * 6.0)
+	if not airborne:
+		_air_jumped = false
+	_fall_time = _fall_time + delta if airborne and runner.velocity.y > 700.0 else 0.0
 	_was_airborne = airborne
 	if airborne:
 		_last_fall = maxf(0.0, runner.velocity.y)
@@ -189,6 +210,10 @@ func _pose_key() -> String:
 	# runner snaps from falling straight back to standing.
 	if _squash > 0.45 and runner.on_ground():
 		return "runner_land"
+	# At the top of a double jump, still moving on: reaching for the far
+	# side. A long fast drop: arms out, flailing.
+	if _reaching() or _flailing():
+		return "runner_reach"
 	match runner.state:
 		Runner.State.RUN:
 			return "runner_run"
@@ -207,6 +232,13 @@ func _pose_key() -> String:
 		_:
 			return "runner_idle"
 
+func _reaching() -> bool:
+	return _air_jumped and not runner.on_ground() and absf(runner.velocity.y) < 260.0 \
+		and absf(runner.velocity.x) > 150.0 and runner.state != Runner.State.HURT
+
+func _flailing() -> bool:
+	return _fall_time > 0.12 and not runner.on_ground() and runner.state == Runner.State.FALL
+
 func _draw_painted() -> bool:
 	var key := _pose_key()
 	# The canvas carries headroom above the figure, so it is drawn taller than
@@ -215,7 +247,7 @@ func _draw_painted() -> bool:
 	var stretch := 1.0
 	if runner.state == Runner.State.FALL or runner.state == Runner.State.JUMP:
 		stretch = 1.0 + clampf(absf(runner.velocity.y) / 1600.0, 0.0, 0.10)
-	var sy := stretch * (1.0 - _squash * 0.22)
+	var sy := stretch * (1.0 - _squash * 0.22) * (1.0 + 0.16 * _launch)
 	if runner.crouching():
 		sy *= Balance.RUNNER_CROUCH_HEIGHT / Balance.RUNNER_SIZE.y
 	elif runner.pounding():
@@ -238,6 +270,11 @@ func _draw_painted() -> bool:
 		sx *= 1.12
 		sy *= 0.92
 	var tilt := _lean * float(runner.facing)
+	if _reaching():
+		# Leaning into the reach.
+		tilt = 0.16 * float(runner.facing)
+	elif _flailing():
+		tilt = sin(_phase * 9.0) * 0.14
 	if _wall_sliding():
 		# Pressed against the wall, leaning into it.
 		tilt = -0.22 * float(runner.facing)

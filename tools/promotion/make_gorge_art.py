@@ -7,14 +7,18 @@ Writes assets/stage_1_10/gorge_left.png, gorge_right.png and gorge_far.png
 with the soft, outlined, lit-solid painter of make_creature_art.py (shapes as
 signed distance fields, lit from the upper left, a dark outline, grain).
 
-* gorge_left  -- the near cliff: grass run-up, its lip at the gorge, a rock
-  face of bulging strata with vines, falling away into the dark.
+* gorge_left  -- the near cliff: grass run-up, an undercut lip, a buttress
+  at mid height with a shelf and a tree, strata bands and angular rocks,
+  falling away into the dark.
   Drawn 1:1 with its top-left at world (860, 1100); the walkable top is
   world y 1160 (image y 60), the lip at world x 1540 (image x 680).
-* gorge_right -- the far bank: a grass-topped overhang (top world y 1040,
-  front edge world x 2300) whose underside recedes to a wall at world
-  x 2860; roots and rocks hang from it. Top-left at world (2280, 1000).
-* gorge_far   -- the gorge's far side seen across the gap: blue, hazy rock
+* gorge_right -- the far bank: a heavy grass-topped overhang (top world y
+  1040, front edge world x 2300) with teeth of rock and roots under it,
+  receding to a wall at world x 2860 with a shelf and a twisted tree. Top-left at world (2280, 1000).
+* gorge_wall  -- the far wall of the whole gorge: hazy mesas whose top is
+  well above the leap, a big waterfall pouring from a notch into mist and
+  the dark. Top-left at world (1300, 520).
+* gorge_far   -- the gorge's inner wall seen across the gap: blue, hazy rock
   ledges of the gorge's inner wall, lit at the rim just under the lips and
   sinking into black within ~300px, a thin waterfall dropping into it; the waterfall under the near cliff, left of the runner's path.
   Top-left at world (1480, 1180).
@@ -95,67 +99,229 @@ def strata(c, mask_d, rows, seed, x0, x1):
     return cracks
 
 
+BANDS = ["#cf8e54", "#b9733f", "#dba468", "#a8653a", "#c4824b"]
+
+
+def bands(c, body_d, y0, y1, seed, x0, x1, tilt=0.0):
+    """Rock strata: wavy horizontal layers of alternating colour inside the
+    body, each lit as its own slab."""
+    rng = np.random.default_rng(seed)
+    y = y0
+    k = 0
+    while y < y1:
+        h = rng.uniform(60, 130)
+        xs = np.linspace(x0, x1, 24)
+        top = y + 10 * np.sin(xs * 0.013 + k) + 6 * np.sin(xs * 0.051 + 2 * k) + tilt * (xs - x0)
+        bot = y + h + 10 * np.sin(xs * 0.011 + k + 1) + 5 * np.sin(xs * 0.047 + k) + tilt * (xs - x0)
+        poly = [(float(x), float(t)) for x, t in zip(xs, top)] + [(float(x), float(b)) for x, b in zip(xs[::-1], bot[::-1])]
+        d = np.maximum(c.poly(poly), body_d + 2.0)
+        c.paint(d, BANDS[k % len(BANDS)], bevel=18, outline=2.5, ink="#5a3420", seed=seed + k, grain=0.07, shade=0.5)
+        y += h
+        k += 1
+
+
+def facets(c, body_d, chunks, seed):
+    """Angular rock chunks jutting from a face: (cx, cy, r, sides)."""
+    rng = np.random.default_rng(seed)
+    for (cx, cy, r, n) in chunks:
+        a0 = rng.uniform(0, 6.28)
+        pts = []
+        for i in range(n):
+            a = a0 + i * 2 * np.pi / n + rng.uniform(-0.25, 0.25)
+            rr = r * rng.uniform(0.7, 1.15)
+            pts.append((cx + rr * np.cos(a), cy + rr * 0.8 * np.sin(a)))
+        d = c.poly(pts)
+        c.paint(d, ["#d49a5e", "#c07a44", "#e0ae72"][int(rng.integers(0, 3))], bevel=22, outline=4, ink=INK,
+                seed=int(rng.integers(0, 999)), grain=0.07, shade=0.55)
+
+
+def tree(c, x, y, h, seed, lean=0.0):
+    """A small cliff tree: a crooked trunk and a soft round crown."""
+    trunk = np.full(c.x.shape, 1e9, np.float32)
+    pts = [(x, y)]
+    for k in range(1, 5):
+        pts.append((x + lean * h * k / 4 + 6 * np.sin(k * 1.9 + seed), y - h * 0.62 * k / 4))
+    for (ax, ay), (bx, by) in zip(pts[:-1], pts[1:]):
+        trunk = np.minimum(trunk, c.capsule(ax, ay, bx, by, h * 0.06, h * 0.045))
+    c.paint(trunk, "#7a4b2c", bevel=6, outline=3, ink=INK, seed=seed, grain=0.06)
+    tx, ty = pts[-1]
+    crown = np.full(c.x.shape, 1e9, np.float32)
+    rng = np.random.default_rng(seed)
+    for k in range(6):
+        crown = P.smin(crown, c.circle(tx + rng.uniform(-0.32, 0.32) * h, ty - rng.uniform(0.0, 0.3) * h, h * rng.uniform(0.18, 0.26)), 10)
+    c.paint(crown, "#4fae3a", bevel=16, outline=4, ink="#24461a", seed=seed + 1, grain=0.06, shade=0.5)
+
+
+def vines(c, starts, seed):
+    d = np.full(c.x.shape, 1e9, np.float32)
+    for (vx, vy, length) in starts:
+        pts = [(vx, vy)]
+        for k in range(1, 8):
+            pts.append((vx + 8 * np.sin(k * 1.3 + vx), vy + length * k / 7))
+        for (ax, ay), (bx, by) in zip(pts[:-1], pts[1:]):
+            d = np.minimum(d, c.capsule(ax, ay, bx, by, 5, 3.5))
+        for k in range(2, 7, 2):
+            lx, ly = pts[k]
+            d = np.minimum(d, c.ellipse(lx + 7, ly, 9, 5, 0.6))
+    c.paint(d, "#4fb43a", bevel=5, outline=3, ink="#24461a", seed=seed, grain=0.05)
+
+
+def ledge(c, x0, x1, y, depth, seed):
+    """A rock shelf sticking out of a face, grass on top (decoration)."""
+    xs = np.linspace(x0, x1, 10)
+    under = [(float(x), float(y + depth * (1 - abs((x - (x0 + x1) / 2) / ((x1 - x0) / 2)) ** 1.6) + 6 * np.sin(x * 0.1)))
+             for x in xs[::-1]]
+    d = c.poly([(x0, y), (x1, y)] + under)
+    c.paint(d, "#c98a52", bevel=20, outline=4, ink=INK, seed=seed, grain=0.07)
+    grass_cap(c, [(x0 - 4, y - 10), (x1 + 4, y - 10)], seed + 1)
+
+
 def gorge_left():
-    W, H = 760, 1800
+    W, H = 860, 1800
     c = P.Canvas(W, H)
-    # The near cliff: flat run-up top at y 60, a lip at x 680; the face
-    # bulges in and out in layers as it drops.
-    face = [(680, 60), (694, 92), (676, 150), (708, 230), (690, 320), (722, 420), (680, 520),
-            (712, 640), (668, 780), (704, 930), (660, 1100), (690, 1300), (650, 1550), (676, 1800)]
+    # The near cliff: flat run-up top at y 60, the lip at x 680. Under the
+    # lip the face is undercut, then a great buttress juts out at mid
+    # height with a shelf and a tree; below that it slants back in and
+    # drops in rough steps into the dark.
+    face = [(680, 60), (690, 96), (664, 150), (640, 230), (652, 300), (700, 360), (770, 430), (800, 520),
+            (770, 600), (720, 650), (680, 740), (700, 860), (660, 980), (690, 1120), (640, 1300), (670, 1500),
+            (630, 1800)]
     body = [(-60, 60)] + face + [(-60, 1800)]
     d = c.poly(body)
-    rows = list(range(150, 1700, 105))
-    c.paint(d, ROCK, bevel=46, outline=5, ink=INK, seed=11, grain=0.08, shade=0.55,
-            cracks=strata(c, d, rows, 12, -40, 720))
-    # Boulders standing out of the face, each lit on its own.
-    rng = np.random.default_rng(13)
-    for (bx, by, r) in [(640, 200, 46), (660, 380, 58), (630, 600, 52), (668, 760, 40), (620, 980, 62),
-                        (650, 1240, 54), (560, 300, 38), (520, 520, 44), (560, 860, 50), (500, 1120, 46)]:
-        bd = c.ellipse(bx, by, r * 1.15, r * 0.82, rng.uniform(-0.4, 0.4))
-        c.paint(np.maximum(bd, d), ["#c9874e", "#b56d3c", "#d09358"][int(rng.integers(0, 3))], bevel=26, outline=4,
-                ink=INK, seed=int(rng.integers(0, 999)), grain=0.07)
-    # Grass top with a mossy lip and vines hanging down the face.
-    top = [(-60, 60), (200, 58), (420, 62), (600, 58), (686, 62)]
-    grass_cap(c, top, 14, lip_vines=[(676, 70, 150), (650, 72, 90), (690, 74, 230)])
+    c.paint(d, ROCK, bevel=50, outline=5, ink=INK, seed=11, grain=0.08, shade=0.55)
+    bands(c, d, 110, 1780, 12, -60, 820, tilt=0.03)
+    facets(c, d, [(668, 150, 38, 6), (720, 450, 54, 7), (760, 540, 40, 6), (690, 640, 46, 6), (672, 900, 52, 7),
+                  (660, 1180, 48, 6), (650, 1420, 56, 7), (560, 340, 30, 5), (600, 800, 34, 5)], 13)
+    ledge(c, 690, 830, 410, 60, 16)
+    tree(c, 770, 404, 150, 17, lean=0.25)
+    grass_cap(c, [(-60, 60), (200, 58), (420, 62), (600, 58), (690, 62)], 14)
+    vines(c, [(676, 72, 170), (650, 74, 100), (700, 420, 140), (790, 430, 90)], 18)
     flowers(c, [(110, 64), (300, 62), (470, 64), (560, 62)], 15)
-    depth_fade(c, 420, 1500)
-    # Blend into the slope at the left edge.
+    depth_fade(c, 520, 1500)
     c.a = c.a * np.clip(c.x / 40.0, 0, 1)
     c.save("gorge_left")
 
 
 def gorge_right():
-    W, H = 960, 1900
+    W, H = 1000, 1900
     c = P.Canvas(W, H)
-    # Top at y 40 (world 1040). Front of the overhang at x 20 (world 2300);
-    # its underside sags and recedes to the wall at x 580 (world 2860).
-    under = [(1000, 40), (1000, 1900), (580, 1900), (600, 1500), (566, 1160), (604, 860), (570, 600),
-             (590, 470), (520, 420), (430, 400), (330, 410), (240, 380), (150, 360), (80, 320), (36, 250),
-             (18, 160), (22, 80), (30, 40)]
+    # Top at y 40 (world 1040), front at x 20 (world 2300): a heavy,
+    # forward-leaning overhang with jagged teeth of rock under it; the face
+    # recedes to x 580 (world 2860) with a buttress and a twisted tree
+    # half-way down.
+    under = [(1040, 40), (1040, 1900), (600, 1900), (620, 1560), (560, 1300), (430, 1180), (470, 1100),
+             (600, 1020), (580, 760), (612, 560), (560, 470), (500, 455), (470, 520), (430, 440), (360, 430),
+             (320, 500), (285, 420), (220, 400), (170, 450), (140, 375), (80, 330), (40, 260), (14, 170),
+             (16, 90), (28, 40)]
     d = c.poly(under)
-    rows = list(range(130, 1800, 110))
-    c.paint(d, ROCK, bevel=48, outline=5, ink=INK, seed=21, grain=0.08, shade=0.55,
-            cracks=strata(c, d, rows, 22, 0, 960))
-    rng = np.random.default_rng(23)
-    for (bx, by, r) in [(60, 180, 44), (150, 300, 50), (280, 350, 46), (420, 360, 40), (560, 700, 52),
-                        (600, 1000, 48), (580, 1320, 56), (230, 180, 36), (380, 240, 42), (760, 300, 60)]:
-        bd = c.ellipse(bx, by, r * 1.2, r * 0.8, rng.uniform(-0.4, 0.4))
-        c.paint(np.maximum(bd, d), ["#c9874e", "#b56d3c", "#d09358"][int(rng.integers(0, 3))], bevel=26, outline=4,
-                ink=INK, seed=int(rng.integers(0, 999)), grain=0.07)
-    # Roots hanging from the overhang's underside.
+    c.paint(d, ROCK, bevel=50, outline=5, ink=INK, seed=21, grain=0.08, shade=0.55)
+    bands(c, d, 80, 1880, 22, 0, 1040, tilt=-0.02)
+    facets(c, d, [(40, 200, 40, 6), (120, 320, 48, 7), (260, 380, 44, 6), (420, 410, 38, 6), (600, 700, 50, 7),
+                  (470, 1150, 58, 7), (600, 1450, 54, 6), (300, 150, 32, 5), (520, 260, 36, 5)], 23)
+    ledge(c, 400, 560, 1120, 70, 27)
+    tree(c, 470, 1114, 190, 28, lean=-0.35)
     roots = np.full(c.x.shape, 1e9, np.float32)
-    for (rx, ry, ln) in [(110, 350, 120), (210, 375, 80), (330, 405, 150), (470, 410, 100), (520, 420, 60)]:
+    for (rx, ry, ln) in [(110, 360, 120), (215, 400, 80), (330, 430, 150), (470, 500, 100), (520, 460, 60)]:
         pts = [(rx, ry)]
         for k in range(1, 6):
             pts.append((rx + 10 * np.sin(k * 1.7 + rx), ry + ln * k / 5))
         for (ax, ay), (bx, by) in zip(pts[:-1], pts[1:]):
             roots = np.minimum(roots, c.capsule(ax, ay, bx, by, 6, 3))
     c.paint(roots, "#7a4a2a", bevel=4, outline=3, ink=INK, seed=24, grain=0.05)
-    top = [(22, 40), (300, 38), (600, 42), (980, 40)]
-    grass_cap(c, top, 25, lip_vines=[(30, 50, 110), (60, 52, 60), (120, 50, 150)])
+    grass_cap(c, [(22, 40), (300, 38), (600, 42), (1040, 40)], 25)
+    vines(c, [(30, 52, 120), (64, 54, 70), (130, 52, 160), (420, 1126, 120)], 29)
     flowers(c, [(180, 44), (340, 42), (520, 44), (700, 42), (860, 44)], 26)
-    depth_fade(c, 520, 1600)
+    depth_fade(c, 620, 1650)
     c.save("gorge_right")
+
+
+def gorge_wall():
+    """The gorge's far wall: a great hazy sandstone massif behind the gap,
+    its top well above the leap, sinking behind both cliffs at its ends (sky
+    beyond), a big waterfall pouring from a notch into mist and the dark.
+    Top-left at world (1300, 520)."""
+    W, H = 1900, 2300
+    c = P.Canvas(W, H)
+    haze = np.array(P.hexc("#c4cdea"), np.float32)
+    # Skyline: low behind the near cliff, buttes over the gap, a notch for the
+    # fall, and down again behind the far bank.
+    keys = [(-20, 760), (60, 720), (130, 560), (190, 430), (250, 300), (300, 170), (360, 150), (420, 70),
+            (560, 58), (610, 120), (700, 132), (760, 40), (900, 30), (960, 110), (1080, 118), (1120, 86),
+            (1250, 92), (1290, 150), (1370, 152), (1410, 70), (1560, 62), (1620, 180), (1700, 330),
+            (1760, 470), (1830, 590), (1920, 640)]
+    sky = []
+    for (ax, ay), (bx, by) in zip(keys[:-1], keys[1:]):
+        for t in np.linspace(0, 1, 7, endpoint=False):
+            x = ax + (bx - ax) * t
+            sky.append((x, ay + (by - ay) * t + 8 * np.sin(x * 0.07) + 5 * np.sin(x * 0.19) + 3 * np.sin(x * 0.53)))
+    sky.append(keys[-1])
+    d = c.poly(sky + [(1920, H), (-20, H)])
+    c.paint(d, "#d4ad90", bevel=80, outline=3, ink="#8a7f9e", seed=41, grain=0.06, shade=0.45)
+    rng = np.random.default_rng(42)
+    cols = ["#dcb08c", "#c99a7c", "#e3bf98", "#bf8f78", "#d6a888"]
+    k = 0
+    y = 60
+    ledges = []
+    while y < H:
+        h = rng.uniform(80, 160)
+        xs = np.linspace(-20, W + 20, 40)
+        tilt = (xs - W / 2) * 0.03 * np.sin(k * 1.7)
+        top = y + 16 * np.sin(xs * 0.008 + k) + 9 * np.sin(xs * 0.029 + k) + tilt
+        bot = top + h
+        band = [(float(x), float(t)) for x, t in zip(xs, top)] + [(float(x), float(b)) for x, b in zip(xs[::-1], bot[::-1])]
+        c.paint(np.maximum(c.poly(band), d + 2), cols[k % len(cols)], bevel=30, outline=2,
+                ink="#8d7c96", seed=43 + k, grain=0.05, shade=0.4)
+        ledges.append((xs, top))
+        y += h
+        k += 1
+    # Broad gullies worn down the face (soft shadow, lit rim on one side).
+    for i in range(16):
+        x = rng.uniform(80, W - 80)
+        y0 = rng.uniform(80, 500)
+        ln = rng.uniform(300, 1100)
+        wd = rng.uniform(10, 26)
+        pts = [(x + 22 * np.sin(j * 0.9 + i), y0 + ln * j / 10) for j in range(11)]
+        cd = c.line_dist(pts)
+        fade = np.clip(1 - (c.y - y0) / ln, 0, 1) * (d < -6)
+        k2 = np.clip(1 - cd / wd, 0, 1) ** 1.5 * fade
+        c.rgb = c.rgb * (1 - 0.28 * k2[..., None])
+        side = np.clip(1 - np.abs(cd - wd) / 4, 0, 1) * (c.x > np.interp(c.y, [p[1] for p in pts], [p[0] for p in pts])) * fade
+        c.rgb = c.rgb + (np.array([1.0, 0.95, 0.88], np.float32) - c.rgb) * (0.22 * side)[..., None]
+    # Moss and shrubs on the ledges (small, hazed: far away).
+    for (xs, top) in ledges[:9]:
+        for _ in range(9):
+            x = rng.uniform(0, W)
+            ty = float(np.interp(x, xs, top))
+            if d[int(np.clip(ty + 6, 0, H - 1)), int(np.clip(x, 0, W - 1))] > -10:
+                continue
+            for j in range(rng.integers(2, 5)):
+                cx = x + rng.uniform(-30, 30)
+                r = rng.uniform(9, 18)
+                blob = c.ellipse(cx, ty - r * 0.25, r * 1.9, r * 0.62)
+                c.paint(blob, ["#7fa65a", "#6b9450", "#93b866"][j % 3], bevel=6, outline=1.5, ink="#5f7a62",
+                        seed=int(cx), grain=0.03, shade=0.4)
+    # The waterfall from the notch between the buttes: ragged edges, streaks,
+    # a plunge of mist low down.
+    fx = 1330
+    yy = np.linspace(150, H, 40)
+    left = fx - 34 - (yy - 150) * 0.02 + 5 * np.sin(yy * 0.03)
+    right = fx + 34 + (yy - 150) * 0.02 + 5 * np.sin(yy * 0.027 + 1)
+    fall = c.poly([(float(x), float(y)) for x, y in zip(left, yy)] + [(float(x), float(y)) for x, y in zip(right[::-1], yy[::-1])])
+    c.paint(fall, "#e6f3ff", bevel=18, outline=2, ink="#8aa6cc", seed=45, grain=0.02, shade=0.22)
+    for i in range(14):
+        x = fx - 32 + i * 5
+        streak = np.clip(1 - np.abs(c.x - (x + (c.y - 150) * (i - 7) * 0.004)) / 1.8, 0, 1) * (c.y > 160)
+        streak = streak * (np.abs(c.x - fx) < 75) * (0.6 + 0.4 * np.sin(c.y * 0.05 + i))
+        c.rgb = c.rgb + (np.array([1, 1, 1], np.float32) - c.rgb) * (0.45 * streak)[..., None]
+    for i in range(9):
+        mist = np.clip(1 - np.hypot((c.x - fx - (i - 4) * 60) / 170, (c.y - 1230 - (i % 3) * 40) / 95), 0, 1) ** 2
+        c.rgb = c.rgb + (np.array([0.95, 0.97, 1.0], np.float32) - c.rgb) * (0.6 * mist)[..., None]
+    # Distance: washed toward the sky (more at the top), then sinking into
+    # the gorge's dark below the lips.
+    wash = np.clip(0.30 - c.y / H * 0.2, 0.16, 0.30)[..., None]
+    c.rgb = c.rgb * (1 - wash) + haze * wash
+    depth_fade(c, 650, 1900, to=(0.08, 0.10, 0.20), k=0.9)
+    c.save("gorge_wall")
 
 
 def gorge_far():
@@ -195,6 +361,6 @@ def gorge_far():
 
 
 if __name__ == "__main__":
-    gorge_left()
-    gorge_right()
-    gorge_far()
+    which = sys.argv[1:] or ["gorge_left", "gorge_right", "gorge_far", "gorge_wall"]
+    for name in which:
+        globals()[name]()
