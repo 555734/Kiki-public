@@ -791,10 +791,6 @@ func take_opening() -> void:
 	_trace_on = true
 	_trace_rows.clear()
 	_trace_mark("take_start", "variant %s" % OS.get_environment("PV_RESCUE"))
-	# The guardian's two platforms (world): the catch in the runner's path,
-	# then a step toward the higher bank.
-	var p1 := PackedVector2Array([Vector2(1925, 1205), Vector2(2150, 1205)])
-	var p2 := PackedVector2Array([Vector2(2165, 1122), Vector2(2280, 1122)])
 
 	# 2 ONE ENEMY, ONE LEAP: the hop over it, camera level again; the
 	# ground ends ahead.
