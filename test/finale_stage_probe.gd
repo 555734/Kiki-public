@@ -284,37 +284,43 @@ func area_grass() -> bool:
 	await run_until(func() -> bool: return r.global_position.x > bug.global_position.x + 40 and r.is_on_floor(), 1.0, true, 120)
 	check(r.hp == Balance.RUNNER_MAX_HP, "jumped the enemy cleanly")
 	# The cliff leap: full sprint jump from the lip, double jump at the top.
+	# The lip of the near cliff breaks away under the take-off.
 	await run_until(x_past(1525), 1.0, true, 200)
 	await jump(18)
-	await frames(10)
-	await jump(10)
-	await wait_until(func() -> bool: return r.global_position.y > 1100.0, 90)
-	at("falling")
-	check(r.global_position.x < 2200 and not r.is_on_floor() and r.velocity.y > 0,
-		"short of the high bank: the runner drops below the lip")
-	# The guardian draws a step under the fall, then a staircase up to the bank.
+	await wait_until(func() -> bool: return r.velocity.y > -60.0, 30)
+	await jump(14)
+	# Not reaching for the edge (a held direction would catch it from a
+	# perfect jump): this is the fall the guardian has to answer.
 	hold(0.0)
-	var below := Vector2(minf(r.global_position.x + 10.0, 2150.0), r.global_position.y + 80.0)
-	check(place_platform(below), "guardian places a platform in mid-air")
+	check(machine("cliff_lip").state == 1, "the overhanging lip broke away under the take-off")
+	# The jump ends against the far wall, under its top.
+	await wait_until(func() -> bool: return r.global_position.y > 1040.0 and r.velocity.y > 0.0, 90)
+	at("short")
+	check(r.global_position.x < 2000 and not r.is_on_floor() and r.global_position.y + 23.0 > 1000.0,
+		"short of the high bank: the runner drops below the top of the far wall")
+	# The guardian draws a ledge out from the wall under the runner, and
+	# fires its launch ring: thrown up the wall and over the top.
+	var fy := r.global_position.y + 23.0 + 60.0
+	check(place_platform(Vector2(1915, fy), PackedVector2Array([Vector2(83, 0), Vector2(-83, 0)])), "guardian places a platform in mid-air")
+	hold(0.0)
 	await wait_until(grounded(), 90)
 	at("caught")
-	check(r.is_on_floor() and r.global_position.y < 1400, "the runner lands on the guardian's platform")
-	# From the guardian's platform: up and over onto the bank. If the catch
-	# was low, the guardian adds a step off to the side (never overhead,
-	# where it would be a ceiling).
-	var steps := 1
-	if r.global_position.y + 23.0 - 1040.0 > 140.0:
-		var step := Vector2(r.global_position.x + 170.0, r.global_position.y + 23.0 - 100.0)
-		place_platform(step + Vector2(0, 13))
-		await frames(24)
-		if await hop_to(step):
-			steps += 1
-	await hop_to(Vector2(2300, 1040), true)
-	at("over the lip")
-	check(steps >= 1, "rescued with %d guardian platform(s)" % steps)
-	await run_until(func() -> bool: return r.is_on_floor() and r.global_position.x > 2250, 1.0, false, 150)
+	check(r.is_on_floor() and r.global_position.y < 1200, "the runner lands on the guardian's platform")
+	hold(0.3)
+	await frames(3)
+	hold(0.0)
+	var ring: LaunchTrigger = null
+	for t in get_tree().get_nodes_in_group("launch_trigger"):
+		if t is LaunchTrigger and (t as LaunchTrigger).armed:
+			ring = t
+	await wait_until(func() -> bool: return ring != null and ring.loaded(), 30)
+	shoot(ring.global_position)
+	await frames(2)
+	check(r.velocity.y < -300.0, "the launch ring throws the runner up the wall")
+	hold(1.0)
+	await run_until(func() -> bool: return r.is_on_floor() and r.global_position.y < 960.0, 1.0, false, 150)
 	at("bank")
-	check(r.global_position.y < 1045 and r.global_position.x > 2240, "safe on the far bank")
+	check(r.global_position.y < 960 and r.global_position.x > 2000, "safe on the far bank")
 	_cover = true
 	await run_until(x_past(2720), 1.0, true, 200)
 	check(GameState.checkpoint_index >= 1, "checkpoint 1 reached")
@@ -522,8 +528,9 @@ func area_hive() -> bool:
 	await run_until(x_past(17160), 1.0, false, 200)
 	return GameState.checkpoint_index >= 8
 
-## 30-35s: off-centre landing, the giant wakes and topples the slab into a
-## bridge, the guardian staggers it, the mace hangs, cross; fossil ribs.
+## 30-35s: off-centre landing; the giant rises across the way, its first
+## slam cracks the plateau and knocks the pillar over the gorge into a
+## bridge; the guardian staggers it (both fists hold still); cross.
 func area_giant() -> bool:
 	await from_checkpoint(8)
 	await run_until(x_past(17460), 1.0, true, 200)
@@ -531,23 +538,25 @@ func area_giant() -> bool:
 	at("tilted ledge")
 	await hop_to(Vector2(18050, 300))
 	var giant := machine("giant")
-	await run_until(x_past(18300), 1.0, false, 200)
-	check(giant.state == 1, "the stone giant woke")
+	# Past the slam point, to the edge, and wait there for the bridge.
+	await run_until(x_past(18440), 1.0, false, 200)
 	hold(0.0)
+	check(giant.state == 1, "the stone giant woke")
 	await wait_until(func() -> bool: return giant.slab_angle() >= PI * 0.5 - 0.01, 300)
-	check(giant.slab_angle() >= PI * 0.5 - 0.01, "the giant toppled the slab into a bridge")
-	await wait_until(func() -> bool: return giant.since() > 4.0 and absf(giant.mace_angle()) > 0.85, 400)
+	check(giant.slab_angle() >= PI * 0.5 - 0.01, "the giant's slam toppled the pillar into a bridge")
+	check(r.hp == Balance.RUNNER_MAX_HP, "the slam missed a runner who got out from under it")
+	await wait_until(func() -> bool: return giant.cycle_time() > 1.2 and giant.cycle_time() < 1.6, 300)
 	shoot(giant._core.global_position)
 	await frames(2)
 	check(giant.stunned(), "the guardian's shot staggered the giant")
-	var frozen: float = giant.mace_angle()
-	await run_until(x_past(18440), 1.0, true, 100)
+	var frozen: Vector2 = giant.swipe_fist()
+	await run_until(x_past(18500), 1.0, true, 100)
 	at("slab foot")
 	await hop_to(Vector2(18700, 240))
 	at("on the toppled slab")
 	if log_moves:
 		print("      slab body ", giant._slab.global_position, " rot ", giant._slab.rotation, " layer ", giant._slab.collision_layer)
-	check(absf(giant.mace_angle() - frozen) < 0.01, "the mace hangs still while staggered")
+	check(giant.swipe_fist().distance_to(frozen) < 1.0, "the fists hold still while staggered")
 	await run_until(x_past(18880), 1.0, true, 100)
 	await hop_to(Vector2(19050, 300))
 	at("far plateau")
@@ -576,14 +585,37 @@ func area_bone() -> bool:
 	await hop_to(Vector2(22400, 300), true)
 	at("past gap")
 	await run_until(x_past(22560), 1.0, true, 200)
-	for feet in [Vector2(22710, 320), Vector2(22905, 260), Vector2(23105, 330), Vector2(23305, 240),
-			Vector2(23510, 300), Vector2(23710, 270)]:
+	for feet in [Vector2(22710, 320), Vector2(22905, 260), Vector2(23105, 330)]:
 		var ok := await hop_to(feet + Vector2(25, 0))
 		at("pillar %s %s jaw front %d" % [feet, ok, int(beast.jaw_front()) if beast.state == 2 else -1])
 		if not ok:
 			return false
 	check(beast.state == 2, "the jaws are chasing")
-	await hop_to(Vector2(24080, 300), true)
+	var crushed := 0
+	for m in get_tree().get_nodes_in_group("finale_machine"):
+		if m.kind == "bone_pillar" and m.state == 2:
+			crushed += 1
+	check(crushed >= 1, "the jaws bit through a pillar behind the runner")
+	# Into the jet, up past the rib, out of the column onto it.
+	_jump = true
+	hold(1.0)
+	var blew := false
+	for i in 160:
+		if i == 18:
+			_jump = false
+		if machine("sandjet_23205").active():
+			blew = true
+		if r.global_position.y < 120.0:
+			hold(1.0, true)
+		if i > 20 and r.is_on_floor():
+			break
+		await frames(1)
+	_jump = false
+	at("after the jet")
+	check(blew, "the jaws' impact blew the sand vent ahead")
+	check(r.global_position.y < 60.0 and r.is_on_floor(), "the jet threw the runner up onto the rib path")
+	await run_until(x_past(23688), 1.0, true, 120)
+	await hop_to(Vector2(24140, 300), true)
 	at("through the gate")
 	await wait_until(func() -> bool: return beast._snapped, 200)
 	check(beast._snapped, "the jaws slammed shut at the gate behind the runner")
@@ -752,7 +784,7 @@ func area_mechanics() -> bool:
 			break
 	check(r.state == Runner.State.DEAD, "the jaws catch a runner who stands still")
 	await frames(100)
-	# Giant's mace hits.
+	# Giant's sweep hits.
 	await from_checkpoint(9)
 	var giant := machine("giant")
 	giant.set_state(1)
@@ -760,7 +792,7 @@ func area_mechanics() -> bool:
 	await place_runner(Vector2(18760, 217))
 	hp = r.hp
 	await wait_until(func() -> bool: return r.hp < hp, 300)
-	check(r.hp < hp, "the mace hits a runner standing on the bridge")
+	check(r.hp < hp, "the giant's sweep hits a runner standing on the bridge")
 	# Honey cuts a jump.
 	await from_checkpoint(7)
 	await place_runner(Vector2(16690, 1277))

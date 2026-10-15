@@ -30,7 +30,7 @@ func _draw() -> void:
 	var cam := camera.get_screen_center_position()
 	# Only over ground: the bottom of the screen must be inside terrain.
 	var bottom := cam + Vector2(0, view.y * 0.5 / z - 10.0)
-	if not (_ground_below(bottom) or _ground_below(bottom + Vector2(-view.x * 0.3 / z, 0)) or _ground_below(bottom + Vector2(view.x * 0.3 / z, 0))):
+	if not _ground_below(bottom):
 		return
 	var zone: Dictionary = Stage.data().zone_at(cam.x)
 	var skin := String(zone["skin"])

@@ -19,9 +19,16 @@ var _segments: Array[AnimatableBody2D] = []
 var _gap := Vector2.ZERO
 var _snapped := false
 
+var _ribs: Node2D
+
 func _build() -> void:
 	z_index = 7
 	reach = Vector2(3400, 1600)
+	_ribs = Ribs.new()
+	_ribs.beast = self
+	_ribs.z_as_relative = false
+	_ribs.z_index = 1
+	add_child(_ribs)
 	_gap = data.get("gap", Vector2(21900, 22200))
 	var n := int((float(data.get("deck_to", 22600.0)) - global_position.x) / SEG)
 	for i in n:
@@ -130,11 +137,10 @@ func _draw() -> void:
 			_skull(erupt_head() - global_position, 1.0, jaws_open(), -PI * 0.42)
 	elif state == 2:
 		var head := chase_head() - global_position
-		# Neck vertebrae trailing down into the canyon.
-		for k in 6:
-			var p := head + Vector2(-260 - k * 90.0, 160 + k * 120.0)
-			draw_circle(p, 58.0 - k * 4.0, Color("6b5642"))
-			draw_circle(p, 50.0 - k * 4.0, Color("e8dcc0"))
+		# Neck vertebrae trailing down and back into the canyon.
+		for k in range(7, -1, -1):
+			var p := head + Vector2(-330.0 - float(k) * 105.0, 150.0 + float(k) * 125.0 + sin(seconds() * 4.0 + float(k)) * 8.0)
+			_sprite(TEX_VERT, Vector2(100, 110), p, -0.5 + 0.05 * float(k), 1.7 - 0.06 * float(k))
 		_skull(head, 1.0, jaws_open(), 0.0)
 
 ## The deck: a spine of giant vertebrae, pass by pass so each pass batches
@@ -177,65 +183,67 @@ func _vertebrae(rects: Array) -> void:
 	b.multiline(shine, 3.0, Color("fffaf0"))
 	b.flush(self)
 
-## A fossil skull facing right, centre at `c`. `open` 0..1 drops the jaw.
-## Ivory bone shaded from the top, a heavy brow, horns, a burning eye.
+## The painted skull (assets/stage_1_10/beast_skull.png, beast_jaw.png,
+## tools/promotion/make_creature_art.py), facing right, centre at `c`;
+## `open` 0..1 drops the lower jaw about its hinge. The skull is drawn at
+## SKULL_SCALE of its painting: about 840 x 450 world px.
+const TEX_SKULL := "res://assets/stage_1_10/beast_skull.png"
+const TEX_JAW := "res://assets/stage_1_10/beast_jaw.png"
+const TEX_VERT := "res://assets/stage_1_10/beast_vertebra.png"
+const TEX_RIB := "res://assets/stage_1_10/beast_rib.png"
+const SKULL_SCALE := 1.35
+const SKULL_HINGE := Vector2(150, 230)
+const JAW_HINGE := Vector2(40, 90)
+
 func _skull(c: Vector2, s: float, open: float, angle: float) -> void:
-	var bone := FinaleGround.BONE
-	var shade := FinaleGround.BONE_SHADE
-	var rim := FinaleGround.BONE_RIM
-	draw_set_transform(c, angle, Vector2(s, s))
-	var b := TriBatch.new()
-	var hinge := Vector2(-150, 30)
-	var jaw_drop := open * 0.6
-	var upper := PackedVector2Array([Vector2(-240, -40), Vector2(-215, -150), Vector2(-90, -205), Vector2(60, -195), Vector2(160, -150),
-		Vector2(260, -90), Vector2(320, -30), Vector2(310, 22), Vector2(-150, 34)])
-	var lower := PackedVector2Array()
-	for p in [Vector2(-160, 30), Vector2(300, 36), Vector2(290, 70), Vector2(200, 100), Vector2(40, 128), Vector2(-120, 112), Vector2(-175, 70)]:
-		lower.append((p - hinge).rotated(jaw_drop) + hinge)
-	# Horns behind the skull.
-	for hb in [[Vector2(-150, -170), Vector2(-330, -330)], [Vector2(-60, -195), Vector2(-160, -380)]]:
-		var a: Vector2 = hb[0]
-		var tip: Vector2 = hb[1]
-		var nrm := (tip - a).normalized().orthogonal() * 34.0
-		b.poly(PackedVector2Array([a + nrm, a - nrm, tip]), rim)
-		b.poly(PackedVector2Array([a + nrm * 0.75, a - nrm * 0.75, tip.lerp(a, 0.06)]), shade)
-	# Teeth (behind the bone so their roots hide).
-	for i in 8:
-		var x := -90.0 + i * 48.0
-		var tl := 44.0 if i % 3 == 1 else 32.0
-		b.poly(PackedVector2Array([Vector2(x, 20), Vector2(x + 26, 20), Vector2(x + 13, 20 + tl)]), Color("fffaf0"))
-		var pts := PackedVector2Array()
-		for q in [Vector2(x, 50), Vector2(x + 26, 50), Vector2(x + 13, 50 - tl)]:
-			pts.append((q - hinge).rotated(jaw_drop) + hinge)
-		b.poly(pts, Color("fffaf0"))
-	# Dark mouth behind open jaws.
-	if open > 0.05:
-		b.poly(PackedVector2Array([hinge, Vector2(300, 30), (Vector2(300, 40) - hinge).rotated(jaw_drop) + hinge]), Color(0.18, 0.06, 0.04))
-	for poly in [lower, upper]:
-		b.poly(poly, shade)
-		var top := PackedVector2Array()
-		var lo := INF
-		var hi := -INF
-		for p in poly:
-			lo = minf(lo, p.y)
-			hi = maxf(hi, p.y)
-		# Lit upper part: the same outline squashed toward its top.
-		for p in poly:
-			top.append(Vector2(p.x, lerpf(lo, p.y, 0.72)) + Vector2(0, 4))
-		b.poly(top, bone)
-		var line := PackedVector2Array(poly)
-		line.append(poly[0])
-		b.polyline(line, 7.0, rim)
-	# Brow ridge, cheek line, nostril, cracks.
-	b.polyline(PackedVector2Array([Vector2(-60, -150), Vector2(30, -168), Vector2(110, -140)]), 9.0, rim)
-	b.polyline(PackedVector2Array([Vector2(-120, -10), Vector2(60, -30), Vector2(220, -20)]), 5.0, Color(rim, 0.45))
-	b.circle(Vector2(268, -52), 16.0, Color("2a1712"))
-	b.polyline(PackedVector2Array([Vector2(-190, -110), Vector2(-140, -70), Vector2(-150, -30)]), 4.0, Color(rim, 0.6))
-	# The eye: a deep socket with a burning ember.
-	b.circle(Vector2(30, -100), 52.0, Color("2a1712"))
+	var base := Transform2D(angle, c) * Transform2D(0.0, Vector2(s, s), 0.0, Vector2.ZERO)
+	var hinge := Vector2(-150, 40)
+	var k := SKULL_SCALE
+	var jaw := FinaleArt._load(TEX_JAW)
+	var skull := FinaleArt._load(TEX_SKULL)
+	if jaw != null:
+		draw_set_transform_matrix(base * Transform2D(open * 0.62, hinge) * Transform2D(0.0, Vector2(k, k), 0.0, Vector2.ZERO))
+		draw_texture(jaw, -JAW_HINGE)
+	if skull != null:
+		draw_set_transform_matrix(base * Transform2D(0.0, hinge) * Transform2D(0.0, Vector2(k, k), 0.0, Vector2.ZERO))
+		draw_texture(skull, -SKULL_HINGE)
+	# The burning eye in its socket.
+	draw_set_transform_matrix(base)
+	var eye := hinge + (Vector2(268, 140) - SKULL_HINGE) * k
 	var glow := 0.65 + 0.35 * sin(seconds() * 7.0)
-	b.circle(Vector2(36, -96), 40.0, Color(1.0, 0.25, 0.05, 0.35 * glow))
-	b.circle(Vector2(36, -96), 22.0, Color(1.0, 0.45, 0.08, glow))
-	b.circle(Vector2(36, -96), 9.0, Color(1.0, 0.95, 0.6))
-	b.flush(self)
+	draw_circle(eye, 46.0, Color(1.0, 0.25, 0.05, 0.30 * glow))
+	draw_circle(eye, 24.0, Color(1.0, 0.45, 0.08, glow))
+	draw_circle(eye, 10.0, Color(1.0, 0.95, 0.6))
 	draw_set_transform(Vector2.ZERO)
+
+## A painted bone sprite with pivot `pivot` (sprite px) at `at` (local).
+func _sprite(path: String, pivot: Vector2, at: Vector2, angle: float, scale: float) -> void:
+	var tex := FinaleArt._load(path)
+	if tex == null:
+		return
+	draw_set_transform(at, angle, Vector2(scale, scale))
+	draw_texture(tex, -pivot)
+	draw_set_transform(Vector2.ZERO)
+
+
+## The beast's ribcage heaving along behind its neck, deep in the canyon and
+## behind the pillars: the size of the thing that is chasing.
+class Ribs extends Node2D:
+	var beast
+	func _process(_delta: float) -> void:
+		if beast._near:
+			queue_redraw()
+	func _draw() -> void:
+		if beast.state != 2:
+			return
+		var tex := FinaleArt._load(beast.TEX_RIB)
+		if tex == null:
+			return
+		var head: Vector2 = beast.chase_head() - beast.global_position
+		var t: float = beast.seconds()
+		for k in 6:
+			var root := head + Vector2(-620.0 - float(k) * 200.0, 1350.0 - float(k) * 30.0)
+			var breath := sin(t * 3.0 + float(k) * 0.7) * 0.03
+			draw_set_transform(root, -0.18 + 0.06 * float(k) + breath, Vector2(2.1, 2.1) * (1.0 - 0.05 * float(k)))
+			draw_texture(tex, -Vector2(40, 540), Color(0.92, 0.86, 0.78))
+			draw_set_transform(Vector2.ZERO)

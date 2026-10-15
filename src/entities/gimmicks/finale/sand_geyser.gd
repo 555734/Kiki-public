@@ -11,7 +11,27 @@ func _build() -> void:
 	reach = Vector2(1300, 2100)
 
 func beat() -> float:
+	# A jet set off by the chasing jaws: when they reach `beast_x` their
+	# impact on the canyon wall blows this vent (a function of the beast's
+	# own clock, so every device agrees).
+	if data.has("beast_x"):
+		var b := _beast()
+		if b != null and b.state == 2:
+			var tf: float = (float(data["beast_x"]) - float(b.data.get("chase_from", 22300.0))) / float(b.data.get("speed", 350.0))
+			var k: float = b.since() - tf + WARN * 0.4
+			if k >= 0.0 and k < WARN + JET:
+				return k
 	return fposmod(Clock.seconds_at(Clock.tick, float(data.get("phase", 0.0))), float(data.get("period", 4.0)))
+
+var _beast_node: FinaleMachine = null
+
+func _beast() -> FinaleMachine:
+	if _beast_node == null or not is_instance_valid(_beast_node):
+		_beast_node = null
+		for m in get_tree().get_nodes_in_group("finale_machine"):
+			if m.kind == "bone_beast":
+				_beast_node = m
+	return _beast_node
 
 func active() -> bool:
 	var b := beat()

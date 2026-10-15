@@ -1,20 +1,43 @@
 extends FinaleMachine
-## SOMETHING HUGE WAKES. A monumental automaton of ruin stone sleeps in the
-## gorge below the plateau. Reaching the trigger wakes it: it rises over two
-## seconds, swats the standing slab that blocks the way -- the slab topples
-## into a bridge across the gorge -- and then swings a spiked mace on a chain
-## low across that bridge every 3.4s. Jump it. The guardian can shoot the
-## glowing core in its chest to stagger it: the mace hangs still for 2.5s.
+## SOMETHING HUGE WAKES. A stone giant sleeps in the gorge between the two
+## plateaus. Reaching the trigger wakes it: it rises and blocks the way, then
+## fights with both fists on a fixed rhythm (every CYCLE seconds):
 ##
+## * SLAM (near arm): the fist is raised high over the plateau's end -- its
+##   shadow grows on the ground where it will land -- then driven down. The
+##   impact cracks the plateau and throws debris; the first impact knocks
+##   the standing stone pillar over the gorge: the only bridge across.
+## * SWIPE (far arm): drawn back, then swept flat across the bridge at body
+##   height. Jump it.
+##
+## A fist that lands on the runner costs a heart and throws them back. The
+## guardian can shoot the glowing core in its chest: both fists freeze for
+## STUN seconds.
+##
+## Every pose is a function of the clock (placed_tick of the wake and of the
+## last stun), so all devices draw the same fight.
 ## state 1 = awake since placed_tick. "<id>_stun|1|tick|total" = staggered.
 
-const RISE := 2.0
-const SWAT := 2.4
+const RISE := 1.3
+const CYCLE := 3.0
+const WIND := 0.9       # slam: raise
+const DROP := 0.18      # slam: fall
+const PLANT := 0.72     # slam: fist on the ground
+const LIFT := 0.6       # slam: back to rest
+const SWIPE_WIND := 2.0  # swipe: drawn back from here...
+const SWIPE_AT := 2.6    # ...swept across from here...
+const SWIPE_END := 2.95  # ...to here, then back.
 const TOPPLE := 0.6
-const SWING := 3.2
 const STUN := 2.5
 const SUNK := 760.0
-const MACE_R := 58.0
+const FIST_R := 78.0
+## Arm segment lengths (world) of the painted arm sprites.
+const UPPER := 280.0
+const FORE := 376.0
+
+const TEX_BODY := "res://assets/stage_1_10/giant_body.png"
+const TEX_UPPER := "res://assets/stage_1_10/giant_upper_arm.png"
+const TEX_FORE := "res://assets/stage_1_10/giant_fist_arm.png"
 
 var _slab: AnimatableBody2D
 var _slab_pivot := Vector2.ZERO
@@ -23,7 +46,7 @@ var _back: Node2D
 var _stun_tick := -100000
 var _pause_before := 0.0
 var _pause_after := 0.0
-var _swatted := false
+var _last_impact := -1
 
 func _build() -> void:
 	z_index = 6
@@ -39,7 +62,9 @@ func _build() -> void:
 	_core = make_target(Vector2(0, -620), 34.0)
 	_back = Back.new()
 	_back.giant = self
-	_back.z_index = -2
+	# Behind the plateaus' rock faces: it stands in the gorge between them.
+	_back.z_as_relative = false
+	_back.z_index = 1
 	_back.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	add_child(_back)
@@ -56,56 +81,139 @@ func _receive(id: String) -> void:
 	super._receive(id)
 
 func _on_shot() -> void:
-	if state == 1 and since() > SWING and Clock.tick - _stun_tick > Clock.ticks_for(STUN):
+	if state == 1 and since() > RISE + 0.5 and Clock.tick - _stun_tick > Clock.ticks_for(STUN):
 		Events.switch_activated.emit("%s_stun|1|%d|%.3f" % [switch_id, Clock.tick, _pause_after + STUN])
 
+# ------------------------------------------------------------------- timing
 func rise() -> float:
 	if state == 0:
 		return SUNK
 	var k := clampf(since() / RISE, 0.0, 1.0)
 	return SUNK * (1.0 - k) * (1.0 - k)
 
+## Fight time: seconds since the wake, with any stun windows held still.
+func fight_time(tick: int = Clock.tick) -> float:
+	if state == 0:
+		return 0.0
+	var t := since(tick)
+	var stun_at := float(_stun_tick - placed_tick) / float(Clock.HZ)
+	if t >= stun_at and t < stun_at + STUN:
+		return stun_at - _pause_before
+	return t - (_pause_after if t >= stun_at + STUN else _pause_before)
+
+## Position in the attack cycle (seconds), or -1 while still rising.
+func cycle_time(tick: int = Clock.tick) -> float:
+	var t := fight_time(tick) - RISE
+	return -1.0 if t < 0.0 else fposmod(t, CYCLE)
+
+## Time of the first slam's impact, in fight time.
+func first_impact() -> float:
+	return RISE + WIND + DROP
+
 func slab_angle(tick: int = Clock.tick) -> float:
 	if state == 0:
 		return 0.0
-	var k := clampf((since(tick) - SWAT) / TOPPLE, 0.0, 1.0)
+	var k := clampf((fight_time(tick) - first_impact()) / TOPPLE, 0.0, 1.0)
 	return PI * 0.5 * k * k
-
-func mace_angle(tick: int = Clock.tick) -> float:
-	if state == 0 or since(tick) < SWING:
-		return -1.15
-	var t := since(tick) - SWING
-	var stun_at := float(_stun_tick - placed_tick) / 60.0 - SWING
-	var amp := float(data.get("amp", 1.0))
-	var w := TAU / float(data.get("period", 3.4))
-	if t >= stun_at and t < stun_at + STUN:
-		return amp * sin(w * (stun_at - _pause_before) - PI * 0.5)
-	var pause := _pause_after if t >= stun_at + STUN else _pause_before
-	# Ease the very first swing in from the raised position.
-	var a := amp * sin(w * (t - pause) - PI * 0.5)
-	return lerpf(-1.15, a, clampf(t / 0.8, 0.0, 1.0))
-
-func mace_centre(tick: int = Clock.tick) -> Vector2:
-	var a := mace_angle(tick)
-	var pivot: Vector2 = data.get("pivot", Vector2(18760, -420))
-	return pivot + Vector2(sin(a), cos(a)) * float(data.get("length", 597.0))
 
 func stunned() -> bool:
 	return Clock.tick - _stun_tick < Clock.ticks_for(STUN)
 
+## 0..1 how far the slam fist is through its wind-up (the telegraph).
+func windup(tick: int = Clock.tick) -> float:
+	var c := cycle_time(tick)
+	return clampf(c / WIND, 0.0, 1.0) if c >= 0.0 and c < WIND else 0.0
+
+func slam_target() -> Vector2:
+	return data.get("slam_at", Vector2(18420, 300))
+
+func slam_planted(tick: int = Clock.tick) -> bool:
+	var c := cycle_time(tick)
+	return c >= WIND + DROP and c < WIND + DROP + PLANT
+
+func swiping(tick: int = Clock.tick) -> bool:
+	var c := cycle_time(tick)
+	return c >= SWIPE_AT and c < SWIPE_END
+
+# --------------------------------------------------------------- the arms
+func shoulder(side: int, lift: float) -> Vector2:
+	return global_position + Vector2(250.0 * float(side), -830.0 + lift)
+
+## Where the near (slam) fist is, world.
+func slam_fist(tick: int = Clock.tick) -> Vector2:
+	var lift := rise()
+	var rest := global_position + Vector2(-330, -330 + lift)
+	var target := slam_target() + Vector2(0, -FIST_R + 6.0)
+	var high := Vector2(target.x - 40.0, global_position.y - 1320.0 + lift)
+	var c := cycle_time(tick)
+	if c < 0.0:
+		return rest
+	if c < WIND:
+		var k := smoothstep(0.0, 1.0, c / WIND)
+		return rest.lerp(high, k)
+	if c < WIND + DROP:
+		var k := (c - WIND) / DROP
+		return high.lerp(target, k * k)
+	if c < WIND + DROP + PLANT:
+		return target
+	var k := clampf((c - WIND - DROP - PLANT) / LIFT, 0.0, 1.0)
+	return target.lerp(rest, smoothstep(0.0, 1.0, k))
+
+## Where the far (swipe) fist is, world.
+func swipe_fist(tick: int = Clock.tick) -> Vector2:
+	var lift := rise()
+	var rest := global_position + Vector2(330, -360 + lift)
+	var back := global_position + Vector2(520, -700 + lift)
+	var y := float(data.get("swipe_y", 196.0))
+	var from := Vector2(global_position.x + 360.0, y)
+	# Across the bridge only: it stops short of the plateau's edge.
+	var to := Vector2(global_position.x - 200.0, y)
+	var c := cycle_time(tick)
+	if c < SWIPE_WIND:
+		return rest
+	if c < SWIPE_AT:
+		var k := smoothstep(0.0, 1.0, (c - SWIPE_WIND) / (SWIPE_AT - SWIPE_WIND))
+		return rest.lerp(back, k)
+	if c < SWIPE_AT + 0.08:
+		return back.lerp(from, (c - SWIPE_AT) / 0.08)
+	if c < SWIPE_END:
+		var k := (c - SWIPE_AT - 0.08) / (SWIPE_END - SWIPE_AT - 0.08)
+		return from.lerp(to, k * (2.0 - k))
+	var k := clampf((c - SWIPE_END) / 0.05, 0.0, 1.0)
+	return to.lerp(rest, smoothstep(0.0, 1.0, k))
+
+## Two-bone reach from shoulder `s` to `f`: the elbow, bent outward/down.
+static func elbow(s: Vector2, f: Vector2, bend: float) -> Vector2:
+	var d := clampf(s.distance_to(f), absf(UPPER - FORE) + 1.0, UPPER + FORE - 1.0)
+	var a := (UPPER * UPPER - FORE * FORE + d * d) / (2.0 * d)
+	var h := sqrt(maxf(0.0, UPPER * UPPER - a * a))
+	var dir := (f - s).normalized()
+	return s + dir * a + dir.orthogonal() * h * bend
+
+# ------------------------------------------------------------------ the sim
 func _pose(tick: int) -> void:
 	_slab.position = _slab_pivot
 	_slab.rotation = slab_angle(tick)
 	_core.position = Vector2(0, -620 + rise())
-	if state == 1 and since(tick) >= SWAT and not _swatted:
-		_swatted = true
-		if since(tick) < SWAT + 0.3:
-			sound("boom", 0.0, 1.7)
-			FinaleFx.kick(16.0)
+	if state != 1:
+		return
+	# The slam's impact: once per cycle, on every device.
+	var c := cycle_time(tick)
+	var n := int(floorf((fight_time(tick) - RISE) / CYCLE))
+	if c >= WIND + DROP and c < WIND + DROP + PLANT and n != _last_impact:
+		_last_impact = n
+		if c < WIND + DROP + 0.2:
+			sound("boom", -1.0 if n == 0 else 1.0, 1.8)
+			sound("thud", -4.0, 1.4)
+			FinaleFx.kick(20.0 if n == 0 else 12.0)
+			if n == 0:
+				sound("crumble", -3.0, 1.4)
+	if c >= SWIPE_AT and c < SWIPE_AT + 1.0 / 60.0:
+		sound("whoosh", -6.0, 1.3)
 
 func _on_state() -> void:
-	_swatted = false
-	sound("boom", -3.0, 1.4)
+	_last_impact = -1
+	sound("rumble", -3.0, 1.6)
 	FinaleFx.kick(9.0)
 
 func _host_step(_delta: float) -> void:
@@ -113,10 +221,14 @@ func _host_step(_delta: float) -> void:
 		if runner.global_position.x >= float(data.get("trigger", 18150.0)):
 			set_state(1)
 		return
-	if since() >= SWING and runner_hits_circle(mace_centre(), MACE_R):
-		var dir := signf(mace_angle() - mace_angle(Clock.tick - 1) + 0.0001)
-		hurt_runner(Vector2(dir * 600.0, -420.0))
-	# The falling slab knocks anyone standing in its arc.
+	if stunned():
+		return
+	var c := cycle_time()
+	if c >= WIND and c < WIND + DROP + PLANT and runner_hits_circle(slam_fist(), FIST_R):
+		hurt_runner(Vector2(-420.0, -380.0))
+	if swiping() and runner_hits_circle(swipe_fist(), FIST_R):
+		hurt_runner(Vector2(-520.0, -320.0))
+	# The falling pillar knocks anyone standing in its arc.
 	var a := slab_angle()
 	if a > 0.05 and a < PI * 0.5 - 0.05:
 		var slab: Rect2 = data.get("slab", Rect2())
@@ -125,213 +237,107 @@ func _host_step(_delta: float) -> void:
 		if runner_hits_circle(pivot.lerp(tip, 0.6), 60.0):
 			hurt_runner(Vector2(300, -300))
 
+# ------------------------------------------------------------------ drawing
 func _draw() -> void:
-	var pivot: Vector2 = data.get("pivot", Vector2(18760, -420))
 	var base := global_position
-	var lift := rise()
-	# Slab (local to its own body).
 	var slab: Rect2 = data.get("slab", Rect2())
+	# The pillar (local to its own pivot), then the impact marks on the plateau.
 	draw_set_transform(_slab_pivot, _slab.rotation, Vector2.ONE)
-	FinaleArt.slab_on(self, Rect2(-slab.size, slab.size), "sand")
-	draw_rect(Rect2(-slab.size, slab.size), Color("4a2e1e"), false, 4.0)
+	FinaleArt.slab_on(self, Rect2(-slab.size, slab.size), "cliff")
 	draw_set_transform(Vector2.ZERO)
 	if state == 0:
 		return
-	# Swatting arm: shoulder to fist, a run of stone blocks.
-	var shoulder := Vector2(-200, -780 + lift)
-	var t := since()
-	var fist := Vector2(330, -450 + lift)
-	if t < SWAT:
-		var k := clampf((t - 1.6) / 0.6, 0.0, 1.0)
-		fist = Vector2(330, -450 + lift).lerp(Vector2(-560, -1400 + lift), k)
-	elif t < SWAT + 0.5:
-		var k := clampf((t - SWAT) / 0.12, 0.0, 1.0)
-		var hit := Vector2(slab.position.x - base.x - 40, slab.position.y - base.y + 40)
-		fist = Vector2(-560, -1400).lerp(hit, k)
-	else:
-		var k := clampf((t - SWAT - 0.5) / 0.8, 0.0, 1.0)
-		var hit := Vector2(slab.position.x - base.x - 40, slab.position.y - base.y + 40)
-		fist = hit.lerp(Vector2(-330, -500 + lift), k)
-	_arm(shoulder, fist, 96.0)
-	# Mace arm holds the chain's pivot high overhead.
-	var hand := pivot - base
-	_arm(Vector2(200, -800 + lift), hand, 90.0)
-	var c := mace_centre() - base
-	var links := int(hand.distance_to(c) / 30.0)
-	for i in links:
-		var p := hand.lerp(c, (float(i) + 0.5) / float(links))
-		draw_circle(p, 9.0, Color("2b2326"))
-		draw_circle(p, 5.0, Color("8a8a96"))
-	var swing := absf(cos(TAU / float(data.get("period", 3.4)) * t))
-	if since() >= SWING and not stunned() and swing > 0.5:
-		var r := float(data.get("length", 597.0))
-		var a := mace_angle()
-		draw_arc(hand, r, PI * 0.5 - a - 0.3, PI * 0.5 - a + 0.3, 16, Color(1, 1, 1, 0.22 * swing), MACE_R * 1.6)
-	FinaleArt.centred(self, "mace", c, MACE_R * 2.6, t * 2.0)
+	var lift := rise()
+	var c := cycle_time()
+	var target := slam_target() - base
+	# Telegraph: the fist's shadow gathering where it will land.
+	var w := windup()
+	if w > 0.0 or (c >= WIND and c < WIND + DROP):
+		var k := 1.0 if w <= 0.0 else w
+		draw_set_transform(target + Vector2(0, -2), 0.0, Vector2(1.0, 0.28))
+		draw_circle(Vector2.ZERO, FIST_R * (0.6 + 0.8 * k), Color(0.1, 0.05, 0.1, 0.18 + 0.32 * k))
+		draw_set_transform(Vector2.ZERO)
+	# The crater once the first slam has landed: cracks radiating out.
+	var ft := fight_time()
+	if ft >= first_impact():
+		var cracks := TriBatch.new()
+		for i in 7:
+			var a := PI + PI * (float(i) + 0.5) / 7.0
+			var p := target
+			var line := PackedVector2Array([p])
+			for k in 3:
+				p += Vector2(cos(a), sin(a) * 0.25) * (30.0 + 22.0 * FinaleGround.h(i * 5 + k)) + Vector2(0, 2)
+				line.append(p)
+			cracks.polyline(line, 5.0, Color(0.16, 0.07, 0.04, 0.85))
+		cracks.flush(self)
+		# Debris thrown up by the latest impact, and a shock ring.
+		var since_hit := c - (WIND + DROP)
+		if since_hit >= 0.0 and since_hit < 1.1:
+			for i in 9:
+				var v := Vector2((FinaleGround.h(i * 3) - 0.5) * 700.0, -380.0 - 420.0 * FinaleGround.h(i * 7))
+				var p := target + v * since_hit + Vector2(0, 0.5 * 1800.0 * since_hit * since_hit)
+				FinaleArt.centred(self, "stone", p, 26.0 + 18.0 * FinaleGround.h(i), since_hit * 6.0 + float(i), Color(0.75, 0.5, 0.4))
+			if since_hit < 0.45:
+				var k := since_hit / 0.45
+				draw_set_transform(target, 0.0, Vector2(1.0, 0.3))
+				draw_arc(Vector2.ZERO, 60.0 + 260.0 * k, 0.0, TAU, 40, Color(1, 0.95, 0.8, 0.8 * (1.0 - k)), 10.0 * (1.0 - k) + 2.0)
+				draw_set_transform(Vector2.ZERO)
+				for i in 10:
+					var a := PI + PI * float(i) / 9.0
+					draw_circle(target + Vector2(cos(a) * (40.0 + 140.0 * k), -10.0 - 50.0 * k * absf(sin(a))), 18.0 + 26.0 * k,
+						Color(0.92, 0.82, 0.66, 0.55 * (1.0 - k)))
+	# The arms, far one first.
+	_draw_arm(shoulder(1, lift), swipe_fist(), 1.0, true)
+	if swiping():
+		var f := swipe_fist() - base
+		for i in 4:
+			draw_line(f + Vector2(40.0 + 50.0 * float(i), -50.0 + 33.0 * float(i)), f + Vector2(160.0 + 80.0 * float(i), -50.0 + 33.0 * float(i)),
+				Color(1, 1, 1, 0.55 - 0.1 * float(i)), 6.0)
+	_draw_arm(shoulder(-1, lift), slam_fist(), -1.0, false)
 
-func _arm(from: Vector2, to: Vector2, width: float) -> void:
-	# A sculpted stone limb: upper arm and forearm as tapered slabs of the
-	# giant's own rock, a heavy fist at the end.
-	var elbow := from.lerp(to, 0.5) + (to - from).orthogonal().normalized() * width * 0.35
-	var faces := TriBatch.new()
-	var flat := TriBatch.new()
-	Giant.limb_into(faces, flat, from, elbow, width * 1.05, width * 0.9)
-	Giant.limb_into(faces, flat, elbow, to, width * 0.9, width * 0.75)
-	Giant.blob_into(faces, flat, to, width * 0.72, 7)
-	Giant.blob_into(faces, flat, elbow, width * 0.5, 3)
-	faces.flush(self, FinaleArt._load(Giant.TEX))
-	flat.flush(self)
+func _draw_arm(s: Vector2, f: Vector2, bend: float, mirror: bool) -> void:
+	var e := elbow(s, f, bend)
+	var base := global_position
+	_segment(TEX_UPPER, s - base, e - base, Vector2(50, 70), Vector2(190, 70), mirror)
+	_segment(TEX_FORE, e - base, f - base, Vector2(44, 85), Vector2(232, 85), mirror)
+
+## Draw a painted segment so its `from`..`to` pixels span a..b (local).
+func _segment(path: String, a: Vector2, b: Vector2, from: Vector2, to: Vector2, mirror: bool) -> void:
+	var tex := FinaleArt._load(path)
+	if tex == null:
+		return
+	var span := to.x - from.x
+	var sx := a.distance_to(b) / span
+	draw_set_transform(a, (b - a).angle(), Vector2(sx, 2.0 * (-1.0 if mirror else 1.0)))
+	draw_texture(tex, -from)
+	draw_set_transform(Vector2.ZERO)
 
 ## The giant's body, behind the terrain.
 class Back extends Node2D:
 	var giant
 	func _draw() -> void:
-		if giant.state == 0:
-			# Asleep: only the crown of its head above the gorge floor mist.
-			_body(giant.SUNK)
-			return
-		_body(giant.rise())
-	func _body(lift: float) -> void:
-		# A sculpted automaton of grey-blue ruin rock: stout legs, a broad
-		# chest with heavy shoulder boulders, a blocky head with a brow and
-		# two burning eyes; dark rims, moss, cracks. Reads apart from the
-		# red mesa it rises out of.
-		var tex := FinaleArt._load(Giant.TEX)
-		var faces := TriBatch.new()
-		var b := TriBatch.new()
-		var o := Vector2(0, lift)
-		for side in [-1.0, 1.0]:
-			Giant.limb_into(faces, b, o + Vector2(side * 120.0, -470.0), o + Vector2(side * 140.0, 40.0), 150.0, 175.0)
-		var torso := PackedVector2Array()
-		for p in [Vector2(-170, -400), Vector2(-250, -560), Vector2(-280, -760), Vector2(-230, -880), Vector2(-90, -920),
-				Vector2(90, -920), Vector2(230, -880), Vector2(280, -760), Vector2(250, -560), Vector2(170, -400), Vector2(0, -360)]:
-			torso.append(o + p)
-		Giant.mass_into(faces, b, torso)
-		# Belt of stone and a chest plate.
-		Giant.mass_into(faces, b, PackedVector2Array([o + Vector2(-190, -470), o + Vector2(190, -470), o + Vector2(175, -400), o + Vector2(-175, -400)]), 0.8)
-		for side in [-1.0, 1.0]:
-			Giant.blob_into(faces, b, o + Vector2(side * 250.0, -840.0), 115.0, 11 if side > 0 else 5)
-		var head := PackedVector2Array()
-		for p in [Vector2(-140, -930), Vector2(-150, -1060), Vector2(-110, -1140), Vector2(0, -1165), Vector2(110, -1140),
-				Vector2(150, -1060), Vector2(140, -930), Vector2(60, -900), Vector2(-60, -900)]:
-			head.append(o + p)
-		Giant.mass_into(faces, b, head)
-		# Moss on the crown and the shoulders.
-		for m in [[Vector2(-90, -1150), 180.0], [Vector2(-310, -930), 120.0], [Vector2(210, -935), 110.0]]:
-			var at: Vector2 = o + m[0]
-			var w: float = m[1]
-			var moss := PackedVector2Array()
-			for k in 9:
-				var t := float(k) / 8.0
-				moss.append(at + Vector2(w * t, -10.0 + sin(t * PI) * -14.0))
-			for k in range(8, -1, -1):
-				var t := float(k) / 8.0
-				moss.append(at + Vector2(w * t, 14.0 + (FinaleGround.h(k * 7 + int(w)) * 22.0) * sin(t * PI)))
-			b.poly(moss, Color("4f8f30"))
-		# Cracks.
-		for c in [[Vector2(-120, -800), Vector2(-60, -700), Vector2(-90, -620)], [Vector2(140, -560), Vector2(90, -500)],
-				[Vector2(40, -1120), Vector2(70, -1060)]]:
-			var line := PackedVector2Array()
-			for q in c:
-				line.append(o + q)
-			b.polyline(line, 5.0, Color(0.1, 0.1, 0.15, 0.8))
-		# Brow, eyes, mouth slit.
+		var lift: float = giant.rise()
+		var tex := FinaleArt._load(giant.TEX_BODY)
+		if tex != null:
+			# Painted at half size: origin (360, 620) is the giant's base.
+			draw_set_transform(Vector2(0, lift), 0.0, Vector2(2, 2))
+			draw_texture(tex, -Vector2(360, 620))
+			draw_set_transform(Vector2.ZERO)
 		var glow := 0.6 + 0.4 * sin(Clock.seconds_at(Clock.tick) * 3.0)
-		b.poly(PackedVector2Array([o + Vector2(-130, -1060), o + Vector2(130, -1060), o + Vector2(120, -1020), o + Vector2(-120, -1020)]), Color(0.1, 0.1, 0.16))
+		var angry: bool = giant.state == 1
+		var w: float = giant.windup()
 		for ex in [-62.0, 62.0]:
-			var eye := o + Vector2(ex, -1000)
-			b.circle(eye, 30.0, Color(0.05, 0.05, 0.09))
-			if giant.state == 1:
-				b.circle(eye, 46.0, Color(0.3, 0.95, 1.0, 0.30 * glow))
-				b.circle(eye, 20.0, Color(0.55, 1.0, 1.0))
-				b.circle(eye, 8.0, Color.WHITE)
+			var eye := Vector2(ex, -1002 + lift)
+			if angry:
+				draw_circle(eye, 40.0 + 20.0 * w, Color(0.3, 0.95, 1.0, (0.25 + 0.35 * w) * glow))
+				draw_circle(eye, 14.0 + 4.0 * w, Color(0.6, 1.0, 1.0))
+				draw_circle(eye, 6.0, Color.WHITE)
 			else:
-				b.circle(eye, 10.0, Color(0.3, 0.5, 0.6))
-		b.line(o + Vector2(-70, -935), o + Vector2(70, -935), 8.0, Color(0.08, 0.08, 0.12))
-		# Chest core (the shot target).
-		var core := o + Vector2(0, -620)
-		b.circle(core, 70.0, Color(0.08, 0.08, 0.12))
-		b.circle(core, 62.0, Color(1.0, 0.6, 0.2, 0.25 if giant.stunned() else 0.45 * glow))
-		faces.flush(self, tex)
-		b.flush(self)
-		FinaleArt.centred(self, "golem_eye", core, 96.0)
+				draw_circle(eye, 8.0, Color(0.3, 0.5, 0.6))
+		var core := Vector2(0, -620 + lift)
+		draw_circle(core, 62.0, Color(1.0, 0.6, 0.2, 0.25 if giant.stunned() else 0.45 * glow))
+		FinaleArt.centred(self, "golem_eye", core, 92.0)
 		draw_arc(core, 36.0, 0, TAU, 28, Color("ffd34a"), 5.0, true)
 	func _process(_delta: float) -> void:
 		if giant._near:
 			queue_redraw()
-
-
-## Shared painting for the giant's rock masses (body and arms).
-class Giant:
-	const TEX := "res://assets/stage_1_10/tex_giant.png"
-	const RIM := Color(0.10, 0.10, 0.15)
-
-	## A filled rock mass: textured, shaded darker toward its bottom and
-	## right (light from the upper left), dark rim, lit upper-left edge.
-	## Batched form: the face into `faces` (textured), the rim into `flat`.
-	static func mass_into(faces: TriBatch, flat: TriBatch, poly: PackedVector2Array, light: float = 1.0) -> void:
-		var lo := Vector2(INF, INF)
-		var hi := -lo
-		for p in poly:
-			lo = lo.min(p)
-			hi = hi.max(p)
-		var idx := Geometry2D.triangulate_polygon(poly)
-		for i in range(0, idx.size(), 3):
-			var c := []
-			for k in 3:
-				var p: Vector2 = poly[idx[i + k]]
-				var t := clampf(((p.x - lo.x) / maxf(hi.x - lo.x, 1.0)) * 0.4 + ((p.y - lo.y) / maxf(hi.y - lo.y, 1.0)) * 0.6, 0.0, 1.0)
-				var v := lerpf(1.0, 0.62, t) * light
-				c.append(Color(v, v, minf(1.0, v * 1.04)))
-			faces._textured = true
-			faces._v.append_array(PackedVector2Array([poly[idx[i]], poly[idx[i + 1]], poly[idx[i + 2]]]))
-			faces._c.append_array(PackedColorArray(c))
-			faces._uv.append_array(PackedVector2Array([poly[idx[i]] / 360.0, poly[idx[i + 1]] / 360.0, poly[idx[i + 2]] / 360.0]))
-		var line := PackedVector2Array(poly)
-		line.append(poly[0])
-		flat.polyline(line, 7.0, RIM)
-
-	static func limb_into(faces: TriBatch, flat: TriBatch, a: Vector2, b: Vector2, wa: float, wb: float) -> void:
-		var n := (b - a).orthogonal().normalized()
-		mass_into(faces, flat, PackedVector2Array([a + n * wa * 0.5, b + n * wb * 0.5, b - n * wb * 0.5, a - n * wa * 0.5]))
-
-	static func blob_into(faces: TriBatch, flat: TriBatch, c: Vector2, r: float, seed: int) -> void:
-		var poly := PackedVector2Array()
-		for k in 10:
-			var a := TAU * float(k) / 10.0
-			poly.append(c + Vector2(cos(a), sin(a)) * r * (0.86 + 0.18 * FinaleGround.h(seed * 11 + k)))
-		mass_into(faces, flat, poly)
-
-	static func mass(ci: CanvasItem, poly: PackedVector2Array, tex: Texture2D, light: float = 1.0) -> void:
-		var lo := Vector2(INF, INF)
-		var hi := -lo
-		for p in poly:
-			lo = lo.min(p)
-			hi = hi.max(p)
-		var cols := PackedColorArray()
-		var uvs := PackedVector2Array()
-		for p in poly:
-			var k := clampf(((p.x - lo.x) / maxf(hi.x - lo.x, 1.0)) * 0.4 + ((p.y - lo.y) / maxf(hi.y - lo.y, 1.0)) * 0.6, 0.0, 1.0)
-			var v := lerpf(1.12, 0.62, k) * light
-			cols.append(Color(v, v, v * 1.04))
-			uvs.append(p / 360.0)
-		if tex != null:
-			ci.draw_polygon(poly, cols, uvs, tex)
-		else:
-			ci.draw_polygon(poly, cols)
-		var line := PackedVector2Array(poly)
-		line.append(poly[0])
-		ci.draw_polyline(line, RIM, 7.0, true)
-
-	## A tapered limb from a to b.
-	static func limb(ci: CanvasItem, a: Vector2, b: Vector2, wa: float, wb: float, tex: Texture2D) -> void:
-		var n := (b - a).orthogonal().normalized()
-		mass(ci, PackedVector2Array([a + n * wa * 0.5, b + n * wb * 0.5, b - n * wb * 0.5, a - n * wa * 0.5]), tex)
-
-	## A rounded boulder (shoulder, fist, joint), lumpy by `seed`.
-	static func blob(ci: CanvasItem, c: Vector2, r: float, tex: Texture2D, seed: int) -> void:
-		var poly := PackedVector2Array()
-		for k in 10:
-			var a := TAU * float(k) / 10.0
-			poly.append(c + Vector2(cos(a), sin(a)) * r * (0.86 + 0.18 * FinaleGround.h(seed * 11 + k)))
-		mass(ci, poly, tex)

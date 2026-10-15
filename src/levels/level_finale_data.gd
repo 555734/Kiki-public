@@ -71,7 +71,7 @@ static func ground() -> Array[Rect2]:
 		Rect2(-900, 900, 1100, 900),
 		Rect2(900, 1160, 640, 940),           # run-up before the cliff
 		Rect2(1540, 2100, 1460, 400),         # chasm floor, 940 below the lip
-		Rect2(2250, 960, 150, 1020),          # far bank: 200 above the lip, out of jump reach (tunnel under it)
+		Rect2(2000, 960, 400, 1020),          # far bank: 200 above the lip; a full jump ends against its face, just under the top
 		Rect2(2600, 960, 320, 1140),          # far bank / chimney right wall
 		Rect2(2400, 960, 200, 24),            # chimney lid, jump-through
 		Rect2(2530, 1980, 70, 20), Rect2(2400, 1860, 70, 20),
@@ -250,6 +250,9 @@ static func gimmicks() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	out.append_array(_slopes())
 	out.append_array(_scenery())
+	# ---- GRASSLAND: the overhanging lip that breaks away under the take-off.
+	out.append({"type": "finale_machine", "kind": "crumble_lip", "id": "cliff_lip", "pos": Vector2(1530, 1190),
+		"data": {"rect": Rect2(1500, 1162, 96, 64), "trigger_x": 1450.0}})
 	# ---- THUNDER BRIDGE: thirteen deck spans, three strikes and two
 	# electrified stones. The rod on the ruined tower absorbs the storm.
 	out.append({"type": "finale_machine", "kind": "storm_bridge", "id": "storm", "pos": Vector2(3200, 1040),
@@ -298,8 +301,7 @@ static func gimmicks() -> Array[Dictionary]:
 		"data": {"top": 230.0, "left": 16830.0, "right": 16970.0}})
 	# ---- STONE GIANT
 	out.append({"type": "finale_machine", "kind": "stone_giant", "id": "giant", "pos": Vector2(18760, 760),
-		"data": {"trigger": 18150.0, "slab": Rect2(18500, -100, 60, 400), "pivot": Vector2(18760, -420),
-			"length": 597.0, "amp": 1.0, "period": 3.4}})
+		"data": {"trigger": 18150.0, "slab": Rect2(18500, -100, 60, 400), "slam_at": Vector2(18290, 300), "swipe_y": 196.0}})
 	# ---- DRAGON BONE CANYON
 	out.append({"type": "finale_machine", "kind": "bone_beast", "id": "beast", "pos": Vector2(21400, 300),
 		"data": {"deck_to": 22600.0, "erupt_at": 21650.0, "erupt_x": 22050.0, "gap": Vector2(21900, 22200),
@@ -308,8 +310,13 @@ static func gimmicks() -> Array[Dictionary]:
 		out.append({"type": "finale_machine", "kind": "bone_pillar", "id": "pillar_%d" % row[0], "pos": Vector2(row[0], row[1]),
 			"data": {"width": float(row[2])}})
 	for row in [[22050, 1800, 4.0, 0.0], [23205, 1800, 3.6, 1.2], [23610, 1800, 3.6, 2.4]]:
+		var jet := {"top": -60.0, "period": float(row[2]), "phase": float(row[3]), "width": 80.0}
+		# The middle vent also blows when the chasing jaws hit the canyon at
+		# 22,640: the way up onto the high rib path, right under the runner.
+		if row[0] == 23205:
+			jet["beast_x"] = 22640.0
 		out.append({"type": "finale_machine", "kind": "sand_geyser", "id": "sandjet_%d" % row[0], "pos": Vector2(row[0], row[1]),
-			"data": {"top": -60.0, "period": float(row[2]), "phase": float(row[3]), "width": 80.0}})
+			"data": jet})
 	out.append({"type": "finale_machine", "kind": "canyon_floor", "id": "canyon_floor", "pos": Vector2(19660, 1750),
 		"data": {"width": 4900.0}})
 	# ---- TITLE RUN
@@ -330,7 +337,7 @@ static func _scenery() -> Array[Dictionary]:
 			["tree", -650, 900, 300, false, false], ["flowers", -380, 900, 70, false, false],
 			["signpost", 40, 900, 120, false, false], ["fence", 1000, 1160, 70, false, false],
 			["waterfall", 1690, 2100, 1500, false, false],
-			["abyss", 1540, 1250, 860, false, false, 710],
+			["abyss", 1540, 1150, 960, false, false, 460],
 			["tree", 2860, 960, 320, true, false], ["signpost", 2310, 960, 120, false, false],
 			["flowers", 2340, 960, 70, false, false], ["flowers", 2700, 960, 70, false, false]]}},
 		{"type": "finale_machine", "kind": "scenery", "id": "dress_storm", "pos": Vector2.ZERO, "data": {"items": [

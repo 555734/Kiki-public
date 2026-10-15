@@ -37,7 +37,7 @@ Full size: [stage-1-10-map.jpg](images/stage-1-10/stage-1-10-map.jpg).
 | Volcano core (16–20) | 7,500…11,300 | Basalt pillars over a lethal lake; a **magma sphere** freed behind the runner rolls down the cracked slope faster than a run, smashes the crust bridge (the low path is gone) and sinks. Escape ledge needs a double jump. The guardian's wall stops the sphere while it stands. Two chain swings; three **geyser lifts** thrown 300–340px up by eruptions between lethal lava jets. | Magma slime hopping pillar to pillar, fire bat |
 | Iron rail (20–24) | 11,300…15,600 | Two trains on one 25s timetable (arrive from the west portal, stop 5s, pull away at 280px/s, vanish into the east tunnel). Roofs at mismatched heights; a 300–390px gap between the trains that breathes as they accelerate. Train momentum is kept through jumps. Line-side posts, wind streaks off the cars and loco smoke show the speed. Cranes drop crates onto passing cars (the second right in front of a runner who has just leapt to the lead train); landed crates ride the car as new obstacles/steps. A low bridge sweeps anyone still on a roof — leave by the footbridge. | Rail gunners (1-7 turret) ride the roofs and fire back down the train |
 | Honeycomb hive (24–30) | 15,600…17,300 | Honey pools stall a landing and cut jumps to 60%; inverted wax tiers; a level-paddle honey wheel; a **honey bubble** that bends under you then flings you into a 1,000px shaft where a honey current carries you up to a **wax membrane** that bursts when hit from below. | Wax wisps that swarm after the runner, keeping apart |
-| Stone giant (30–33) | 17,300…19,660 | Isolated tilted ledge; a giant automaton of ruin blocks **rises out of the gorge**, swats the standing slab that blocks the way so it **topples into a bridge**, then sweeps a chained spiked mace low across that bridge. Shooting its chest core staggers it (mace hangs still 2.5s). | — |
+| Stone giant (30–33) | 17,300…19,660 | Isolated tilted ledge; a stone giant **rises out of the gorge** across the way. It raises a fist (its shadow grows where it will land) and **slams the plateau**; the first impact cracks the rock and **knocks the stone pillar over the gorge into a bridge**. Its other fist then **sweeps flat across the bridge** every cycle: jump it. Shooting its chest core staggers it (both fists hold still 2.5s). | — |
 | Dragon bone canyon (33–39) | 19,660…24,600 | Arched fossil-rib bridges (polygon slopes), a vertebra bridge the **skeletal beast erupts through** (three vertebrae burst out), sand geysers that blow you up to the high rib path, **collapsing bone pillars** and a **jaw chase** at 350px/s that ends when the jaws slam shut on the stone gate. | Rotor-skull drones (7) drift, wind up and lunge |
 | Title run (39–49) | 24,600…28,900 | Long meadow downhill (runner in the lower third, sky clear for the title), a rail saw, a spike pit, a cannon on the high step, a post saw beside checkpoint 12, narrow pillars over a spike bed (where the guardian's awkward blocks come in), a dipping saw, a lift, coin line, rope bridge and goal. | Brass drones shadow and dive; cannon; burrbug |
 
@@ -76,7 +76,7 @@ All 1-10 machines are `FinaleMachine` subclasses in
 | honey | runner (speed/jump) | jump from outside the pool | honey on the boots |
 | paddle_wheel | carries the runner | ride a paddle | — |
 | honey_shaft | runner (launch, lift), membrane | land on the bubble | bubble squash, current, debris |
-| stone_giant | slab (bridge), runner (mace) | wait for the bridge, jump the mace, shoot the core | rise, swat shake, swing smear |
+| stone_giant | pillar (bridge), runner (slam, sweep) | get out from under the shadow, cross the bridge, jump the sweep, shoot the core | rise, slam shock ring + debris + cracks, sweep smear |
 | bone_beast | deck (collision), runner (death) | wait out the eruption, jump/geyser, keep running | eruption shake, snapping jaws |
 | bone_pillar | collision | keep moving (0.35s) | shudder |
 | sand_geyser | runner (lift) | ride it | rising dust 0.8s before |
@@ -174,7 +174,7 @@ and uploads the MP4, report, audio check and contact sheet.
   every area with the real runner/guardian and live machines from start to
   goal; the solo chimney climb; each mechanism's failure case (pendulum hit,
   electrified spans, magma sphere kill and wall hold, low bridge, crate drop,
-  sand jet, jaws, mace, honey jump cut); all eight enemy kinds act and die to
+  sand jet, jaws, giant's sweep, honey jump cut); all eight enemy kinds act and die to
   shots; death → checkpoint respawn with the area rebuilt; restart. 152 checks.
 * `tools/perf_probe.tscn -- --stage 1-10 --budget` walks the course through
   every checkpoint: 130 peak draw calls, ~3,290 objects (budget 160 /

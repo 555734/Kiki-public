@@ -206,8 +206,8 @@ static func _rows() -> Array:
 		{"shot": 33, "t": [32, 33], "name": "SWEEP!", "take": "giant", "area": "STONE GIANT",
 			"runner": Vector2(17150, 177), "setup": "continues; slab toppled into a bridge",
 			"camera": {"mode": "follow", "at": Vector2(30, -120), "zoom": [1.0, 1.0]},
-			"move": "Camera follows sweeping hazard", "phenomenon": "Jump over the colossal chained mace as it sweeps across the toppled bridge.",
-			"success": {"id": "jumped_mace", "means": "mace passes beneath the airborne runner with no hit"}},
+			"move": "Camera follows sweeping hazard", "phenomenon": "Jump over the giant's fist as it sweeps flat across the toppled bridge.",
+			"success": {"id": "jumped_sweep", "means": "the sweeping fist passes beneath the airborne runner with no hit"}},
 		# ------------------------------------------------ DRAGON BONE (take: bone)
 		{"shot": 34, "t": [33, 34], "name": "THE FOSSIL CANYON", "take": "bone", "area": "DRAGON BONE CANYON",
 			"runner": Vector2(19300, 277), "setup": "far plateau past the giant",
