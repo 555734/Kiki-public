@@ -124,7 +124,10 @@ Lightning bolts, rain, honey drips, chains and particles are drawn at runtime.
 
 The PV is played and recorded by a director script in the real stage. See
 [promotion/stage-1-10/pv-rebuild.md](promotion/stage-1-10/pv-rebuild.md) for
-the audit of the first render and what changed, and
+the audit of the first render and what changed,
+[promotion/stage-1-10/pv-v3.md](promotion/stage-1-10/pv-v3.md) for the third
+pass (shaped terrain, closer camera, beats of their own length, reworked set
+pieces, before/after sheets), and
 [promotion/stage-1-10/pv_match.md](promotion/stage-1-10/pv_match.md) for the
 per-cut storyboard match table.
 
@@ -174,7 +177,7 @@ and uploads the MP4, report, audio check and contact sheet.
   sand jet, jaws, mace, honey jump cut); all eight enemy kinds act and die to
   shots; death → checkpoint respawn with the area rebuilt; restart. 152 checks.
 * `tools/perf_probe.tscn -- --stage 1-10 --budget` walks the course through
-  every checkpoint: 146 peak draw calls, ~3,190 objects (budget 160 /
+  every checkpoint: 130 peak draw calls, ~3,290 objects (budget 160 /
   3,500 in `tools/perf_budgets.cfg`).
 
 ## Known limits

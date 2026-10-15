@@ -1,5 +1,9 @@
 # 1-10 PV rebuild — audit, fixes and verification
 
+> Second pass. The third pass (shaped terrain, closer camera, beats of their
+> own length, reworked set pieces) is in [pv-v3.md](pv-v3.md); its numbers
+> supersede the status below.
+
 The first 1-10 PV render (`finale_pv_49cuts.mp4`, 49 s) was reviewed second by
 second against the storyboard (`Melos_PV_Final_49_Storyboard.pdf`, the 49
 reference images and `Melos_PV_49_Shot_List.csv`). It was not usable: the

@@ -40,6 +40,33 @@ camera, timing, inputs), `E` = edit/overlay/mix only.
 3. Every beat keeps the three checks (intent, happened from game state,
    visible: runner size and subject on screen); see `pv_match.md`.
 
+## Result (final render)
+
+- `finale_pv_49cuts.mp4`: 1280×720, 60 fps, 49.0 s, AAC 48 kHz; recorded and
+  cut by CI (`.github/workflows/finale-pv.yml`, artifact `finale-pv-mp4`).
+- 49 / 49 beats pass the three checks ([pv_match.md](pv_match.md)).
+- Runner height, average over all beats: 13.9 % of the frame (6280.mp4:
+  11.5 %). Wides kept on purpose: beat 3 (8.4 %, the chasm), 32 (5.7 %, the
+  giant), 34 (6.4 %, the canyon reveal). Close-ups up to 22.8 %.
+- Sound: 133 game sounds on air; 128 with a measured onset at their event
+  time, 5 under a louder sound already ringing, 0 missing
+  ([audio_check.json](audio_check.json)). The bed is the project's own stage
+  music, ducked under the game.
+- Draw-call budget (perf gate): 1-10 peak 130 / 160 (was 146).
+- Course probe: 152 / 152 checks (`test/finale_stage_probe.tscn`).
+- Second-by-second, 6280.mp4 (left) vs. this render (right):
+  [0](../../images/stage-1-10/v3-before-after-0.jpg) ·
+  [1](../../images/stage-1-10/v3-before-after-1.jpg) ·
+  [2](../../images/stage-1-10/v3-before-after-2.jpg) ·
+  [3](../../images/stage-1-10/v3-before-after-3.jpg) ·
+  [4](../../images/stage-1-10/v3-before-after-4.jpg) ·
+  [5](../../images/stage-1-10/v3-before-after-5.jpg) ·
+  [6](../../images/stage-1-10/v3-before-after-6.jpg);
+  contact sheet [pv-contact-sheet.jpg](../../images/stage-1-10/pv-contact-sheet.jpg);
+  storyboard vs. PV sheets `pv-vs-storyboard-0*.jpg`.
+- Test clips (beats 4-8 rescue, 17-19 magma chase, 37-39 canyon) are cut
+  with `tools/promotion/render_pv_clip.py OUT.mp4 FIRST LAST`.
+
 ## Not solved
 
 - Art is programmatic or reused: no image generator was available, so the
@@ -53,3 +80,9 @@ camera, timing, inputs), `E` = edit/overlay/mix only.
   throws the runner onto the rib path; the shot uses what happens.
 - The cut 2 enemy is still the 1-3 sprout; the launch-trigger ring on traced
   platforms (a real mechanic) stays visible.
+- Around 29 s (out of the hive onto the giant's mesa) the runner is still
+  small while falling in from high above.
+- At the jaws gate (beat 39) the runner is thrown high by a sand jet, so the
+  jaws snap below rather than right at their heels.
+- Not verified: online two-device play of the redrawn areas; how a
+  first-time viewer reads the PV.
