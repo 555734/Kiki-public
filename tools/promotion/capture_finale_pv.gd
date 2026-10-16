@@ -838,7 +838,7 @@ func take_opening() -> void:
 	_jump = false
 	# Rising to the top of the arc: closer, the far bank's edge kept in.
 	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-90, -100), func() -> Vector2: return Vector2(bank.x + 30.0, r.global_position.y + 60.0),
-		func() -> Vector2: return r.global_position + Vector2(0, 110)], "pad": 26.0, "zoom": 2.1, "min_zoom": 1.7, "smooth": 7.0, "smooth_y": 11.0})
+		func() -> Vector2: return r.global_position + Vector2(0, 110)], "pad": 26.0, "zoom": 2.1, "min_zoom": 1.7, "smooth": 7.0, "smooth_y": 11.0, "zoom_smooth": 12.0})
 	await until(func() -> bool: return r.velocity.y >= 0.0, 40)
 	# BRANCH: the top of the arc, 471 px short. Up to here both takes are
 	# the same frame for frame; the rewind ends here.
@@ -970,6 +970,8 @@ func take_opening() -> void:
 	await frames(2)
 	_jump = true
 	_trace_mark("jump_to_bank", "from platform 2 at %s" % r.global_position.round())
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-120, -150), func() -> Vector2: return bank + Vector2(170, -60),
+		func() -> Vector2: return r.global_position + Vector2(0, 90)], "pad": 24.0, "zoom": 1.75, "min_zoom": 1.4, "smooth": 6.0, "smooth_y": 10.0})
 	await frames(14)
 	_jump = false
 	await until(func() -> bool: return r.velocity.y > -80.0, 30)
