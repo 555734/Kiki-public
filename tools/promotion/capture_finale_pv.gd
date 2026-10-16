@@ -829,16 +829,16 @@ func take_opening() -> void:
 	_jump = false
 	# Rising: the camera moves in, the far bank kept in the frame -- it is
 	# plainly out of reach.
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-130, -100), func() -> Vector2: return bank + Vector2(50, 30),
-		func() -> Vector2: return r.global_position + Vector2(0, 150)], "pad": 30.0, "zoom": 1.6, "min_zoom": 1.2, "smooth": 4.0})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-130, -110), func() -> Vector2: return bank + Vector2(50, 30),
+		func() -> Vector2: return r.global_position + Vector2(0, 140)], "pad": 30.0, "zoom": 1.6, "min_zoom": 1.2, "smooth": 5.0, "smooth_y": 9.0})
 	await until(func() -> bool: return r.velocity.y > -60.0, 30)
 	_jump = true
 	_trace_mark("air_jump", "x %.0f: the last of the runner's height" % r.global_position.x)
 	await frames(14)
 	_jump = false
 	# Rising to the top of the arc: closer, the far bank's edge kept in.
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-100, -90), func() -> Vector2: return bank + Vector2(30, 10),
-		func() -> Vector2: return r.global_position + Vector2(0, 120)], "pad": 30.0, "zoom": 2.0, "min_zoom": 1.5, "smooth": 4.0})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-90, -100), func() -> Vector2: return Vector2(bank.x + 30.0, r.global_position.y + 60.0),
+		func() -> Vector2: return r.global_position + Vector2(0, 110)], "pad": 26.0, "zoom": 2.1, "min_zoom": 1.7, "smooth": 7.0, "smooth_y": 11.0})
 	await until(func() -> bool: return r.velocity.y >= 0.0, 40)
 	# BRANCH: the top of the arc, 471 px short. Up to here both takes are
 	# the same frame for frame; the rewind ends here.
@@ -956,8 +956,8 @@ func take_opening() -> void:
 		_trace_mark("platform_2", "created: top %.0f, x %.0f..%.0f (%.0f wide); runner at %s" % [built2.global_position.y - 13.0, p2[0].x, p2[1].x, p2[1].x - p2[0].x, r.global_position.round()])
 	hide_pointer()
 	# The jump: pull back to the arc and the far bank.
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-100, -120), func() -> Vector2: return bank + Vector2(120, -90),
-		func() -> Vector2: return Vector2(p1[1].x, top1 + 30.0), func() -> Vector2: return r.global_position + Vector2(40, 70)], "pad": 24.0, "zoom": 1.8, "min_zoom": 1.45, "smooth": 5.0, "smooth_y": 7.0})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-100, -170), func() -> Vector2: return bank + Vector2(120, -110),
+		func() -> Vector2: return Vector2(p1[1].x, top1 + 30.0), func() -> Vector2: return r.global_position + Vector2(40, 70)], "pad": 24.0, "zoom": 1.8, "min_zoom": 1.3, "smooth": 6.0, "smooth_y": 10.0})
 	hold(1.0, true)
 	await until(func() -> bool: return r.global_position.x > p1[1].x - 40.0, 40)
 	_jump = true

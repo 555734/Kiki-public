@@ -283,12 +283,15 @@ func _draw_painted() -> bool:
 	var stretch := 1.0
 	if runner.state == Runner.State.FALL or runner.state == Runner.State.JUMP:
 		stretch = 1.0 + clampf(absf(runner.velocity.y) / 1600.0, 0.0, 0.10)
-	var sy := stretch * (1.0 - _squash * 0.22) * (1.0 + 0.16 * _launch) * (1.0 + 0.08 * _recover) * (1.0 + 0.06 * _brace)
+	# The crouch pose already bends the knees: squash it less, so it reads as
+	# taking the weight rather than as flattened.
+	var squash_k := 0.12 if key == "runner_land" else 0.22
+	var sy := stretch * (1.0 - _squash * squash_k) * (1.0 + 0.16 * _launch) * (1.0 + 0.08 * _recover) * (1.0 + 0.06 * _brace)
 	if runner.crouching():
 		sy *= Balance.RUNNER_CROUCH_HEIGHT / Balance.RUNNER_SIZE.y
 	elif runner.pounding():
 		sy *= 0.8
-	var sx := minf(1.20, (1.0 / maxf(sy, 0.01)) * (1.0 + _squash * 0.06))
+	var sx := minf(1.12 if key == "runner_land" else 1.20, (1.0 / maxf(sy, 0.01)) * (1.0 + _squash * 0.06))
 
 	# A bob while running, so a single painted stride does not read as a slide.
 	var bob := 0.0
