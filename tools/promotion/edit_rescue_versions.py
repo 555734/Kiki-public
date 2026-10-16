@@ -46,7 +46,7 @@ SR = R.SR
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PRE_HOP = 24        # frames before the hop over the enemy where both clips start
 TAIL = 4            # frames after "clip_end"
-REWIND_SPEED = 1.6  # how much faster than the fall the rewind plays (on average; it is eased)
+REWIND_SPEED = 1.5  # how much faster than the fall the rewind plays (on average; it is eased)
 MIN_REWIND = 28     # frames
 HOLD = 12           # frames the failure is held before the rewind
 FLASH = 7           # frames of the flash as time starts again
@@ -154,6 +154,35 @@ def swish(n=int(0.22 * SR)):
     x = lowpass(noise(n, 41), 2500.0) - lowpass(noise(n, 41), 400.0)
     e = np.sin(np.pi * np.clip(t(n) / t(n)[-1], 0, 1)) ** 2
     return x * e * 2.2
+
+
+def slow_down(n=int(0.6 * SR)):
+    """Time thickening: a falling, muffled whoomp."""
+    tone = osc(glide(520.0, 70.0, n), n) * 0.6 + osc(glide(260.0, 40.0, n), n) * 0.4
+    air = lowpass(noise(n, 51), 900.0) * 2.0
+    e = np.clip(t(n) / 0.02, 0, 1) * np.exp(-t(n) / 0.28)
+    return (tone + air * 0.6) * e * 0.7
+
+
+def speed_up(n=int(0.5 * SR)):
+    """Back to full speed: a rising rush."""
+    x = lowpass(noise(n, 61), 7000.0) - lowpass(noise(n, 61), 500.0)
+    tone = osc(glide(180.0, 900.0, n), n) * 0.25
+    e = np.clip(t(n) / 0.03, 0, 1) * np.clip((t(n)[-1] - t(n)) / 0.25, 0, 1)
+    return (x * 1.8 + tone) * e
+
+
+def muffle(x, a, b, cut=450.0, gain=0.4, fade=int(0.12 * SR)):
+    """Low-pass and duck x between samples a and b, cross-faded at both ends."""
+    a, b = int(a), int(b)
+    lo = lowpass(x, cut) * gain
+    w = np.zeros(len(x))
+    w[a:b] = 1.0
+    if fade:
+        ramp = np.linspace(0, 1, fade)
+        w[max(0, a - fade):a] = ramp[:len(w[max(0, a - fade):a])]
+        w[b:b + fade] = ramp[::-1][:len(w[b:b + fade])]
+    return x * (1 - w) + lo * w
 
 
 def build_lift(n=int(0.5 * SR)):
@@ -386,14 +415,76 @@ def camera_timeline(nh, hp, nh_dir, hp_dir, a0, nb, fail_end, hb, h_end, rewind_
     plan += [("help", f, "rescue") for f in range(hb + 1, h_end)]
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["t_s", "segment", "source", "source_frame", "cam_x", "cam_y", "cam_zoom", "runner_x", "runner_y", "runner_vy", "on_floor", "events"])
+        w.writerow(["t_s", "segment", "source", "source_frame", "cam_x", "cam_y", "cam_zoom", "runner_x", "runner_y", "runner_vy", "on_floor", "time_scale", "events"])
         for k, (src, f, seg) in enumerate(plan):
             r = (N if src == "nohelp" else Hr).get(f)
             if r is None:
-                w.writerow(["%.3f" % (k / FPS), seg, src, f] + [""] * 8)
+                w.writerow(["%.3f" % (k / FPS), seg, src, f] + [""] * 9)
                 continue
             w.writerow(["%.3f" % (k / FPS), seg, src, f, r["cam_x"], r["cam_y"], r["cam_zoom"], r["x"], r["y"], r["vy"], r["on_floor"],
+                        r["time_scale"] if seg not in ("failure held", "rewind (reversed)") else "0",
                         r["events"] if seg != "failure held" else ""])
+
+
+def timing_report(cam_csv, ev, path):
+    """One row per section of rescue_rewind: output times, source frames and
+    recording times, the game's speed (game seconds per output second: the
+    engine time scale, or the edit's reverse speed), its curve, how far the
+    runner moved in the game and on screen, and when full speed returns."""
+    import csv
+    rows = list(csv.DictReader(open(cam_csv)))
+    # Game time of every output frame: forward sections add the time scale
+    # of their source frame; the rewind walks the fall's game time back.
+    gt = []
+    clock = 0.0
+    for r in rows:
+        ts = float(r.get("time_scale") or 1.0)
+        gt.append(clock)
+        clock += ts / FPS
+    secs_of = lambda k: ev[k]
+    marks = [("run, hop the enemy", 0.0, secs_of("fail:wide")),
+             ("wide, take-off, air jump", secs_of("fail:wide"), secs_of("fail:branch")),
+             ("falls short into the gorge (failure)", secs_of("fail:branch"), secs_of("fail_hold")),
+             ("failure held", secs_of("fail_hold"), secs_of("rewind_start")),
+             ("rewind (the fall reversed)", secs_of("rewind_start"), secs_of("rewind_end")),
+             ("slow motion: falling again", secs_of("rewind_end"), secs_of("help:call")),
+             ("slow motion: Discord call (UI real time)", secs_of("help:call"), secs_of("help:call_answered")),
+             ("slow motion: YOU answers and rushes in (cursor real time)", secs_of("help:call_answered"), secs_of("help:stroke_start")),
+             ("slow motion: stroke, platform builds, runner comes down", secs_of("help:stroke_start"), secs_of("help:contact_1")),
+             ("contact: hit stop, back to full speed", secs_of("help:contact_1"), secs_of("help:normal_speed")),
+             ("caught: a beat on platform 1, platform 2 added", secs_of("help:normal_speed"), secs_of("help:jump_to_step")),
+             ("hop to platform 2, jump + air jump to the bank", secs_of("help:jump_to_step"), secs_of("help:bank")),
+             ("on the far bank, running on", secs_of("help:bank"), len(rows) / FPS)]
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["section", "out_start_s", "out_end_s", "out_len_s", "source", "source_frames", "source_rec_s",
+                    "game_speed_x", "speed_curve", "runner_moved_world_px", "runner_moved_screen_px_per_s", "full_speed_returns_s"])
+        for name, t0, t1 in marks:
+            i0, i1 = int(round(t0 * FPS)), min(len(rows) - 1, int(round(t1 * FPS)))
+            if i1 <= i0:
+                continue
+            seg = rows[i0:i1 + 1]
+            src = sorted(set(r["source"] for r in seg))
+            f0, f1 = int(seg[0]["source_frame"]), int(seg[-1]["source_frame"])
+            tss = [float(r.get("time_scale") or 1.0) for r in (seg[:-1] if len(seg) > 1 else seg)]
+            if "rewind" in name:
+                speed = -abs(f1 - f0) / max(1, len(seg) - 1)
+                curve = "reversed, eased in/out (mean %.2fx)" % speed
+            else:
+                speed = (f1 - f0) / max(1, len(seg) - 1) * (sum(tss) / len(tss)) if f1 != f0 else 0.0
+                lo, hi = min(tss), max(tss)
+                curve = ("constant %.2fx" % lo) if hi - lo < 0.02 else ("%.2fx -> %.2fx" % (tss[0], tss[-1])) + (" (min %.2f, max %.2f)" % (lo, hi))
+                if "held" in name:
+                    curve, speed = "frozen frame", 0.0
+            pts = [(float(r["runner_x"]), float(r["runner_y"])) for r in seg if r["runner_x"]]
+            dist = sum(((pts[k][0] - pts[k - 1][0]) ** 2 + (pts[k][1] - pts[k - 1][1]) ** 2) ** 0.5 for k in range(1, len(pts)))
+            zooms = [float(r["cam_zoom"]) for r in seg if r["cam_zoom"]]
+            scr = dist * (sum(zooms) / len(zooms)) / max(1e-6, (len(seg) - 1) / FPS) if zooms else 0.0
+            back = ""
+            if "contact" in name:
+                back = "%.2f" % t1
+            w.writerow([name, "%.2f" % t0, "%.2f" % t1, "%.2f" % (t1 - t0), "+".join(src), "%d..%d" % (f0, f1),
+                        "%.2f..%.2f" % (f0 / FPS, f1 / FPS), "%.3f" % speed, curve, "%.0f" % dist, "%.0f" % scr, back])
 
 
 def secs(frames):
@@ -459,9 +550,17 @@ def main():
     m_rev = music[m_branch:len(pre)][::-1]
     m_rev = np.interp(np.linspace(0, len(m_rev) - 1, len(rew)), np.arange(len(m_rev)), m_rev)
     m_post = music[m_branch:m_branch + len(post)]
-    aud = aud + np.concatenate([m_pre, hold_aud, m_rev, m_post]) * mgain
+    bed = np.concatenate([m_pre, hold_aud, m_rev, m_post]) * mgain
+    # The slow motion: from the join (time slows at once) to the contact
+    # (+ the hit stop): the bed goes dull and quiet, so the call, the
+    # finger and the build stand out; it comes back bright at full speed.
+    post_start = len(pre) + len(hold_aud) + len(rew)
+    slow_a = post_start
+    slow_b = post_start + (H.get("normal_speed", H["contact_1"]) - hb - 1) / FPS * SR
+    bed = muffle(bed, slow_a, slow_b)
+    aud = aud + bed
     fall_at = (nb - a0) / FPS * SR
-    place(aud, fall_at, wind(int((fail_end - nb) / FPS * SR)), 0.35)
+    place(aud, fall_at, wind(int((fail_end - nb) / FPS * SR)), 0.6)
     place(aud, len(pre) - int(0.12 * SR), fail_note(), 0.9)
     r0 = len(pre) + len(hold_aud)
     place(aud, r0, rewind_whirr(len(rew)), 0.9)
@@ -469,7 +568,9 @@ def main():
     sw = reverse_swell(int(0.35 * SR))
     place(aud, post0 - len(sw), sw, 0.5)
     place(aud, post0, resume_snap(), 0.8)
-    place(aud, post0 + (H["aim_1"] - hb - 1) / FPS * SR, swish(), 0.6)
+    place(aud, post0 + int(0.02 * SR), slow_down(), 0.8)
+    place(aud, post0 + (H["contact_1"] - hb - 1) / FPS * SR + int(0.07 * SR), speed_up(), 0.55)
+    place(aud, post0 + (H["aim_1"] - hb - 1) / FPS * SR, swish(), 0.7)
     place(aud, post0 + (H["platform_1"] - hb - 1) / FPS * SR, build_lift(), 0.7)
     place(aud, post0 + (H["contact_1"] - hb - 1) / FPS * SR, impact(), 0.9)
     place(aud, post0 + (H["platform_2"] - hb - 1) / FPS * SR, build_lift(), 0.5)
@@ -491,6 +592,7 @@ def main():
                                  "length_s": secs(first + HOLD + rewind_n + h_end - hb - 1), "events_s": ta}
     json.dump(timeline, open(os.path.join(out, "timeline.json"), "w"), indent=1)
     camera_timeline(nh, hp, sys.argv[1], sys.argv[2], a0, nb, fail_end, hb, h_end, rewind_n, os.path.join(out, "rescue_camera_timeline.csv"))
+    timing_report(os.path.join(out, "rescue_camera_timeline.csv"), ta, os.path.join(out, "timing_report.csv"))
     print(json.dumps(timeline, indent=1))
 
 

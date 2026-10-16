@@ -1,0 +1,14 @@
+section,out_start_s,out_end_s,out_len_s,source,source_frames,source_rec_s,game_speed_x,speed_curve,runner_moved_world_px,runner_moved_screen_px_per_s,full_speed_returns_s
+"run, hop the enemy",0.00,1.00,1.00,nohelp,135..195,2.25..3.25,1.000,constant 1.00x,695,1300,
+"wide, take-off, air jump",1.00,2.18,1.18,nohelp,195..266,3.25..4.43,1.000,constant 1.00x,738,811,
+falls short into the gorge (failure),2.18,3.07,0.89,nohelp,266..318,4.43..5.30,0.981,constant 1.00x,930,2182,
+failure held,3.07,3.27,0.20,nohelp,318..318,5.30..5.30,0.000,frozen frame,0,0,
+rewind (the fall reversed),3.27,3.85,0.58,help+nohelp,318..266,5.30..4.43,-1.486,"reversed, eased in/out (mean -1.49x)",948,3304,
+slow motion: falling again,3.85,4.55,0.70,help,266..308,4.43..5.13,0.340,"0.97x -> 0.28x (min 0.28, max 0.97)",171,526,
+slow motion: Discord call (UI real time),4.55,5.75,1.20,help,308..380,5.13..6.33,0.132,"0.28x -> 0.12x (min 0.12, max 0.28)",189,363,
+slow motion: YOU answers and rushes in (cursor real time),5.75,6.25,0.50,help,380..410,6.33..6.83,0.077,"0.12x -> 0.07x (min 0.07, max 0.12)",49,237,
+"slow motion: stroke, platform builds, runner comes down",6.25,7.38,1.13,help,410..478,6.83..7.97,0.070,constant 0.07x,97,220,
+"contact: hit stop, back to full speed",7.38,7.47,0.09,help,478..483,7.97..8.05,0.216,"0.02x -> 1.00x (min 0.02, max 1.00)",6,184,7.47
+"caught: a beat on platform 1, platform 2 added",7.47,8.00,0.53,help,483..515,8.05..8.58,1.000,constant 1.00x,20,96,
+"hop to platform 2, jump + air jump to the bank",8.00,9.20,1.20,help,515..587,8.58..9.78,1.000,constant 1.00x,821,1270,
+"on the far bank, running on",9.20,10.27,1.07,help,587..650,9.78..10.83,1.000,constant 1.00x,431,771,

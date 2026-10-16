@@ -1,0 +1,42 @@
+== nohelp take (t = rescue_rewind.mp4 time, up to fail_end; the rewind then plays these frames backwards to the branch)
+   0.40s pos (  950, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | hop_enemy: bug at (1008.0, 1139.0)
+   0.42s pos (  959, 1120) v (  492,-1020) ts 1.000 floor false wall false dead false | jump | floor_off
+   1.00s pos ( 1246, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | land: hard | wide: the gorge: both cliffs and the drop | floor_on
+   1.58s pos ( 1533, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | jump_start: take-off x 1533 vx 492
+   1.60s pos ( 1541, 1120) v (  492,-1020) ts 1.000 floor false wall false dead false | jump | floor_off
+   1.62s pos ( 1550, 1104) v (  492, -973) ts 1.000 floor false wall false dead false | machine: cliff_lip|1|224|0.000
+   1.92s pos ( 1697,  949) v (  492,    0) ts 1.000 floor false wall false dead false | air_jump: x 1697: the last of the runner's height
+   1.93s pos ( 1706,  935) v (  492, -858) ts 1.000 floor false wall false dead false | air_jump | jump
+   2.18s pos ( 1829,  818) v (  492,    0) ts 1.000 floor false wall false dead false | branch: apex (1829.0, 818.0) v (492.0, 0.0), 471 px short of the bank
+   3.05s pos ( 2255, 1628) v (  492, 1100) ts 1.000 floor false wall false dead false | fail_end: deep in the gorge at (2255.0, 1628.0), vy 1100; nothing under the runner
+   3.98s pos ( 2715, 2654) v (    0,    0) ts 1.000 floor false wall false dead true  | died: hazard | death: runner (2715.0, 2654.0)
+  airborne frames touching a wall: 0
+  per-frame moves beyond velocity x time scale (teleports): none
+== help take (t = rescue_direct.mp4 time; in rescue_rewind.mp4 add 1.67 s after the branch)
+   0.40s pos (  950, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | hop_enemy: bug at (1008.0, 1139.0)
+   0.42s pos (  959, 1120) v (  492,-1020) ts 1.000 floor false wall false dead false | jump | floor_off
+   1.00s pos ( 1246, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | land: hard | wide: the gorge: both cliffs and the drop | floor_on
+   1.58s pos ( 1533, 1137) v (  492,    0) ts 1.000 floor true  wall false dead false | jump_start: take-off x 1533 vx 492
+   1.60s pos ( 1541, 1120) v (  492,-1020) ts 1.000 floor false wall false dead false | jump | floor_off
+   1.62s pos ( 1550, 1104) v (  492, -973) ts 1.000 floor false wall false dead false | machine: cliff_lip|1|224|0.000
+   1.92s pos ( 1697,  949) v (  492,    0) ts 1.000 floor false wall false dead false | air_jump: x 1697: the last of the runner's height
+   1.93s pos ( 1706,  935) v (  492, -858) ts 1.000 floor false wall false dead false | air_jump | jump
+   2.18s pos ( 1829,  818) v (  492,    0) ts 0.969 floor false wall false dead false | branch: apex (1829.0, 818.0) v (492.0, 0.0), 471 px short of the bank | slow_in: time scale -> 0.28 at (1829.0, 818.0)
+   2.88s pos ( 1946,  933) v (  492,  940) ts 0.277 floor false wall false dead false | call: runner (1946.0, 933.0) v (492.0, 940.0)
+   4.08s pos ( 2024, 1105) v (  492, 1100) ts 0.119 floor false wall false dead false | call_answered: runner (2024.0, 1105.0) v (492.0, 1100.0)
+   4.22s pos ( 2030, 1119) v (  480, 1100) ts 0.071 floor false wall false dead false | aim_1: landing predicted at x 2074; platform top 1257 (115 px under the feet)
+   4.58s pos ( 2042, 1148) v (  450, 1100) ts 0.070 floor false wall false dead false | stroke_start: runner (2042.0, 1148.0) vy 1100; stroke y 1270 x 2030..2120
+   5.02s pos ( 2055, 1181) v (  416, 1100) ts 0.070 floor false wall false dead false | hologram: kind=0 at (2075.0, 1270.0) | platform_1: created: top 1257, x 2030..2120 (90 wide); runner feet 1204 (53 px above it), x 2055
+   5.72s pos ( 2074, 1234) v (  360,    0) ts 0.020 floor true  wall false dead false | land: hard | landed_on_hologram | rescue: tier 2 | contact_1: fall stopped by platform 1: vy 1100 -> 0, feet 1257, x 2074 | floor_on
+   5.80s pos ( 2080, 1234) v (  319,    0) ts 1.000 floor true  wall false dead false | normal_speed: time scale back to 1.0
+   6.33s pos ( 2100, 1234) v (    0,    0) ts 1.000 floor true  wall false dead false | hologram: kind=0 at (2196.0, 1158.0) | platform_2: created: top 1145, x 2150..2242 (92 wide); runner at (2100.0, 1234.0) | jump_to_step: from platform 1 at (2100.0, 1234.0)
+   6.35s pos ( 2100, 1218) v (   30, -931) ts 1.000 floor false wall false dead false | jump | floor_off
+   6.70s pos ( 2189, 1122) v (  410,    0) ts 1.000 floor true  wall false dead false | land | landed_on_hologram | rescue: tier 2 | on_step: runner (2189.0, 1122.0) | floor_on
+   6.73s pos ( 2203, 1122) v (  410,    0) ts 1.000 floor true  wall false dead false | jump_to_bank: from platform 2 at (2203.0, 1122.0)
+   6.75s pos ( 2210, 1105) v (  410,-1020) ts 1.000 floor false wall false dead false | jump | floor_off
+   7.03s pos ( 2326,  935) v (  410, -858) ts 1.000 floor false wall false dead false | air_jump | jump
+   7.53s pos ( 2531, 1017) v (  410,    0) ts 1.000 floor true  wall false dead false | land: hard | bank: on the far bank at (2531.0, 1017.0) | floor_on
+   7.90s pos ( 2681, 1017) v (  410,    0) ts 1.000 floor true  wall false dead false | checkpoint: 1
+   8.53s pos ( 2941, 1017) v (  410,    0) ts 1.000 floor true  wall false dead false | clip_end: running on at (2941.0, 1017.0)
+  airborne frames touching a wall: 0
+  per-frame moves beyond velocity x time scale (teleports): none
