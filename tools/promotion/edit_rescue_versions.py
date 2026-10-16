@@ -175,9 +175,9 @@ def arrive_chime(n=int(0.8 * SR)):
     return out
 
 
-def limit(x, ceiling=0.94):
+def limit(x, ceiling=0.8):
     """Soft limiter: leaves everything under ~0.7 alone, rounds off peaks."""
-    knee = 0.7
+    knee = 0.55
     y = x.copy()
     over = np.abs(y) > knee
     y[over] = np.sign(y[over]) * (knee + (ceiling - knee) * np.tanh((np.abs(y[over]) - knee) / (ceiling - knee)))

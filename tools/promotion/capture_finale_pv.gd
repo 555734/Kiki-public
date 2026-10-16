@@ -854,8 +854,8 @@ func take_opening() -> void:
 			func() -> bool: return feet().y > bank.y + 300.0, Callable(), {"wait": false, "frames": 110, "allow_hurt": true,
 			"on_start": func() -> void: pass})
 		await until(func() -> bool: return feet().y > bank.y + 60.0, 60)
-		camera({"mode": "follow", "zoom": 2.0, "lead": 0.0, "offset": Vector2(40, 110), "smooth": 6.0})
-		await until(func() -> bool: return feet().y > bank.y + 520.0, 150)
+		camera({"mode": "follow", "zoom": 2.0, "lead": 0.0, "offset": Vector2(40, 90), "smooth": 6.0, "smooth_y": 14.0})
+		await until(func() -> bool: return feet().y > bank.y + 600.0, 150)
 		_trace_mark("fail_end", "deep in the gorge at %s, vy %.0f; nothing under the runner" % [r.global_position.round(), r.velocity.y])
 		await until(func() -> bool: return r.state == Runner.State.DEAD, 120)
 		_trace_mark("death", "runner %s" % r.global_position.round())
