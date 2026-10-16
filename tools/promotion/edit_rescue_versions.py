@@ -444,10 +444,10 @@ def timing_report(cam_csv, ev, path):
     secs_of = lambda k: ev[k]
     marks = [("run, hop the enemy", 0.0, secs_of("fail:wide")),
              ("wide, take-off, air jump", secs_of("fail:wide"), secs_of("fail:branch")),
-             ("falls short into the gorge (failure)", secs_of("fail:branch"), secs_of("fail_hold")),
+             ("rises, tops out short, falls into the gorge (failure)", secs_of("fail:branch"), secs_of("fail_hold")),
              ("failure held", secs_of("fail_hold"), secs_of("rewind_start")),
              ("rewind (the fall reversed)", secs_of("rewind_start"), secs_of("rewind_end")),
-             ("slow motion: falling again", secs_of("rewind_end"), secs_of("help:call")),
+             ("slow motion: rising, top of the arc, falling again", secs_of("rewind_end"), secs_of("help:call")),
              ("slow motion: Discord call (UI real time)", secs_of("help:call"), secs_of("help:call_answered")),
              ("slow motion: YOU answers and rushes in (cursor real time)", secs_of("help:call_answered"), secs_of("help:stroke_start")),
              ("slow motion: stroke, platform builds, runner comes down", secs_of("help:stroke_start"), secs_of("help:contact_1")),
