@@ -46,9 +46,9 @@ SR = R.SR
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PRE_HOP = 24        # frames before the hop over the enemy where both clips start
 TAIL = 4            # frames after "clip_end"
-REWIND_SPEED = 1.15  # how much faster than the fall the rewind plays (on average; it is eased)
-MIN_REWIND = 36     # frames
-HOLD = 14           # frames the failure is held before the rewind
+REWIND_SPEED = 1.6  # how much faster than the fall the rewind plays (on average; it is eased)
+MIN_REWIND = 28     # frames
+HOLD = 12           # frames the failure is held before the rewind
 FLASH = 7           # frames of the flash as time starts again
 
 
@@ -140,6 +140,20 @@ def reverse_swell(n):
 def resume_snap(n=int(0.18 * SR)):
     """The click of time starting again."""
     return (osc(glide(2400.0, 900.0, n), n) * 0.5 + noise(n, 21) * 0.3) * envelope(n, 0.001, 0.03)
+
+
+def impact(n=int(0.45 * SR)):
+    """The body hitting the platform: a low thump with a bright tick on top."""
+    body = osc(glide(140.0, 48.0, n), n) * envelope(n, 0.002, 0.16)
+    tick = lowpass(noise(n, 31), 5000.0) * envelope(n, 0.0005, 0.02) * 2.0
+    return (body * 0.9 + tick * 0.5)
+
+
+def swish(n=int(0.22 * SR)):
+    """The finger rushing in: a short airy swish."""
+    x = lowpass(noise(n, 41), 2500.0) - lowpass(noise(n, 41), 400.0)
+    e = np.sin(np.pi * np.clip(t(n) / t(n)[-1], 0, 1)) ** 2
+    return x * e * 2.2
 
 
 def build_lift(n=int(0.5 * SR)):
@@ -352,6 +366,36 @@ def contact_sheet(mp4, out, notes):
     sheet.save(out, quality=88)
 
 
+def camera_timeline(nh, hp, nh_dir, hp_dir, a0, nb, fail_end, hb, h_end, rewind_n, path):
+    """One row per frame of rescue_rewind.mp4: which recording and frame it
+    shows, the game camera's centre and zoom there, and the runner."""
+    import csv
+
+    def rows(d, variant, src):
+        out = {}
+        for r in csv.DictReader(open(os.path.join(d, "rescue_trace_%s.csv" % variant))):
+            out[int(r["process_frame"]) + src["off"]] = r
+        return out
+    N, Hr = rows(nh_dir, "nohelp", nh), rows(hp_dir, "help", hp)
+    plan = [("nohelp", f, "fall") for f in range(a0, fail_end + 1)]
+    plan += [("nohelp", fail_end, "failure held")] * HOLD
+    m = fail_end - nb
+    for i in range(rewind_n):
+        u = (i + 1) / rewind_n
+        plan.append(("nohelp", int(round(nb + m * (1 - ease_io(u)))), "rewind (reversed)"))
+    plan += [("help", f, "rescue") for f in range(hb + 1, h_end)]
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["t_s", "segment", "source", "source_frame", "cam_x", "cam_y", "cam_zoom", "runner_x", "runner_y", "runner_vy", "on_floor", "events"])
+        for k, (src, f, seg) in enumerate(plan):
+            r = (N if src == "nohelp" else Hr).get(f)
+            if r is None:
+                w.writerow(["%.3f" % (k / FPS), seg, src, f] + [""] * 8)
+                continue
+            w.writerow(["%.3f" % (k / FPS), seg, src, f, r["cam_x"], r["cam_y"], r["cam_zoom"], r["x"], r["y"], r["vy"], r["on_floor"],
+                        r["events"] if seg != "failure held" else ""])
+
+
 def secs(frames):
     return round(frames / FPS, 2)
 
@@ -388,7 +432,9 @@ def main():
     segs = [(hp["movie"], h0, nb_frames, "fwd")]
     aud = game_audio(hp, h0, nb_frames)
     aud = aud + music[:len(aud)] * mgain
+    place(aud, (H["aim_1"] - h0) / FPS * SR, swish(), 0.6)
     place(aud, (H["platform_1"] - h0) / FPS * SR, build_lift(), 0.7)
+    place(aud, (H["contact_1"] - h0) / FPS * SR, impact(), 0.9)
     place(aud, (H["platform_2"] - h0) / FPS * SR, build_lift(), 0.5)
     place(aud, (H["bank"] - h0) / FPS * SR, arrive_chime(), 0.8)
     wav = os.path.join(out, "_b.wav")
@@ -423,7 +469,9 @@ def main():
     sw = reverse_swell(int(0.35 * SR))
     place(aud, post0 - len(sw), sw, 0.5)
     place(aud, post0, resume_snap(), 0.8)
+    place(aud, post0 + (H["aim_1"] - hb - 1) / FPS * SR, swish(), 0.6)
     place(aud, post0 + (H["platform_1"] - hb - 1) / FPS * SR, build_lift(), 0.7)
+    place(aud, post0 + (H["contact_1"] - hb - 1) / FPS * SR, impact(), 0.9)
     place(aud, post0 + (H["platform_2"] - hb - 1) / FPS * SR, build_lift(), 0.5)
     place(aud, post0 + (H["bank"] - hb - 1) / FPS * SR, arrive_chime(), 0.8)
     wav = os.path.join(out, "_a.wav")
@@ -442,6 +490,7 @@ def main():
                                  % (a0, fail_end, HOLD, nb, fail_end, rewind_n, hb + 1, h_end),
                                  "length_s": secs(first + HOLD + rewind_n + h_end - hb - 1), "events_s": ta}
     json.dump(timeline, open(os.path.join(out, "timeline.json"), "w"), indent=1)
+    camera_timeline(nh, hp, sys.argv[1], sys.argv[2], a0, nb, fail_end, hb, h_end, rewind_n, os.path.join(out, "rescue_camera_timeline.csv"))
     print(json.dumps(timeline, indent=1))
 
 

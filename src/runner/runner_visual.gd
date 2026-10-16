@@ -33,6 +33,11 @@ var _last_vy: float = 0.0
 var _air_jumped: bool = false
 ## How long the runner has been dropping fast: a long fall flails.
 var _fall_time: float = 0.0
+## Recovery after a hard landing: the body springs back up past standing.
+var _recover: float = 0.0
+## A solid drawn platform close under a falling runner: legs come down to
+## meet it (0..1, eased).
+var _brace: float = 0.0
 
 func _ready() -> void:
 	z_index = 10
@@ -64,6 +69,9 @@ func _process(delta: float) -> void:
 	if _was_airborne and not airborne:
 		# A ground pound lands hardest; a plain drop scales with how fast it fell.
 		_squash = 1.35 if _was_pounding else clampf(0.55 + _last_fall / 1400.0, 0.55, 1.0)
+		# A drop at full fall speed: knees right down, held a beat longer.
+		if not _was_pounding and _last_fall > 1000.0:
+			_squash = 1.3
 		_puff(2 if not _was_pounding else 6, 1.0 if not _was_pounding else 1.8)
 		_spin_active = false
 		_spin = 0.0
@@ -75,6 +83,8 @@ func _process(delta: float) -> void:
 			_launch = 0.7
 		else:
 			_launch = 1.0
+			# Pushing off the ground: dust kicked back from the feet.
+			_puff(3, 1.2, Vector2(-float(runner.facing) * 8.0, 0.0))
 	_last_vy = runner.velocity.y
 	_launch = maxf(0.0, _launch - delta * 6.0)
 	if not airborne:
@@ -83,7 +93,13 @@ func _process(delta: float) -> void:
 	_was_airborne = airborne
 	if airborne:
 		_last_fall = maxf(0.0, runner.velocity.y)
-	_squash = maxf(0.0, _squash - delta * 6.0)
+	var was_squashed := _squash > 0.45
+	_squash = maxf(0.0, _squash - delta * (4.0 if _squash > 0.9 else 6.0))
+	if was_squashed and _squash <= 0.45 and not airborne:
+		_recover = 1.0
+	_recover = maxf(0.0, _recover - delta * 7.0)
+	var near := airborne and runner.velocity.y > 300.0 and _platform_below(150.0)
+	_brace = move_toward(_brace, 1.0 if near else 0.0, delta * 10.0)
 
 	# The third jump of a chain is a forward somersault, and the ground pound
 	# opens with a quick spin before it drops -- the two moves a player does on
@@ -212,8 +228,13 @@ func _pose_key() -> String:
 		return "runner_land"
 	# At the top of a double jump, still moving on: reaching for the far
 	# side. A long fast drop: arms out, flailing.
-	if _reaching() or _flailing():
+	if _brace > 0.5 and not runner.on_ground():
+		return "runner_fall"
+	if _reaching():
 		return "runner_reach"
+	if _flailing():
+		# Arms and legs thrashing: the two open poses in turn.
+		return "runner_reach" if sin(_phase * 9.0) > 0.0 else "runner_fall"
 	match runner.state:
 		Runner.State.RUN:
 			return "runner_run"
@@ -236,6 +257,21 @@ func _reaching() -> bool:
 	return _air_jumped and not runner.on_ground() and absf(runner.velocity.y) < 260.0 \
 		and absf(runner.velocity.x) > 150.0 and runner.state != Runner.State.HURT
 
+## A drawn platform within `reach` px under the feet, overlapping the body's
+## width (holograms are solid StaticBody2D; this only looks, never moves).
+func _platform_below(reach: float) -> bool:
+	var feet := runner.global_position + Vector2(0, Balance.RUNNER_SIZE.y * 0.5)
+	for h in runner.get_tree().get_nodes_in_group("hologram"):
+		var holo := h as Hologram
+		if holo == null or holo.kind != Hologram.Kind.PLATFORM or holo.path.size() < 2:
+			continue
+		var a: Vector2 = holo.global_position + holo.path[0]
+		var b: Vector2 = holo.global_position + holo.path[holo.path.size() - 1]
+		var top := minf(a.y, b.y) - 13.0
+		if feet.x > minf(a.x, b.x) - 20.0 and feet.x < maxf(a.x, b.x) + 20.0 and top >= feet.y - 4.0 and top - feet.y < reach:
+			return true
+	return false
+
 func _flailing() -> bool:
 	return _fall_time > 0.12 and not runner.on_ground() and runner.state == Runner.State.FALL
 
@@ -247,7 +283,7 @@ func _draw_painted() -> bool:
 	var stretch := 1.0
 	if runner.state == Runner.State.FALL or runner.state == Runner.State.JUMP:
 		stretch = 1.0 + clampf(absf(runner.velocity.y) / 1600.0, 0.0, 0.10)
-	var sy := stretch * (1.0 - _squash * 0.22) * (1.0 + 0.16 * _launch)
+	var sy := stretch * (1.0 - _squash * 0.22) * (1.0 + 0.16 * _launch) * (1.0 + 0.08 * _recover) * (1.0 + 0.06 * _brace)
 	if runner.crouching():
 		sy *= Balance.RUNNER_CROUCH_HEIGHT / Balance.RUNNER_SIZE.y
 	elif runner.pounding():
@@ -273,6 +309,8 @@ func _draw_painted() -> bool:
 	if _reaching():
 		# Leaning into the reach.
 		tilt = 0.16 * float(runner.facing)
+	elif _brace > 0.5 and not runner.on_ground():
+		tilt = 0.0
 	elif _flailing():
 		tilt = sin(_phase * 9.0) * 0.14
 	if _wall_sliding():

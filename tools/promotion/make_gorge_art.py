@@ -15,9 +15,9 @@ signed distance fields, lit from the upper left, a dark outline, grain).
 * gorge_right -- the far bank: a heavy grass-topped overhang (top world y
   1040, front edge world x 2300) with teeth of rock and roots under it,
   receding to a wall at world x 2860 with a shelf and a twisted tree. Top-left at world (2280, 1000).
-* gorge_wall  -- the far wall of the whole gorge: hazy mesas whose top is
-  well above the leap, a big waterfall pouring from a notch into mist and
-  the dark. Top-left at world (1300, 520).
+* gorge_wall  -- the canyon beyond the gap: three ranges of mesas stepping
+  into haze under open sky, waterfalls from the middle range into mist, the
+  dark below. Top-left at world (1300, 520).
 * gorge_far   -- the gorge's inner wall seen across the gap: blue, hazy rock
   ledges of the gorge's inner wall, lit at the rim just under the lips and
   sinking into black within ~300px, a thin waterfall dropping into it; the waterfall under the near cliff, left of the runner's path.
@@ -235,92 +235,104 @@ def gorge_right():
     c.save("gorge_right")
 
 
-def gorge_wall():
-    """The gorge's far wall: a great hazy sandstone massif behind the gap,
-    its top well above the leap, sinking behind both cliffs at its ends (sky
-    beyond), a big waterfall pouring from a notch into mist and the dark.
-    Top-left at world (1300, 520)."""
-    W, H = 1900, 2300
-    c = P.Canvas(W, H)
-    haze = np.array(P.hexc("#c4cdea"), np.float32)
-    # Skyline: low behind the near cliff, buttes over the gap, a notch for the
-    # fall, and down again behind the far bank.
-    keys = [(-20, 760), (60, 720), (130, 560), (190, 430), (250, 300), (300, 170), (360, 150), (420, 70),
-            (560, 58), (610, 120), (700, 132), (760, 40), (900, 30), (960, 110), (1080, 118), (1120, 86),
-            (1250, 92), (1290, 150), (1370, 152), (1410, 70), (1560, 62), (1620, 180), (1700, 330),
-            (1760, 470), (1830, 590), (1920, 640)]
-    sky = []
+def skyline(keys, jitter, seed):
+    """A weathered rim through `keys`: every edge broken up a little."""
+    rng = np.random.default_rng(seed)
+    out = []
     for (ax, ay), (bx, by) in zip(keys[:-1], keys[1:]):
         for t in np.linspace(0, 1, 7, endpoint=False):
             x = ax + (bx - ax) * t
-            sky.append((x, ay + (by - ay) * t + 8 * np.sin(x * 0.07) + 5 * np.sin(x * 0.19) + 3 * np.sin(x * 0.53)))
-    sky.append(keys[-1])
-    d = c.poly(sky + [(1920, H), (-20, H)])
-    c.paint(d, "#d4ad90", bevel=80, outline=3, ink="#8a7f9e", seed=41, grain=0.06, shade=0.45)
-    rng = np.random.default_rng(42)
-    cols = ["#dcb08c", "#c99a7c", "#e3bf98", "#bf8f78", "#d6a888"]
+            out.append((x, ay + (by - ay) * t + jitter * (np.sin(x * 0.07 + seed) * 0.6 + np.sin(x * 0.19 + seed * 2) * 0.4)
+                        + rng.uniform(-jitter, jitter) * 0.3))
+    out.append(keys[-1])
+    return out
+
+
+def mesa_range(c, keys, col, ink, seed, band_cols, band_h, H, jitter=7.0, shrubs=0, shrub_col="#7fa65a"):
+    """One range of the canyon's far side: a rimmed silhouette with its own
+    strata (different band heights and tilt per range, so no two read the
+    same), a few shrubs along the rim."""
+    sky = skyline(keys, jitter, seed)
+    d = c.poly(sky + [(c.w + 20, H), (-20, H)])
+    c.paint(d, col, bevel=46, outline=2.5, ink=ink, seed=seed, grain=0.05, shade=0.42)
+    rng = np.random.default_rng(seed + 1)
+    xs = np.linspace(-20, c.w + 20, 36)
+    y = min(k[1] for k in keys) + rng.uniform(20, 60)
     k = 0
-    y = 60
-    ledges = []
+    tilt = rng.uniform(-0.04, 0.04)
     while y < H:
-        h = rng.uniform(80, 160)
-        xs = np.linspace(-20, W + 20, 40)
-        tilt = (xs - W / 2) * 0.03 * np.sin(k * 1.7)
-        top = y + 16 * np.sin(xs * 0.008 + k) + 9 * np.sin(xs * 0.029 + k) + tilt
-        bot = top + h
-        band = [(float(x), float(t)) for x, t in zip(xs, top)] + [(float(x), float(b)) for x, b in zip(xs[::-1], bot[::-1])]
-        c.paint(np.maximum(c.poly(band), d + 2), cols[k % len(cols)], bevel=30, outline=2,
-                ink="#8d7c96", seed=43 + k, grain=0.05, shade=0.4)
-        ledges.append((xs, top))
+        h = rng.uniform(*band_h)
+        top = y + 12 * np.sin(xs * rng.uniform(0.006, 0.012) + k) + 7 * np.sin(xs * 0.031 + seed + k) + (xs - c.w / 2) * tilt
+        band = [(float(x), float(t)) for x, t in zip(xs, top)] + [(float(x), float(t + h)) for x, t in zip(xs[::-1], top[::-1])]
+        c.paint(np.maximum(c.poly(band), d + 2), band_cols[k % len(band_cols)], bevel=22, outline=1.5, ink=ink,
+                seed=seed + 10 + k, grain=0.05, shade=0.38)
         y += h
         k += 1
-    # Broad gullies worn down the face (soft shadow, lit rim on one side).
-    for i in range(16):
-        x = rng.uniform(80, W - 80)
-        y0 = rng.uniform(80, 500)
-        ln = rng.uniform(300, 1100)
-        wd = rng.uniform(10, 26)
-        pts = [(x + 22 * np.sin(j * 0.9 + i), y0 + ln * j / 10) for j in range(11)]
-        cd = c.line_dist(pts)
-        fade = np.clip(1 - (c.y - y0) / ln, 0, 1) * (d < -6)
-        k2 = np.clip(1 - cd / wd, 0, 1) ** 1.5 * fade
-        c.rgb = c.rgb * (1 - 0.28 * k2[..., None])
-        side = np.clip(1 - np.abs(cd - wd) / 4, 0, 1) * (c.x > np.interp(c.y, [p[1] for p in pts], [p[0] for p in pts])) * fade
-        c.rgb = c.rgb + (np.array([1.0, 0.95, 0.88], np.float32) - c.rgb) * (0.22 * side)[..., None]
-    # Moss and shrubs on the ledges (small, hazed: far away).
-    for (xs, top) in ledges[:9]:
-        for _ in range(9):
-            x = rng.uniform(0, W)
-            ty = float(np.interp(x, xs, top))
-            if d[int(np.clip(ty + 6, 0, H - 1)), int(np.clip(x, 0, W - 1))] > -10:
-                continue
-            for j in range(rng.integers(2, 5)):
-                cx = x + rng.uniform(-30, 30)
-                r = rng.uniform(9, 18)
-                blob = c.ellipse(cx, ty - r * 0.25, r * 1.9, r * 0.62)
-                c.paint(blob, ["#7fa65a", "#6b9450", "#93b866"][j % 3], bevel=6, outline=1.5, ink="#5f7a62",
-                        seed=int(cx), grain=0.03, shade=0.4)
-    # The waterfall from the notch between the buttes: ragged edges, streaks,
-    # a plunge of mist low down.
-    fx = 1330
-    yy = np.linspace(150, H, 40)
-    left = fx - 34 - (yy - 150) * 0.02 + 5 * np.sin(yy * 0.03)
-    right = fx + 34 + (yy - 150) * 0.02 + 5 * np.sin(yy * 0.027 + 1)
+    rim = np.array(sky)
+    for i in range(shrubs):
+        x = rng.uniform(40, c.w - 40)
+        ty = float(np.interp(x, rim[:, 0], rim[:, 1]))
+        blob = np.minimum(c.ellipse(x, ty - 4, rng.uniform(16, 30), rng.uniform(8, 13)),
+                          c.ellipse(x + rng.uniform(-18, 18), ty - 12, rng.uniform(10, 18), rng.uniform(8, 12)))
+        c.paint(blob, shrub_col, bevel=7, outline=1.5, ink=ink, seed=seed + 50 + i, grain=0.03, shade=0.4)
+    return d
+
+
+def haze_mix(c, mask, color, k):
+    """Wash what is inside `mask` (d < 0) toward the air colour."""
+    m = (mask < 0).astype(np.float32)[..., None] * k
+    c.rgb = c.rgb * (1 - m) + np.array(P.hexc(color), np.float32) * m * c.a[..., None]
+
+
+def waterfall(c, fx, y0, y1, w, seed, mist_y):
+    yy = np.linspace(y0, y1, 40)
+    left = fx - w - (yy - y0) * 0.02 + 4 * np.sin(yy * 0.03 + seed)
+    right = fx + w + (yy - y0) * 0.02 + 4 * np.sin(yy * 0.027 + seed + 1)
     fall = c.poly([(float(x), float(y)) for x, y in zip(left, yy)] + [(float(x), float(y)) for x, y in zip(right[::-1], yy[::-1])])
-    c.paint(fall, "#e6f3ff", bevel=18, outline=2, ink="#8aa6cc", seed=45, grain=0.02, shade=0.22)
-    for i in range(14):
-        x = fx - 32 + i * 5
-        streak = np.clip(1 - np.abs(c.x - (x + (c.y - 150) * (i - 7) * 0.004)) / 1.8, 0, 1) * (c.y > 160)
-        streak = streak * (np.abs(c.x - fx) < 75) * (0.6 + 0.4 * np.sin(c.y * 0.05 + i))
-        c.rgb = c.rgb + (np.array([1, 1, 1], np.float32) - c.rgb) * (0.45 * streak)[..., None]
-    for i in range(9):
-        mist = np.clip(1 - np.hypot((c.x - fx - (i - 4) * 60) / 170, (c.y - 1230 - (i % 3) * 40) / 95), 0, 1) ** 2
-        c.rgb = c.rgb + (np.array([0.95, 0.97, 1.0], np.float32) - c.rgb) * (0.6 * mist)[..., None]
-    # Distance: washed toward the sky (more at the top), then sinking into
-    # the gorge's dark below the lips.
-    wash = np.clip(0.30 - c.y / H * 0.2, 0.16, 0.30)[..., None]
-    c.rgb = c.rgb * (1 - wash) + haze * wash
-    depth_fade(c, 650, 1900, to=(0.08, 0.10, 0.20), k=0.9)
+    c.paint(fall, "#e9f5ff", bevel=10, outline=1.5, ink="#8aa6cc", seed=seed, grain=0.02, shade=0.2)
+    for i in range(int(w / 2.5)):
+        x = fx - w + i * 5
+        st = np.clip(1 - np.abs(c.x - (x + (c.y - y0) * (i - w / 5) * 0.004)) / 1.6, 0, 1) * (c.y > y0 + 8) * (c.y < y1)
+        st = st * (0.6 + 0.4 * np.sin(c.y * 0.05 + i))
+        c.rgb = c.rgb + (np.array([1, 1, 1], np.float32) * c.a[..., None] - c.rgb) * (0.45 * st)[..., None]
+    for i in range(7):
+        mist = np.clip(1 - np.hypot((c.x - fx - (i - 3) * w * 1.6) / (w * 4.5), (c.y - mist_y - (i % 3) * 18) / 60), 0, 1) ** 2
+        c.rgb = c.rgb + (np.array([0.96, 0.98, 1.0], np.float32) - c.rgb) * (0.55 * mist)[..., None]
+        c.a = np.maximum(c.a, 0.85 * mist)
+
+
+def gorge_wall():
+    """The canyon seen beyond the gap: three ranges of mesas stepping away
+    into haze -- the farthest pale and low under open sky, the nearest warm
+    and darker -- with waterfalls dropping from the middle range into mist,
+    and the dark of the gorge below. Low enough that sky shows above the
+    leap, layered so the air behind a falling runner has depth instead of a
+    single wall. Top-left at world (1300, 520)."""
+    W, H = 1900, 2300
+    c = P.Canvas(W, H)
+    ink = "#8c7f9c"
+    # Farthest: low pale buttes on the horizon (world y ~950).
+    far = mesa_range(c, [(-20, 470), (140, 455), (190, 400), (330, 392), (370, 446), (600, 452), (650, 420), (820, 415),
+                         (860, 470), (1100, 462), (1150, 404), (1330, 398), (1380, 455), (1650, 448), (1700, 418), (1920, 420)],
+                     "#d9c3c6", ink, 61, ["#dcc6c7", "#d0b9be", "#e2cfcc"], (50, 90), H, jitter=5, shrubs=10, shrub_col="#a9bf9a")
+    haze_mix(c, far, "#cdd6ee", 0.45)
+    # Middle: taller mesas with a notch; waterfalls pour from it.
+    mid = mesa_range(c, [(-20, 640), (90, 600), (140, 548), (300, 540), (350, 600), (520, 612), (560, 570), (700, 562),
+                         (740, 620), (900, 632), (960, 560), (1120, 552), (1160, 610), (1420, 618), (1470, 575), (1700, 566),
+                         (1750, 630), (1920, 640)],
+                     "#d6aa8e", ink, 71, ["#d8ae90", "#c99c82", "#e0b898"], (60, 120), H, jitter=7, shrubs=14, shrub_col="#86a868")
+    haze_mix(c, mid, "#cdd6ee", 0.28)
+    waterfall(c, 470, 600, 1300, 16, 81, 1150)
+    waterfall(c, 1040, 612, 1250, 11, 83, 1120)
+    # Nearest of the far side: a broken ledge line, warm, with shrubs, lower
+    # still -- it passes behind the rescue (world y ~1230).
+    near = mesa_range(c, [(-20, 780), (120, 740), (200, 700), (380, 712), (430, 770), (640, 760), (700, 716), (880, 706),
+                          (930, 768), (1200, 776), (1260, 724), (1460, 716), (1500, 780), (1920, 790)],
+                      "#c98f6c", "#7a5a6c", 91, ["#c99372", "#b98268", "#d39f7c"], (70, 140), H, jitter=9, shrubs=16,
+                      shrub_col="#6f9a50")
+    haze_mix(c, near, "#cdd6ee", 0.12)
+    # The gorge falls away below all of it.
+    depth_fade(c, 820, 1500, to=(0.08, 0.10, 0.20), k=0.94)
     c.save("gorge_wall")
 
 
