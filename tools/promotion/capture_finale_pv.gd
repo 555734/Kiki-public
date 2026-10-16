@@ -834,11 +834,11 @@ func take_opening() -> void:
 	await until(func() -> bool: return r.velocity.y > -60.0, 30)
 	_jump = true
 	_trace_mark("air_jump", "x %.0f: the last of the runner's height" % r.global_position.x)
-	await frames(14)
-	_jump = false
-	# Rising to the top of the arc: closer, the far bank's edge kept in.
+	# From the air jump to the top of the arc: closer, the far bank's edge kept in.
 	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-90, -100), func() -> Vector2: return Vector2(bank.x + 30.0, r.global_position.y + 60.0),
 		func() -> Vector2: return r.global_position + Vector2(0, 110)], "pad": 26.0, "zoom": 2.1, "min_zoom": 1.7, "smooth": 7.0, "smooth_y": 11.0, "zoom_smooth": 12.0})
+	await frames(14)
+	_jump = false
 	await until(func() -> bool: return r.velocity.y >= 0.0, 40)
 	# BRANCH: the top of the arc, 471 px short. Up to here both takes are
 	# the same frame for frame; the rewind ends here.
