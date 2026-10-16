@@ -1,0 +1,13 @@
+version,section,t_from,t_to,camera_travel_world_px,frames_moving_pct,frames_zooming_pct,zoom_min,zoom_max,cuts
+old 6363 (rescue_camera_fixed),run and hop,0,1.0,95,100,0,1.3,1.3,0
+old 6363 (rescue_camera_fixed),leap and failed fall,1.0,2.85,1,1,0,1.1,1.1,1
+old 6363 (rescue_camera_fixed),rewind,3.05,3.52,0,0,0,1.1,1.1,0
+old 6363 (rescue_camera_fixed),"slow motion, call, finger, platform, landing",3.52,5.6,11,2,0,1.1,1.1,0
+old 6363 (rescue_camera_fixed),escape and run,5.6,8.42,724,88,0,1.1,1.1,0
+old 6363 (rescue_camera_fixed),whole clip,0,8.42,832,42,0,1.1,1.3,2
+new (camera A/B/C),run and hop,0,1.0,95,100,0,1.3,1.3,0
+new (camera A/B/C),leap and failed fall,1.0,2.85,1,1,0,1.1,1.1,1
+new (camera A/B/C),rewind,3.05,3.52,0,0,0,1.1,1.22,1
+new (camera A/B/C),"slow motion, call, finger, platform, landing",3.52,5.37,35,1,0,1.22,1.22,0
+new (camera A/B/C),escape and run,5.37,8.33,704,80,0,1.22,1.22,0
+new (camera A/B/C),whole clip,0,8.33,835,40,0,1.1,1.3,3

@@ -31,7 +31,6 @@ func _draw() -> void:
 	# Only over ground: the bottom of the screen must be inside terrain.
 	var bottom := cam + Vector2(0, view.y * 0.5 / z - 10.0)
 	if not _ground_below(bottom):
-		_draw_gorge(view, z, cam)
 		return
 	var zone: Dictionary = Stage.data().zone_at(cam.x)
 	var skin := String(zone["skin"])
@@ -64,19 +63,3 @@ func _draw() -> void:
 				for k in 3:
 					FinaleGround.honey_drip(self, Vector2(x + float(k) * 40.0 - 40.0, view.y - h * (0.5 + 0.2 * float(k))), h * 0.6, 14.0)
 
-## Over 1-10's opening gorge (no ground under the bottom of the screen):
-## near rock outcrops in deep shadow at the bottom edge, passing faster than
-## the world, so a fall reads against a foreground as well as the far wall.
-## They stay in the bottom fifth of the screen.
-const GORGE_ROCKS := [1500.0, 1760.0, 2050.0, 2330.0]
-
-func _draw_gorge(view: Vector2, z: float, cam: Vector2) -> void:
-	if cam.x < 1350.0 or cam.x > 2500.0 or String(Stage.data().zone_at(cam.x)["skin"]) != "grass":
-		return
-	for i in GORGE_ROCKS.size():
-		var x: float = (GORGE_ROCKS[i] - cam.x) * RATE * z + view.x * 0.5
-		if x < -300.0 or x > view.x + 300.0:
-			continue
-		var h := view.y * (0.10 + 0.03 * float(i % 2))
-		FinaleArt.sprite(self, "rocks", Vector2(x, view.y + h * 0.22), h, i % 2 == 1, Color(0.16, 0.13, 0.18, 0.95))
-		FinaleArt.sprite(self, "tuft", Vector2(x + h * 0.25, view.y - h * 0.5), h * 0.45, i % 2 == 0, Color(0.12, 0.17, 0.14, 0.95))
