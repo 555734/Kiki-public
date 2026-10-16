@@ -314,14 +314,14 @@ def gorge_wall():
     # Farthest: low pale buttes on the horizon (world y ~950).
     far = mesa_range(c, [(-20, 470), (140, 455), (190, 400), (330, 392), (370, 446), (600, 452), (650, 420), (820, 415),
                          (860, 470), (1100, 462), (1150, 404), (1330, 398), (1380, 455), (1650, 448), (1700, 418), (1920, 420)],
-                     "#d9c3c6", ink, 61, ["#dcc6c7", "#d0b9be", "#e2cfcc"], (50, 90), H, jitter=5, shrubs=10, shrub_col="#a9bf9a")
-    haze_mix(c, far, "#cdd6ee", 0.45)
+                     "#e6c9b4", ink, 61, ["#e8cdb8", "#dcbfab", "#efd8c4"], (50, 90), H, jitter=5, shrubs=10, shrub_col="#a9c08e")
+    haze_mix(c, far, "#d7dff2", 0.3)
     # Middle: taller mesas with a notch; waterfalls pour from it.
     mid = mesa_range(c, [(-20, 640), (90, 600), (140, 548), (300, 540), (350, 600), (520, 612), (560, 570), (700, 562),
                          (740, 620), (900, 632), (960, 560), (1120, 552), (1160, 610), (1420, 618), (1470, 575), (1700, 566),
                          (1750, 630), (1920, 640)],
                      "#d6aa8e", ink, 71, ["#d8ae90", "#c99c82", "#e0b898"], (60, 120), H, jitter=7, shrubs=14, shrub_col="#86a868")
-    haze_mix(c, mid, "#cdd6ee", 0.28)
+    haze_mix(c, mid, "#d7dff2", 0.18)
     waterfall(c, 470, 600, 1300, 16, 81, 1150)
     waterfall(c, 1040, 612, 1250, 11, 83, 1120)
     # Nearest of the far side: a broken ledge line, warm, with shrubs, lower

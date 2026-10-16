@@ -340,7 +340,7 @@ static func _scenery() -> Array[Dictionary]:
 			# waterfall, low and to the right of the leap), then the painted
 			# cliffs in front of the terrain, then their dressing.
 			["abyss", 1540, 1150, 2250, false, false, 1330, 260],
-			["gorge_wall", 1300, 520, 1.0, false, false], ["gorge_far", 1480, 1180, 1.0, false, false], ["dark", 860, 2880, 2400, false, false, 900],
+			["gorge_wall", 1300, 520, 1.0, false, false], ["dark", 860, 2880, 2400, false, false, 900],
 			["gorge_left", 860, 1100, 1.0, false, true], ["gorge_right", 2280, 1000, 1.0, false, true],
 			["fence", 1000, 1160, 70, false, true],
 			["tree", 2960, 1040, 320, true, true], ["signpost", 2420, 1040, 120, false, true]]}},

@@ -77,6 +77,6 @@ func _draw_gorge(view: Vector2, z: float, cam: Vector2) -> void:
 		var x: float = (GORGE_ROCKS[i] - cam.x) * RATE * z + view.x * 0.5
 		if x < -300.0 or x > view.x + 300.0:
 			continue
-		var h := view.y * (0.15 + 0.05 * float(i % 2))
-		FinaleArt.sprite(self, "rocks", Vector2(x, view.y + h * 0.18), h, i % 2 == 1, Color(0.05, 0.06, 0.11, 0.96))
-		FinaleArt.sprite(self, "tuft", Vector2(x + h * 0.25, view.y - h * 0.55), h * 0.45, i % 2 == 0, Color(0.05, 0.08, 0.10, 0.96))
+		var h := view.y * (0.10 + 0.03 * float(i % 2))
+		FinaleArt.sprite(self, "rocks", Vector2(x, view.y + h * 0.22), h, i % 2 == 1, Color(0.16, 0.13, 0.18, 0.95))
+		FinaleArt.sprite(self, "tuft", Vector2(x + h * 0.25, view.y - h * 0.5), h * 0.45, i % 2 == 0, Color(0.12, 0.17, 0.14, 0.95))

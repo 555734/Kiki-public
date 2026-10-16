@@ -71,7 +71,7 @@ func _process(delta: float) -> void:
 		_squash = 1.35 if _was_pounding else clampf(0.55 + _last_fall / 1400.0, 0.55, 1.0)
 		# A drop at full fall speed: knees right down, held a beat longer.
 		if not _was_pounding and _last_fall > 1000.0:
-			_squash = 1.3
+			_squash = 1.05
 		_puff(2 if not _was_pounding else 6, 1.0 if not _was_pounding else 1.8)
 		_spin_active = false
 		_spin = 0.0
@@ -94,7 +94,7 @@ func _process(delta: float) -> void:
 	if airborne:
 		_last_fall = maxf(0.0, runner.velocity.y)
 	var was_squashed := _squash > 0.45
-	_squash = maxf(0.0, _squash - delta * (4.0 if _squash > 0.9 else 6.0))
+	_squash = maxf(0.0, _squash - delta * (3.0 if _squash > 0.7 else 6.0))
 	if was_squashed and _squash <= 0.45 and not airborne:
 		_recover = 1.0
 	_recover = maxf(0.0, _recover - delta * 7.0)

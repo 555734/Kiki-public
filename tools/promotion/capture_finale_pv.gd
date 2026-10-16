@@ -880,7 +880,7 @@ func take_opening() -> void:
 	cut(4, "Falling, the call comes in (Discord mark, decline, accept) in the top-left corner; the runner centre frame",
 		func() -> bool: return overlay.call_alpha > 0.9 and overlay.call_state == 1 and not r.is_on_floor(), Callable(),
 		{"wait": false, "frames": 36})
-	camera({"mode": "follow", "zoom": 2.35, "lead": 0.0, "offset": Vector2(30, 25), "smooth": 5.0})
+	camera({"mode": "follow", "zoom": 2.6, "lead": 0.0, "offset": Vector2(25, 20), "smooth": 5.0})
 	await fade_call(1.0, 6)
 	await frames(12)
 	sfx("ring")
@@ -956,8 +956,8 @@ func take_opening() -> void:
 		_trace_mark("platform_2", "created: top %.0f, x %.0f..%.0f (%.0f wide); runner at %s" % [built2.global_position.y - 13.0, p2[0].x, p2[1].x, p2[1].x - p2[0].x, r.global_position.round()])
 	hide_pointer()
 	# The jump: pull back to the arc and the far bank.
-	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-110, -110), func() -> Vector2: return bank + Vector2(140, -80),
-		func() -> Vector2: return Vector2(p1[0].x - 20.0, top1 + 40.0)], "pad": 24.0, "zoom": 1.75, "min_zoom": 1.35, "smooth": 4.0})
+	camera({"mode": "frame", "fit": [func() -> Vector2: return r.global_position + Vector2(-100, -120), func() -> Vector2: return bank + Vector2(120, -90),
+		func() -> Vector2: return Vector2(p1[1].x, top1 + 30.0), func() -> Vector2: return r.global_position + Vector2(40, 70)], "pad": 24.0, "zoom": 1.8, "min_zoom": 1.45, "smooth": 5.0, "smooth_y": 7.0})
 	hold(1.0, true)
 	await until(func() -> bool: return r.global_position.x > p1[1].x - 40.0, 40)
 	_jump = true
@@ -980,7 +980,7 @@ func take_opening() -> void:
 	_trace_mark("bank", "on the far bank at %s" % r.global_position.round())
 	_land_fx = [feet(), 0]
 	sfx("checkpoint", 0.0, 0.8)
-	camera({"mode": "follow", "zoom": 1.9, "lead": 120.0, "offset": Vector2(-60, -30), "smooth": 3.5})
+	camera({"mode": "follow", "zoom": 1.9, "lead": 120.0, "offset": Vector2(-60, -20), "smooth": 5.0})
 	await until(func() -> bool: return r.global_position.x > bank.x + 420.0, 90)
 	_trace_mark("clip_end", "running on at %s" % r.global_position.round())
 	await end_cut()
