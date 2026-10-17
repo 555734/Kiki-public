@@ -280,7 +280,7 @@ def segments_to_mp4(segs, out, wav):
                           "noise=alls=10:allf=t[r%d];[r%d][%d:v]overlay=0:0[v%d]")
                          % (src, f0, f0 + n, speed, FPS, i, i, icon_idx, i))
         labels.append("[v%d]" % i)
-    graph = ";".join(parts) + ";" + "".join(labels) + "concat=n=%d:v=1:a=0,fps=%d,format=yuv420p[out]" % (len(segs), FPS)
+    graph = ";".join(parts) + ";" + "".join(labels) + "concat=n=%d:v=1:a=0,fps=%d,crop=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[out]" % (len(segs), FPS)
     R.run(["ffmpeg", "-y", "-v", "error"] + inputs + ["-i", wav, "-filter_complex", graph, "-map", "[out]", "-map",
            "%d:a" % (len(movies) + 1), "-r", str(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "17",
            "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out])
@@ -321,7 +321,7 @@ def icon_layer():
 
 def write_frames(out, wav, frames):
     p = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (FW, FH), "-r", str(FPS),
-                          "-i", "-", "-i", wav, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "medium", "-crf", "17",
+                          "-i", "-", "-i", wav, "-map", "0:v", "-map", "1:a", "-vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2", "-c:v", "libx264", "-preset", "medium", "-crf", "17",
                           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out],
                          stdin=subprocess.PIPE)
     for fr in frames:
