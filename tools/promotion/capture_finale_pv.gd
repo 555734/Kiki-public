@@ -43,7 +43,9 @@ const BEAT_FRAMES := {
 	40: 60, 41: 60, 42: 60, 43: 66, 44: 54, 45: 60, 46: 60,
 	47: 60, 48: 60, 49: 60,
 }
-const VIEW := Vector2(1280, 720)
+## The visible size of the view (1280x720 at 16:9; taller when the window is
+## taller, e.g. the vertical short's 1080x976 window shows 1280x1157).
+var VIEW := Vector2(1280, 720)
 
 var main: Node2D
 var r: Runner
@@ -103,6 +105,7 @@ func _ready() -> void:
 	for s in SHOTS.all():
 		shots[int(s["shot"])] = s
 	rendering = DisplayServer.get_name() != "headless"
+	VIEW = get_viewport().get_visible_rect().size
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--take="):
 			only = a.substr(7).split(",")
@@ -118,6 +121,9 @@ func _ready() -> void:
 	title = Overlay.new()
 	title.title_only = true
 	behind.add_child(title)
+	# PV_NO_TITLE=1: the takes without the in-game MELOS GAME title (the short
+	# PV puts its own name card at the end).
+	behind.visible = OS.get_environment("PV_NO_TITLE") != "1"
 	_connect_log()
 	call_deferred("run")
 
@@ -995,7 +1001,7 @@ func take_opening() -> void:
 	await end_cut()
 	release()
 	_trace_on = false
-	overlay.call_centre = Vector2(1280 - 150 - 70, 360)
+	overlay.call_centre = Vector2(VIEW.x - 150 - 70, VIEW.y * 0.5)
 	overlay.call_scale = 1.0
 	overlay.call_dim = 0.28
 	_write_trace("help")
@@ -1940,7 +1946,7 @@ func take_end() -> void:
 	cover_radius = 160.0
 	# Upper half: the run goes on, the runner riding high in the frame.
 	camera({"mode": "follow", "zoom": 1.45, "lead": 160.0, "offset": Vector2(150, 130), "smooth": 6.0, "smooth_y": 5.0, "fx": 0.3})
-	var upper := func() -> bool: return screen_of(r.global_position).y < 720.0 * 0.48
+	var upper := func() -> bool: return screen_of(r.global_position).y < VIEW.y * 0.48
 	var card := func(n: int) -> Callable:
 		return func() -> void:
 			overlay.lower_panel = true

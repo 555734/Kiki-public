@@ -1,128 +1,143 @@
 {
- "length_s": 24.99,
+ "length_s": 26.28,
  "shots": [
   {
-   "s0": 5.2,
-   "dur": 2.6,
-   "out0": 0.0,
-   "name": "hook: YOU draws steps under the runner"
+   "name": "meadow: the run",
+   "source": "takes.avi",
+   "source_s": 0.9,
+   "out_s": 0.0,
+   "dur_s": 2.103
   },
   {
-   "s0": 2.6,
-   "dur": 2.3,
-   "out0": 2.6,
-   "name": "the leap, the call"
+   "name": "meadow: YOU draws steps",
+   "source": "takes.avi",
+   "source_s": 8.9,
+   "out_s": 2.1,
+   "dur_s": 3.6
   },
   {
-   "s0": 0.0,
-   "dur": 7.4,
-   "out0": 4.9,
-   "name": "rescue: run, fall short, rewind, call, finger, catch"
+   "name": "rescue: run, leap short, fall, rewind, call, finger, catch, far bank",
+   "source": "rescue_rewind.mp4",
+   "source_s": 0.5,
+   "out_s": 5.7,
+   "dur_s": 7.7
   },
   {
-   "s0": 10.3,
-   "dur": 0.796,
-   "out0": 12.3,
-   "name": "storm"
+   "name": "storm",
+   "source": "takes.avi",
+   "source_s": 5.1,
+   "out_s": 13.4,
+   "dur_s": 0.854
   },
   {
-   "s0": 17.0,
-   "dur": 0.743,
-   "out0": 13.096,
-   "name": "volcano"
+   "name": "volcano",
+   "source": "takes.avi",
+   "source_s": 11.9,
+   "out_s": 14.26,
+   "dur_s": 0.797
   },
   {
-   "s0": 20.5,
-   "dur": 0.644,
-   "out0": 13.839,
-   "name": "train"
+   "name": "rail",
+   "source": "takes.avi",
+   "source_s": 31.0,
+   "out_s": 15.05,
+   "dur_s": 0.683
   },
   {
-   "s0": 31.0,
-   "dur": 0.709,
-   "out0": 14.483,
-   "name": "giant"
+   "name": "giant",
+   "source": "takes.avi",
+   "source_s": 37.2,
+   "out_s": 15.74,
+   "dur_s": 0.881
   },
   {
-   "s0": 35.2,
-   "dur": 2.4,
-   "out0": 15.192,
-   "name": "bone canyon"
+   "name": "bone canyon",
+   "source": "takes.avi",
+   "source_s": 45.3,
+   "out_s": 16.62,
+   "dur_s": 1.976
   },
   {
-   "s0": 7.6,
-   "dur": 2.8,
-   "out0": 17.592,
-   "name": "meadow"
+   "name": "train",
+   "source": "takes.avi",
+   "source_s": 25.6,
+   "out_s": 18.59,
+   "dur_s": 3.683
   },
   {
-   "s0": 7.4,
-   "dur": 4.6,
-   "out0": 20.392,
-   "name": "end: far bank, title"
+   "name": "end: far bank, title",
+   "source": "rescue_rewind.mp4",
+   "source_s": 8.2,
+   "out_s": 22.28,
+   "dur_s": 4.0
   }
  ],
  "narration": [
   {
    "at": 0.2,
-   "len": 2.21,
-   "text": "落ちていく相棒を、指一本で救う。"
+   "len": 1.65,
+   "text": "ふたりで遊ぶアクションゲームです。"
   },
   {
-   "at": 2.7,
-   "len": 2.13,
-   "text": "これは、ふたりで遊ぶ協力アクション。"
+   "at": 2.2,
+   "len": 3.47,
+   "text": "ひとりが走って、もうひとりが、画面に足場を描きます。"
   },
   {
-   "at": 5.0,
-   "len": 1.46,
-   "text": "ひとりは走って、跳ぶ。"
+   "at": 6.2,
+   "len": 1.15,
+   "text": "ジャンプが届かないと、"
   },
   {
-   "at": 6.65,
-   "len": 1.85,
-   "text": "でも、届かないと谷底へ。"
+   "at": 7.45,
+   "len": 1.31,
+   "text": "谷に落ちてしまいますが、"
   },
   {
-   "at": 8.52,
-   "len": 1.08,
-   "text": "そこで相棒を呼ぶと、"
+   "at": 8.8,
+   "len": 1.01,
+   "text": "通話で呼ばれたら、"
   },
   {
-   "at": 9.52,
-   "len": 1.07,
-   "text": "指で足場を描いて、"
+   "at": 9.85,
+   "len": 0.97,
+   "text": "足場を描いて、"
   },
   {
-   "at": 10.45,
-   "len": 0.8,
-   "text": "受け止めてくれる！"
+   "at": 10.88,
+   "len": 0.73,
+   "text": "受け止めます。"
   },
   {
-   "at": 12.35,
-   "len": 2.59,
-   "text": "嵐、火山、列車、巨人。"
+   "at": 11.7,
+   "len": 1.57,
+   "text": "そのまま、向こう岸へ。"
   },
   {
-   "at": 15.29,
-   "len": 1.96,
-   "text": "ステージごとに、助け方が変わる。"
+   "at": 13.45,
+   "len": 2.97,
+   "text": "嵐、火山、列車、巨人など、"
   },
   {
-   "at": 17.69,
-   "len": 2.5,
-   "text": "離れた友達とも、合言葉ひとつで遊べる。"
+   "at": 16.72,
+   "len": 1.38,
+   "text": "ステージはいろいろあります。"
   },
   {
-   "at": 20.64,
-   "len": 1.08,
+   "at": 18.74,
+   "len": 3.08,
+   "text": "離れた友達とは、6文字の合言葉でつながります。"
+  },
+  {
+   "at": 22.48,
+   "len": 1.13,
    "text": "このゲームの名前は、"
   },
   {
-   "at": 21.92,
-   "len": 0.85,
-   "text": "メロスゲーム！"
+   "at": 23.86,
+   "len": 0.77,
+   "text": "メロスゲーム。"
   }
  ],
- "logo_at": 21.87
+ "logo_at": 23.76
 }

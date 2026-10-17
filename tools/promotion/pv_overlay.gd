@@ -58,7 +58,7 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	if has_meta("slate"):
-		draw_rect(Rect2(0, 0, 1280, 720), Color(1, 0, 1))
+		draw_rect(Rect2(Vector2.ZERO, get_viewport_rect().size), Color(1, 0, 1))
 		return
 	if title_only:
 		_draw_title(title_alpha, title_centre, title_scale)
@@ -88,7 +88,7 @@ func _draw_call() -> void:
 	var h := 420.0 * sc
 	var slide := (1.0 - a) * 120.0
 	var rect := Rect2(call_centre - Vector2(w, h) * 0.5 + Vector2(slide, 0), Vector2(w, h))
-	draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, call_dim * a))
+	draw_rect(Rect2(Vector2.ZERO, get_viewport_rect().size), Color(0, 0, 0, call_dim * a))
 	_round_rect(rect.grow(6 * sc), 34 * sc, Color(1, 1, 1, 0.16 * a))
 	_round_rect(rect, 30 * sc, Color(PANEL, 0.96 * a))
 	var centre := rect.position + Vector2(w * 0.5, 150 * sc)

@@ -2,20 +2,26 @@
 """Vertical short PV (1080x1920, 30 fps) of MELOS GAME with narration.
 
 Layout of the usual Japanese "game introduction" short: white page, a
-two-line hook title at the top (white on a red band / black), the gameplay
-in a near-square window (1080x976), one subtitle phrase under it that
-changes with the narration, the voice credit at the bottom. The narration
-is VOICEVOX (玄野武宏), synthesised from a local engine
+two-line title at the top (white on a red band / black), the gameplay in a
+near-square window (1080x976), one subtitle phrase under it that changes
+with the narration, the voice credit at the bottom. The narration is
+VOICEVOX (玄野武宏), synthesised from a local engine
 (http://127.0.0.1:50021) and cached next to the output.
 
-The pictures are the recorded PV takes (16:9), cropped to the window:
-  * the 1-10 rescue cut (`edit_rescue_versions.py` output, made with
-    RESCUE_MUSIC_GAIN=0 so its sound is the game's own without music);
-  * the 49 s PV (`finale_pv_49cuts.mp4`) and its game sound track
-    (`pv_game_sound.wav`) for the other stages.
+The pictures are recorded for the window, not cropped: the takes are shot
+with a taller view (1280x1156, `VIEW_H=1156` in the take script, which
+overrides the project's viewport height for the recording only), so every
+shot keeps its full width and gains picture above and below.
+
+  * RESCUE.mp4: the 1-10 rescue cut from those takes
+    (`PV_SIZE=1280x1156 RESCUE_MUSIC_GAIN=0 edit_rescue_versions.py`, so
+    its sound is the game's own without music);
+  * STAGES.avi: a recording of the takes storm,volcano,rail,giant,bone;
+  * MEADOW.avi: the take title recorded with PV_NO_TITLE=1 (the meadow run
+    without the in-game MELOS GAME title).
 
 Usage:
-  python3 tools/promotion/make_short_pv.py RESCUE.mp4 PV49.mp4 PV49_SOUND.wav OUT_DIR
+  python3 tools/promotion/make_short_pv.py RESCUE.mp4 STAGES.avi MEADOW.avi OUT_DIR
 """
 import hashlib
 import json
@@ -38,31 +44,46 @@ SR = R.SR
 FPS = 30
 W, H = 1080, 1920
 WIN_Y, WIN_H = 472, 976               # the gameplay window
-CROP_W = int(round(720 * W / WIN_H))  # 16:9 source columns that fill it
+SRC_W, SRC_H = 1280, 1156             # the recordings
 FONT = "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc"
 RED = (230, 20, 30)
 ENGINE = "http://127.0.0.1:50021"
 SPEAKER = 11                          # 玄野武宏 ノーマル
+SPEED = 1.1
 CREDIT = "VOICEVOX:玄野武宏"
-TITLE_1 = "落ちる相棒を指で救う"
-TITLE_2 = "ふたり協力ゲーム"
+TITLE_1 = "落ちる相棒を足場で"
+TITLE_2 = "助けるゲーム"
 
-# Narration: (text read, subtitle with {red} parts, speed).
+# Narration: (text read, subtitle). Plain description of what happens on
+# screen, no claims.
 LINES = [
-    ("落ちていく相棒を、指一本で救う。", "落ちていく相棒を\n{指一本}で救う", 1.18),
-    ("これは、ふたりで遊ぶ協力アクション。", "ふたりで遊ぶ\n{協力}アクション", 1.18),
-    ("ひとりは走って、跳ぶ。", "ひとりは\n走って、跳ぶ", 1.18),
-    ("でも、届かないと谷底へ。", "でも、届かないと\n{谷底}へ…", 1.18),
-    ("そこで相棒を呼ぶと、", "そこで\n相棒を呼ぶと", 1.3),
-    ("指で足場を描いて、", "{指}で足場を描いて", 1.3),
-    ("受け止めてくれる！", "受け止めてくれる！", 1.2),
-    ("嵐、火山、列車、巨人。", None, 1.18),
-    ("ステージごとに、助け方が変わる。", "ステージごとに\n助け方が{変わる}", 1.18),
-    ("離れた友達とも、合言葉ひとつで遊べる。", "離れた友達とも\n{合言葉}ひとつで遊べる", 1.18),
-    ("このゲームの名前は、", "このゲームの\n名前は…", 1.15),
-    ("メロスゲーム！", "{メロスゲーム}", 1.0),
+    ("ふたりで遊ぶアクションゲームです。", "ふたりで遊ぶ\nアクションゲーム"),
+    ("ひとりが走って、もうひとりが、画面に足場を描きます。", "ひとりが走って\nもうひとりが足場を描く"),
+    ("ジャンプが届かないと、", "ジャンプが届かないと"),
+    ("谷に落ちてしまいますが、", "谷に落ちてしまうけど"),
+    ("通話で呼ばれたら、", "通話で呼ばれたら"),
+    ("足場を描いて、", "足場を描いて"),
+    ("受け止めます。", "受け止める"),
+    ("そのまま、向こう岸へ。", "そのまま向こう岸へ"),
+    ("嵐、火山、列車、巨人など、", None),
+    ("ステージはいろいろあります。", "ステージはいろいろ"),
+    ("離れた友達とは、6文字の合言葉でつながります。", "離れた友達とは\n6文字の合言葉でつながる"),
+    ("このゲームの名前は、", "このゲームの名前は"),
+    ("メロスゲーム。", "メロスゲーム"),
 ]
 MONTAGE_WORDS = ["嵐", "火山", "列車", "巨人"]
+
+# Source times (s) in the recordings.
+MEADOW_RUN = 0.9       # the runner runs, jumps a saw
+MEADOW_DRAW = 8.9      # YOU draws steps, the runner climbs them (the take ends at 12.6)
+STAGES = {
+    "storm": 5.1,      # lightning on the bridge
+    "volcano": 11.9,   # the rolling boulder
+    "rail": 31.0,      # jumping between train roofs
+    "giant": 37.2,     # the giant stands up
+    "bone": 45.3,      # the bone bridge
+    "friends": 25.6,   # running along the train (under the 合言葉 line)
+}
 
 
 # ------------------------------------------------------------- narration
@@ -72,24 +93,22 @@ def _post(path, data=None):
     return urllib.request.urlopen(req).read()
 
 
-def voice(text, speed, cache):
+def voice(text, cache):
     """Float mono at SR, and the start time (s) of each accent phrase."""
-    key = hashlib.sha1(("%s|%d|%.2f" % (text, SPEAKER, speed)).encode()).hexdigest()[:12]
+    key = hashlib.sha1(("%s|%d|%.2f" % (text, SPEAKER, SPEED)).encode()).hexdigest()[:12]
     wav_p, js_p = os.path.join(cache, key + ".wav"), os.path.join(cache, key + ".json")
     if not os.path.exists(wav_p):
         q = json.loads(_post("/audio_query?" + urllib.parse.urlencode({"text": text, "speaker": SPEAKER})))
-        q.update(speedScale=speed, intonationScale=1.25, prePhonemeLength=0.05, postPhonemeLength=0.08)
-        if text.startswith("メロスゲーム"):
-            q["intonationScale"] = 1.4
+        q.update(speedScale=SPEED, prePhonemeLength=0.05, postPhonemeLength=0.08)
         with open(wav_p, "wb") as f:
             f.write(_post("/synthesis?speaker=%d" % SPEAKER, json.dumps(q).encode()))
-        t, starts = q["prePhonemeLength"] / speed, []
+        t, starts = q["prePhonemeLength"] / SPEED, []
         for ap in q["accent_phrases"]:
             starts.append(round(t, 3))
             for m in ap["moras"]:
-                t += ((m["consonant_length"] or 0) + m["vowel_length"]) / speed
+                t += ((m["consonant_length"] or 0) + m["vowel_length"]) / SPEED
             if ap["pause_mora"]:
-                t += ap["pause_mora"]["vowel_length"] / speed
+                t += ap["pause_mora"]["vowel_length"] / SPEED
         with open(js_p, "w") as f:
             json.dump({"text": text, "phrases": starts}, f, ensure_ascii=False)
     with wave.open(wav_p) as w:
@@ -101,45 +120,21 @@ def voice(text, speed, cache):
 
 
 # ---------------------------------------------------------------- pictures
-def smooth(a, b, t0, t1, t):
-    k = min(1.0, max(0.0, (t - t0) / (t1 - t0)))
-    return a + (b - a) * k * k * (3 - 2 * k)
-
-
-def rescue_crop(t):
-    """Left edge of the crop (1280-wide source) for the rescue cut at source time t."""
-    if t < 1.0:            # run
-        return 120
-    if t < 3.05:           # camera A: the take-off, then follow the fall down the middle
-        return smooth(0, 240, 1.6, 2.5, t)
-    if t < 3.52:           # the rewind: back the same way
-        return smooth(240, 0, 3.05, 3.5, t)
-    if t < 4.85:           # B1: the call card, then the runner sinking right
-        return smooth(90, 140, 4.45, 4.85, t)
-    if t < 6.37:           # B2: finger, platform, landing (the hand rises right)
-        return 280
-    return smooth(300, 420, 6.37, 8.3, t)   # C: towards the far bank
-
-
 def frames(movie, start, dur):
+    """dur s of the movie from start, at FPS, as window-sized images."""
     n = int(round(dur * FPS))
     cmd = ["ffmpeg", "-v", "error", "-ss", "%.3f" % start, "-i", movie, "-t", "%.3f" % (dur + 0.2),
-           "-vf", "fps=%d" % FPS, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+           "-vf", "fps=%d,scale=%d:%d:flags=lanczos" % (FPS, W, WIN_H), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    size = 1280 * 720 * 3
+    size = W * WIN_H * 3
     last = None
     for _ in range(n):
         buf = p.stdout.read(size)
         if len(buf) == size:
-            last = Image.frombytes("RGB", (1280, 720), buf)
+            last = Image.frombytes("RGB", (W, WIN_H), buf)
         yield last
     p.stdout.close()
     p.wait()
-
-
-def window(img, x0):
-    x0 = int(round(min(max(x0, 0), 1280 - CROP_W)))
-    return img.crop((x0, 0, x0 + CROP_W, 720)).resize((W, WIN_H), Image.LANCZOS)
 
 
 # ------------------------------------------------------------------- text
@@ -152,184 +147,162 @@ def font(size):
     return _fonts[size]
 
 
-def draw_rich(d, cx, y, line, size, fill=(0, 0, 0)):
-    """One line centred on cx; {...} parts in red."""
-    parts, red = [], False
-    for chunk in line.replace("}", "{").split("{"):
-        if chunk:
-            parts.append((chunk, red))
-        red = not red
-    f = font(size)
-    total = sum(d.textlength(c, font=f) for c, _ in parts)
-    x = cx - total / 2
-    for c, is_red in parts:
-        d.text((x, y), c, font=f, fill=RED if is_red else fill)
-        x += d.textlength(c, font=f)
-
-
 def page():
-    """The static page: white, hook title, credit."""
+    """The static page: white, title, credit."""
     img = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(img)
-    f1, f2 = font(84), font(84)
-    w1 = d.textlength(TITLE_1, font=f1)
+    f = font(84)
+    w1 = d.textlength(TITLE_1, font=f)
     d.rectangle((W / 2 - w1 / 2 - 22, 250, W / 2 + w1 / 2 + 22, 366), fill=RED)
-    d.text((W / 2, 306), TITLE_1, font=f1, fill="white", anchor="mm")
-    d.text((W / 2, 420), TITLE_2, font=f2, fill="black", anchor="mm")
+    d.text((W / 2, 306), TITLE_1, font=f, fill="white", anchor="mm")
+    d.text((W / 2, 420), TITLE_2, font=f, fill="black", anchor="mm")
     d.text((W - 36, H - 60), CREDIT, font=font(30), fill=(120, 120, 120), anchor="rm")
     return img
 
 
-def subtitle(d, text, scale=1.0):
+def subtitle(d, text):
     lines = text.split("\n")
-    size = int(round((84 if len(lines) > 1 else 92) * scale))
-    gap = int(size * 1.25)
-    y0 = 1560 - gap * len(lines) / 2
+    size = 76 if len(lines) > 1 else 84
+    while max(d.textlength(ln, font=font(size)) for ln in lines) > W - 80:
+        size -= 2
+    gap = int(size * 1.3)
+    y0 = 1580 - gap * (len(lines) - 1) / 2
     for i, ln in enumerate(lines):
-        draw_rich(d, W / 2, y0 + i * gap, ln, size)
+        d.text((W / 2, y0 + i * gap), ln, font=font(size), fill="black", anchor="mm")
+
+
+def mono(path):
+    with wave.open(path) as w:
+        sr = w.getframerate()
+        x = np.frombuffer(w.readframes(w.getnframes()), "<i2").astype(np.float32) / 32768.0
+        if w.getnchannels() == 2:
+            x = x.reshape(-1, 2).mean(axis=1)
+    return np.interp(np.arange(int(len(x) * SR / sr)) * sr / SR, np.arange(len(x)), x)
 
 
 # ------------------------------------------------------------------ edit
-def build(rescue, pv49, pv49_sound, out):
+def build(rescue, stages, meadow, out):
     os.makedirs(out, exist_ok=True)
     cache = os.path.join(out, "voice")
     os.makedirs(cache, exist_ok=True)
-    vo = [voice(t, s, cache) for t, _, s in LINES]
+    vo = [voice(t, cache) for t, _ in LINES]
+    vlen = [len(v[0]) / SR for v in vo]
 
-    # Shots: (movie, source start, duration, crop: number or function of source time, sound)
     shots = []
     t = 0.0
 
-    def shot(movie, s0, dur, crop, name):
+    def shot(movie, s0, dur, name):
         nonlocal t
-        shots.append(dict(movie=movie, s0=s0, dur=dur, crop=crop, out0=t, name=name))
-        t += dur
+        shots.append(dict(movie=movie, s0=s0, dur=round(dur, 3), out0=t, name=name))
+        t += round(dur, 3)
         return shots[-1]
 
-    lines_at = {}
-    hook = shot(pv49, 5.2, 2.6, 120, "hook: YOU draws steps under the runner")
-    lines_at[0] = hook["out0"] + 0.2
-    pair = shot(pv49, 2.6, 2.3, 150, "the leap, the call")
-    lines_at[1] = pair["out0"] + 0.1
-    resc = shot(rescue, 0.0, 7.4, rescue_crop, "rescue: run, fall short, rewind, call, finger, catch")
-    r0 = resc["out0"]
-    lines_at[2] = r0 + 0.1
-    lines_at[3] = r0 + 1.75
-    lines_at[4] = r0 + 3.62
-    lines_at[5] = r0 + 4.62
-    lines_at[6] = r0 + 5.55
-    # The montage: one stage per word.
+    at = {}
+    # The meadow: the runner runs; the guardian draws steps.
+    s = shot(meadow, MEADOW_RUN, vlen[0] + 0.45, "meadow: the run")
+    at[0] = s["out0"] + 0.2
+    s = shot(meadow, MEADOW_DRAW, 3.6, "meadow: YOU draws steps")
+    at[1] = s["out0"] + 0.1
+    # The rescue (source times in the rescue cut).
+    s = shot(rescue, 0.5, 7.7, "rescue: run, leap short, fall, rewind, call, finger, catch, far bank")
+    r0 = s["out0"] - 0.5   # + source time
+    at[2] = r0 + 1.0     # take-off
+    at[3] = r0 + 2.25    # falling short
+    at[4] = r0 + 3.6     # the call rings
+    at[5] = r0 + 4.65    # the finger dives, the stroke
+    at[6] = r0 + 5.68    # after the contact (5.28)
+    at[7] = r0 + 6.5     # the jump to the far bank
+    # The stages: one word, one cut.
     m0 = t + 0.05
-    lines_at[7] = m0
-    ph = vo[7][1]
-    cuts = [m0 + p - 0.04 for p in ph] + [m0 + len(vo[7][0]) / SR + 0.25]
-    cuts[0] = t
-    for (s0, crop, name), a, b in zip([(10.3, 0, "storm"), (17.0, 100, "volcano"),
-                                       (20.5, 0, "train"), (31.0, 100, "giant")], cuts, cuts[1:]):
-        shot(pv49, s0, round(b - a, 3), crop, name)
-    bone = shot(pv49, 35.2, 2.4, 150, "bone canyon")
-    lines_at[8] = bone["out0"] + 0.1
-    meadow = shot(pv49, 7.6, 2.8, 100, "meadow")
-    lines_at[9] = meadow["out0"] + 0.1
-    end = shot(rescue, 7.4, 4.6, rescue_crop, "end: far bank, title")
-    lines_at[10] = end["out0"] + 0.25
-    logo_at = lines_at[10] + len(vo[10][0]) / SR + 0.15
-    lines_at[11] = logo_at + 0.05
+    at[8] = m0
+    cuts = [t] + [m0 + p - 0.04 for p in vo[8][1][1:]] + [m0 + vlen[8] + 0.2]
+    for key, a, b in zip(["storm", "volcano", "rail", "giant"], cuts, cuts[1:]):
+        shot(stages, STAGES[key], b - a, key)
+    s = shot(stages, STAGES["bone"], vlen[9] + 0.6, "bone canyon")
+    at[9] = s["out0"] + 0.1
+    s = shot(stages, STAGES["friends"], vlen[10] + 0.6, "train")
+    at[10] = s["out0"] + 0.15
+    # The end: the far bank, softened; the logo comes in on the name.
+    end = shot(rescue, 8.2, 4.0, "end: far bank, title")
+    at[11] = end["out0"] + 0.2
+    logo_at = at[11] + vlen[11] + 0.15
+    at[12] = logo_at + 0.1
     total = t
+    hold_from = 8.33  # source time in the rescue cut where its end title would begin
 
     # ---------------------------------------------------------- sound
     n_total = int(round(total * SR))
     game = np.zeros(n_total)
-    rescue_aud = R.movie_audio(rescue)
-    with wave.open(pv49_sound) as w:
-        sr = w.getframerate()
-        x = np.frombuffer(w.readframes(w.getnframes()), "<i2").astype(np.float32) / 32768.0
-        if w.getnchannels() == 2:
-            x = x.reshape(-1, 2).mean(axis=1)
-    pv_aud = np.interp(np.arange(int(len(x) * SR / sr)) * sr / SR, np.arange(len(x)), x)
+    sources = {m: R.movie_audio(m) for m in (rescue, stages, meadow)}
     for s in shots:
-        src = rescue_aud if s["movie"] == rescue else pv_aud
+        src = sources[s["movie"]]
         a = int(s["s0"] * SR)
-        n = int(round(s["dur"] * SR))
-        seg = src[a:a + n]
-        if s is end:   # the bank, then the title: the game sound fades out
+        seg = src[a:a + int(round(s["dur"] * SR))]
+        if s is end:
             seg = seg * np.clip(np.linspace(1.5, -0.5, len(seg)), 0, 1)
         fade = np.minimum(1, np.minimum(np.arange(len(seg)), np.arange(len(seg))[::-1]) / (0.01 * SR))
-        E.place(game, s["out0"] * SR, seg * fade, 0.6)
+        E.place(game, s["out0"] * SR, seg * fade, 0.55)
     narration = np.zeros(n_total)
     talking = np.zeros(n_total)
-    for i, at in lines_at.items():
-        E.place(narration, at * SR, vo[i][0], 1.0)
-        E.place(talking, at * SR, np.ones(len(vo[i][0])), 1.0)
-    # Music bed: the stage's drive theme, looped, ducked under the voice.
-    with wave.open(os.path.join(ROOT, "assets", "audio", "music_drive.wav")) as w:
-        sr = w.getframerate()
-        x = np.frombuffer(w.readframes(w.getnframes()), "<i2").astype(np.float32) / 32768.0
-        if w.getnchannels() == 2:
-            x = x.reshape(-1, 2).mean(axis=1)
-    music = np.interp(np.arange(int(len(x) * SR / sr)) * sr / SR, np.arange(len(x)), x)
+    for i, a in at.items():
+        E.place(narration, a * SR, vo[i][0], 1.0)
+        E.place(talking, a * SR, np.ones(len(vo[i][0])), 1.0)
+    music = mono(os.path.join(ROOT, "assets", "audio", "music_drive.wav"))
     music = np.tile(music, int(np.ceil(n_total / len(music))) + 1)[:n_total]
     k = int(0.15 * SR)
-    duck = np.convolve(np.clip(talking, 0, 1), np.ones(k) / k, mode="same")
-    mgain = 0.30 - 0.17 * np.clip(duck, 0, 1)
+    duck = np.clip(np.convolve(np.clip(talking, 0, 1), np.ones(k) / k, mode="same"), 0, 1)
+    mgain = 0.26 - 0.15 * duck
     tail = int(1.2 * SR)
     mgain[-tail:] *= np.linspace(1, 0, tail)
-    mix = music * mgain + game * (1 - 0.35 * np.clip(duck, 0, 1)) + narration * 1.05
-    E.place(mix, logo_at * SR, E.arrive_chime(), 0.9)
-    E.place(mix, logo_at * SR, E.impact(), 0.35)
+    mix = music * mgain + game * (1 - 0.35 * duck) + narration * 1.05
+    E.place(mix, logo_at * SR, E.arrive_chime(), 0.7)
     wav = os.path.join(out, "_short.wav")
     R.write_wav(wav, E.limit(mix, 0.85))
 
     # ---------------------------------------------------------- picture
     base = page()
-    subs = []   # (from, to, text or callable)
-    order = sorted(lines_at)
+    order = sorted(at)
+    subs = []
     for j, i in enumerate(order):
-        a = lines_at[i] - 0.05
-        b = lines_at[order[j + 1]] - 0.05 if j + 1 < len(order) else total
-        b = min(b, lines_at[i] + len(vo[i][0]) / SR + 0.6) if i != 11 else total
+        a = at[i] - 0.05
+        b = at[order[j + 1]] - 0.05 if j + 1 < len(order) else total
+        if i != order[-1]:
+            b = min(b, at[i] + vlen[i] + 0.6)
         subs.append((a, b, i))
     logo = Image.open(os.path.join(ROOT, "assets", "promo", "title_melos_game.png")).convert("RGBA")
-    logo_w = 860
-    logo = logo.resize((logo_w, int(logo.height * logo_w / logo.width)), Image.LANCZOS)
+    logo = logo.resize((820, int(logo.height * 820 / logo.width)), Image.LANCZOS)
     enc = subprocess.Popen(
         ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (W, H),
          "-r", str(FPS), "-i", "-", "-i", wav, "-c:v", "libx264", "-preset", "slow", "-crf", "18",
-         "-pix_fmt", "yuv420p", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
-         os.path.join(out, "melos_short.mp4")], stdin=subprocess.PIPE)
+         "-pix_fmt", "yuv420p", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000", "-c:a", "aac",
+         "-b:a", "192k", "-shortest", "-movflags", "+faststart", os.path.join(out, "melos_short.mp4")],
+        stdin=subprocess.PIPE)
     fi = 0
-    edl = []
+    hold = None
     for s in shots:
-        edl.append({k: (round(v, 3) if isinstance(v, float) else v) for k, v in s.items()
-                    if k in ("name", "s0", "dur", "out0")})
-        for j, img in enumerate(frames(s["movie"], s["s0"], s["dur"])):
+        for j, win in enumerate(frames(s["movie"], s["s0"], s["dur"])):
             now = fi / FPS
-            st = s["s0"] + j / FPS
-            if s is end and st > 8.3:     # past the bank: hold the last game frame
-                img = hold
-            elif s is end:
-                hold = img
-            crop = s["crop"](min(st, 8.3)) if callable(s["crop"]) else s["crop"]
-            win = window(img, crop)
-            if s is end and now > lines_at[10]:
-                k = min(1.0, (now - lines_at[10]) / 0.8)
-                win = win.filter(ImageFilter.GaussianBlur(10 * k))
-                win = Image.blend(win, Image.new("RGB", win.size, (20, 30, 50)), 0.25 * k)
-            if now >= logo_at:
-                u = now - logo_at
-                sc = 1.0 + 0.12 * np.exp(-u * 9) * np.cos(u * 22) if u > 0.12 else 0.4 + 0.72 * (u / 0.12)
-                lg = logo.resize((max(1, int(logo.width * sc)), max(1, int(logo.height * sc))), Image.LANCZOS)
-                win.paste(lg, (W // 2 - lg.width // 2, WIN_H // 2 - lg.height // 2), lg)
+            if s is end:
+                if s["s0"] + j / FPS < hold_from:
+                    hold = win
+                win = hold
+                if now > at[11]:
+                    k = min(1.0, (now - at[11]) / 0.8)
+                    win = win.filter(ImageFilter.GaussianBlur(10 * k))
+                    win = Image.blend(win, Image.new("RGB", win.size, (20, 30, 50)), 0.25 * k)
+                if now >= logo_at:
+                    a = min(1.0, (now - logo_at) / 0.25)
+                    lg = logo.copy()
+                    lg.putalpha(lg.getchannel("A").point(lambda v: int(v * a)))
+                    win = win.copy()
+                    win.paste(lg, (W // 2 - lg.width // 2, WIN_H // 2 - lg.height // 2), lg)
             frame = base.copy()
             frame.paste(win, (0, WIN_Y))
             d = ImageDraw.Draw(frame)
             for a, b, i in subs:
                 if a <= now < b:
-                    if i == 7:   # the montage: the words come in with their cuts
-                        shown = [wd for wd, c in zip(MONTAGE_WORDS, cuts) if now >= c - 0.02]
-                        subtitle(d, "、".join(shown))
-                    elif i == 11:
-                        subtitle(d, LINES[i][1], 1.25)
+                    if i == 8:   # the stages: the words come in with their cuts
+                        subtitle(d, "、".join(wd for wd, c in zip(MONTAGE_WORDS, cuts) if now >= c - 0.02))
                     else:
                         subtitle(d, LINES[i][1])
             enc.stdin.write(frame.tobytes())
@@ -338,9 +311,10 @@ def build(rescue, pv49, pv49_sound, out):
     enc.wait()
     os.remove(wav)
     with open(os.path.join(out, "short_timeline.json"), "w") as f:
-        json.dump({"length_s": round(total, 2), "shots": edl,
-                   "narration": [{"at": round(lines_at[i], 2), "len": round(len(vo[i][0]) / SR, 2),
-                                  "text": LINES[i][0]} for i in order],
+        json.dump({"length_s": round(total, 2),
+                   "shots": [{"name": s["name"], "source": os.path.basename(s["movie"]), "source_s": s["s0"],
+                              "out_s": round(s["out0"], 2), "dur_s": s["dur"]} for s in shots],
+                   "narration": [{"at": round(at[i], 2), "len": round(vlen[i], 2), "text": LINES[i][0]} for i in order],
                    "logo_at": round(logo_at, 2)}, f, ensure_ascii=False, indent=1)
     print("length %.2f s, %d frames" % (total, fi))
 

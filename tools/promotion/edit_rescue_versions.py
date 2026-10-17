@@ -42,6 +42,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import render_finale_pv as R  # noqa: E402
 
 FPS = 60
+# Frame size of the recordings (PV_SIZE=WxH for takes recorded at another window size).
+FW, FH = (int(v) for v in os.environ.get("PV_SIZE", "1280x720").split("x"))
 SR = R.SR
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PRE_HOP = 24        # frames before the hop over the enemy where both clips start
@@ -67,13 +69,13 @@ def load(d):
 def frame_rgb(movie, n):
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", movie, "-vf", "select=eq(n\\,%d)" % n, "-vsync", "0",
                           "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
-    return np.frombuffer(raw, np.uint8).reshape(720, 1280, 3)
+    return np.frombuffer(raw, np.uint8).reshape(FH, FW, 3)
 
 
 def read_frames(movie, f0, n):
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", movie, "-vf", "trim=start_frame=%d:end_frame=%d" % (f0, f0 + n),
                           "-vsync", "0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
-    return np.frombuffer(raw, np.uint8).reshape(-1, 720, 1280, 3)
+    return np.frombuffer(raw, np.uint8).reshape(-1, FH, FW, 3)
 
 
 # ------------------------------------------------------------------ sounds
@@ -239,15 +241,15 @@ REWIND_ICON = None
 
 
 def rewind_icon(path):
-    im = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    im = Image.new("RGBA", (FW, FH), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     # Two left-pointing triangles, top left: the universal rewind mark.
     for k in range(2):
         x = 70 + k * 46
         d.polygon([(x + 44, 48), (x + 44, 112), (x, 80)], fill=(255, 255, 255, 230))
     # Faint horizontal tape lines.
-    for y in range(0, 720, 6):
-        d.line([(0, y), (1280, y)], fill=(255, 255, 255, 14))
+    for y in range(0, FH, 6):
+        d.line([(0, y), (FW, y)], fill=(255, 255, 255, 14))
     im.save(path)
 
 
@@ -308,7 +310,7 @@ def rewind_look(img, k, ghosts):
 
 
 def icon_layer():
-    im = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    im = Image.new("RGBA", (FW, FH), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     for k in range(2):
         x = 64 + k * 50
@@ -318,7 +320,7 @@ def icon_layer():
 
 
 def write_frames(out, wav, frames):
-    p = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "1280x720", "-r", str(FPS),
+    p = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (FW, FH), "-r", str(FPS),
                           "-i", "-", "-i", wav, "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "medium", "-crf", "17",
                           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out],
                          stdin=subprocess.PIPE)
@@ -389,14 +391,14 @@ def title_frames(last, n):
         layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
         la = np.asarray(lg).astype(np.float32)
         la[..., 3] *= a
-        layer.paste(Image.fromarray(la.astype(np.uint8)), ((1280 - w) // 2, (720 - h) // 2 - 10))
+        layer.paste(Image.fromarray(la.astype(np.uint8)), ((FW - w) // 2, (FH - h) // 2 - 10))
         out = np.asarray(Image.alpha_composite(frame, layer).convert("RGB")).astype(np.float32)
         fade = min(1.0, max(0.0, (n - 1 - i) / 14.0))
         yield np.clip(out * fade, 0, 255).astype(np.uint8)
 
 
-_yy, _xx = np.mgrid[0:720, 0:1280]
-VIGNETTE = np.clip(np.hypot((_xx - 640) / 640, (_yy - 360) / 360) - 0.55, 0, 1) / 0.85
+_yy, _xx = np.mgrid[0:FH, 0:FW]
+VIGNETTE = np.clip(np.hypot((_xx - FW / 2) / (FW / 2), (_yy - FH / 2) / (FH / 2)) - 0.55, 0, 1) / 0.85
 
 
 def contact_sheet(mp4, out, notes):
