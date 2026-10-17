@@ -541,7 +541,7 @@ def main():
     fall_n = fail_end - nb
     rewind_n = max(MIN_REWIND, int(round(fall_n / REWIND_SPEED)))
     music = music_bed()
-    mgain = 0.16
+    mgain = float(os.environ.get("RESCUE_MUSIC_GAIN", "0.16"))
 
     def game_audio(src, f0, n):
         a0s = int(round(f0 / FPS * SR))
