@@ -49,6 +49,7 @@ TAIL = 4            # frames after "clip_end"
 REWIND_SPEED = 1.5  # how much faster than the fall the rewind plays (on average; it is eased)
 MIN_REWIND = 28     # frames
 HOLD = 12           # frames the failure is held before the rewind
+TITLE = 132         # frames of the end title (MELOS GAME over the last frame)
 FLASH = 7           # frames of the flash as time starts again
 
 
@@ -327,7 +328,7 @@ def write_frames(out, wav, frames):
     p.wait()
 
 
-def rewind_frames(nh_movie, hp_movie, a0, nb, fail_end, hb, h_end, hold_n, rewind_n, flash_n):
+def rewind_frames(nh_movie, hp_movie, a0, nb, fail_end, hb, h_end, hold_n, rewind_n, flash_n, title_n=0):
     """The picture of Version A, frame by frame: the fall (forward), a held
     beat on the failure, the fall played backwards (eased: it lurches off,
     races, settles onto the branch frame), then the help take with a brief
@@ -357,11 +358,41 @@ def rewind_frames(nh_movie, hp_movie, a0, nb, fail_end, hb, h_end, hold_n, rewin
         ia = icon_a * min(1.0, 5 * (1 - u) + 0.0) * min(1.0, 6 * u)
         out = out * (1 - ia) + icon_rgb * ia
         yield np.clip(out, 0, 255).astype(np.uint8)
+    last = None
     for i, fr in enumerate(read_frames(hp_movie, hb + 1, h_end - hb - 1)):
         if i < flash_n:
             k = 0.45 * (1 - i / flash_n) ** 2
             fr = np.clip(fr.astype(np.float32) * (1 - k) + 255 * k, 0, 255).astype(np.uint8)
+        last = fr
         yield fr
+    if title_n and last is not None:
+        yield from title_frames(last, title_n)
+
+
+def title_frames(last, n):
+    """The end title: the last picture softens and dims, the game's logo
+    eases in over it, holds, and everything fades out."""
+    from PIL import ImageFilter
+    logo = Image.open(os.path.join(ROOT, "assets", "promo", "title_melos_game.png")).convert("RGBA")
+    base = Image.fromarray(last)
+    blurred = np.asarray(base.filter(ImageFilter.GaussianBlur(6))).astype(np.float32)
+    sharp = last.astype(np.float32)
+    for i in range(n):
+        k = ease_io(min(1.0, i / 24.0))
+        bg = sharp * (1 - k) + blurred * k
+        bg = bg * (1 - 0.42 * k) + np.array([10, 14, 34], np.float32) * (0.42 * k)
+        a = ease_io(min(1.0, max(0.0, (i - 6) / 22.0)))
+        sc = 0.56 + 0.06 * a + 0.02 * (i / n)
+        w, h = int(logo.width * sc), int(logo.height * sc)
+        lg = logo.resize((w, h), Image.LANCZOS)
+        frame = Image.fromarray(np.clip(bg, 0, 255).astype(np.uint8)).convert("RGBA")
+        layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+        la = np.asarray(lg).astype(np.float32)
+        la[..., 3] *= a
+        layer.paste(Image.fromarray(la.astype(np.uint8)), ((1280 - w) // 2, (720 - h) // 2 - 10))
+        out = np.asarray(Image.alpha_composite(frame, layer).convert("RGB")).astype(np.float32)
+        fade = min(1.0, max(0.0, (n - 1 - i) / 14.0))
+        yield np.clip(out * fade, 0, 255).astype(np.uint8)
 
 
 _yy, _xx = np.mgrid[0:720, 0:1280]
@@ -575,10 +606,18 @@ def main():
     place(aud, post0 + (H["contact_1"] - hb - 1) / FPS * SR, impact(), 0.9)
     place(aud, post0 + (H["platform_2"] - hb - 1) / FPS * SR, build_lift(), 0.5)
     place(aud, post0 + (H["bank"] - hb - 1) / FPS * SR, arrive_chime(), 0.8)
+    # The end title: the music bed runs on under it and fades out; a chime
+    # as the logo comes in.
+    t_n = int(round(TITLE / FPS * SR))
+    tail = music[m_branch + len(post):m_branch + len(post) + t_n] * mgain
+    tail = np.pad(tail, (0, t_n - len(tail))) * np.clip(np.linspace(1.6, 0.0, t_n), 0, 1)
+    title0 = len(aud)
+    aud = np.concatenate([aud, tail])
+    place(aud, title0 + int(0.1 * SR), arrive_chime(), 0.7)
     wav = os.path.join(out, "_a.wav")
     R.write_wav(wav, limit(aud))
     write_frames(os.path.join(out, "rescue_rewind.mp4"), wav,
-                 rewind_frames(nh["movie"], hp["movie"], a0, nb, fail_end, hb, h_end, HOLD, rewind_n, FLASH))
+                 rewind_frames(nh["movie"], hp["movie"], a0, nb, fail_end, hb, h_end, HOLD, rewind_n, FLASH, TITLE))
     os.remove(wav)
     ta = {("fail:" + k): secs(v - a0) for k, v in E.items() if a0 <= v <= fail_end}
     ta["fail_hold"] = secs(first)

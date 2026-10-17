@@ -858,11 +858,10 @@ func take_opening() -> void:
 		_write_trace("nohelp")
 		return
 
-	# CAMERA B (a cut on the rewind's last frame, then fixed until after the
-	# re-jump): closer, placed so the runner stays at the same spot on screen
-	# across the cut; it holds the top of the arc, the call card's corner, the
-	# finger's path, the catch platform and the far bank's edge.
-	camera({"mode": "fixed", "at": RESCUE_SHOT, "zoom": RESCUE_ZOOM, "snap": true, "fx": 0.0})
+	# SHOT B1 (a cut on the rewind's end; fixed): close on the runner at the
+	# top of the arc -- the slow fall, the call, the accept; the finger then
+	# dives out of the bottom of the frame toward the catch.
+	camera({"mode": "fixed", "at": CALL_SHOT, "zoom": CALL_ZOOM, "snap": true, "fx": 0.0})
 	# SLOW MOTION from the moment the rewind ends: the whole game runs on the
 	# engine's time scale (0.35x, 0.28x for the call, 0.30x while the finger
 	# works, 0.45x just before the landing); the call card and the YOU cursor
@@ -923,6 +922,10 @@ func take_opening() -> void:
 	cut(6, "YOU strokes a short platform under the slowly falling runner; its blocks build; the runner drops onto it",
 		func() -> bool: return _flags.get("on_holo", false), func() -> Vector2: return (p1[0] + p1[1]) * 0.5,
 		{"subject_name": "platform", "subject_r": 50.0, "wait": false, "frames": 70})
+	# SHOT B2 (a cut as the finger starts its stroke; fixed until the jump to
+	# the bank): the runner falls in from the top, the platform is drawn and
+	# built under them, they land, recover and hop onto the next step.
+	camera({"mode": "fixed", "at": CATCH_SHOT, "zoom": CATCH_ZOOM, "snap": true, "fx": 0.0})
 	sfx("build_glow", 2.0, 1.0)
 	_trace_mark("stroke_start", "runner %s vy %.0f; stroke y %.0f x %.0f..%.0f" % [r.global_position.round(), r.velocity.y, p1[0].y, p1[0].x, p1[1].x])
 	var built := await trace(p1, int(envf("PV_STROKE_FRAMES", 10.0)))
@@ -965,9 +968,6 @@ func take_opening() -> void:
 	await until(func() -> bool: return r.global_position.x > p1[1].x - 40.0, 40)
 	_jump = true
 	_trace_mark("jump_to_step", "from platform 1 at %s" % r.global_position.round())
-	# CAMERA C: only once the runner jumps again, a slow sideways follow
-	# (height locked, same zoom) toward the far bank.
-	camera({"mode": "follow", "zoom": RESCUE_ZOOM, "lead": 0.0, "offset": Vector2(80, 0), "lock_y": RESCUE_SHOT.y, "smooth": 1.0, "fx": 0.0})
 	await frames(12)
 	_jump = false
 	await until(func() -> bool: return r.is_on_floor() and r.global_position.x > p2[0].x, 50)
@@ -976,6 +976,9 @@ func take_opening() -> void:
 	await frames(2)
 	_jump = true
 	_trace_mark("jump_to_bank", "from platform 2 at %s" % r.global_position.round())
+	# SHOT C (a cut on the jump; fixed, then a slow sideways follow once on
+	# the bank): the arc up onto the far bank and the run on.
+	camera({"mode": "fixed", "at": ESCAPE_SHOT, "zoom": ESCAPE_ZOOM, "snap": true, "fx": 0.0})
 	await frames(14)
 	_jump = false
 	await until(func() -> bool: return r.velocity.y > -80.0, 30)
@@ -984,6 +987,7 @@ func take_opening() -> void:
 	_jump = false
 	await until(func() -> bool: return r.is_on_floor() and r.global_position.x > bank.x, 60)
 	_trace_mark("bank", "on the far bank at %s" % r.global_position.round())
+	camera({"mode": "follow", "zoom": ESCAPE_ZOOM, "lead": 0.0, "offset": Vector2(120, 0), "lock_y": ESCAPE_SHOT.y, "smooth": 1.2, "fx": 0.0})
 	_land_fx = [feet(), 0]
 	sfx("checkpoint", 0.0, 0.8)
 	await until(func() -> bool: return r.global_position.x > bank.x + 640.0, 120)
@@ -1003,10 +1007,16 @@ const GORGE_SHOT := Vector2(1960, 1100)
 const GORGE_ZOOM := 1.1
 ## Where the failed fall is cut (feet), still inside that frame.
 const FAIL_FEET_Y := 1400.0
-## Camera B, the rescue (fixed from the rewind's end until the re-jump):
-## the runner at the cut is where camera A had them on screen.
-const RESCUE_SHOT := Vector2(1946, 1068)
-const RESCUE_ZOOM := 1.22
+## The rescue's fixed shots, cut on the action. B1: the top of the arc and
+## the call (the runner keeps its horizontal place on screen across the cut
+## from the wide shot). B2: the catch -- the runner falls in from the top,
+## the platform and the finger's hand below. C: the jump to the far bank.
+const CALL_SHOT := Vector2(1886, 920)
+const CALL_ZOOM := 2.2
+const CATCH_SHOT := Vector2(2050, 1183)
+const CATCH_ZOOM := 1.9
+const ESCAPE_SHOT := Vector2(2113, 1100)
+const ESCAPE_ZOOM := 1.3
 
 ## A short burst at the runner's feet when they land on a drawn platform
 ## (director overlay, world space): [position, age in frames].
