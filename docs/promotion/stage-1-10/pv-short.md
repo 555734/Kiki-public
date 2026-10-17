@@ -1,26 +1,25 @@
 # Vertical short PV with narration (`melos_short_pv.mp4`)
 
-20.3 s, 1080×1920, 30 fps, H.264 + AAC (about −15 LUFS). Compact two-line
-title at the top (「落ちる相棒を足場で」 white on a red band / 「助けるゲーム」),
-the gameplay large in the middle (1080×1350, 70 % of the height), one short
-reaction subtitle under it, the voice credit at the bottom.
+25.5 s, 1080×1920, 30 fps, H.264 + AAC. Compact two-line title at the top
+(「落ちる相棒を足場で」 white on a red band / 「助けるゲーム」), the gameplay
+large in the middle (1080×1350, 70 % of the height), one plain subtitle
+under it per narration line, the voice credit at the bottom.
 
-Narration: VOICEVOX, 玄野武宏 (speaker 11, speed 1.15), from a local engine
+Narration: VOICEVOX, 玄野武宏 (speaker 11, speed 1.1), from a local engine
 (`docker run -p 50021:50021 voicevox/voicevox_engine:cpu-amd64-latest`);
-credit "VOICEVOX:玄野武宏" on every frame.
+credit "VOICEVOX:玄野武宏" on every frame. The script only describes what
+is on screen. (A cut that opened on the catch with reaction subtitles was
+tried and dropped: it lost the call and read as hype.)
 
-Each part has one clear event; the rule is shown in the first second.
-
-| Out (s) | Picture | Subtitle | Narration |
-| --- | --- | --- | --- |
-| 0.0–2.0 | the runner falls into the close shot, the finger strokes a platform, contact at 0.42 (slow motion), the hop on | 落ちる！ → 足場で助ける | 落ちる相棒を、足場で助けるゲーム。 |
-| 2.0–5.6 | meadow: YOU draws steps, the runner climbs them | ふたりで協力 | ひとりが走って、もうひとりが、足場を描く。 |
-| 5.6–7.7 | nobody helps: the leap falls short, into the gorge | 届かない… | 間に合わないと、落ちてしまう。 |
-| 7.7–9.3 | storm: lightning strikes the tower | 雷！ | 雷。 |
-| 9.3–11.2 | volcano: the lava boulder rolls after the runner | 岩が来る！ | 溶岩の岩。 |
-| 11.2–13.5 | the giant's arm sweeps in | 巨人！？ | 巨人。 |
-| 13.5–16.9 | bone canyon: the jaws close behind the runner | 間に合え！ | — |
-| 16.9–20.3 | softens; MELOS GAME (18.4) | メロスゲーム | このゲームの名前は、/ メロスゲーム。 |
+| Out (s) | Picture | Narration |
+| --- | --- | --- |
+| 0.0–2.1 | meadow: the run | ふたりで遊ぶアクションゲームです。 |
+| 2.1–5.7 | meadow: YOU draws steps, the runner climbs them | ひとりが走って、もうひとりが、画面に足場を描きます。 |
+| 5.7–13.4 | 1-10 rescue: leap short, fall, rewind, the call, the finger's platform, catch, far bank | ジャンプが届かないと、/ 谷に落ちてしまいますが、/ 通話で呼ばれたら、/ 足場を描いて、/ 受け止めます。/ そのまま、向こう岸へ。 |
+| 13.4–15.9 | storm, volcano, giant (a cut on each word) | 嵐、火山、巨人など、 |
+| 15.9–17.9 | bone canyon | ステージはいろいろあります。 |
+| 17.9–21.7 | meadow | 離れた友達とは、6文字の合言葉でつながります。 |
+| 21.7–25.5 | far bank, softens; MELOS GAME | このゲームの名前は、/ メロスゲーム。 |
 
 ## Recorded for the window, not cropped
 
