@@ -1,25 +1,25 @@
 # Vertical short PV with narration (`melos_short_pv.mp4`)
 
-25.5 s, 1080×1920, 30 fps, H.264 + AAC. Compact two-line title at the top
-(「落ちる相棒を足場で」 white on a red band / 「助けるゲーム」), the gameplay
-large in the middle (1080×1350, 70 % of the height), one plain subtitle
-under it per narration line, the voice credit at the bottom.
+24 s, 1080×1920, 30 fps, H.264 + AAC. Built on the "このゲームの名前は"
+short format: a one-line premise as the title (「走って跳ぶだけの相棒を」
+white on a red band / 「死なせないゲーム」), the gameplay large in the middle
+(1080×1350, 70 % of the height), a dry, matter-of-fact narration whose
+subtitle changes phrase by phrase (≤ 10 characters on screen at a time),
+the voice credit at the bottom.
 
-Narration: VOICEVOX, 玄野武宏 (speaker 11, speed 1.1), from a local engine
-(`docker run -p 50021:50021 voicevox/voicevox_engine:cpu-amd64-latest`);
-credit "VOICEVOX:玄野武宏" on every frame. The script only describes what
-is on screen. (A cut that opened on the catch with reaction subtitles was
-tried and dropped: it lost the call and read as hype.)
+The script follows the reference's shape: the goal → 「しかし」 the problem →
+「そこで…である」 the answer → it escalates → 「とにかく全力で」 →
+「ちなみにこのゲームの名前は」. Each phrase is synthesised on its own
+(VOICEVOX 玄野武宏, speaker 11, speed 1.15) and placed on the picture it
+describes.
 
 | Out (s) | Picture | Narration |
 | --- | --- | --- |
-| 0.0–2.1 | meadow: the run | ふたりで遊ぶアクションゲームです。 |
-| 2.1–5.7 | meadow: YOU draws steps, the runner climbs them | ひとりが走って、もうひとりが、画面に足場を描きます。 |
-| 5.7–13.4 | 1-10 rescue: leap short, fall, rewind, the call, the finger's platform, catch, far bank | ジャンプが届かないと、/ 谷に落ちてしまいますが、/ 通話で呼ばれたら、/ 足場を描いて、/ 受け止めます。/ そのまま、向こう岸へ。 |
-| 13.4–15.9 | storm, volcano, giant (a cut on each word) | 嵐、火山、巨人など、 |
-| 15.9–17.9 | bone canyon | ステージはいろいろあります。 |
-| 17.9–21.7 | meadow | 離れた友達とは、6文字の合言葉でつながります。 |
-| 21.7–25.5 | far bank, softens; MELOS GAME | このゲームの名前は、/ メロスゲーム。 |
+| 0.0–4.7 | meadow: the run | このゲームの目的は / 走って跳ぶことしかできない相棒を / ゴールまで送り届けること |
+| 4.7–12.9 | 1-10 rescue | しかし相棒は / 無茶なジャンプをするので / 普通に谷へ落ちていく (the fall) / そこで通話である (the call) / 急いで足場を描く (stroke, contact) / 相棒はなんとか向こう岸へ |
+| 12.9–16.2 | lightning, lava boulder, giant (a cut on each phrase) | その後も雷が落ち / 岩が転がり / 巨人が暴れるが |
+| 16.2–19.7 | meadow: YOU draws steps | とにかく全力で足場を描き / 相棒をゴールまで運ぶのだ |
+| 19.7–24.1 | far bank, softens; MELOS GAME | ちなみに / このゲームの名前は / メロスゲーム |
 
 ## Recorded for the window, not cropped
 

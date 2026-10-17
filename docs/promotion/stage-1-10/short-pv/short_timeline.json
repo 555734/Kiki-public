@@ -1,136 +1,142 @@
 {
- "length_s": 25.52,
+ "length_s": 24.07,
  "shots": [
   {
    "name": "meadow: the run",
    "source": "takes.avi",
    "source_s": 0.9,
    "out_s": 0.0,
-   "dur_s": 2.103
+   "dur_s": 4.687
+  },
+  {
+   "name": "rescue: run, leap short, fall, rewind, call, finger, catch, far bank",
+   "source": "rescue_rewind.mp4",
+   "source_s": 0.0,
+   "out_s": 4.687,
+   "dur_s": 8.2
+  },
+  {
+   "name": "lightning",
+   "source": "takes.avi",
+   "source_s": 4.9,
+   "out_s": 12.887,
+   "dur_s": 1.304
+  },
+  {
+   "name": "lava boulder",
+   "source": "takes.avi",
+   "source_s": 12.0,
+   "out_s": 14.191,
+   "dur_s": 0.796
+  },
+  {
+   "name": "the giant",
+   "source": "takes.avi",
+   "source_s": 23.4,
+   "out_s": 14.987,
+   "dur_s": 1.221
   },
   {
    "name": "meadow: YOU draws steps",
    "source": "takes.avi",
    "source_s": 8.9,
-   "out_s": 2.1,
-   "dur_s": 3.6
+   "out_s": 16.208,
+   "dur_s": 3.45
   },
   {
-   "name": "rescue: run, leap short, fall, rewind, call, finger, catch, far bank",
+   "name": "end: far bank, the name",
    "source": "rescue_rewind.mp4",
-   "source_s": 0.5,
-   "out_s": 5.7,
-   "dur_s": 7.7
-  },
-  {
-   "name": "storm",
-   "source": "takes.avi",
-   "source_s": 4.9,
-   "out_s": 13.4,
-   "dur_s": 0.854
-  },
-  {
-   "name": "volcano",
-   "source": "takes.avi",
-   "source_s": 12.0,
-   "out_s": 14.26,
-   "dur_s": 0.727
-  },
-  {
-   "name": "giant",
-   "source": "takes.avi",
-   "source_s": 23.4,
-   "out_s": 14.98,
-   "dur_s": 0.877
-  },
-  {
-   "name": "bone canyon",
-   "source": "takes.avi",
-   "source_s": 30.3,
-   "out_s": 15.86,
-   "dur_s": 1.976
-  },
-  {
-   "name": "meadow",
-   "source": "takes.avi",
-   "source_s": 3.0,
-   "out_s": 17.84,
-   "dur_s": 3.683
-  },
-  {
-   "name": "end: far bank, title",
-   "source": "rescue_rewind.mp4",
-   "source_s": 8.2,
-   "out_s": 21.52,
-   "dur_s": 4.0
+   "source_s": 7.8999999999999995,
+   "out_s": 19.658,
+   "dur_s": 4.411
   }
  ],
  "narration": [
   {
-   "at": 0.2,
-   "len": 1.65,
-   "text": "ふたりで遊ぶアクションゲームです。"
-  },
-  {
-   "at": 2.2,
-   "len": 3.47,
-   "text": "ひとりが走って、もうひとりが、画面に足場を描きます。"
-  },
-  {
-   "at": 6.2,
-   "len": 1.15,
-   "text": "ジャンプが届かないと、"
-  },
-  {
-   "at": 7.45,
-   "len": 1.31,
-   "text": "谷に落ちてしまいますが、"
-  },
-  {
-   "at": 8.8,
-   "len": 1.01,
-   "text": "通話で呼ばれたら、"
-  },
-  {
-   "at": 9.85,
-   "len": 0.97,
-   "text": "足場を描いて、"
-  },
-  {
-   "at": 10.88,
-   "len": 0.73,
-   "text": "受け止めます。"
-  },
-  {
-   "at": 11.7,
-   "len": 1.57,
-   "text": "そのまま、向こう岸へ。"
-  },
-  {
-   "at": 13.45,
-   "len": 2.21,
-   "text": "嵐、火山、巨人など、"
-  },
-  {
-   "at": 15.96,
-   "len": 1.38,
-   "text": "ステージはいろいろあります。"
-  },
-  {
-   "at": 17.99,
-   "len": 3.08,
-   "text": "離れた友達とは、6文字の合言葉でつながります。"
-  },
-  {
-   "at": 21.72,
+   "at": 0.15,
    "len": 1.13,
-   "text": "このゲームの名前は、"
+   "text": "このゲームの目的は"
   },
   {
-   "at": 23.1,
-   "len": 0.77,
-   "text": "メロスゲーム。"
+   "at": 1.341,
+   "len": 1.78,
+   "text": "走って跳ぶことしかできない相棒を"
+  },
+  {
+   "at": 3.182,
+   "len": 1.35,
+   "text": "ゴールまで送り届けること"
+  },
+  {
+   "at": 4.787,
+   "len": 0.83,
+   "text": "しかし相棒は"
+  },
+  {
+   "at": 5.679,
+   "len": 1.16,
+   "text": "無茶なジャンプをするので"
+  },
+  {
+   "at": 6.987,
+   "len": 1.22,
+   "text": "普通に谷へ落ちていく"
+  },
+  {
+   "at": 8.337,
+   "len": 0.99,
+   "text": "そこで通話である"
+  },
+  {
+   "at": 9.437,
+   "len": 1.15,
+   "text": "急いで足場を描く"
+  },
+  {
+   "at": 11.037,
+   "len": 1.49,
+   "text": "相棒はなんとか向こう岸へ"
+  },
+  {
+   "at": 12.987,
+   "len": 1.19,
+   "text": "その後も雷が落ち"
+  },
+  {
+   "at": 14.241,
+   "len": 0.74,
+   "text": "岩が転がり"
+  },
+  {
+   "at": 15.037,
+   "len": 0.97,
+   "text": "巨人が暴れるが"
+  },
+  {
+   "at": 16.258,
+   "len": 1.62,
+   "text": "とにかく全力で足場を描き"
+  },
+  {
+   "at": 17.939,
+   "len": 1.42,
+   "text": "相棒をゴールまで運ぶのだ"
+  },
+  {
+   "at": 19.758,
+   "len": 0.52,
+   "text": "ちなみに"
+  },
+  {
+   "at": 20.341,
+   "len": 1.02,
+   "text": "このゲームの名前は"
+  },
+  {
+   "at": 21.565,
+   "len": 0.7,
+   "text": "メロスゲーム"
   }
  ],
- "logo_at": 23.0
+ "logo_at": 21.52
 }
