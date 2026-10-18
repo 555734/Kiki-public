@@ -44,7 +44,12 @@ func run() -> void:
 			panel._on_versus()
 			await frames()
 			var versus: Control = panel._versus_view
-			versus._choose_mode(mode)
+			var mode_card: Button = versus.find_child("Mode%d" % mode,true,false)
+			check(mode_card != null, "mode has a touchable card")
+			if mode_card == null:
+				get_tree().quit(1)
+				return
+			await tap(mode_card.get_global_rect().get_center(),mouse)
 			await frames()
 			check(versus._step == 2, "room stage selection is open")
 			await tap(versus._back.get_global_rect().get_center(),mouse)
