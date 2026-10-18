@@ -428,6 +428,17 @@ func _test_the_game_has_a_voice() -> void:
 
 	check(Audio.music_running(),
 		"the stage loop and its drive layer are both running")
+	var bus_count := AudioServer.bus_count
+	for platform in ["iOS", "iOS", "Android", "Windows"]:
+		Audio._make_buses(platform)
+		var master_db := AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Master"))
+		check(is_equal_approx(master_db, -14.0 if platform == "iOS" else 0.0),
+			"platform output level is applied without accumulating: " + platform)
+		for bus in ["Music", "SFX"]:
+			check(AudioServer.get_bus_send(AudioServer.get_bus_index(bus)) == "Master",
+				"all " + bus + " voices pass through the quieter output")
+	check(AudioServer.bus_count == bus_count, "reconfiguring output creates no duplicate buses")
+	Audio._make_buses()
 
 	# Let the runner come to rest first. They spawn in the air, and a landing
 	# raises its own sound -- which overwrites the key this test is about to

@@ -311,6 +311,11 @@ if [ "$SHOTS" = "1" ]; then
 			--rendering-method gl_compatibility --rendering-driver opengl3 \
 			--resolution 1280x720 res://test/ui_probe.tscn
 
+		step "versus menu Back through real touch and mouse input"
+		run_checked xvfb-run -a -s "-screen 0 1400x900x24" "$GODOT" --path . \
+			--rendering-method gl_compatibility --rendering-driver opengl3 \
+			--resolution 1280x720 res://test/versus_menu_probe.tscn
+
 		step "how everything sits on the ground"
 		run_checked xvfb-run -a -s "-screen 0 1400x900x24" "$GODOT" --path . \
 			--rendering-method gl_compatibility --rendering-driver opengl3 \

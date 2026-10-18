@@ -1297,3 +1297,24 @@ msgstr "Stomping a head counts as a hit. Enemies go down when stomped too"
 
 msgid "ロイヤル・アリーナ"
 msgstr "Royal Arena"
+
+msgid "金色の的を撃って、口の橋を開こう"
+msgstr "Shoot the gold latch to open the mouth bridge"
+
+msgid "リフトで上へ。竹馬のひざを撃つと足場に"
+msgstr "Ride the lift. Shoot the stilt knee to make a platform"
+
+msgid "大砲の的を撃って、高い放物線で渡ろう"
+msgstr "Shoot the cannon latch for a high arc across the gap"
+
+msgid "蛇腹に乗ってから撃つ。紙吹雪の風で次の舞台へ"
+msgstr "Board the accordion, then shoot. Ride the confetti updraft"
+
+msgid "暗い人形は足場。猟犬を壁へ誘導しよう"
+msgstr "The dark puppet is a platform. Lure the hound into the wall"
+
+msgid "月を下ろして観覧車へ。的を撃つと止められる"
+msgstr "Lower the moon to board the wheel. Shoot its latch to brake"
+
+msgid "金色の的で、仕掛けを道に"
+msgstr "Shoot gold latches to open a path"

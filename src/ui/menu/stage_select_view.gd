@@ -6,7 +6,7 @@ extends VBoxContainer
 ## A card only says which stage was picked; NetPanel decides what that means
 ## (the play screen, a reload, or the purchase screen for a locked stage).
 
-const PER_PAGE := 1
+const PER_PAGE := 3
 
 var panel = null
 var page: int = 0
@@ -61,7 +61,7 @@ func _init(owner_panel, on_page: int) -> void:
 	previous.disabled = page == 0
 	previous.custom_minimum_size = Vector2(200, 54)
 	navigation.add_child(previous)
-	var page_label := UiKit.heading("%d / %d" % [first + 1, all.size()], 20, Color("073f89"))
+	var page_label := UiKit.heading("%d / %d" % [page + 1, page_count()], 20, Color("073f89"))
 	page_label.custom_minimum_size.x = 120
 	navigation.add_child(page_label)
 	var next := UiKit.action_button("次のステージ  ›", func() -> void: panel._change_stage_page(1))
@@ -126,8 +126,8 @@ func _card(info: Dictionary) -> Button:
 	var which: int = int(info["which"])
 	var button := Button.new()
 	button.text = number
-	button.custom_minimum_size = Vector2(600, 350)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.custom_minimum_size = Vector2(0, 350)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.clip_contents = true
 	button.add_theme_font_size_override("font_size", 1)
 	button.add_theme_color_override("font_color", Color.TRANSPARENT)

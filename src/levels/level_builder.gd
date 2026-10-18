@@ -52,6 +52,15 @@ func build() -> void:
 	_decor = preload("res://src/render/decor.gd").new()
 	_decor.items = Stage.decor()
 	_static_root.add_child(_decor)
+	if Stage.is_parade():
+		var acts: Array = Stage.data().acts()
+		for i in acts.size():
+			var stagecraft := preload("res://src/render/parade_stagecraft.gd").new()
+			stagecraft.act = acts[i]
+			stagecraft.index = i
+			stagecraft.runner = runner
+			stagecraft.position.x = float(acts[i].from)
+			_static_root.add_child(stagecraft)
 	if Stage.water_y() != INF:
 		_build_water()
 

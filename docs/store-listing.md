@@ -1,10 +1,10 @@
-# ストア提出物 — メロスゲーム 0.9.19
+# ストア提出物 — メロスゲーム 0.9.20
 
 App Store Connect と Google Play Console に**そのまま貼れる**文面と、
 どちらのフォームに何と答えるかをまとめたもの。ビルドの中身ではないので
 コードからは検証できない。ここが唯一の正本になる。
 
-対象ビルド: version 0.9.19（Android versionCode 46）。提出前の原稿であり、ストア提出済みを意味しません。
+対象ビルド: version 0.9.20（Android versionCode 47）。提出前の原稿であり、ストア提出済みを意味しません。
 bundle / package: iOS `com.sasakiful.sidesky` / Android `com.sasakiful.melos`
 
 > プライバシーポリシーは公開済み:
@@ -377,4 +377,18 @@ Keep running and you now shift into an even faster gear. You can now jump once m
 <!-- release-notes:en -->
 ```
 Added free stage 1-9, The Trickster Parade. Cross a theatre in the sky using a gate that becomes a bridge, a crowd-powered spring, a magnetic hoist, transforming enemies and gondolas. Added reconnect state restoration for the new stage machinery.
+```
+
+**新機能 / リリースノート（0.9.20）**
+
+<!-- release-notes:ja -->
+```
+スターたいせんのステージ選択画面で「もどる」が反応しない問題を修正しました。iOSのBGMと効果音を小さくし、協力ステージ選択を3ステージずつの表示に変更しました。ステージ1-9に幕ごとの案内、上段ルート、動く足場と崩れる足場、仕掛けの予告、復帰用足場を追加し、コインの道筋と最終幕の再開位置を改善しました。
+```
+
+**English / リリースノート（0.9.20）**
+
+<!-- release-notes:en -->
+```
+Fixed the unresponsive Back button in Star Battle stage selection. Reduced music and sound effects on iOS. Co-op stage selection now shows three stages per page. Expanded stage 1-9 with act guides, upper routes, moving and crumbling platforms, machinery warnings, recovery ledges, coin trails and a safer final checkpoint.
 ```
