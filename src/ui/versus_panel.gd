@@ -97,6 +97,10 @@ func _ready() -> void:
 	add_child(_subtitle)
 
 	_content = MarginContainer.new()
+	# This full-screen layout host overlaps Back, including its empty margin.
+	# Only its child widgets should receive GUI input; otherwise it eats taps
+	# before the sibling navigation button can see them.
+	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_content.add_theme_constant_override("margin_left", 40)
 	_content.add_theme_constant_override("margin_right", 40)

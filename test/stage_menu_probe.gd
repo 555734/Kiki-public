@@ -79,17 +79,28 @@ func _ready() -> void:
 				"runner cannot move behind the home screen")
 			check(not GameState.running, "run timer has not started on the home screen")
 			check(panel._stage_back.visible and not panel._stage_back.disabled, "stage selection has a usable back button")
-			for i in StageCards.all().size():
+			var catalogue := StageCards.all()
+			check(StageSelectView.PER_PAGE == 3, "three stages per page")
+			for i in StageSelectView.page_count():
 				panel._change_stage_page(i - panel._stage_page)
 				await get_tree().process_frame
 				var seen := _visible_stages(panel)
-				var info: Dictionary = StageCards.all()[i]
-				check(seen.size() == 1 and seen.has(info["number"]), "exactly one stage on page %d" % (i + 1))
-				check(panel._stage_view.get_child_count() == 1, "one card slot without empty placeholders")
-				var card: Button = panel._select_view.cards[int(info["which"])]
-				check(_card_unlocked(card) == Entitlement.can_play(int(info["which"])), "locks preserved for " + String(info["number"]))
+				var first := i * 3
+				check(seen.size() == mini(3, catalogue.size() - first), "correct stage count on page %d" % (i + 1))
+				check(panel._stage_view.get_child_count() == 3, "three equal card slots including final-page placeholders")
+				var previous_right := -INF
+				for j in range(first, mini(first + 3, catalogue.size())):
+					var info: Dictionary = catalogue[j]
+					check(seen.has(info["number"]), "page contains " + String(info["number"]))
+					check(StageCards.page_of(int(info["which"]), 3) == i, "selected stage opens its group of three")
+					var card: Button = panel._select_view.cards[int(info["which"])]
+					check(_card_unlocked(card) == Entitlement.can_play(int(info["which"])), "locks preserved for " + String(info["number"]))
+					var bounds := card.get_global_rect()
+					check(bounds.position.x >= previous_right and panel._stage_view.get_global_rect().encloses(bounds), "card fits row without overlap: " + String(info["number"]))
+					previous_right = bounds.end.x
+				await _capture("coop-stage-page-%d" % (i + 1))
 			await _capture("coop-stage-card")
-			var last_page := StageCards.all().size() - 1
+			var last_page := StageSelectView.page_count() - 1
 			# A different finger must not steal the swipe; vertical movement must
 			# not turn a page. At the catalogue edge a swipe must not tap a card.
 			var centre: Vector2 = panel._stage_view.get_global_rect().get_center()
@@ -99,11 +110,11 @@ func _ready() -> void:
 			check(panel._stage_page == last_page, "second finger cannot steal stage gesture")
 			_drag(panel, centre + Vector2(0, 160), 0)
 			check(panel._stage_page == last_page, "vertical drag does not turn the page")
-			panel._stage_1_9.pressed.emit()
+			panel._select_view.cards[StageCards.all()[-1].which].pressed.emit()
 			check(panel._code == null, "vertical drag release is not a stage tap")
 			_drag(panel, centre - Vector2(180, 0), 0)
 			check(panel._stage_page == last_page and panel._select_view._swipe.consumed, "edge swipe stays on last stage and consumes card tap")
-			panel._stage_1_9.pressed.emit()
+			panel._select_view.cards[StageCards.all()[-1].which].pressed.emit()
 			check(panel._code == null, "edge swipe release cannot open the play screen")
 			_touch(panel, centre, false, 0)
 			_touch(panel, centre, false, 1)
@@ -111,13 +122,13 @@ func _ready() -> void:
 			_drag(panel, centre + Vector2(180, 0), 0)
 			_touch(panel, centre + Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == last_page - 1 and _visible_stages(panel).has("1-8"), "right swipe selects previous stage")
+			check(panel._stage_page == last_page - 1 and _visible_stages(panel).has(catalogue[(last_page - 1) * 3].number), "right swipe selects previous page")
 			centre = panel._stage_view.get_global_rect().get_center()
 			_touch(panel, centre, true, 0)
 			_drag(panel, centre - Vector2(180, 0), 0)
 			_touch(panel, centre - Vector2(180, 0), false, 0)
 			await get_tree().process_frame
-			check(panel._stage_page == last_page and _visible_stages(panel).has("1-9"), "left swipe selects next stage")
+			check(panel._stage_page == last_page and _visible_stages(panel).has(catalogue[-1].number), "left swipe selects next page")
 			# The mouse has the same browsing gesture on desktop.
 			var mouse := InputEventMouseButton.new()
 			mouse.button_index = MOUSE_BUTTON_LEFT; mouse.pressed = true; mouse.position = centre

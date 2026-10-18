@@ -21,6 +21,9 @@ const BASE := "res://assets/audio/"
 ## coin while the runner lands -- does not cut itself off, and few enough to be
 ## free on a phone.
 const VOICES: int = 14
+## Leave headroom even at the first hardware-volume step on iPhone/iPad.
+## Master covers both music layers and every effect, including overlapping hits.
+const IOS_OUTPUT_DB := -14.0
 
 ## The stage loop plus a second layer mixed on top of it when things get
 ## dangerous. Not a crossfade: both play from the same position, so the music
@@ -85,7 +88,10 @@ func _ready() -> void:
 
 ## Two buses so music and effects can be balanced against each other, and so
 ## there is somewhere obvious to hang a volume slider later.
-func _make_buses() -> void:
+func _make_buses(platform: String = "") -> void:
+	var output_platform := OS.get_name() if platform.is_empty() else platform
+	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Master"),
+		IOS_OUTPUT_DB if output_platform == "iOS" else 0.0)
 	for name in ["Music", "SFX"]:
 		if AudioServer.get_bus_index(name) >= 0:
 			continue

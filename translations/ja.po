@@ -18,3 +18,27 @@ msgstr "陽光の海岸"
 
 msgid "THE MOLTEN CROSSING"
 msgstr "溶岩の峡谷"
+
+msgid "THE TRICKSTER PARADE"
+msgstr "いたずらパレード"
+
+msgid "Shoot the machines. Find the real flag."
+msgstr "仕掛けを道に変えて、本物の旗へ"
+
+msgid "FALSE ENTRANCE"
+msgstr "にせものの入り口"
+
+msgid "BACKSTAGE"
+msgstr "舞台のうら側"
+
+msgid "PARADE CROSSING"
+msgstr "パレードの横断路"
+
+msgid "ACCORDION GAP"
+msgstr "蛇腹の大ジャンプ"
+
+msgid "SPOTLIGHT GALLERY"
+msgstr "光と影の回廊"
+
+msgid "SKY WHEEL FINALE"
+msgstr "空の観覧車"

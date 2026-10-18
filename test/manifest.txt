@@ -15,6 +15,7 @@ test/agreement_probe.tscn          gated
 test/parade_stage_probe.tscn       gated
 test/parade_v2_probe.tscn          tool
 tools/play_parade_v2.tscn          live
+tools/capture_parade_polish.tscn   capture
 test/arena_motion_probe.tscn       gated
 test/arena_rules_probe.tscn        gated
 test/cave_stage_probe.tscn         gated
@@ -105,3 +106,4 @@ tools/capture_stage_landscape.tscn capture
 
 test/platform_clip_probe.tscn gated
 test/coop_pointer_probe.tscn gated
+test/versus_menu_probe.tscn shots

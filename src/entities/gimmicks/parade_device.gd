@@ -112,6 +112,23 @@ func carries(at: Vector2, width: float = -1.0, height: float = 70.0) -> bool:
 	if kind == "accordion" and not _decks.is_empty(): p.y -= _decks[0].position.y
 	return absf(p.x) < (span.x if width < 0 else width) * 0.5 and p.y > -height and p.y < 35
 
+## Warning and impact use the same shared clock as the actual force/hit.
+func warning_at(tick: int) -> bool:
+	var t := Clock.seconds_at(tick)
+	if kind == "mask":
+		return not active and fposmod(t, 4.0) >= 0.65 and fposmod(t, 4.0) <= 1.4
+	if kind == "fireworks":
+		var beat := fposmod(t + (2.4 if active else 0.0), 4.8)
+		return beat >= 1.65 and beat <= 2.4
+	return false
+
+func biting_at(tick: int) -> bool:
+	var beat := fposmod(Clock.seconds_at(tick), 4.0)
+	return kind == "mask" and not active and beat > 1.4 and beat < 1.85
+
+func cannon_velocity() -> Vector2:
+	return Vector2(460, -880) if active else Vector2(590, -380)
+
 func _physics_process(delta: float) -> void:
 	var near := not is_instance_valid(runner) or absf(runner.global_position.x - global_position.x) < 1600
 	_weight = 0
@@ -171,7 +188,7 @@ func apply_effects(crowd: Array[Node2D], delta: float) -> void:
 		var id: int = a.net_id + 1 if a is Enemy else 0
 		match kind:
 			"mask":
-				if not active and carries(a.global_position, span.x * 0.7) and fposmod(t, 4.0) > 1.4 and fposmod(t, 4.0) < 1.85:
+				if carries(a.global_position, span.x * 0.7) and biting_at(Clock.tick):
 					if a is Runner: a.die("parade")
 					else: a.take_damage(99, "parade")
 			"turntable":
@@ -186,7 +203,7 @@ func apply_effects(crowd: Array[Node2D], delta: float) -> void:
 					_spent[id] = true
 			"cannon":
 				if carries(a.global_position, 120) and Clock.tick > int(_cooldowns.get(id, -1)):
-					_kick(a, Vector2(460, -880) if active else Vector2(590, -380))
+					_kick(a, cannon_velocity())
 					_cooldowns[id] = Clock.tick + 70
 			"vent":
 				if p.x > -70 and p.x < 70 and p.y < 10 and p.y > -350:
@@ -226,7 +243,7 @@ func apply_effects(crowd: Array[Node2D], delta: float) -> void:
 
 func _draw() -> void:
 	var t := Clock.seconds_at(Clock.tick)
-	if kind == "mask": ParadeArt.mouth_on(self, 1 if active else (2 if fposmod(t, 4) > 1.4 and fposmod(t, 4) < 1.85 else 0), 310)
+	if kind == "mask": ParadeArt.mouth_on(self, 1 if active else (2 if biting_at(Clock.tick) else 0), 310)
 	elif kind not in ["wheel", "bell"] and not (kind == "breakaway" and active): ParadeArt.device_on(self, KINDS.find(kind), Rect2(-140, -230, 280, 230))
 	for b in _decks:
 		if b.collision_layer == 0: continue
@@ -270,6 +287,14 @@ func _draw() -> void:
 				Art.draw_sprite(self, "runner_idle", Vector2.ZERO, 64, false, Color(0.12, 0.2, 0.35, 0.6))
 				draw_set_transform(Vector2.ZERO)
 		"magnet": draw_line(Vector2.ZERO, Vector2(0, 120 + sin(t) * 35), GOLD, 5)
+		"cannon":
+			# A short preview of the selected launch, using the same velocity
+			# as the real shot. Dots stop before suggesting a landing surface.
+			var v := cannon_velocity()
+			for i in 8:
+				var dt := (i + 1) * 0.055
+				var at := v * dt + Vector2(0, Balance.RUNNER_GRAVITY * dt * dt * 0.5)
+				draw_circle(at, 3.5, Color(TEAL if active else GOLD,0.65))
 		"fireworks":
 			var beat := fposmod(t + (2.4 if active else 0), 4.8)
 			for i in 3:
@@ -279,6 +304,19 @@ func _draw() -> void:
 					for j in 8: draw_line(at, at + Vector2(cos(j * TAU / 8), sin(j * TAU / 8)) * 95, GOLD, 3)
 	if kind in ["accordion", "balcony"]:
 		for i in mini(6, int(_weight)): draw_circle(Vector2(-40 + i * 16, 38), 5, GOLD)
+	if warning_at(Clock.tick) or biting_at(Clock.tick):
+		var warning := Color("ffb66e") if not biting_at(Clock.tick) else Color("f16f7c")
+		var width := span.x * 0.7 if kind == "mask" else 270.0
+		draw_rect(Rect2(-width * 0.5,-18,width,10), Color(warning,0.5))
+		for i in 3:
+			var at := Vector2((i - 1) * width / 3,-45)
+			draw_line(at + Vector2(0,-14), at + Vector2(0,-3), warning,4,true)
+			draw_circle(at + Vector2(0,5),2.5,warning)
+		draw_arc(target, 28, -PI * 0.5, TAU - PI * 0.5, 32, warning,3,true)
+	if kind == "mask" and active:
+		for i in 3:
+			var at := Vector2(-60 + i * 60,-30)
+			draw_polyline(PackedVector2Array([at+Vector2(-8,-8),at,at+Vector2(-8,8)]),TEAL,3,true)
 	draw_circle(target, 22, Color("342941"))
 	draw_arc(target, 18, 0, TAU, 24, TEAL if active else GOLD, 4, true)
 	draw_line(target + Vector2(-8, 0), target + Vector2(8, 0), Color.WHITE, 2)

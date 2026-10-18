@@ -45,6 +45,15 @@ func run() -> void:
 	for e in get_tree().get_nodes_in_group("enemy"): e.set_physics_process(false)
 	check(get_tree().get_nodes_in_group("parade_device").size() == 18, "18 distinct machines built")
 	check(get_tree().get_nodes_in_group("parade_actor").size() == 11 and get_tree().get_nodes_in_group("enemy").size() == 89, "12 cast types, 89 authored enemies")
+	check(get_tree().get_nodes_in_group("parade_stagecraft").size() == 6, "all six acts have their own stagecraft and route hints")
+	check(Stage.coins().size() == 72, "eighteen coin trails guide the machinery and optional balconies")
+	for i in Stage.checkpoints().size():
+		var supported := false
+		var feet: Vector2 = Stage.checkpoints()[i] + Vector2(0,Balance.RUNNER_SIZE.y * 0.5)
+		for rect in Stage.ground():
+			if feet.x > rect.position.x and feet.x < rect.end.x and absf(feet.y - rect.position.y) < 12:
+				supported = true
+		check(supported, "retry %d has permanent ground under it" % (i + 1))
 	park(Stage.start())
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		if enemy is ParadeGremlin: enemy.set_physics_process(true)
@@ -60,6 +69,8 @@ func run() -> void:
 			await frames(2)
 			check(not d.active, "repeat shot reverses " + d.kind)
 	var gate := device("mask")
+	check(gate.warning_at(60) and not gate.biting_at(60), "jaw gives a visible warning before collision is lethal")
+	check(not gate.warning_at(92) and gate.biting_at(92), "jaw warning and bite follow the actual host clock")
 	Clock.reset(92)
 	park(gate.global_position + Vector2(0,-27))
 	await frames(5)
@@ -69,6 +80,8 @@ func run() -> void:
 	park(gate.global_position + Vector2(0,-80))
 	await frames(35)
 	check(main.runner.is_on_floor() and main.runner.state != Runner.State.DEAD, "open jaw is a real walkable bridge")
+	check(not gate.warning_at(60) and not gate.biting_at(92), "shooting the latch removes warning and lethal bite")
+	check(device("fireworks").warning_at(120) and not device("fireworks").warning_at(180), "fireworks warn before the launch beat")
 	var e := ParadeGremlin.new()
 	e.runner = main.runner
 	e.net_id = 9000
@@ -204,9 +217,27 @@ func run() -> void:
 	await frames(120)
 	check(main.runner.state != Runner.State.DEAD and main.runner.global_position.y < ride_start - 60, "real runner is carried upward by a wheel gondola")
 	Clock.set_physics_process(false)
+	# The new balcony is ridden using the same real body and clock as co-op.
+	Clock.reset(0)
+	park(Vector2(1700,230))
+	await frames(20)
+	var balcony_start: Vector2 = main.runner.global_position
+	Clock.set_physics_process(true)
+	await frames(90)
+	check(main.runner.state != Runner.State.DEAD and main.runner.global_position.x > balcony_start.x + 50 and main.runner.global_position.y < balcony_start.y - 20,
+		"optional backstage lift carries a real runner toward the upper coins")
+	Clock.set_physics_process(false)
+	# A missed timing challenge has the gallery floor below it, not a blind pit.
+	park(Vector2(4940,220))
+	await frames(100)
+	check(main.runner.state != Runner.State.DEAD and main.runner.global_position.y > 300,
+		"optional gallery step crumbles and drops the real runner onto the recovery route")
 	main.level.rebuild_dynamic()
 	await frames(3)
 	check(not device("mask").active and get_tree().get_nodes_in_group("enemy").size() == 89, "retry resets whole company and machinery")
+	park(Stage.checkpoints()[-1])
+	await frames(20)
+	check(main.runner.state != Runner.State.DEAD and main.runner.is_on_floor(), "final retry is safely below the waiting crowd")
 	# Real launch trigger + actual runner input to the final flag.
 	for enemy in get_tree().get_nodes_in_group("enemy"): enemy.set_physics_process(false)
 	park(Vector2(6350,-80))
