@@ -1,0 +1,40 @@
+name: Submit an uploaded iOS build for review
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Exact uploaded CFBundleVersion; version must match project.godot"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-review
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install the pinned submission client
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ios-review"
+          "$RUNNER_TEMP/ios-review/bin/pip" install --disable-pip-version-check codemagic-cli-tools==0.67.0 cryptography==50.0.1
+          echo "$RUNNER_TEMP/ios-review/bin" >> "$GITHUB_PATH"
+      - name: Submit this exact processed build and verify Apple state
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: python tools/submit-ios-review.py
+      - name: Save verified submission identity
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-review-status
+          path: build/ios/review-status.json
+          if-no-files-found: error
