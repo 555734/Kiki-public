@@ -49,7 +49,9 @@ check "xcode-project use-profiles" --project
 check "xcode-project build-ipa" --project --scheme --config
 check "app-store-connect publish" --path --enable-package-validation --app-store \
 	--version-string --release-type --cancel-previous-submissions \
-	--max-build-processing-wait --whats-new
+	--max-find-build-wait --max-build-processing-wait --whats-new
+check "app-store-connect builds submit-to-app-store" --version-string --release-type \
+	--max-build-processing-wait --locale --description --whats-new
 check "keychain initialize"
 check "keychain add-certificates"
 

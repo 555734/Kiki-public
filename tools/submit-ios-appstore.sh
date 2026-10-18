@@ -153,6 +153,8 @@ if [ "${SUBMIT_FOR_REVIEW:-false}" = "true" ]; then
 	NOTES="$STAGE/whats-new.txt"
 	python3 tools/release-notes.py ja > "$NOTES"
 	[ -s "$NOTES" ] || { echo "docs/store-listing.md has no release notes for this version" >&2; exit 1; }
+	# Discovery and processing have separate timeouts. Apple can take more
+	# than the default ten minutes to expose an accepted upload in the API.
 	app-store-connect publish \
 		--path "$IPA" \
 		--enable-package-validation \
@@ -160,6 +162,7 @@ if [ "${SUBMIT_FOR_REVIEW:-false}" = "true" ]; then
 		--version-string "$APP_VERSION" \
 		--release-type AFTER_APPROVAL \
 		--cancel-previous-submissions \
+		--max-find-build-wait 90 \
 		--max-build-processing-wait 90 \
 		--whats-new "@file:$NOTES"
 else
