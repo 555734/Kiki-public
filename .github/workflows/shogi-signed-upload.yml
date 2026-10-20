@@ -1,0 +1,61 @@
+name: AI Shogi Kento signed App Store upload
+on:
+  workflow_dispatch:
+    inputs:
+      shogi_commit:
+        description: 'Reviewed 555734/shogiKento commit (full SHA)'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  sign-shogi:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Require a pinned source revision
+        env:
+          SHOGI_COMMIT: ${{ inputs.shogi_commit }}
+        run: |
+          [[ "$SHOGI_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/checkout@v4
+        with:
+          repository: 555734/shogiKento
+          ref: ${{ inputs.shogi_commit }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare the Shogi app only
+        run: |
+          set -euo pipefail
+          python -m pip install py7zr==1.1.4 python-shogi==1.1.1 Pillow==11.3.0 codemagic-cli-tools
+          python native-three-minute/scripts/prepare_yaneura.py
+          python ios/scripts/prepare.py
+          python ios/scripts/build_engine.py --sdk iphoneos
+          if ! command -v xcodegen >/dev/null; then brew install xcodegen; fi
+          cd ios
+          xcodegen generate
+      - name: Reuse existing signing inside this runner and upload only Shogi
+        env:
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.ASC_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          CERTIFICATE_PRIVATE_KEY: ${{ secrets.IOS_CERTIFICATE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ios/outputs
+          bash ios/scripts/upload_app_store.sh 2>&1 | tee ios/outputs/app-store-upload.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: AI-Shogi-Kento-Signed-${{ github.run_id }}
+          path: |
+            ios/outputs/app-store-upload.txt
+            ios/outputs/AI-Shogi-Kento-AppStore-1.15.0-23.ipa
+          retention-days: 14
