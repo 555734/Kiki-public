@@ -1,0 +1,30 @@
+name: AI Shogi Kento App Review submission
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Marketing version (e.g. 1.19.0)'
+        required: true
+      build_number:
+        description: 'Uploaded build number (e.g. 28)'
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: shogi-ios-review
+  cancel-in-progress: false
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: python3 -m pip install --disable-pip-version-check cryptography==50.0.1
+      - name: Submit for review (release stays MANUAL)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          SHOGI_VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: python3 tools/shogi-ios-review.py
